@@ -164,6 +164,7 @@ add_executable(${PROJECT_NAME}
     stubs.cpp
     lwcond.cpp
     lfqueue.cpp
+    pamf.cpp
     thread_diagnostics.cpp
     ${PS3RECOMP_SCAFFOLD}
     ${HLE_NID_TABLE}
@@ -280,6 +281,10 @@ option(WKC2_BUILD_TESTS "Build port-specific regression tests" ON)
 if(WKC2_BUILD_TESTS)
     enable_testing()
     find_package(Threads REQUIRED)
+    add_executable(wkc2_pamf_test tests/pamf_test.cpp pamf.cpp)
+    target_include_directories(wkc2_pamf_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
+    add_test(NAME wkc2_pamf COMMAND wkc2_pamf_test)
+    set_tests_properties(wkc2_pamf PROPERTIES TIMEOUT 10)
     add_executable(wkc2_lwcond_test tests/lwcond_test.cpp lwcond.cpp)
     target_include_directories(wkc2_lwcond_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
     target_link_libraries(wkc2_lwcond_test PRIVATE Threads::Threads)

@@ -16,12 +16,13 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and four runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and five runtime regression checks | Compilation alone does not verify gameplay |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
 | Lifted SPU decoder produces correct output for sampled assets | Eight outputs match independent raw-DEFLATE decoding byte for byte; [record](../decompression-verification.json) | Sampled blocks, not all assets |
 | Native guest installer writes the large data archives | Three installed archives, totaling 4,364,470,879 bytes, hash-identical to their disc data; [record](../verification/installation.json) | Installation progress, not gameplay or save/load |
+| First movie header parses through the guest ABI | Real header reports two streams and 1280x720 video; native execution advances to demux/decoder startup | Movie playback remains unverified |
 | Guest flips continue during the later black screen | A 120-second probe observed 6,171 flips and 6,171 presentation calls | Counters do not establish visible rendering |
 
 ## Implemented fixes
@@ -37,9 +38,14 @@ Keep full traces, generated game code, assets and local paths in the private wor
 - Publish event queues only after host synchronization objects are initialized.
 - Wait for a pending background content check before entering the original
   installation request, preventing that request from being dropped.
+- Implement the nine imported PAMF reader APIs with guest-endian fields,
+  64-bit file sizes, actual stream descriptors and copyable guest reader state.
 
-Regression checks cover lightweight conditions, memory containers, LFQueue and
-event-queue recycling. Their scope is narrower than full-game compatibility.
+Regression checks cover PAMF reader ABI, lightweight conditions, memory containers,
+LFQueue and event-queue recycling. PAMF checks use synthetic video/audio descriptors,
+including declared data larger than 4 GiB, copied readers and malformed headers.
+An optional private-header check also passes against the first logo file.
+Their scope is narrower than full-game compatibility.
 
 ## Startup investigation
 
@@ -62,9 +68,13 @@ No completion result or installation progress was fabricated.
 
 ## Current blocker
 
-Startup now reaches the first logo movie. The PAMF reader rejects initialization
-and the guest aborts with exit code 1. Movie-reader ABI/header handling is the next
-investigation. The title screen, playback, gameplay and save/load remain unverified.
+Startup now initializes the first logo movie's PAMF reader and starts the movie
+threads. The first demux submission crashes with an execute-access violation at a
+guest stack address. The SDK demuxer uses an incompatible callback ABI and invokes
+guest addresses as host function pointers; it also synthesizes an access unit from
+the entire input instead of parsing the multiplexed stream. Correct demuxing and
+guest callback delivery are the next investigation. This is separate from parsing
+the PAMF header. The title screen, playback, gameplay and save/load remain unverified.
 Missing imports and unresolved audio-worker calls remain separate open issues.
 
 ## Still unverified

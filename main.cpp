@@ -142,6 +142,7 @@ void     cellGcm_rsx_process_fifo(void);      /* drain get -> put */
 unsigned cellGcm_flip_request_count(void);
 extern ppu_context* volatile g_ppu_main_ctx;
 void wkc2_dump_threads(void);
+void wkc2_register_pamf(void);
 }
 
 /* ---------------------------------------------------------------------------
@@ -535,6 +536,7 @@ int main(int argc, char** argv)
     ppu_hle_init();          /* firmware import NID -> HLE handlers */
     wkc2_register_lwcond();  /* register before the SDK's fallback ctx handlers */
     wkc2_register_lfqueue();
+    wkc2_register_pamf();
     ppu_sysprx_register();   /* boot-critical CRT */
     ppu_fs_register();       /* cellFs over the game directory */
     lv2_init_syscalls();     /* the lv2 syscall table */

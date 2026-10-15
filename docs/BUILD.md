@@ -47,7 +47,14 @@ build is therefore not yet a complete reproduction of the latest verified UI boo
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies the six numbered runtime patches idempotently
-and runs the lightweight-condition, memory-container, LFQueue and event-queue tests.
+and runs the PAMF reader, lightweight-condition, memory-container, LFQueue and
+event-queue tests.
+
+`pamf.cpp` supplies project-local context handlers for the nine imported PAMF APIs
+before SDK fallback registration. The reader test uses synthetic headers by default.
+`wkc2_pamf_test <private-movie-file>` additionally checks a local 2048-byte header;
+the file is not copied into the source tree or test fixtures. This covers header
+reading, not demuxing or movie playback.
 
 Set `WKC2_UPDATE_DIAGNOSTICS=1` for dispatcher/scene state samples. The generated
 update hook is applied by the build script and is disabled by default at runtime.

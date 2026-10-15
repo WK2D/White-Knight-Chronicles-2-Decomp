@@ -122,7 +122,7 @@ Queue creation publishes its host wait primitives before the queue becomes activ
 and SPURS completion sends hold table ownership through enqueue, avoiding the
 observed send-versus-create crash. A fourth regression test concurrently sends
 while creating/destroying the same queue ID 2,000 times, then checks capacity and
-payload order. All four regression checks pass.
+payload order.
 
 The FIFO walker preserves self-jumps while the SPU command producer fills its
 segment. Previously it skipped to PUT and discarded commands and completion labels;
@@ -138,10 +138,16 @@ the actual installation and starts loading the first logo movie. All three large
 installed archives (4,364,470,879 bytes total) match their disc data by SHA-256;
 see `verification/installation.json`.
 
-Current blocker: PAMF movie-reader initialization fails and the guest aborts.
-Header/ABI handling is under investigation. No title screen, movie playback,
-gameplay or save/load has been verified. Missing imports and unresolved audio-worker
-calls remain separate open issues.
+The nine imported PAMF reader APIs now use the guest ABI, big-endian output and
+actual stream descriptors. A fifth regression check covers synthetic video/audio
+headers, 64-bit sizes, copied readers and invalid input. An optional private fixture
+parses the first logo's two streams and 1280x720 video. Native startup now passes
+reader initialization and reaches movie demux/decoder threads. All five checks pass.
+
+Current blocker: the SDK demuxer invokes a guest callback as a host function and
+crashes on the first movie-buffer submission. It also needs real stream parsing.
+No title screen, movie playback, gameplay or save/load has been verified. Missing
+imports and unresolved audio-worker calls remain separate open issues.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a
 result JSON go into `work/probes/`; unrecognized SPU jobs go into the private
