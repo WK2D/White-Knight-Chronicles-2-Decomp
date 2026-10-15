@@ -1,0 +1,3 @@
+* text=auto eol=lf
+# Preserve patch context bytes, including upstream mixed line endings.
+*.patch -text -whitespace

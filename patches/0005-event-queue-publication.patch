@@ -1,0 +1,100 @@
+diff --git a/runtime/syscalls/sys_event.c b/runtime/syscalls/sys_event.c
+index 4240edf..e626617 100644
+--- a/runtime/syscalls/sys_event.c
++++ b/runtime/syscalls/sys_event.c
+@@ -26,7 +26,13 @@ sys_event_flag_info  g_sys_event_flags[SYS_EVENT_FLAG_MAX];
+ /* Table lock for allocation */
+ #ifdef _WIN32
+ static CRITICAL_SECTION s_evt_table_lock;
+-static int              s_evt_table_lock_init = 0;
++static INIT_ONCE        s_evt_table_once = INIT_ONCE_STATIC_INIT;
++static BOOL CALLBACK evt_table_init_once(PINIT_ONCE once, PVOID parameter, PVOID* context)
++{
++    (void)once; (void)parameter; (void)context;
++    InitializeCriticalSection(&s_evt_table_lock);
++    return TRUE;
++}
+ #else
+ static pthread_mutex_t  s_evt_table_lock = PTHREAD_MUTEX_INITIALIZER;
+ #endif
+@@ -34,10 +40,7 @@ static pthread_mutex_t  s_evt_table_lock = PTHREAD_MUTEX_INITIALIZER;
+ static void evt_table_lock(void)
+ {
+ #ifdef _WIN32
+-    if (!s_evt_table_lock_init) {
+-        InitializeCriticalSection(&s_evt_table_lock);
+-        s_evt_table_lock_init = 1;
+-    }
++    InitOnceExecuteOnce(&s_evt_table_once, evt_table_init_once, NULL, NULL);
+     EnterCriticalSection(&s_evt_table_lock);
+ #else
+     pthread_mutex_lock(&s_evt_table_lock);
+@@ -112,7 +115,7 @@ uint32_t sys_event_queue_create_direct(uint64_t key, int32_t size)
+ 
+     sys_event_queue_info* q = &g_sys_event_queues[slot];
+     memset(q, 0, sizeof(*q));
+-    q->active   = 1;
++    /* Published after the host wait primitives are initialized below. */
+     q->key      = key;
+     q->capacity = size;
+     q->type     = SYS_PPU_QUEUE;
+@@ -129,6 +132,7 @@ uint32_t sys_event_queue_create_direct(uint64_t key, int32_t size)
+     pthread_mutex_init(&q->lock, NULL);
+     pthread_cond_init(&q->not_empty, NULL);
+ #endif
++    q->active = 1;
+ 
+     evt_table_unlock();
+ 
+@@ -160,7 +164,7 @@ int64_t sys_event_queue_create(ppu_context* ctx)
+ 
+     sys_event_queue_info* q = &g_sys_event_queues[slot];
+     memset(q, 0, sizeof(*q));
+-    q->active   = 1;
++    /* Published after the host wait primitives are initialized below. */
+     q->key      = key;
+     q->capacity = size;
+     q->head     = 0;
+@@ -198,6 +202,7 @@ int64_t sys_event_queue_create(ppu_context* ctx)
+     pthread_mutex_init(&q->lock, NULL);
+     pthread_cond_init(&q->not_empty, NULL);
+ #endif
++    q->active = 1;
+ 
+     uint32_t queue_id = (uint32_t)(slot + 1);
+     if (id_out_addr != 0) {
+@@ -892,14 +897,20 @@ int sys_event_queue_push_by_id(uint32_t queue_id,
+                                uint64_t data2,  uint64_t data3)
+ {
+     if (queue_id == 0 || queue_id > SYS_EVENT_QUEUE_MAX) return -1;
++    /* SPURS completions can arrive while another thread creates/destroys
++     * queues. Hold allocation ownership until the push has released q->lock;
++     * otherwise active may name an uninitialized or deleted host mutex. */
++    evt_table_lock();
+     sys_event_queue_info* q = &g_sys_event_queues[queue_id - 1];
+-    if (!q->active) return -1;
++    if (!q->active) { evt_table_unlock(); return -1; }
+     sys_event_t evt;
+     evt.source = source;
+     evt.data1  = data1;
+     evt.data2  = data2;
+     evt.data3  = data3;
+-    return event_queue_push(q, &evt);
++    int rc = event_queue_push(q, &evt);
++    evt_table_unlock();
++    return rc;
+ }
+ 
+ /* Public helper: resolve an event queue by its ipc_key (as registered at
+@@ -1489,10 +1500,7 @@ void sys_event_init(lv2_syscall_table* tbl)
+     memset(g_sys_event_flags,  0, sizeof(g_sys_event_flags));
+ 
+ #ifdef _WIN32
+-    if (!s_evt_table_lock_init) {
+-        InitializeCriticalSection(&s_evt_table_lock);
+-        s_evt_table_lock_init = 1;
+-    }
++    InitOnceExecuteOnce(&s_evt_table_once, evt_table_init_once, NULL, NULL);
+ #endif
+ 
+     /* Event queues */

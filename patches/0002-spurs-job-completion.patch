@@ -1,0 +1,202 @@
+diff --git a/libs/spurs/cellSpurs.c b/libs/spurs/cellSpurs.c
+index 5e3b510..d01a57a 100644
+--- a/libs/spurs/cellSpurs.c
++++ b/libs/spurs/cellSpurs.c
+@@ -2156,6 +2156,7 @@ static struct {
+     u16 max_grab;
+     int run_count;
+     volatile long running;   /* 1 while a host thread walks this chain */
++    volatile long stop_requested;
+ } s_jobchains[MAX_JOBCHAINS];
+ 
+ static void jc_dump_commands(const char* tag, u32 ea, int max_words)
+@@ -2217,6 +2218,9 @@ static s32 jc_register(u32 jc_ea, u32 entry_ea, u16 size_desc, u16 max_grab,
+ {
+     for (int i = 0; i < MAX_JOBCHAINS; i++) {
+         if (!s_jobchains[i].jc_ea || s_jobchains[i].jc_ea == jc_ea) {
++            if (_InterlockedCompareExchange(&s_jobchains[i].running, 0, 0))
++                return CELL_EBUSY;
++            _InterlockedExchange(&s_jobchains[i].stop_requested, 0);
+             s_jobchains[i].jc_ea     = jc_ea;
+             s_jobchains[i].entry_ea  = entry_ea;
+             s_jobchains[i].size_desc = size_desc;
+@@ -2338,7 +2342,11 @@ static void jc_run_one_job(u32 job_ea, int idx, u32 size_desc)
+       }
+       _n++; }
+ 
+-    if (!ea_bin || !size_bin || ea_bin >= 0x10000000u) {
++    /* Binaries may come from heap-backed assets (sys_memory allocations),
++     * not only the ELF's low-address segments. Bound the complete image to
++     * the guest address space and the SPU local-store capacity instead. */
++    if (!ea_bin || !size_bin || size_bin > 0x40000u ||
++        (uint64_t)ea_bin + size_bin > UINT64_C(0x100000000)) {
+         static int _b = 0;
+         if (_b++ < 4)
+             printf("[cellSpurs]   job[%d]: implausible binary (ea=0x%08X size=%u) -- skipped\n",
+@@ -2467,15 +2475,23 @@ s32 cellSpursJobGuardReset(u64 guard_ea)
+     return CELL_OK;
+ }
+ 
+-/* Wait for a guard to be released. Returns 1 if it opened, 0 on timeout (the
+- * chain then gives up this pass rather than spinning the walker thread
+- * forever). An unknown guard opens immediately -- a chain guarded by something
+- * we never saw initialised must not deadlock the walker. */
+-static int jg_wait(u32 ea)
++/* Guard waits last until a notification or explicit chain shutdown. A menu
++ * may leave its renderer idle indefinitely; elapsed wall time is not a reason
++ * to terminate a live SPURS chain. */
++static int jc_stopping(u32 jc_ea)
++{
++    for (int i = 0; i < MAX_JOBCHAINS; ++i)
++        if (s_jobchains[i].jc_ea == jc_ea)
++            return _InterlockedCompareExchange(&s_jobchains[i].stop_requested, 0, 0) != 0;
++    return 1;
++}
++
++static int jg_wait(u32 ea, u32 jc_ea)
+ {
+     int i = jg_find(ea);
+     if (i < 0) return 1;
+-    for (int spin = 0; spin < 20000; spin++) {     /* ~20 s at 1 ms */
++    for (;;) {
++        if (jc_stopping(jc_ea)) return 0;
+         if (s_jobguards[i].pending >= s_jobguards[i].reset) {
+             /* Consume exactly one release worth of credits, so notifies that
+              * arrived during the previous lap still count. */
+@@ -2491,8 +2507,6 @@ static int jg_wait(u32 ea)
+         usleep(1000);
+ #endif
+     }
+-    printf("[cellSpurs] guard 0x%08X still closed after 20 s -- chain gives up\n", ea);
+-    return 0;
+ }
+ 
+ /* Tell the application a lap of chain work is done.
+@@ -2510,6 +2524,7 @@ static int jg_wait(u32 ea)
+ #endif
+ extern SPURS_JOB_TLS uint32_t g_spurs_job_mbox, g_spurs_job_mbox_intr, g_spurs_job_cmd;
+ extern SPURS_JOB_TLS int g_spurs_job_mbox_valid;
++extern SPURS_JOB_TLS int g_spurs_job_user_events;
+ 
+ /* SPURS_EVENT_D3=<n>: probe. The value a job query returns to the PPU is read
+  * from the completion event's data3 field (the guest stores r7 at sp+0xB8 and
+@@ -2526,6 +2541,10 @@ static u64 spurs_event_data3_probe(void)
+ 
+ static void jc_signal_done(u32 jc_ea, int job_index)
+ {
++    if (g_spurs_job_user_events) {
++        g_spurs_job_user_events = 0;
++        return;
++    }
+     /* Carry the job's mailbox answer in the completion event. On hardware the
+      * SPU's outbound/interrupt mailbox is what the SPURS event delivers; a
+      * synthetic payload means the caller reads back zero for whatever it
+@@ -2592,6 +2611,7 @@ static void jc_execute(u32 entry_ea, u32 jc_ea, u32 size_desc)
+      * count that instead and reset it whenever real work happens. */
+     int idle = 0;
+     for (;; idle++) {
++        if (jc_stopping(jc_ea)) return;
+         if (idle > 4096) break;
+         u64 cmd = vm_read64(pc);
+         u32 op  = (u32)(cmd & 7);
+@@ -2616,7 +2636,6 @@ static void jc_execute(u32 entry_ea, u32 jc_ea, u32 size_desc)
+         if (op == 7) {
+             if (ext == (7 | (15 << 3))) {                     /* END */
+                 printf("[cellSpurs] chain 0x%08X: END after %d job(s)\n", jc_ea, jobs);
+-                if (jobs) jc_signal_done(jc_ea, jobs - 1);
+                 return;
+             }
+             if (ext == (7 | (14 << 3))) {                     /* RET */
+@@ -2630,7 +2649,7 @@ static void jc_execute(u32 entry_ea, u32 jc_ea, u32 size_desc)
+         }
+         if (op == 7 && ext == (7 | (1 << 3))) {           /* GUARD */
+             u32 g_ea = (u32)(cmd & ~127ull);
+-            if (!jg_wait(g_ea)) return;                  /* still closed */
++            if (!jg_wait(g_ea, jc_ea)) return;            /* closed or stopped */
+             pc += 8; continue;
+         }
+         /* NOP(0) / SYNC+LWSYNC(2, one virtual SPU: nothing to wait for) /
+@@ -2654,10 +2673,9 @@ static DWORD WINAPI jc_thread(LPVOID p)
+       if (d && *d) Sleep((unsigned)atoi(d)); }
+     jc_execute(s_jobchains[slot].entry_ea, s_jobchains[slot].jc_ea,
+                s_jobchains[slot].size_desc);
+-    s_jobchains[slot].running = 0;
+-    /* Tell the application the chain is done. Without this the walk finishes
+-     * in silence and a thread waiting on the attached queue never runs again. */
+-    jc_signal_done(s_jobchains[slot].jc_ea, -1);
++    /* Publish termination only after the walker has stopped touching the
++     * chain. Per-job completions have already been delivered. */
++    _InterlockedExchange(&s_jobchains[slot].running, 0);
+     return 0;
+ }
+ 
+@@ -2690,6 +2708,7 @@ static s32 jc_start(u64 jc_ea, const char* who)
+         if (s_off || !s_jobchains[i].entry_ea) return CELL_OK;
+         /* Coalesce: a chain already being walked must not start twice. */
+         if (_InterlockedCompareExchange(&s_jobchains[i].running, 1, 0) == 0) {
++            _InterlockedExchange(&s_jobchains[i].stop_requested, 0);
+             HANDLE th = CreateThread(NULL, 1u << 20, jc_thread, (LPVOID)(intptr_t)i, 0, NULL);
+             if (th) CloseHandle(th);
+             else s_jobchains[i].running = 0;
+@@ -2724,7 +2743,7 @@ s32 cellSpursShutdownJobChain(u64 jc_ea)
+     if (_n++ < 8) printf("[cellSpurs] ShutdownJobChain(jc=0x%08X)\n", (u32)jc_ea);
+     for (int i = 0; i < MAX_JOBCHAINS; i++) {
+         if (s_jobchains[i].jc_ea == (u32)jc_ea) {
+-            s_jobchains[i].running = 0;   /* stop the walker; Join can now succeed */
++            _InterlockedExchange(&s_jobchains[i].stop_requested, 1);
+             return CELL_OK;
+         }
+     }
+@@ -2747,7 +2766,7 @@ s32 cellSpursJoinJobChain(u64 jc_ea)
+      * so that frame's data was never written at all. */
+     for (int i = 0; i < MAX_JOBCHAINS; i++) {
+         if (s_jobchains[i].jc_ea != (u32)jc_ea) continue;
+-        while (s_jobchains[i].running) {
++        while (_InterlockedCompareExchange(&s_jobchains[i].running, 0, 0)) {
+ #ifdef _WIN32
+             Sleep(0);
+ #else
+diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
+index 9e58833..0dba900 100644
+--- a/runtime/spu/spurs_job.c
++++ b/runtime/spu/spurs_job.c
+@@ -145,6 +145,9 @@ SPURS_JOB_TLS uint32_t g_spurs_job_mbox, g_spurs_job_mbox_intr;
+  * expects an answer back through the completion event. */
+ SPURS_JOB_TLS uint32_t g_spurs_job_cmd;
+ SPURS_JOB_TLS int g_spurs_job_mbox_valid;
++/* A lifted job can deliver its own completion via a real SPURS user port.
++ * The chain walker must not enqueue an additional synthetic completion. */
++SPURS_JOB_TLS int g_spurs_job_running, g_spurs_job_user_events;
+ 
+ int spu_run_spurs_job(spu_lifted_entry_fn entry, int image_id,
+                       uint32_t job_ea, uint32_t job_desc_size)
+@@ -356,7 +359,10 @@ int spu_run_spurs_job(spu_lifted_entry_fn entry, int image_id,
+      * and trips its parameter guard, which HALTS -- ending the run. So the
+      * HALT-ASSERT heqi 0x1650 seen once per jm2 job is NORMAL COMPLETION
+      * noise, not a failure: the job's real work finished before the jump. */
++    g_spurs_job_user_events = 0;
++    g_spurs_job_running = 1;
+     spu_run_with_halt(entry, &ctx);
++    g_spurs_job_running = 0;
+ 
+     /* Capture the job's outbound mailbox. These are LS POINTERS TO STRINGS for
+      * the SPU printf service, NOT query results -- value 0x83C0 from the sound
+diff --git a/runtime/syscalls/lv2_register.c b/runtime/syscalls/lv2_register.c
+index bcb1df4..ec4b10a 100644
+--- a/runtime/syscalls/lv2_register.c
++++ b/runtime/syscalls/lv2_register.c
+@@ -1648,6 +1648,14 @@ static int spu_deliver_user_event(spu_context* spu, uint32_t value)
+         if (queue) {
+             int rc = sys_event_queue_push_by_id(queue, 0xFFFFFFFF53505501ull,
+                 spu->spu_id, ((uint64_t)port << 32) | (value & 0xFFFFFFu), data);
++            if (rc == 0 && !spu->spu_group_id && port >= 16) {
++#ifdef _WIN32
++                extern __declspec(thread) int g_spurs_job_running, g_spurs_job_user_events;
++#else
++                extern __thread int g_spurs_job_running, g_spurs_job_user_events;
++#endif
++                if (g_spurs_job_running) ++g_spurs_job_user_events;
++            }
+             result = rc == 0 ? CELL_OK : CELL_EBUSY;
+         }
+     }

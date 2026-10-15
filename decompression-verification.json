@@ -1,0 +1,64 @@
+{
+  "method": "Temporary diagnostics captured eight input/output pairs around the original lifted SPU decoder at 0x3D80. Python zlib raw-DEFLATE decoding compared every output byte; diagnostics removed after capture.",
+  "probe": "20261015-224419",
+  "samples": [
+    {
+      "sample": "decode-ls-0.input",
+      "compressed_bytes": 73,
+      "decoded_bytes": 256,
+      "matches_independent_zlib": true,
+      "decoded_sha256": "e780b6e84ef4910d64ac20acfd3d493d51bfc6b72a48f989968024a6be6e4b75"
+    },
+    {
+      "sample": "decode-ls-1.input",
+      "compressed_bytes": 18756,
+      "decoded_bytes": 65536,
+      "matches_independent_zlib": true,
+      "decoded_sha256": "806cfd567f5552d2d9f68c5eb1b9032479e108103380fcba90949169de04da51"
+    },
+    {
+      "sample": "decode-ls-2.input",
+      "compressed_bytes": 22408,
+      "decoded_bytes": 65536,
+      "matches_independent_zlib": true,
+      "decoded_sha256": "01e0486de1339c07daa7547c533ed8d7a2aa84b14ee23b30c69dcf82c2208180"
+    },
+    {
+      "sample": "decode-ls-3.input",
+      "compressed_bytes": 24705,
+      "decoded_bytes": 65536,
+      "matches_independent_zlib": true,
+      "decoded_sha256": "af96bf1c54cf804f3fbc7fa6d13a6271f26420d80adf9f385a9e2fede678f84a"
+    },
+    {
+      "sample": "decode-ls-4.input",
+      "compressed_bytes": 19057,
+      "decoded_bytes": 65536,
+      "matches_independent_zlib": true,
+      "decoded_sha256": "5a7bed8f36e2a05f9bb83e2b27fc20caf2e0644815fb12f6681d0865ecb7ad16"
+    },
+    {
+      "sample": "decode-ls-5.input",
+      "compressed_bytes": 27930,
+      "decoded_bytes": 65536,
+      "matches_independent_zlib": true,
+      "decoded_sha256": "b56ee62f977e912e3fda56e3f37812cbd2d98b150a4858c734fc67b3b145c145"
+    },
+    {
+      "sample": "decode-ls-6.input",
+      "compressed_bytes": 14800,
+      "decoded_bytes": 65536,
+      "matches_independent_zlib": true,
+      "decoded_sha256": "4700b3575c0b051f42b7d95ec1a093f4ad4bf8fed7bfee12756e1c9a3b8da579"
+    },
+    {
+      "sample": "decode-ls-7.input",
+      "compressed_bytes": 35863,
+      "decoded_bytes": 65536,
+      "matches_independent_zlib": true,
+      "decoded_sha256": "cbef2cdb2f50fb1a86d6bd1c55d56c2acd5412ecc64761d81da8135c41358e6c"
+    }
+  ],
+  "title_screen_verified": false,
+  "gameplay_verified": false
+}

@@ -1,0 +1,291 @@
+diff --git a/runtime/syscalls/sys_memory.c b/runtime/syscalls/sys_memory.c
+index bfbaac5..0b46738 100644
+--- a/runtime/syscalls/sys_memory.c
++++ b/runtime/syscalls/sys_memory.c
+@@ -28,6 +28,7 @@ uint32_t g_sys_mem_bump_ptr = 0;
+ #define SYS_MEM_ALLOC_END   0x50000000u
+ 
+ static uint32_t s_total_allocated = 0;
++static uint32_t s_container_reserved = 0;
+ 
+ /* Guest threads are real host threads; serialize the bump allocator. */
+ #ifdef _WIN32
+@@ -58,29 +59,38 @@ static void write_be32(uint32_t addr, uint32_t val)
+  * r4 = flags (page size)
+  * r5 = pointer to receive allocated address (u32*)
+  * -----------------------------------------------------------------------*/
+-int64_t sys_memory_allocate(ppu_context* ctx)
++static int64_t allocate_memory(uint64_t requested_size, uint32_t container_id,
++                               uint64_t flags, uint32_t addr_out)
+ {
+-    uint32_t size      = LV2_ARG_U32(ctx, 0);
+-    uint32_t flags     = LV2_ARG_U32(ctx, 1);
+-    uint32_t addr_out  = LV2_ARG_PTR(ctx, 2);
+-
+-    fprintf(stderr, "[sys_memory] allocate(size=0x%X, flags=0x%X)\n",
+-            size, flags);
+-
+-    /* Determine alignment based on page size flags */
+-    uint32_t alignment;
+-    if (flags & SYS_MEMORY_PAGE_SIZE_1M) {
+-        alignment = 0x100000; /* 1 MB */
+-    } else {
+-        alignment = 0x10000;  /* 64 KB */
+-    }
+-
+-    size = VM_ALIGN_UP(size, alignment);
+-
+-    if (size == 0)
++    uint32_t alignment = flags == SYS_MEMORY_PAGE_SIZE_64K ? 0x10000 :
++        (flags == SYS_MEMORY_PAGE_SIZE_1M || flags == 0) ? 0x100000 : 0;
++    if (!alignment)
+         return (int64_t)(int32_t)CELL_EINVAL;
++    if (!requested_size || requested_size % alignment)
++        return (int64_t)(int32_t)CELL_EALIGN;
++    if (requested_size > UINT32_MAX)
++        return (int64_t)(int32_t)CELL_ENOMEM;
++    if (!addr_out)
++        return (int64_t)(int32_t)CELL_EFAULT;
++    uint32_t size = (uint32_t)requested_size;
+ 
+     bump_lock();
++    sys_mem_container_info* container = NULL;
++    if (container_id) {
++        if (container_id > SYS_MEMORY_CONTAINER_MAX ||
++            !g_sys_mem_containers[container_id - 1].active) {
++            bump_unlock();
++            return (int64_t)(int32_t)CELL_ESRCH;
++        }
++        container = &g_sys_mem_containers[container_id - 1];
++        if (size > container->total_size - container->used_size) {
++            bump_unlock();
++            return (int64_t)(int32_t)CELL_ENOMEM;
++        }
++    } else if (size > SYS_MEM_USER_TOTAL - s_total_allocated - s_container_reserved) {
++        bump_unlock();
++        return (int64_t)(int32_t)CELL_ENOMEM;
++    }
+ 
+     /* Initialize bump pointer on first call */
+     if (g_sys_mem_bump_ptr == 0)
+@@ -90,7 +100,7 @@ int64_t sys_memory_allocate(ppu_context* ctx)
+     g_sys_mem_bump_ptr = VM_ALIGN_UP(g_sys_mem_bump_ptr, alignment);
+ 
+     /* Check if we have room */
+-    if (g_sys_mem_bump_ptr + size > SYS_MEM_ALLOC_END) {
++    if ((uint64_t)g_sys_mem_bump_ptr + size > SYS_MEM_ALLOC_END) {
+         bump_unlock();
+         return (int64_t)(int32_t)CELL_ENOMEM;
+     }
+@@ -106,26 +116,26 @@ int64_t sys_memory_allocate(ppu_context* ctx)
+     }
+ 
+     uint32_t alloc_addr = g_sys_mem_bump_ptr;
++    /* Publish accounting only after the host commit succeeds. */
++    if (vm_commit(alloc_addr, size) != CELL_OK) {
++        bump_unlock();
++        return (int64_t)(int32_t)CELL_ENOMEM;
++    }
+     g_sys_mem_bump_ptr += size;
+-    s_total_allocated += size;
++    if (container) container->used_size += size;
++    else s_total_allocated += size;
+ 
+     sys_mem_alloc_info* a = &g_sys_mem_allocs[slot];
+     a->active       = 1;       /* claim the slot before unlocking */
+     a->addr         = alloc_addr;
+     a->size         = size;
+-    a->container_id = 0;
++    a->container_id = (int32_t)container_id;
+     a->page_size    = alignment;  /* 0x100000 (1M) or 0x10000 (64K) */
+ 
+     bump_unlock();
+ 
+-    /* Commit the pages (window is outside the pre-committed main region);
+-     * fresh commits are already zeroed by the OS */
+-    if (vm_commit(alloc_addr, size) != CELL_OK) {
+-        a->active = 0;
+-        return (int64_t)(int32_t)CELL_ENOMEM;
+-    }
+-
+-    fprintf(stderr, "[sys_memory] allocate -> 0x%08X\n", alloc_addr);
++    fprintf(stderr, "[sys_memory] allocate(size=0x%X, container=%u) -> 0x%08X\n",
++            size, container_id, alloc_addr);
+ 
+     if (addr_out != 0) {
+         write_be32(addr_out, alloc_addr);
+@@ -134,6 +144,20 @@ int64_t sys_memory_allocate(ppu_context* ctx)
+     return CELL_OK;
+ }
+ 
++int64_t sys_memory_allocate(ppu_context* ctx)
++{
++    return allocate_memory(LV2_ARG_U64(ctx, 0), 0,
++        LV2_ARG_U64(ctx, 1), LV2_ARG_PTR(ctx, 2));
++}
++
++int64_t sys_memory_allocate_from_container(ppu_context* ctx)
++{
++    uint32_t cid = LV2_ARG_U32(ctx, 1);
++    if (!cid) return (int64_t)(int32_t)CELL_ESRCH;
++    return allocate_memory(LV2_ARG_U64(ctx, 0), cid,
++        LV2_ARG_U64(ctx, 2), LV2_ARG_PTR(ctx, 3));
++}
++
+ /* ---------------------------------------------------------------------------
+  * sys_memory_free
+  *
+@@ -143,14 +167,19 @@ int64_t sys_memory_free(ppu_context* ctx)
+ {
+     uint32_t addr = LV2_ARG_U32(ctx, 0);
+ 
++    bump_lock();
+     for (int i = 0; i < SYS_MEMORY_ALLOC_MAX; i++) {
+         if (g_sys_mem_allocs[i].active && g_sys_mem_allocs[i].addr == addr) {
+-            s_total_allocated -= g_sys_mem_allocs[i].size;
++            int32_t cid = g_sys_mem_allocs[i].container_id;
++            if (cid) g_sys_mem_containers[cid - 1].used_size -= g_sys_mem_allocs[i].size;
++            else s_total_allocated -= g_sys_mem_allocs[i].size;
+             g_sys_mem_allocs[i].active = 0;
++            bump_unlock();
+             return CELL_OK;
+         }
+     }
+ 
++    bump_unlock();
+     return (int64_t)(int32_t)CELL_EINVAL;
+ }
+ 
+@@ -165,10 +194,12 @@ int64_t sys_memory_get_user_memory_size(ppu_context* ctx)
+ 
+     fprintf(stderr, "[sys_memory] get_user_memory_size()\n");
+     if (out_addr != 0) {
+-        uint32_t total = SYS_MEM_USER_TOTAL;
++        bump_lock();
++        uint32_t total = SYS_MEM_USER_TOTAL - s_container_reserved;
+         uint32_t avail = total - s_total_allocated;
+         write_be32(out_addr + 0, total);
+         write_be32(out_addr + 4, avail);
++        bump_unlock();
+     }
+ 
+     return CELL_OK;
+@@ -226,24 +257,37 @@ int64_t sys_memory_get_page_attribute(ppu_context* ctx)
+ int64_t sys_memory_container_create(ppu_context* ctx)
+ {
+     uint32_t id_out_addr = LV2_ARG_PTR(ctx, 0);
+-    uint32_t size        = LV2_ARG_U32(ctx, 1);
++    uint64_t requested_size = LV2_ARG_U64(ctx, 1) & ~UINT64_C(0xFFFFF);
++    if (!requested_size || requested_size > SYS_MEM_USER_TOTAL)
++        return (int64_t)(int32_t)CELL_ENOMEM;
++    if (!id_out_addr) return (int64_t)(int32_t)CELL_EFAULT;
++    uint32_t size = (uint32_t)requested_size;
++    bump_lock();
++    if (size > SYS_MEM_USER_TOTAL - s_total_allocated - s_container_reserved) {
++        bump_unlock();
++        return (int64_t)(int32_t)CELL_ENOMEM;
++    }
+ 
+     int slot = -1;
+     for (int i = 0; i < SYS_MEMORY_CONTAINER_MAX; i++) {
+         if (!g_sys_mem_containers[i].active) { slot = i; break; }
+     }
+-    if (slot < 0)
++    if (slot < 0) {
++        bump_unlock();
+         return (int64_t)(int32_t)CELL_EAGAIN;
++    }
+ 
+     sys_mem_container_info* c = &g_sys_mem_containers[slot];
+     c->active     = 1;
+     c->total_size = size;
+     c->used_size  = 0;
++    s_container_reserved += size;
+ 
+     uint32_t container_id = (uint32_t)(slot + 1);
+     if (id_out_addr != 0) {
+         write_be32(id_out_addr, container_id);
+     }
++    bump_unlock();
+ 
+     return CELL_OK;
+ }
+@@ -261,35 +305,48 @@ int64_t sys_memory_container_destroy(ppu_context* ctx)
+         return (int64_t)(int32_t)CELL_ESRCH;
+ 
+     sys_mem_container_info* c = &g_sys_mem_containers[container_id - 1];
+-    if (!c->active)
++    bump_lock();
++    if (!c->active) {
++        bump_unlock();
+         return (int64_t)(int32_t)CELL_ESRCH;
++    }
++    if (c->used_size) {
++        bump_unlock();
++        return (int64_t)(int32_t)CELL_EBUSY;
++    }
+ 
++    s_container_reserved -= c->total_size;
+     c->active = 0;
++    bump_unlock();
+     return CELL_OK;
+ }
+ 
+ /* ---------------------------------------------------------------------------
+  * sys_memory_container_get_size
+  *
+- * r3 = container_id
+- * r4 = pointer to output struct: { u32 total, u32 used }
++ * r3 = pointer to output struct: { u32 total, u32 available }
++ * r4 = container_id
+  * -----------------------------------------------------------------------*/
+ int64_t sys_memory_container_get_size(ppu_context* ctx)
+ {
+-    uint32_t container_id = LV2_ARG_U32(ctx, 0);
+-    uint32_t out_addr     = LV2_ARG_PTR(ctx, 1);
++    uint32_t out_addr     = LV2_ARG_PTR(ctx, 0);
++    uint32_t container_id = LV2_ARG_U32(ctx, 1);
+ 
+     if (container_id == 0 || container_id > SYS_MEMORY_CONTAINER_MAX)
+         return (int64_t)(int32_t)CELL_ESRCH;
+ 
+     sys_mem_container_info* c = &g_sys_mem_containers[container_id - 1];
+-    if (!c->active)
++    bump_lock();
++    if (!c->active) {
++        bump_unlock();
+         return (int64_t)(int32_t)CELL_ESRCH;
++    }
+ 
+     if (out_addr != 0) {
+         write_be32(out_addr + 0, c->total_size);
+-        write_be32(out_addr + 4, c->used_size);
++        write_be32(out_addr + 4, c->total_size - c->used_size);
+     }
++    bump_unlock();
+ 
+     return CELL_OK;
+ }
+@@ -498,8 +555,10 @@ void sys_memory_init(lv2_syscall_table* tbl)
+     memset(g_sys_mmapper_shared, 0, sizeof(g_sys_mmapper_shared));
+     g_sys_mem_bump_ptr = 0;
+     s_total_allocated  = 0;
++    s_container_reserved = 0;
+ 
+     lv2_syscall_register(tbl, SYS_MEMORY_ALLOCATE,             sys_memory_allocate);
++    lv2_syscall_register(tbl, SYS_MEMORY_ALLOCATE_FROM_CONTAINER, sys_memory_allocate_from_container);
+     lv2_syscall_register(tbl, SYS_MEMORY_FREE,                 sys_memory_free);
+     lv2_syscall_register(tbl, SYS_MEMORY_GET_USER_MEMORY_SIZE, sys_memory_get_user_memory_size);
+     lv2_syscall_register(tbl, SYS_MEMORY_GET_PAGE_ATTRIBUTE,   sys_memory_get_page_attribute);
+diff --git a/runtime/syscalls/sys_memory.h b/runtime/syscalls/sys_memory.h
+index 7ae67ac..a8bb0fc 100644
+--- a/runtime/syscalls/sys_memory.h
++++ b/runtime/syscalls/sys_memory.h
+@@ -57,6 +57,7 @@ extern uint32_t                 g_sys_mem_bump_ptr;  /* bump allocator pointer *
+ 
+ /* Syscall handlers */
+ int64_t sys_memory_allocate(ppu_context* ctx);
++int64_t sys_memory_allocate_from_container(ppu_context* ctx);
+ int64_t sys_memory_free(ppu_context* ctx);
+ int64_t sys_memory_get_user_memory_size(ppu_context* ctx);
+ int64_t sys_memory_get_page_attribute(ppu_context* ctx);

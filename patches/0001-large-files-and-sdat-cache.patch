@@ -1,0 +1,164 @@
+diff --git a/libs/filesystem/edat.c b/libs/filesystem/edat.c
+index 64f0ff5..14af7ad 100644
+--- a/libs/filesystem/edat.c
++++ b/libs/filesystem/edat.c
+@@ -24,6 +24,12 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <sys/stat.h>
++#ifdef _WIN32
++#define edat_seek _fseeki64
++#define stat _stat64
++#else
++#define edat_seek fseeko
++#endif
+ 
+ /* ---------------------------------------------------------------------------
+  * AES-128
+@@ -556,7 +562,7 @@ int edat_decrypt_file(const char* in_path, const char* out_path)
+                                        : data_base + (uint64_t)b * block_size;
+ 
+         uint8_t meta[0x20];
+-        if (fseek(in, (long)meta_off, SEEK_SET) != 0 ||
++        if (edat_seek(in, (int64_t)meta_off, SEEK_SET) != 0 ||
+             fread(meta, 1, meta_size, in) != meta_size) { rc = -9; break; }
+ 
+         /* With FLAG_0x20 the stored hash is the xor of the two halves. */
+@@ -571,7 +577,7 @@ int edat_decrypt_file(const char* in_path, const char* out_path)
+             len = file_size % block_size;
+         uint64_t padded = (len + 15) & ~(uint64_t)15;
+ 
+-        if (fseek(in, (long)data_off, SEEK_SET) != 0 ||
++        if (edat_seek(in, (int64_t)data_off, SEEK_SET) != 0 ||
+             fread(enc, 1, (size_t)padded, in) != padded) { rc = -10; break; }
+ 
+         /* Block key. Version 0/1 seeds from zero and uses a zero CBC IV;
+@@ -643,10 +649,25 @@ const char* edat_resolve(const char* host_path, char* buf, size_t cap)
+ 
+     if ((size_t)snprintf(buf, cap, "%s.dec", host_path) >= cap) return host_path;
+ 
++    /* Reject partial caches left by an interrupted process. */
++    uint8_t header[0x90];
++    FILE* source = fopen(host_path, "rb");
++    if (!source) return host_path;
++    size_t got = fread(header, 1, sizeof header, source);
++    fclose(source);
++    if (got != sizeof header) return host_path;
++    uint64_t expected_size = be64(header + 0x88);
+     struct stat ss, ds;
+-    if (stat(host_path, &ss) == 0 && stat(buf, &ds) == 0 && ds.st_mtime >= ss.st_mtime)
++    if (stat(host_path, &ss) == 0 && stat(buf, &ds) == 0 &&
++        ds.st_mtime >= ss.st_mtime && (uint64_t)ds.st_size == expected_size)
+         return buf;                                    /* cache still valid */
+ 
+-    if (edat_decrypt_file(host_path, buf) != 0) return host_path;
++    char partial[1400];
++    if ((size_t)snprintf(partial, sizeof partial, "%s.partial", buf) >= sizeof partial)
++        return host_path;
++    if (edat_decrypt_file(host_path, partial) != 0) return host_path;
++    /* Never publish a partial cache, even if the process is interrupted. */
++    remove(buf);
++    if (rename(partial, buf) != 0) return host_path;
+     return buf;
+ }
+diff --git a/runtime/ppu/ppu_fs.cpp b/runtime/ppu/ppu_fs.cpp
+index e8f6c2b..de39fb4 100644
+--- a/runtime/ppu/ppu_fs.cpp
++++ b/runtime/ppu/ppu_fs.cpp
+@@ -23,6 +23,14 @@
+ #include <string.h>
+ #include <stdlib.h>
+ #include <sys/stat.h>
++#ifdef _WIN32
++#define host_fseeko _fseeki64
++#define host_ftello _ftelli64
++#define stat _stat64
++#else
++#define host_fseeko fseeko
++#define host_ftello ftello
++#endif
+ #include "../platform/win32_dirent.h"   /* <dirent.h>, or a Win32 stand-in */
+ 
+ /* Guest-resolving host backtrace (ppu_loader.cpp). Must be declared at file scope:
+@@ -294,11 +302,11 @@ static void cellFsSdataOpen(ppu_context* ctx)
+      * exe's compiler). */
+     unsigned char magic[4] = {0};
+     size_t got = fread(magic, 1, 4, f);
+-    fseek(f, 0, SEEK_SET);
++    host_fseeko(f, 0, SEEK_SET);
+     if (got == 4 && magic[0]=='N' && magic[1]=='P' && magic[2]=='D') {
+         /* NPD-encrypted SDATA: decrypt it in full and serve the plaintext from
+          * an anonymous tmpfile so the title's reads see the real container. */
+-        fseek(f, 0, SEEK_END); long enc_sz = ftell(f); fseek(f, 0, SEEK_SET);
++        host_fseeko(f, 0, SEEK_END); int64_t enc_sz = host_ftello(f); host_fseeko(f, 0, SEEK_SET);
+         uint8_t* enc = (enc_sz > 0) ? (uint8_t*)malloc((size_t)enc_sz) : nullptr;
+         size_t rd = enc ? fread(enc, 1, (size_t)enc_sz, f) : 0;
+         fclose(f);
+@@ -379,7 +387,7 @@ static void cellFsRead(ppu_context* ctx)
+     uint32_t nread_ptr = (uint32_t)ctx->gpr[6];
+     if (fd < 0 || fd >= FS_MAX || !g_files[fd]) { ctx->gpr[3] = (uint64_t)(int64_t)CELL_FS_EIO; return; }
+     uint64_t raw_nbytes = ctx->gpr[5];
+-    long fpos_before = ftell(g_files[fd]);
++    int64_t fpos_before = host_ftello(g_files[fd]);
+     if (ppu_vm_size && (uint64_t)buf + nbytes > ppu_vm_size) nbytes = ppu_vm_size - buf;
+     fs_prefault(buf, nbytes);
+     size_t n = fread(vm_base + buf, 1, (size_t)nbytes, g_files[fd]);   /* raw bytes, no swap */
+@@ -397,16 +405,16 @@ static void cellFsRead(ppu_context* ctx)
+           if (!once++) fprintf(stderr, "[fs] PS3_FSLOG_EOF: fd=%d truncated at %ld bytes\n", fd, elim);
+           n = 0;
+       } }
+-    if (g_fd_usm[fd] && getenv("PS3_FSLOG_READS")) fprintf(stderr, "[USMRD] READ usm fd=%d nbytes=%llu -> %zu magic=%02X%02X%02X%02X pos=%ld lr=0x%08X\n", fd, (unsigned long long)nbytes, n, vm_base[buf], vm_base[buf+1], vm_base[buf+2], vm_base[buf+3], fpos_before, (uint32_t)ctx->lr);
++    if (g_fd_usm[fd] && getenv("PS3_FSLOG_READS")) fprintf(stderr, "[USMRD] READ usm fd=%d nbytes=%llu -> %zu magic=%02X%02X%02X%02X pos=%lld lr=0x%08X\n", fd, (unsigned long long)nbytes, n, vm_base[buf], vm_base[buf+1], vm_base[buf+2], vm_base[buf+3], fpos_before, (uint32_t)ctx->lr);
+     /* PS3_FSLOG_READS=<fd>: log every read on one descriptor. PS3_FSLOG caps at 20
+      * lines and they are all spent before a movie ever opens, so it cannot
+      * answer "is the streamer reading the .avi". */
+     { static int wfd = -2;
+       if (wfd == -2) { const char* e = getenv("PS3_FSLOG_READS"); wfd = e ? atoi(e) : -1; }
+       if (wfd >= 0 && fd == wfd)
+-          fprintf(stderr, "[fsread] fd=%d want=%llu got=%zu pos=%ld\n",
++          fprintf(stderr, "[fsread] fd=%d want=%llu got=%zu pos=%lld\n",
+                   fd, (unsigned long long)nbytes, n, fpos_before); }
+-    if (getenv("PS3_FSLOG")) { static int _fd=0; if(_fd++<20) fprintf(stderr,"[FSDBG] fd=%d raw_nbytes=0x%llX clamped=0x%llX buf=0x%08X fpos_before=%ld n=%zu eof=%d err=%d\n", fd,(unsigned long long)raw_nbytes,(unsigned long long)nbytes,buf,fpos_before,n,feof(g_files[fd]),ferror(g_files[fd])); }
++    if (getenv("PS3_FSLOG")) { static int _fd=0; if(_fd++<20) fprintf(stderr,"[FSDBG] fd=%d raw_nbytes=0x%llX clamped=0x%llX buf=0x%08X fpos_before=%lld n=%zu eof=%d err=%d\n", fd,(unsigned long long)raw_nbytes,(unsigned long long)nbytes,buf,fpos_before,n,feof(g_files[fd]),ferror(g_files[fd])); }
+ #ifdef _WIN32
+     if (getenv("PS3_FSLOG") && buf==0 && raw_nbytes>0x10000) { static int _b=0; if(_b++<2){ void* fr[30]; unsigned short nn=RtlCaptureStackBackTrace(0,30,fr,0); uintptr_t mb=(uintptr_t)GetModuleHandleA(0); fprintf(stderr,"[FSBT] null-buf read caller rvas:"); for(unsigned short i=0;i<nn&&i<16;i++) fprintf(stderr," %llX",(unsigned long long)((uintptr_t)fr[i]-mb)); fprintf(stderr,"\n"); } }
+ #endif
+@@ -531,8 +539,8 @@ static void cellFsLseek(ppu_context* ctx)
+     if (getenv("FS_CALLER")) { char w[64]="?"; ppu_guest_caller(w,sizeof w);
+         fprintf(stderr, "[fs] lseek fd=%d off=%lld whence=%u  (by %s)\n", fd, (long long)off, wh, w); }
+     int worigin = (wh == CELL_FS_SEEK_END) ? SEEK_END : (wh == CELL_FS_SEEK_CUR) ? SEEK_CUR : SEEK_SET;
+-    fseek(g_files[fd], (long)off, worigin);
+-    long p = ftell(g_files[fd]);
++    if (host_fseeko(g_files[fd], off, worigin) != 0) { ctx->gpr[3] = (uint64_t)(int64_t)CELL_FS_EIO; return; }
++    int64_t p = host_ftello(g_files[fd]);
+     if (pos_ptr) vm_write64(pos_ptr, (uint64_t)p);
+     ctx->gpr[3] = CELL_OK;
+ }
+@@ -583,10 +591,10 @@ static void cellFsFstat(ppu_context* ctx)
+     if (fd < 0 || fd >= FS_MAX || !g_files[fd]) { ctx->gpr[3] = (uint64_t)(int64_t)CELL_FS_EIO; return; }
+     if (getenv("FS_CALLER")) { char w[64]="?"; ppu_guest_caller(w,sizeof w);
+         fprintf(stderr, "[fs] fstat fd=%d  (by %s)\n", fd, w); }
+-    long cur = ftell(g_files[fd]);
+-    fseek(g_files[fd], 0, SEEK_END);
+-    long sz = ftell(g_files[fd]);
+-    fseek(g_files[fd], cur, SEEK_SET);
++    int64_t cur = host_ftello(g_files[fd]);
++    host_fseeko(g_files[fd], 0, SEEK_END);
++    int64_t sz = host_ftello(g_files[fd]);
++    host_fseeko(g_files[fd], cur, SEEK_SET);
+     /* FS_FSTAT_CAP=<bytes>: DIAGNOSTIC. Report a smaller size than the file
+      * has. You Don't Know Jack reads a 100 KB archive whole but only probes
+      * (open/fstat/close) its 500 KB and 2.4 MB ones; if that branch is driven
+@@ -597,10 +605,10 @@ static void cellFsFstat(ppu_context* ctx)
+       if (cap && only && *only && !(g_fd_path[fd][0] && strstr(g_fd_path[fd], only))) cap = 0;
+       if (cap) { long c = strtol(cap, 0, 0);
+           if (c > 0 && sz > c) {
+-              fprintf(stderr, "[fs] fstat fd=%d size %ld -> capped %ld (FS_FSTAT_CAP)\n", fd, sz, c);
++              fprintf(stderr, "[fs] fstat fd=%d size %lld -> capped %ld (FS_FSTAT_CAP)\n", fd, sz, c);
+               sz = c; } } }
+     if (sb) write_stat(sb, CELL_FS_S_IFREG | 0x1B6, (uint64_t)sz);
+-    if (getenv("PS3_FSLOG")) { static int _n=0; if(_n++<12) fprintf(stderr,"[FSDBG] cellFsFstat(fd=%d) -> size=0x%lX\n",fd,sz); }
++    if (getenv("PS3_FSLOG")) { static int _n=0; if(_n++<12) fprintf(stderr,"[FSDBG] cellFsFstat(fd=%d) -> size=0x%llX\n",fd,sz); }
+     ctx->gpr[3] = CELL_OK;
+ }
+ 

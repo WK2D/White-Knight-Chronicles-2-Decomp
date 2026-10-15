@@ -1,0 +1,50 @@
+{
+  "title_id": "BLUS30784",
+  "app_version": "01.00",
+  "execution": "native Windows x86-64 static recompilation with D3D12",
+  "verified": {
+    "native_language_selection_rendered": true,
+    "language_selection_controller_response": true,
+    "copyright_page_rendered": true,
+    "startup_warning_rendered": true,
+    "title_screen": false,
+    "gameplay": false,
+    "save_load": false,
+    "macOS_Apple_Silicon": false
+  },
+  "captures": [
+    {
+      "file": "language-selection.bmp",
+      "private_source_probe": "20261015-231841.frames/frame_001.bmp",
+      "sha256": "381311a2f00ece113356f64e7cdbe56a2a12dd2952bc8102489e04d1d2cfb7bb",
+      "method": "unmodified D3D12 GPU readback; visually inspected"
+    },
+    {
+      "file": "startup-warning.bmp",
+      "private_source_probe": "20261015-232002.frames/frame_011.bmp",
+      "sha256": "e1f6f5bcae0086ee3c88fa55c9175afa0eb17a1242bc5de7e5138a57083e0a1f",
+      "method": "unmodified D3D12 GPU readback; visually inspected"
+    }
+  ],
+  "checks": {
+    "passed": [
+      "wkc2_lwcond",
+      "wkc2_memory",
+      "wkc2_lfqueue",
+      "wkc2_event_queue"
+    ],
+    "event_queue_recycles": 2000
+  },
+  "probe": {
+    "name": "20261015-232356",
+    "seconds": 120,
+    "guest_flips": 6171,
+    "presentation_calls": 6171,
+    "terminated_at_time_limit": true,
+    "host_exception_observed": false,
+    "d3d12_error_observed": false,
+    "idle_guard_timeout_observed": false,
+    "controller_script": "5:0x4000,35:0x4000,60:0x0008,90:0x4000",
+    "note": "Later GPU captures are black. Counts do not prove title-screen rendering or gameplay."
+  }
+}

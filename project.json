@@ -1,0 +1,12 @@
+{
+  "title": "White Knight Chronicles II",
+  "title_id": "BLUS30784",
+  "app_version": "01.00",
+  "ps3recomp_commit": "a2c20108af45174dbb7d3e2f87f6acaaef09c6b4",
+  "initial_platform": "Windows x86-64",
+  "future_platform": "macOS Apple Silicon",
+  "native_gameplay_verified": false,
+  "native_startup_ui_verified": true,
+  "native_title_screen_verified": false,
+  "native_save_load_verified": false
+}
