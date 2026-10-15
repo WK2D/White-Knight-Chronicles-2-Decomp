@@ -46,15 +46,35 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies the six numbered runtime patches idempotently
-and runs the PAMF reader, lightweight-condition, memory-container, LFQueue and
-event-queue tests.
+SDAT archives. The build applies the seven numbered runtime patches idempotently
+and runs eight checks: callback stacks, demux ABI/lifetimes, MPEG packet/access-unit
+parsing, PAMF reader, lightweight conditions, memory containers, LFQueue and event queues.
 
 `pamf.cpp` supplies project-local context handlers for the nine imported PAMF APIs
 before SDK fallback registration. The reader test uses synthetic headers by default.
 `wkc2_pamf_test <private-movie-file>` additionally checks a local 2048-byte header;
 the file is not copied into the source tree or test fixtures. This covers header
 reading, not demuxing or movie playback.
+
+`dmux.cpp` supplies project-local demux handlers, including QueryAttr and QueryEsAttr,
+which were absent from the SDK library's handler surface. Work sizes describe the
+project implementation's buffers. The worker queues actual units in guest resources
+and calls guest OPDs; it waits when resources fill until the guest releases units.
+No completion or timestamps are synthesized to skip movie content.
+
+Offline private media validation (PyAV is an optional verification dependency):
+
+```text
+wkc2_mpegps_test <private-movie-file> <private-output-prefix>
+python tools/verify_movie_units.py <private-movie-file> <private-output-prefix> --record <private-record.json>
+```
+
+The test exports elementary video/audio plus video-unit sizes to the private prefix.
+The verifier decodes those video units and compares every frame against FFmpeg's
+independent MPEG demux/decode of the original movie. It also decodes exported AC-3
+when present. Records contain hashes and counts, never game bytes or host paths.
+The checked samples are in `verification/movie-demux.json`. This does not establish
+native playback: real codec output and movie-worker behavior still need work.
 
 Set `WKC2_UPDATE_DIAGNOSTICS=1` for dispatcher/scene state samples. The generated
 update hook is applied by the build script and is disabled by default at runtime.

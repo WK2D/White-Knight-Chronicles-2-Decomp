@@ -1,0 +1,126 @@
+{
+  "verified_on": "2026-10-16",
+  "scope": "Offline access-unit extraction and independent video decoding; native playback is not verified.",
+  "samples": {
+    "first_logo": {
+      "input_sha256": "d55bdd4fb5f19723e9ff6c115d9acb1c86a43d8d952169ad5663e15d5a5b725b",
+      "video_units": 210,
+      "decoded_frames": 210,
+      "all_frame_pixels_match_independent_demux_and_decode": true,
+      "width": 1280,
+      "height": 720,
+      "comparison_format": "yuv420p",
+      "ordered_frame_hashes_sha256": "57dc690521151557e91303668236e4347f2bf79a5e660980dbb454ed51a1563a",
+      "video_elementary_stream_sha256": "b0f50fd32772fb8ed9f3f41717d41f2c74b6e8c552b5e536c8e849dc9ffcb043",
+      "independent_decoder": "FFmpeg through PyAV",
+      "pyav_version": "18.1.0",
+      "ffmpeg_libraries": {
+        "libavutil": [
+          60,
+          26,
+          102
+        ],
+        "libavcodec": [
+          62,
+          28,
+          102
+        ],
+        "libavformat": [
+          62,
+          12,
+          102
+        ],
+        "libavdevice": [
+          62,
+          3,
+          102
+        ],
+        "libavfilter": [
+          11,
+          14,
+          102
+        ],
+        "libswscale": [
+          9,
+          5,
+          102
+        ],
+        "libswresample": [
+          6,
+          3,
+          102
+        ]
+      },
+      "native_playback_verified": false,
+      "audio": {
+        "codec": "LPCM",
+        "bytes": 1345920,
+        "elementary_stream_sha256": "62104a4cf3f605d5d719b1982fa3fae6d915f56563eb960984e43c71c102c6dc",
+        "independent_audio_decode_verified": false
+      }
+    },
+    "opening_movie": {
+      "input_sha256": "d6fb0fc3dadb2eb67088b25bb37ad329943ab4824e47d31ea7d048d38d65256e",
+      "video_units": 3596,
+      "decoded_frames": 3596,
+      "all_frame_pixels_match_independent_demux_and_decode": true,
+      "width": 1280,
+      "height": 720,
+      "comparison_format": "yuv420p",
+      "ordered_frame_hashes_sha256": "f1f6f61648f00c8bee2d16eb4c320cc924aad9cfebc7929b9add3a3fcc07eb11",
+      "video_elementary_stream_sha256": "9860109fd5c26e26a9a8f1f990f3bad4f567788ac8716ad3446c5cf74c3c7103",
+      "independent_decoder": "FFmpeg through PyAV",
+      "pyav_version": "18.1.0",
+      "ffmpeg_libraries": {
+        "libavutil": [
+          60,
+          26,
+          102
+        ],
+        "libavcodec": [
+          62,
+          28,
+          102
+        ],
+        "libavformat": [
+          62,
+          12,
+          102
+        ],
+        "libavdevice": [
+          62,
+          3,
+          102
+        ],
+        "libavfilter": [
+          11,
+          14,
+          102
+        ],
+        "libswscale": [
+          9,
+          5,
+          102
+        ],
+        "libswresample": [
+          6,
+          3,
+          102
+        ]
+      },
+      "native_playback_verified": false,
+      "audio": {
+        "codec": "AC3",
+        "independently_decoded_frames": 3750,
+        "samples_per_channel": 5760000,
+        "sample_rate": 48000,
+        "elementary_stream_sha256": "2764126fd71717eac4cf28198a861bb3bc6572a0b9ceb7b87f73f1d0f26edb07"
+      }
+    }
+  },
+  "limitations": [
+    "LPCM bytes were extracted, but independent LPCM audio comparison is not established.",
+    "Native decoder workers still report errors after receiving the extracted access units.",
+    "No game bytes, decoded frames or host paths are included."
+  ]
+}

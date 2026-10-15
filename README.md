@@ -142,12 +142,20 @@ The nine imported PAMF reader APIs now use the guest ABI, big-endian output and
 actual stream descriptors. A fifth regression check covers synthetic video/audio
 headers, 64-bit sizes, copied readers and invalid input. An optional private fixture
 parses the first logo's two streams and 1280x720 video. Native startup now passes
-reader initialization and reaches movie demux/decoder threads. All five checks pass.
+reader initialization and reaches movie demux/decoder threads.
 
-Current blocker: the SDK demuxer invokes a guest callback as a host function and
-crashes on the first movie-buffer submission. It also needs real stream parsing.
-No title screen, movie playback, gameplay or save/load has been verified. Missing
-imports and unresolved audio-worker calls remain separate open issues.
+`dmux.cpp` now supplies memory queries, real MPEG program-stream/access-unit
+parsing, guest callbacks, AU lifetimes and queue backpressure. Independent decoding
+matches every pixel in 3,806 extracted video frames across the logo and opening
+movie; extracted AC-3 also decodes. See [verification](verification/movie-demux.json).
+The native guest receives actual video and LPCM units through its decoder calls.
+Callback stacks are isolated across host threads and nesting. Eight checks pass.
+
+Current blocker: movie workers report decoder errors after the first submissions.
+The SDK configuration still uses placeholder decoded output. Decoder ABI/order and
+real video/audio decoding are next. No title screen, native movie playback, gameplay
+or save/load has been verified. Missing imports and unresolved audio-worker calls
+remain separate open issues.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a
 result JSON go into `work/probes/`; unrecognized SPU jobs go into the private

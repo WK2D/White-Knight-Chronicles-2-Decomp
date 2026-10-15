@@ -165,6 +165,7 @@ add_executable(${PROJECT_NAME}
     lwcond.cpp
     lfqueue.cpp
     pamf.cpp
+    dmux.cpp
     thread_diagnostics.cpp
     ${PS3RECOMP_SCAFFOLD}
     ${HLE_NID_TABLE}
@@ -265,6 +266,7 @@ endif()
 #   - /bigobj on MSVC. A single lifted file routinely passes the 65,536-section
 #     limit of the default object format.
 if(MSVC)
+    set_source_files_properties(dmux.cpp PROPERTIES COMPILE_OPTIONS "/EHsc")
     set_source_files_properties(${RECOMP_SOURCES} PROPERTIES
         COMPILE_OPTIONS "/w;/bigobj")
 else()
@@ -281,6 +283,22 @@ option(WKC2_BUILD_TESTS "Build port-specific regression tests" ON)
 if(WKC2_BUILD_TESTS)
     enable_testing()
     find_package(Threads REQUIRED)
+    add_executable(wkc2_callback_stack_test tests/callback_stack_test.cpp)
+    target_include_directories(wkc2_callback_stack_test PRIVATE "${PS3RECOMP_DIR}/runtime/ppu")
+    target_link_libraries(wkc2_callback_stack_test PRIVATE Threads::Threads)
+    add_test(NAME wkc2_callback_stack COMMAND wkc2_callback_stack_test)
+    set_tests_properties(wkc2_callback_stack PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_dmux_test tests/dmux_test.cpp dmux.cpp)
+    target_include_directories(wkc2_dmux_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
+    target_link_libraries(wkc2_dmux_test PRIVATE Threads::Threads)
+    add_test(NAME wkc2_dmux COMMAND wkc2_dmux_test)
+    set_tests_properties(wkc2_dmux PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_mpegps_test tests/mpegps_test.cpp)
+    if(MSVC)
+        target_compile_options(wkc2_mpegps_test PRIVATE /EHsc)
+    endif()
+    add_test(NAME wkc2_mpegps COMMAND wkc2_mpegps_test)
+    set_tests_properties(wkc2_mpegps PROPERTIES TIMEOUT 10)
     add_executable(wkc2_pamf_test tests/pamf_test.cpp pamf.cpp)
     target_include_directories(wkc2_pamf_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
     add_test(NAME wkc2_pamf COMMAND wkc2_pamf_test)

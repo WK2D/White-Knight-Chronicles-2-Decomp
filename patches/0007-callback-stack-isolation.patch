@@ -1,0 +1,88 @@
+diff --git a/runtime/ppu/ppu_loader.cpp b/runtime/ppu/ppu_loader.cpp
+index bf75dc8..0fbca01 100644
+--- a/runtime/ppu/ppu_loader.cpp
++++ b/runtime/ppu/ppu_loader.cpp
+@@ -31,6 +31,7 @@
+ #endif
+ 
+ #include "ppu_tls.h"   /* PPU_THREAD_LOCAL, without a second ppu_context */
++#include "guest_callback_stack.hpp"
+ #include "ppu_recomp.h"
+ #include "ps3emu/milestone.h"   /* ps3_ms / ps3_msf -- boot milestone log */     /* ppu_context, func decls, ppu_recomp_register */
+ #include "../memory/vm.h"   /* vm_commit -- sys_mmapper_search_and_map maps for real */
+@@ -3611,14 +3612,11 @@ extern "C" uint64_t ppu_guest_call(uint32_t opd_addr,
+                 vm_read32(opd_addr + 8), vm_read32(opd_addr + 12));
+         return 0; }
+ 
+-    /* Private scratch stack high in the guest stack region, distinct from the
+-     * main + ppu_thread stacks. One callback at a time per caller thread. */
+-    static PPU_THREAD_LOCAL uint32_t s_cb_sp = 0;
+-    if (!s_cb_sp) s_cb_sp = 0xCFFE0000u;
++    ps3recomp::GuestCallbackStack callback_stack;
+ 
+     ppu_context ctx;
+     memset(&ctx, 0, sizeof(ctx));
+-    ctx.gpr[1]  = s_cb_sp;
++    ctx.gpr[1]  = callback_stack.top;
+     ctx.gpr[2]  = toc;
+     ctx.gpr[3]  = a0; ctx.gpr[4] = a1; ctx.gpr[5] = a2; ctx.gpr[6] = a3;
+     ctx.gpr[7]  = a4; ctx.gpr[8] = a5; ctx.gpr[9] = a6; ctx.gpr[10] = a7;
+@@ -3658,12 +3656,11 @@ extern "C" uint64_t ppu_guest_call_ct(uint32_t code, uint32_t toc,
+     ppu_fn fn = ppu_lookup(code);
+     if (!fn) { fprintf(stderr, "[ppu] guest_call_ct: code 0x%08X not registered\n", code); return 0; }
+ 
+-    static PPU_THREAD_LOCAL uint32_t s_cb_sp = 0;
+-    if (!s_cb_sp) s_cb_sp = 0xCFFE0000u;
++    ps3recomp::GuestCallbackStack callback_stack;
+ 
+     ppu_context ctx;
+     memset(&ctx, 0, sizeof(ctx));
+-    ctx.gpr[1]  = s_cb_sp;
++    ctx.gpr[1]  = callback_stack.top;
+     ctx.gpr[2]  = toc;
+     ctx.gpr[3]  = a0; ctx.gpr[4] = a1; ctx.gpr[5] = a2; ctx.gpr[6] = a3;
+     ctx.gpr[7]  = a4; ctx.gpr[8] = a5; ctx.gpr[9] = a6; ctx.gpr[10] = a7;
+diff --git a/runtime/ppu/guest_callback_stack.hpp b/runtime/ppu/guest_callback_stack.hpp
+new file mode 100644
+--- /dev/null
++++ b/runtime/ppu/guest_callback_stack.hpp
+@@ -0,0 +1,39 @@
++/* Each host callback thread needs distinct guest stack memory. A TLS variable
++ * containing the same constant address does not provide that isolation.
++ * Slots are returned when the host thread exits; nested callbacks use a separate
++ * 64 KiB slice within their thread's 1 MiB slot. This range is outside WKC2's
++ * mapped heaps and below the normal PPU thread-stack region.
++ */
++#pragma once
++#include <array>
++#include <cstdint>
++#include <cstdio>
++#include <cstdlib>
++#include <mutex>
++
++namespace ps3recomp {
++class GuestCallbackStack {
++    struct Pool { std::mutex mutex; std::array<bool,128> used{}; };
++    static Pool& pool() { static Pool value; return value; }
++    struct Lease {
++        unsigned slot=128;
++        Lease() {
++            auto& p=pool(); std::lock_guard l(p.mutex);
++            for(unsigned i=0;i<p.used.size();++i) if(!p.used[i]) {p.used[i]=true; slot=i; break;}
++            if(slot==128) {std::fputs("[ppu] guest callback stack pool exhausted\n",stderr); std::abort();}
++        }
++        ~Lease() {auto& p=pool(); std::lock_guard l(p.mutex); p.used[slot]=false;}
++    };
++    static Lease& lease() {static thread_local Lease value; return value;}
++    static unsigned& depth() {static thread_local unsigned value=0; return value;}
++public:
++    const uint32_t top;
++    GuestCallbackStack():top(0xCFFF0000u-lease().slot*0x100000u-depth()*0x10000u) {
++        if(depth()>=16) {std::fputs("[ppu] guest callback nesting exceeds stack slot\n",stderr); std::abort();}
++        ++depth();
++    }
++    ~GuestCallbackStack() {--depth();}
++    GuestCallbackStack(const GuestCallbackStack&)=delete;
++    GuestCallbackStack& operator=(const GuestCallbackStack&)=delete;
++};
++}
