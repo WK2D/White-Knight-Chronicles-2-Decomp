@@ -10,6 +10,8 @@ import re
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('generated', type=Path)
 p.add_argument('functions', nargs='+', type=lambda s: int(s, 16))
+p.add_argument('--env', default='WKC2_TRACE_CALLS',
+               type=lambda s: s if re.fullmatch(r'[A-Z][A-Z0-9_]*', s) else p.error('Invalid environment variable name'))
 a = p.parse_args()
 for addr in a.functions:
     found = False
@@ -21,13 +23,13 @@ for addr in a.functions:
         if end < 0: end = len(text)
         body = text[start:end]
         marker = f'[WKC2-CALL:{addr:08X}]'
-        body = re.sub(r'\s*if \(getenv\("WKC2_TRACE_CALLS"\)\) fprintf\(stderr, "' +
+        body = re.sub(r'\s*if \(getenv\("[A-Z][A-Z0-9_]*"\)\) fprintf\(stderr, "' +
             re.escape(marker) + r'[^\n]*?\);', '', body)
         body = re.sub(r'(func_[0-9A-F]{8}\(ctx\);)(?!\s*DRAIN_TRAMPOLINE\(ctx\);)',
             r'\1 DRAIN_TRAMPOLINE(ctx);', body)
         # A tail branch queues a trampoline; the result exists only after drain.
         body = re.sub(r'(func_([0-9A-F]{8})\(ctx\);\s*DRAIN_TRAMPOLINE\(ctx\);)',
-            lambda m: f'\n        if (getenv("WKC2_TRACE_CALLS")) fprintf(stderr, "{marker} enter={m[2]} a3=%llX a4=%llX a5=%llX a6=%llX\\n", (unsigned long long)ctx->gpr[3], (unsigned long long)ctx->gpr[4], (unsigned long long)ctx->gpr[5], (unsigned long long)ctx->gpr[6]);\n        ' + m[1] + f'\n        if (getenv("WKC2_TRACE_CALLS")) fprintf(stderr, "{marker} callee={m[2]} lr=%08X r3=%08X\\n", (uint32_t)ctx->lr, (uint32_t)ctx->gpr[3]);', body)
+            lambda m: f'\n        if (getenv("{a.env}")) fprintf(stderr, "{marker} enter={m[2]} a3=%llX a4=%llX a5=%llX a6=%llX\\n", (unsigned long long)ctx->gpr[3], (unsigned long long)ctx->gpr[4], (unsigned long long)ctx->gpr[5], (unsigned long long)ctx->gpr[6]);\n        ' + m[1] + f'\n        if (getenv("{a.env}")) fprintf(stderr, "{marker} callee={m[2]} lr=%08X r3=%08X\\n", (uint32_t)ctx->lr, (uint32_t)ctx->gpr[3]);', body)
         text = text[:start] + body + text[end:]
         if '#include <stdlib.h>' not in text:
             text = '#include <stdlib.h>\n' + text

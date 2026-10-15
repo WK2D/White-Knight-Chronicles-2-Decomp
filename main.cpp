@@ -213,6 +213,54 @@ extern "C" unsigned ppu_boot_frames_presented(void)
 
 extern "C" void ppu_dump_bctrl_ring(uint32_t thread_id, const char* tag);
 
+static uint32_t g_startup_object = 0;
+static uint32_t g_startup_state = 0;
+
+/* The original installer request drops a request if another command-2 check
+ * is pending. Native execution can reach it before the worker gets CPU time.
+ * Finish that check before entering the original request path; the guest still
+ * performs the allocation, filesystem installation and completion checks. */
+extern "C" void wkc2_wait_for_content_check(void)
+{
+    uint32_t content = vm_read32(0x0134C544);
+    if (!content) return;
+    bool waited = false;
+    while (vm_read8(content+2) && !vm_read8(content+0x12)) {
+        if (!waited) fprintf(stderr, "[content-sync] waiting for pending check before installation request\n");
+        waited = true;
+        Sleep(1);
+    }
+    if (waited) fprintf(stderr, "[content-sync] check completed; entering original installation request\n");
+}
+
+extern "C" void wkc2_observe_content_request(ppu_context* ctx)
+{
+    if (!getenv("WKC2_CONTENT_TRACE")) return;
+    fprintf(stderr, "[content-request] caller=%08X cmd=%u args=%u/%u/%u/%u/%u\n",
+        (uint32_t)ctx->lr, (uint32_t)ctx->gpr[3], (uint32_t)ctx->gpr[4],
+        (uint32_t)ctx->gpr[5], (uint32_t)ctx->gpr[6], (uint32_t)ctx->gpr[7], (uint32_t)ctx->gpr[8]);
+    uint32_t content = vm_read32(0x0134C544);
+    uint32_t cmd = (uint32_t)ctx->gpr[3];
+    if (content && cmd < 12) fprintf(stderr, "[content-request] issued=%u done=%u current=%u\n",
+        vm_read8(content+cmd), vm_read8(content+cmd+0x10), vm_read32(content+0x4C));
+}
+
+extern "C" void wkc2_observe_content_worker(ppu_context* ctx)
+{
+    if (!getenv("WKC2_CONTENT_TRACE")) return;
+    uint32_t content=vm_read32(0x0134C544);
+    fprintf(stderr, "[content-worker] r31=%08X r30=%08X result=%08X current=%u issued2=%u done2=%u\n",
+        (uint32_t)ctx->gpr[31],(uint32_t)ctx->gpr[30],(uint32_t)ctx->gpr[3],
+        vm_read32(content+0x4C),vm_read8(content+2),vm_read8(content+0x12));
+}
+
+extern "C" void wkc2_observe_startup(uint32_t object, uint32_t state_context)
+{
+    if (!getenv("WKC2_UPDATE_DIAGNOSTICS")) return;
+    g_startup_object = object;
+    g_startup_state = state_context ? vm_read32(state_context) : 0;
+}
+
 /* Called on the guest update thread, so dispatcher fields form a coherent sample. */
 extern "C" void wkc2_observe_update(uint32_t app)
 {
@@ -230,9 +278,32 @@ extern "C" void wkc2_observe_update(uint32_t app)
     uint32_t model = root ? vm_read32(root) : 0;
     if (model) fprintf(stderr, "[game-state] model=%08X stage=%04X substage=%04X\n", model,
         vm_read16(model+0x114), vm_read16(model+0x14A));
+    if (g_startup_object) {
+        uint32_t object = g_startup_object;
+        fprintf(stderr, "[startup] object=%08X state=%u next=%d current=%d requested=%d command=%u active=%u f61=%u f62=%u time_bits=%08X\n",
+            object, g_startup_state, (int32_t)vm_read32(object+0x50), (int32_t)vm_read32(object+0x54),
+            (int32_t)vm_read32(object+0x58), vm_read32(object+0x5C), vm_read8(object+0x60),
+            vm_read8(object+0x61), vm_read8(object+0x62), vm_read32(object+0x64));
+        uint32_t pending = vm_read32(object+0x6C);
+        uint32_t content = vm_read32(0x0134C544);
+        uint32_t operation = content ? vm_read32(content+0x1FF4) : 0;
+        fprintf(stderr, "[startup-wait] pending=%08X step=%u content=%08X operation=%08X\n",
+            pending, pending ? vm_read32(pending) : 0, content, operation);
+        if (content) fprintf(stderr, "[content-state] command=%u a0=%08X a1=%08X a2=%08X freeKB=%08X sizeKB=%08X needKB=%08X issued2=%u done2=%u\n",
+            vm_read32(content+0x4C),vm_read32(content+0x50),vm_read32(content+0x54),vm_read32(content+0x58),
+            vm_read32(content+0xF04),vm_read32(content+0xF08),vm_read32(content+0x2018),vm_read8(content+2),vm_read8(content+0x12));
+        if (operation) for (unsigned offset=0; offset<0x80; offset+=0x10)
+            fprintf(stderr, "[content-op] +%02X %08X %08X %08X %08X\n", offset,
+                vm_read32(operation+offset), vm_read32(operation+offset+4),
+                vm_read32(operation+offset+8), vm_read32(operation+offset+12));
+    }
     if (scene) {
         fprintf(stderr, "[scene] root=%08X scene=%08X mode=%u phase=%u kind=%u\n", root, scene,
             vm_read32(scene + 0x10E0), vm_read32(scene + 0x10E4), vm_read32(scene + 0x10EC));
+        fprintf(stderr, "[scene] result=%u category=%u flags=%02X/%02X/%02X/%02X/%02X/%02X\n",
+            vm_read32(scene+0x10E8), vm_read32(scene+0x111C), vm_read8(scene+0x1128),
+            vm_read8(scene+0x1129), vm_read8(scene+0x112A), vm_read8(scene+0x112B),
+            vm_read8(scene+0x112C), vm_read8(scene+0x112D));
         for (unsigned offset = 0x110; offset < 0x1D0; offset += 0x10)
             fprintf(stderr, "[scene] +%04X %08X %08X %08X %08X\n", offset,
                 vm_read32(scene+offset), vm_read32(scene+offset+4),

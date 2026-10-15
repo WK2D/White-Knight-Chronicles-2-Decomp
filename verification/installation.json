@@ -1,0 +1,40 @@
+{
+  "title_id": "BLUS30784",
+  "app_version": "01.00",
+  "date": "2026-10-16",
+  "execution": "native Windows x86-64",
+  "probe": "20261016-001833",
+  "method": "SHA-256 of installed archive files compared with authenticated disc plaintext caches, or the original unencrypted disc archive. All bytes hashed.",
+  "verified_archive_bytes": 4364470879,
+  "archives": [
+    {
+      "file": "d00h.psarc.sdat",
+      "bytes": 2318824285,
+      "sha256": "f0f9ee90b345d32f9c461136e2d6512d5a0018d6de6e8de641266bd4b189c758",
+      "matches_source": true
+    },
+    {
+      "file": "d01h.psarc.sdat",
+      "bytes": 132539766,
+      "sha256": "3f4fe300c2c812b0abf53c8fb0e4b47154d354bf7931ceff30199644d4b2378d",
+      "matches_source": true
+    },
+    {
+      "file": "d04h.psarc",
+      "bytes": 1913106828,
+      "sha256": "c70db0c09c6cab2e1f5dded4a28af5f0f5ceb16e80b19d50a14dfe774fec6550",
+      "matches_source": true
+    }
+  ],
+  "title_screen_verified": false,
+  "gameplay_verified": false,
+  "save_load_verified": false,
+  "next_failure": "PAMF reader initialization for the first logo movie returns an error and the guest aborts.",
+  "repeat_validation": {
+    "probe": "20261016-002047",
+    "initial_emulated_hdd": "empty isolated directory",
+    "detailed_tracing_enabled": false,
+    "all_three_archives_match": true,
+    "next_failure_reproduced": "PAMF initialization error; guest exit code 1"
+  }
+}

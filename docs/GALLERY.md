@@ -5,8 +5,8 @@ using USA BLUS30784 v01.00. These are game-frame GPU readbacks, losslessly encod
 as PNG. All optional metadata has been removed. Images contain the game frame only.
 
 **Current status:** startup UI renders and language selection responds to controller
-input. The title screen, gameplay and save/load are still unverified. Later frames
-are currently black; the next task is tracing the startup transition.
+input. The title screen, gameplay and save/load are still unverified. The installer now advances
+startup, but movie-reader initialization fails before the first logo can play.
 
 ## 2026-10-15 — Language selection
 

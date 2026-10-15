@@ -8,5 +8,11 @@
   "native_gameplay_verified": false,
   "native_startup_ui_verified": true,
   "native_title_screen_verified": false,
-  "native_save_load_verified": false
+  "native_save_load_verified": false,
+  "progress_reporting": {
+    "findings_log": "docs/FINDINGS.md",
+    "screenshot_gallery": "docs/GALLERY.md",
+    "publish_verified_milestones": true
+  },
+  "native_data_installation_verified": true
 }

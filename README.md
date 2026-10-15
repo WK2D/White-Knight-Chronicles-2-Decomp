@@ -8,6 +8,7 @@ gameplay are distinct milestones. Passing an analysis or build step does not
 establish that the game works.
 
 See [build instructions](docs/BUILD.md) and [contribution workflow](docs/CONTRIBUTING.md).
+The [findings log](docs/FINDINGS.md) tracks verified results, open issues and next steps.
 
 ## Progress gallery
 
@@ -130,15 +131,17 @@ and semaphore waits are excluded from the stalled-GET recovery heuristic. SPURS
 guard waits now last until notification or shutdown instead of killing an idle
 chain after 20 seconds.
 
-Current investigation: after the startup notices, later captured frames are black.
-A late RSX batch contains a black clear and a final composite, without title-scene
-draws. Dispatcher sampling confirms 47 callbacks continue executing. The main
-game state remains at stage 0x0066 / substage 0x04B0 (callback 0x002F4570); this
-is the next guest-logic path to investigate.
-The 120-second probe remained live, with no observed D3D12 error or host exception;
-that does not establish a rendered title screen.
-Missing cellFiber imports and unresolved indirect calls on audio worker thread 16
-still require investigation. Title screen, gameplay and save/load remain unverified.
+The later startup stall was traced to a dropped installation request: a background
+check was still pending when the request arrived. `tools/apply_port_hooks.py`
+installs synchronization before the original guest request. The guest then performs
+the actual installation and starts loading the first logo movie. All three large
+installed archives (4,364,470,879 bytes total) match their disc data by SHA-256;
+see `verification/installation.json`.
+
+Current blocker: PAMF movie-reader initialization fails and the guest aborts.
+Header/ABI handling is under investigation. No title screen, movie playback,
+gameplay or save/load has been verified. Missing imports and unresolved audio-worker
+calls remain separate open issues.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a
 result JSON go into `work/probes/`; unrecognized SPU jobs go into the private

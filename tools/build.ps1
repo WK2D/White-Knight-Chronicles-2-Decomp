@@ -34,6 +34,7 @@ if ($Regenerate) {
     Invoke-CheckedPython "$project/tools/extract_raw_jobs.py" --sdk $sdk --elf $elf --images "$analysis/spu-images"
     Invoke-CheckedPython "$sdk/tools/build_spu_workloads.py" --images "$analysis/spu-images" --lifted "$generated/spu" --out "$generated/spu/spu_workloads.c" --register-fn wkc2_spu_register_all --constructor --title wkc2 --relift
 }
+Invoke-CheckedPython "$project/tools/apply_port_hooks.py" "$generated/ppu"
 Invoke-CheckedPython "$project/tools/apply_diagnostics.py" "$generated/ppu"
 cmake -S $project -B $build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl "-DPS3RECOMP_DIR=$sdk" "-DRECOMP_DIR=$generated/ppu" "-DSPU_DIR=$generated/spu" "-DDIRECTX_HEADERS_DIR=$Workspace/work/deps/DirectX-Headers" "-DPython3_EXECUTABLE=$python" '-DCMAKE_C_FLAGS=/w' '-DCMAKE_CXX_FLAGS=/w' -DPORT_ENABLE_SPU=ON -DWKC2_BUILD_TESTS=ON
 if ($LASTEXITCODE -ne 0) { throw 'CMake configuration failed' }

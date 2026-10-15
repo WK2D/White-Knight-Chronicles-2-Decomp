@@ -33,6 +33,7 @@
 /verification/*
 !/verification/rendering.json
 !/verification/gallery.json
+!/verification/installation.json
 !/verification/screenshots/
 /verification/screenshots/*
 !/verification/screenshots/*.png

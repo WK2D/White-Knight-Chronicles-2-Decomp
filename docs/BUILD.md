@@ -53,6 +53,14 @@ Set `WKC2_UPDATE_DIAGNOSTICS=1` for dispatcher/scene state samples. The generate
 update hook is applied by the build script and is disabled by default at runtime.
 Probe logs and GPU captures go to the private workspace.
 
+`tools/apply_port_hooks.py` installs synchronization before the original guest
+installation request: a pending background content check must finish first.
+This prevents a faster native caller from losing the install request to the
+guest helper's pending-request guard. Allocation, copying and completion checks
+remain in the original guest path. The hook is reapplied after regeneration.
+`tools/trace_calls.py --env WKC2_CONTENT_TRACE` supports a separate trace switch
+for focused content diagnostics, without enabling other instrumented functions.
+
 `Wkc2Decompile.java` is a Ghidra 12.1.4 headless script for selected-function analysis
 using `PowerPC:BE:64:64-32addr`. It takes a private TSV inventory (hex start, exclusive
 end, TOC), a private output directory, and hex function addresses. It is an analysis
