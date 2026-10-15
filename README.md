@@ -9,14 +9,24 @@ establish that the game works.
 
 See [build instructions](docs/BUILD.md) and [contribution workflow](docs/CONTRIBUTING.md).
 
+## Progress gallery
+
+Native language selection, startup warning and autosave notice are now visible.
+See the [dated screenshots and verification notes](docs/GALLERY.md).
+Title screen, gameplay and save/load remain unverified.
+
+[![Native language-selection screen](verification/screenshots/2026-10-15-language-selection.png)](docs/GALLERY.md)
+
 ## Workspace layout
 
 The source project is here. Private game files, generated game code, build
 directories, downloaded tools and dependency checkouts live under a separate
-private workspace's `work/` directory. No original game files or generated game code are included
-in this source project.
+private workspace's `work/` directory. Original game files and generated game code
+are kept there; reviewed screenshots are published separately in the gallery.
 
-The pinned SDK revision is recorded in `project.json`. Runtime changes must be
+The port uses the [PS3Recomp SDK](https://github.com/sp00nznet/ps3recomp).
+Its pinned revision is recorded in `project.json`; its license is retained in
+`LICENSE.ps3recomp`. Runtime changes must be
 recorded as patches rather than silently updating that revision.
 
 ## Analysis
@@ -104,8 +114,8 @@ textures with a black previous-frame copy during WKC2 startup.
 The runner consumes each pending flip once, removing a duplicate presentation
 path. A 120-second probe observed 6,171 guest flips and 6,171 presentation calls.
 GPU readback, rather than those counters, establishes the visible UI milestone.
-Unmodified GPU captures are retained in the private workspace; the source-only
-repository includes reviewed verification metadata.
+Original GPU captures are retained in the private workspace. The gallery publishes
+lossless PNG versions with optional metadata removed, alongside verification notes.
 
 Queue creation publishes its host wait primitives before the queue becomes active,
 and SPURS completion sends hold table ownership through enqueue, avoiding the
@@ -145,16 +155,3 @@ snapshots at each progress report.
 `tools/trace_calls.py` optionally adds opt-in return/argument
 tracing to selected generated functions. Those diagnostics are disabled unless
 `WKC2_TRACE_CALLS=1` is set.
-
-## Other port references
-
-- [PS3Recomp](https://github.com/sp00nznet/ps3recomp) is the SDK already in use.
-  This revision includes André Brum's GoW II / Ben 10 lifter and graphics fixes,
-  credited in the SDK's CONTRIBUTORS.md (PRs 179, 207, 208 and 206).
-- [God of War II HD](https://github.com/andrebrumdev/gow2-recomp) is a close
-  technical reference: PPU/SPU lifting, SPURS/FIOS, Metal and Apple Silicon.
-  Its authors document Apple Silicon gameplay measurements. This is their
-  reported result, not a test performed with White Knight Chronicles II.
-- [God of War III Remastered](https://github.com/FelipePrado0/gow3_pc) targets
-  the PS4 x86-64 version. Its system-layer and validation practices are useful
-  references, but its CPU execution path does not solve PS3 PPU/SPU translation.

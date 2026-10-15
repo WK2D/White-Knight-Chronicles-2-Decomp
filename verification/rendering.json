@@ -10,7 +10,8 @@
     "title_screen": false,
     "gameplay": false,
     "save_load": false,
-    "macOS_Apple_Silicon": false
+    "macOS_Apple_Silicon": false,
+    "autosave_notice_rendered": true
   },
   "captures": [
     {
@@ -46,5 +47,6 @@
     "idle_guard_timeout_observed": false,
     "controller_script": "5:0x4000,35:0x4000,60:0x0008,90:0x4000",
     "note": "Later GPU captures are black. Counts do not prove title-screen rendering or gameplay."
-  }
+  },
+  "gallery": "gallery.json"
 }

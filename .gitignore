@@ -32,5 +32,9 @@
 !/docs/*.md
 /verification/*
 !/verification/rendering.json
+!/verification/gallery.json
+!/verification/screenshots/
+/verification/screenshots/*
+!/verification/screenshots/*.png
 **/__pycache__/
 *.pyc

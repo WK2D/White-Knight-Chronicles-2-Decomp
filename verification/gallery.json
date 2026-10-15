@@ -1,0 +1,58 @@
+{
+  "title_id": "BLUS30784",
+  "app_version": "01.00",
+  "execution": "native Windows x86-64, D3D12",
+  "captures": [
+    {
+      "milestone": "language_selection",
+      "date": "2026-10-15",
+      "image": "screenshots/2026-10-15-language-selection.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "381311a2f00ece113356f64e7cdbe56a2a12dd2952bc8102489e04d1d2cfb7bb",
+      "png_sha256": "00c661ef8c3348ac316fb6f9747fac74623a321b13045cf27ed90576e8e1faa7",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
+      "milestone": "startup_warning",
+      "date": "2026-10-15",
+      "image": "screenshots/2026-10-15-startup-warning.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "e1f6f5bcae0086ee3c88fa55c9175afa0eb17a1242bc5de7e5138a57083e0a1f",
+      "png_sha256": "e08a070d5a515ac92ea23b6bd234877920c03634cc731c631ed8dd1a32b88646",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
+      "milestone": "autosave_notice",
+      "date": "2026-10-15",
+      "image": "screenshots/2026-10-15-autosave-notice.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "6dc84c1909fe897f27945fcf55c193bc2e8b136950309d9cae7f1a97e977e1c3",
+      "png_sha256": "9c7126943c7f82ffaa8794b70aeed28aa9bf9f4202b527c123bf19c322918c0d",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    }
+  ]
+}
