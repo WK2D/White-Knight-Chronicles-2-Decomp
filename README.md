@@ -51,10 +51,15 @@ Avatar confirmation now enters the **WKC1 opening movie**; completing GPU batche
 at guest flip boundaries prevents presentation from stalling at that transition.
 Full visual fidelity, interactive gameplay and save/load remain unverified.
 
-[![Native playback of the prerecorded WKC1 opening movie](verification/screenshots/2026-10-16-native-wkc1-opening-movie.png)](docs/GALLERY.md)
+Vulkan is the primary Windows renderer. It now renders the avatar and room
+without its initial red tint after correcting colour-target feedback. D3D12
+remains available as an optional comparison/fallback build. Both execute the
+recompiled C/C++ game code natively. Full-game rendering remains unverified.
 
-The latest image shows prerecorded movie footage. Earlier avatar-rendering
-captures are in the gallery.
+[![Native Vulkan WKC1 avatar and room](verification/screenshots/2026-10-16-native-vulkan-avatar-colours.png)](docs/GALLERY.md)
+
+The latest image shows live 3D character creation. Earlier captures, including
+prerecorded opening-movie footage, are in the gallery.
 
 ## Workspace layout
 

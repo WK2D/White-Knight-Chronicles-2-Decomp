@@ -1,7 +1,7 @@
 {
   "title_id": "BLUS30784",
   "app_version": "01.00",
-  "execution": "native Windows x86-64 static recompilation with D3D12",
+  "execution": "native Windows x86-64 static recompilation; Vulkan primary, D3D12 optional fallback",
   "verified": {
     "native_language_selection_rendered": true,
     "language_selection_controller_response": true,
@@ -22,7 +22,8 @@
     "avatar_body_geometry": true,
     "avatar_material_and_face_shading": false,
     "avatar_material_and_face_shading_improved": true,
-    "avatar_full_visual_fidelity": false
+    "avatar_full_visual_fidelity": false,
+    "vulkan_avatar_colour_feedback": true
   },
   "captures": [
     {
@@ -1205,5 +1206,57 @@
     "world_rendering_visually_correct": false,
     "interactive_3d_gameplay_verified": false,
     "save_load_verified": false
+  },
+  "experimental_vulkan": {
+    "sdk_patch_count": 38,
+    "port_checks_passed": 35,
+    "normal_probe": "20261016-220818",
+    "startup_title_wkc1_selection_and_name_entry_verified": true,
+    "avatar_and_room_rendered": true,
+    "before_colour_feedback_probe": "20261016-214615",
+    "before_colour_feedback_red_tint": true,
+    "colour_feedback_red_tint_removed": true,
+    "method": "Unmodified native Vulkan GPU readbacks, visually inspected; source pixels match metadata-free PNG",
+    "presented_dimensions": [
+      1920,
+      1080
+    ],
+    "scene_dimensions": [
+      1280,
+      720
+    ],
+    "colour_feedback_regression_passed": true,
+    "colour_feedback_negative_control_failed_checks": 10,
+    "separate_depth_targets_implemented": true,
+    "render_state_overrides_enabled": false,
+    "debugger_writes": false,
+    "formal_renderer_performance_comparison_completed": false,
+    "later_world_rendering_verified": false,
+    "interactive_gameplay_verified": false,
+    "save_load_verified": false,
+    "macOS_execution_verified": false,
+    "implementation_sources": [
+      {
+        "repository": "n0madic/Soulcalibur2HD-recomp",
+        "commit": "88e6cc842a7853e093e8dbab8ac053ac1ad51cc7",
+        "used_for": "Shared draw engine resolve path and Windows Vulkan backend; patches 0035/0036"
+      },
+      {
+        "repository": "JonathanDC64/ps3recomp",
+        "commit": "61909373a2cb59f8679d8b96382e2899d656e4d0",
+        "used_for": "off_rt_snapshot requirement and timing adapted through the shared colour-copy interface; patch 0038"
+      }
+    ]
+  },
+  "windows_ppu_join_lifetime": {
+    "regression_passed": true,
+    "negative_control_failed": true,
+    "slot_reuse_iterations": 128,
+    "thread_limit_increased": false,
+    "native_observation_probe": "20261016-214615",
+    "observed_running_slots": 28,
+    "observed_finished_slots": 2,
+    "observed_free_slots": 34,
+    "later_loading_transition_fixed_verified": false
   }
 }

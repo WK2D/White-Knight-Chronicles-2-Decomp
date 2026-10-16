@@ -77,8 +77,17 @@ message(STATUS "Lifted sources:  ${RECOMP_SOURCE_COUNT} file(s)")
 if(WIN32 AND DEFINED DIRECTX_HEADERS_DIR)
     include_directories(BEFORE SYSTEM "${DIRECTX_HEADERS_DIR}/include/directx")
 endif()
+option(PS3RECOMP_RSX_VULKAN "Use the shared Vulkan renderer" ${WIN32})
+if(WIN32 AND PS3RECOMP_RSX_VULKAN)
+    find_package(glslang CONFIG REQUIRED)
+endif()
 add_subdirectory("${PS3RECOMP_DIR}" "${CMAKE_BINARY_DIR}/ps3recomp_sdk"
                  EXCLUDE_FROM_ALL)
+if(WIN32 AND PS3RECOMP_RSX_VULKAN)
+    if(NOT TARGET glslang::glslang OR NOT TARGET glslang::SPIRV)
+        message(FATAL_ERROR "WKC Vulkan requires glslang with SPIR-V support. Run tools/prepare-vulkan.ps1 first.")
+    endif()
+endif()
 
 # ---------------------------------------------------------------------------
 # The HLE NID table
@@ -350,6 +359,12 @@ if(WKC2_BUILD_TESTS)
     add_test(NAME wkc2_spurs_abi COMMAND wkc2_spurs_abi_test)
     set_tests_properties(wkc2_spurs_abi PROPERTIES TIMEOUT 10)
     if(WIN32)
+        add_executable(wkc2_ppu_join_test tests/ppu_join_test.c
+            "${PS3RECOMP_DIR}/runtime/syscalls/sys_ppu_thread.c")
+        target_include_directories(wkc2_ppu_join_test PRIVATE
+            "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/syscalls")
+        add_test(NAME wkc2_ppu_join COMMAND wkc2_ppu_join_test)
+        set_tests_properties(wkc2_ppu_join PROPERTIES TIMEOUT 20)
         add_executable(wkc2_osk_window_test tests/osk_window_test.cpp)
         target_link_libraries(wkc2_osk_window_test PRIVATE user32 gdi32 Threads::Threads)
         if(MSVC)
@@ -403,6 +418,31 @@ if(WKC2_BUILD_TESTS)
         "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
     add_test(NAME wkc2_vp_cache COMMAND wkc2_vp_cache_test)
     set_tests_properties(wkc2_vp_cache PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_fp_identity_test tests/fp_identity_test.c
+        "${PS3RECOMP_DIR}/libs/video/rsx_fp_decompiler.c")
+    target_include_directories(wkc2_fp_identity_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
+    if(NOT WIN32)
+        target_link_libraries(wkc2_fp_identity_test PRIVATE m)
+    endif()
+    add_test(NAME wkc2_fp_identity COMMAND wkc2_fp_identity_test)
+    set_tests_properties(wkc2_fp_identity PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_draw_engine_test
+        "${PS3RECOMP_DIR}/libs/video/tests/test_rsx_draw_engine.c"
+        "${PS3RECOMP_DIR}/libs/video/rsx_draw_engine.c"
+        "${PS3RECOMP_DIR}/libs/video/rsx_dispatch.c"
+        "${PS3RECOMP_DIR}/libs/video/rsx_vertex_fetch.c"
+        "${PS3RECOMP_DIR}/libs/video/rsx_vertex_compact.c"
+        "${PS3RECOMP_DIR}/libs/video/rsx_texture_layout.c"
+        "${PS3RECOMP_DIR}/libs/video/rsx_vp_decompiler.c"
+        "${PS3RECOMP_DIR}/libs/video/rsx_fp_decompiler.c")
+    target_include_directories(wkc2_draw_engine_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
+    if(NOT WIN32)
+        target_link_libraries(wkc2_draw_engine_test PRIVATE m)
+    endif()
+    add_test(NAME wkc2_draw_engine COMMAND wkc2_draw_engine_test)
+    set_tests_properties(wkc2_draw_engine PROPERTIES TIMEOUT 15)
     add_executable(wkc2_texture_layout_test
         "${PS3RECOMP_DIR}/libs/video/tests/test_texture_layout.c"
         "${PS3RECOMP_DIR}/libs/video/rsx_texture_layout.c")

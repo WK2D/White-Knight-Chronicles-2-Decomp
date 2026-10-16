@@ -1,8 +1,27 @@
 {
   "title_id": "BLUS30784",
   "app_version": "01.00",
-  "execution": "native Windows x86-64, D3D12",
+  "execution": "native Windows x86-64; renderer recorded per capture",
   "captures": [
+    {
+      "milestone": "native_vulkan_avatar_colour_feedback",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-native-vulkan-avatar-colours.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "Vulkan shared RSX draw engine",
+      "source_format": "Vulkan GPU readback PPM",
+      "source_sha256": "3f619e80ede2a60363a8e0330e0a487cd8ac546f2fb8ee3c543fa39a8148d351",
+      "png_sha256": "8e02e5df4eefa7e3ac5949f82a122f540ce6e92bd473ad430deee9731631053f",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "native_gameplay_verified": false
+    },
     {
       "milestone": "wkc1_opening_movie_after_avatar_confirmation",
       "date": "2026-10-16",
@@ -18,7 +37,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "wkc1_native_name_entry_and_review",
@@ -35,7 +55,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "native-avatar-shading",
@@ -52,7 +73,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "native-avatar-body-geometry",
@@ -69,7 +91,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "native-3d-room",
@@ -86,7 +109,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "avatar-customization-ui",
@@ -103,7 +127,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "wkc1-selection",
@@ -120,7 +145,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "readable-new-game",
@@ -137,7 +163,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "new_game_menu",
@@ -154,7 +181,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "title_menu",
@@ -171,7 +199,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "havok_dolby",
@@ -188,7 +217,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "japan_studio",
@@ -205,7 +235,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "sony_presents",
@@ -222,7 +253,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "d3publisher_logo",
@@ -239,7 +271,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "first_decoded_logo_frame",
@@ -257,7 +290,8 @@
         "IEND",
         "IHDR"
       ],
-      "continuous_playback_verified": false
+      "continuous_playback_verified": false,
+      "renderer": "D3D12"
     },
     {
       "milestone": "autosave_notice",
@@ -274,7 +308,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "startup_warning",
@@ -291,7 +326,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     },
     {
       "milestone": "language_selection",
@@ -308,7 +344,8 @@
         "IDAT",
         "IEND",
         "IHDR"
-      ]
+      ],
+      "renderer": "D3D12"
     }
   ]
 }

@@ -1,0 +1,99 @@
+diff --git a/libs/video/rsx_fp_decompiler.h b/libs/video/rsx_fp_decompiler.h
+--- a/libs/video/rsx_fp_decompiler.h
++++ b/libs/video/rsx_fp_decompiler.h
+@@ -173,4 +173,8 @@
+ /* Kept from this tree (see the .c) -- used by rsx_d3d12_backend.c. */
+ int rsx_fp_extract_consts(const u8* ucode, u32 max_bytes, float* out, int max_out);
+ u32 rsx_fp_code_hash(const u8* ucode, u32 max_bytes);
++/* Exact instruction identity for buffered shaders. Inline constant payloads
++ * and bytes after END do not affect identity; malformed programs never match.
++ * Use this in addition to a hash so collisions cannot share a pipeline. */
++int rsx_fp_code_equal(const u8* a, u32 a_bytes, const u8* b, u32 b_bytes);
+ #endif /* PS3RECOMP_RSX_FP_DECOMPILER_H */
+diff --git a/libs/video/rsx_fp_decompiler.c b/libs/video/rsx_fp_decompiler.c
+--- a/libs/video/rsx_fp_decompiler.c
++++ b/libs/video/rsx_fp_decompiler.c
+@@ -1177,6 +1177,26 @@
+  * on their values, so including them in the pipeline key made it change every
+  * time the title re-patched a constant -- which is exactly what thrashed the
+  * cache. */
++int rsx_fp_code_equal(const u8* a, u32 a_bytes, const u8* b, u32 b_bytes)
++{
++    const u32 an = rsx_fp_program_size(a,a_bytes);
++    const u32 bn = rsx_fp_program_size(b,b_bytes);
++    if (!an || an != bn) return 0;
++    u32 off = 0;
++    while (off + 16 <= an) {
++        if (memcmp(a+off,b+off,16)) return 0;
++        const u32 w0=rsx_fp_read_word(a+off);
++        const u32 w1=rsx_fp_read_word(a+off+4);
++        const u32 w2=rsx_fp_read_word(a+off+8);
++        const u32 w3=rsx_fp_read_word(a+off+12);
++        off += 16;
++        /* Match the decompiler's instruction/constant-slot layout exactly. */
++        if (fp_instruction_has_constant(w1,w2,w3)) off += 16;
++        if (w0 & FP_END) return off == an;
++    }
++    return 0;
++}
++
+ u32 rsx_fp_code_hash(const u8* ucode, u32 max_bytes)
+ {
+     u32 h = 2166136261u;
+diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
+--- a/libs/video/rsx_d3d12_backend.c
++++ b/libs/video/rsx_d3d12_backend.c
+@@ -203,10 +203,9 @@
+     int nrt;                /* bound colour target count (PSO key)       */
+     u32 rtfmt;              /* DXGI format of the colour targets (PSO key) */
+     int exp32;              /* 32-bit-exports control bit (PSO key)       */
+-    u32 ucode_hash;         /* FNV-1a of the FP ucode: apps re-patch inline
+-                             * constants per frame (wave's stamp position/
+-                             * amplitude) -- address-only keying served the
+-                             * stale compile forever. */
++    u32 ucode_hash;         /* structural hash, excluding runtime constants */
++    u32 ucode_bytes;
++    u8 ucode[VP_FP_MAX_BYTES]; /* collision-checked instruction identity */
+     u32 cmask;              /* colour write mask (PSO key) */
+     u32 cull;               /* packed face culling (PSO key) */
+     u32 alpha_key;          /* alpha-test enable and comparison, not reference */
+@@ -2307,12 +2306,16 @@
+ 
+     /* Buffered HLSL depends on instructions; each draw snapshots payloads
+      * into b1 separately, so changing a constant does not require a new PSO. */
+-    u32 uhash = rsx_fp_code_hash(vm_base + off, VP_FP_MAX_BYTES);
+-    s_perf_pso_hashbytes += (int)rsx_fp_program_size(vm_base + off, VP_FP_MAX_BYTES);
++    u32 ucode_bytes = rsx_fp_program_size(vm_base + off, VP_FP_MAX_BYTES);
++    if (!ucode_bytes) return NULL;
++    u32 uhash = rsx_fp_code_hash(vm_base + off, ucode_bytes);
++    s_perf_pso_hashbytes += (int)ucode_bytes;
+ 
+     s_perf_pso_calls++;
+     for (int i = 0; i < s_d3d.vp_fp_n; i++)
+-        if (s_d3d.vp_fp[i].fp_addr != fp_addr || s_d3d.vp_fp[i].depth_key != dr->depth_key) continue;   /* cheap reject first */
++        if (s_d3d.vp_fp[i].depth_key != dr->depth_key ||
++            s_d3d.vp_fp[i].ucode_hash != uhash ||
++            s_d3d.vp_fp[i].ucode_bytes != ucode_bytes) continue;
+         else if (s_d3d.vp_fp[i].vs_idx == vs_idx &&
+             s_d3d.vp_fp[i].vs_hash == vs_hash && s_d3d.vp_fp[i].gen == s_d3d.vp_gen &&
+             s_d3d.vp_fp[i].blend == blend && s_d3d.vp_fp[i].nrt == nrt &&
+@@ -2321,7 +2324,9 @@
+             s_d3d.vp_fp[i].cull == cull &&
+             s_d3d.vp_fp[i].cube_mask == cube_mask &&
+             s_d3d.vp_fp[i].alpha_key == alpha_key &&
+-            s_d3d.vp_fp[i].texcoord_key == texcoord_key)
++            s_d3d.vp_fp[i].texcoord_key == texcoord_key &&
++            rsx_fp_code_equal(s_d3d.vp_fp[i].ucode,
++                s_d3d.vp_fp[i].ucode_bytes,vm_base+off,ucode_bytes))
+             return s_d3d.vp_fp[i].pso;
+     s_perf_pso_miss++;      /* falls through to a full decompile + D3DCompile */
+     /* PSOMISSDBG=1: on a miss, name the key field that differs from an existing
+@@ -2676,6 +2681,8 @@
+     s_d3d.vp_fp[s_d3d.vp_fp_n].rtfmt   = (u32)rtfmt;
+     s_d3d.vp_fp[s_d3d.vp_fp_n].exp32   = exp32;
+     s_d3d.vp_fp[s_d3d.vp_fp_n].ucode_hash = uhash;
++    s_d3d.vp_fp[s_d3d.vp_fp_n].ucode_bytes = ucode_bytes;
++    memcpy(s_d3d.vp_fp[s_d3d.vp_fp_n].ucode,vm_base+off,ucode_bytes);
+     s_d3d.vp_fp[s_d3d.vp_fp_n].cmask   = cmask;
+     s_d3d.vp_fp[s_d3d.vp_fp_n].cull    = cull;
+     s_d3d.vp_fp[s_d3d.vp_fp_n].cube_mask = cube_mask;

@@ -1,0 +1,17 @@
+Wait for the host thread to finish before reclaiming a joined PPU slot.
+
+diff --git a/runtime/syscalls/sys_ppu_thread.c b/runtime/syscalls/sys_ppu_thread.c
+--- a/runtime/syscalls/sys_ppu_thread.c
++++ b/runtime/syscalls/sys_ppu_thread.c
+@@ -572,6 +572,11 @@
+     /* Wait for completion */
+ #ifdef _WIN32
+     WaitForSingleObject(t->finish_event, INFINITE);
++    /* sys_ppu_thread_exit signals finish_event before unwinding to the host
++     * epilogue. The slot still belongs to that host until it returns: freeing
++     * it early lets the old epilogue stamp FINISHED over a reused descriptor.
++     * Wait without the table lock, which the epilogue itself must acquire. */
++    WaitForSingleObject(t->host_thread, INFINITE);
+ #else
+     pthread_mutex_lock(&t->finish_mutex);
+     while (!t->finished) {

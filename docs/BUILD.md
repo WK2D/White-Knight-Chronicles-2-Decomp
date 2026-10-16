@@ -52,13 +52,89 @@ scene rendering, gameplay and save/load remain under investigation.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies the numbered runtime patches idempotently
-and runs 31 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs 35 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
 SPURS guard lifetime/notification behavior, ordered job-list dispatch and the
 native SPURS kernel-ID binding, vertex-program cache identity/lifetime, guest depth
 state, packed vertex normals, fragment source precision and the keyboard ABI/lifecycle.
+The current suite also covers fragment-program cache identity, ordered surface
+clears, Windows PPU join lifetime and the shared draw engine's colour feedback.
+
+## Windows renderer
+
+Vulkan is the default build and drives the shared RSX draw engine, which also
+has a Metal backend. This is native host GPU rendering
+alongside the statically recompiled C/C++ game code. Apple Silicon execution has
+not been tested.
+
+```powershell
+./tools/build.ps1 -Workspace <private-workspace> -Renderer Vulkan
+./tools/probe.ps1 -Workspace <private-workspace> -Renderer Vulkan -Seconds 600
+```
+
+This uses a separate `work/build/wkc2-vulkan` directory. The build invokes
+`tools/prepare-vulkan.ps1`, which checks out and builds pinned public dependencies
+inside the private workspace: SDL2 2.32.10, glslang 16.6.0 and its SPIR-V tools,
+plus Vulkan headers 1.4.328. Exact revisions are in that script. Existing source
+changes or different revisions cause an error; the helper does not reset them.
+Dependencies are optimized but use the port's current Debug CRT and C++ ABI.
+A Vulkan-capable driver and its loader are runtime requirements.
+
+D3D12 is retained as a comparison/fallback build:
+
+```powershell
+./tools/build.ps1 -Workspace <private-workspace> -Renderer D3D12
+./tools/probe.ps1 -Workspace <private-workspace> -Renderer D3D12 -Seconds 600
+```
+
+For direct CMake configuration, `-DPS3RECOMP_RSX_VULKAN=OFF` selects D3D12.
+The choice of primary renderer does not establish complete game compatibility.
+Linux can reuse the Vulkan renderer in future; Linux platform integration and
+execution remain untested. macOS can use the shared engine's Metal backend.
+
+The SDK patch helper reconstructs the complete stack before updating source.
+It accepts an unchanged SDK or any known earlier prefix, including one already
+fully patched. Overlapping later patches do not make earlier patches appear
+missing. Unrecognized edits to affected files cause an error before any SDK
+source is changed.
+
+For periodic native Vulkan GPU readbacks, create a private directory and set
+`RSX_ENGINE_SNAP_DIR` to it and `RSX_ENGINE_SNAP_EVERY_S` to the interval in seconds
+before launching. This produces PPM files. The probe's `-CaptureFrames` controls
+select the separate D3D12 capture path.
+
+Patches 0035 and 0036 use the shared-engine and Windows Vulkan work from
+[Soulcalibur2HD-recomp](https://github.com/n0madic/Soulcalibur2HD-recomp/tree/88e6cc842a7853e093e8dbab8ac053ac1ad51cc7).
+The toolkit patches retain the SDK's MIT license; see the retained
+`LICENSE.ps3recomp`. Patch 0038 implements colour-target snapshots after inspecting
+`off_rt_snapshot` in the MIT-licensed
+[Demon's Souls SDK fork](https://github.com/JonathanDC64/ps3recomp/blob/61909373a2cb59f8679d8b96382e2899d656e4d0/libs/video/rsx_d3d12_backend.c).
+These are implementation sources actually used by this port.
+
+## Additional runtime fixes
+
+Patch 0034 keys the D3D12 fragment pipeline cache by instruction contents rather
+than the guest upload address, ignoring embedded constants and bytes after END.
+It checks exact instruction equality after hashing. Synthetic cases cover moved
+programs, changed constants, different operands and malformed input. A native
+D3D12 speed improvement has not been established.
+
+Patch 0037 waits for the Windows host thread to finish before a PPU join frees
+its slot. The guest-exit event occurs before the host epilogue; freeing at that
+event let the old epilogue mark a joined or reused slot finished again. The
+regression holds that epilogue open and checks that join blocks, then reuses the
+slot 128 times. It fails against the earlier runtime. The thread limit is unchanged.
+
+Patch 0038 copies a current colour target immediately before a draw samples it.
+Units in the same draw share the snapshot, refreshed after colour writes or
+guest transfers and released on resize/shutdown. Backends without a working GPU
+copy use fresh guest-memory readback for supported RGBA8 surfaces. The production
+engine regression covers copy ordering, refresh, texture remapping, lifetime
+and that fallback; ten checks fail against the previous engine.
+
+## Movie decoding
 
 `tools/prepare_ffmpeg.py` obtains FFmpeg 8.1 public headers from the official source
 archive, checks SHA-256 `b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a`,

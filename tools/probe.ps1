@@ -1,5 +1,6 @@
 param(
     [string]$Workspace = (Resolve-Path "$PSScriptRoot/../../.."),
+    [ValidateSet('D3D12','Vulkan')][string]$Renderer = 'Vulkan',
     [ValidateRange(1,600)][int]$Seconds = 15,
     [switch]$TraceCalls,
     [switch]$CaptureFrames,
@@ -8,6 +9,9 @@ param(
     [ValidateRange(0,3600)][int]$CaptureSkip = 0
 )
 $ErrorActionPreference = 'Stop'
+if ($Renderer -eq 'Vulkan' -and $CaptureFrames) {
+    throw 'For Vulkan readbacks set RSX_ENGINE_SNAP_DIR and RSX_ENGINE_SNAP_EVERY_S; CaptureFrames selects the D3D12 capture path.'
+}
 . "$PSScriptRoot/media-env.ps1" -Workspace $Workspace
 $logRoot = Join-Path $Workspace 'work/probes'
 $missRoot = Join-Path $Workspace 'work/wkc2-analysis/spu-misses'
@@ -30,6 +34,7 @@ $env:WKC2_PROGRESS = '1'
 if ($TraceCalls) { $env:WKC2_TRACE_CALLS = '1' } else { Remove-Item Env:WKC2_TRACE_CALLS -ErrorAction SilentlyContinue }
 $elf = Join-Path $Workspace 'work/wkc2-inspection/PS3_GAME/USRDIR/EBOOT.elf'
 $exe = Join-Path $Workspace 'work/build/wkc2/WKC2Native.exe'
+if ($Renderer -eq 'Vulkan') { $exe = Join-Path $Workspace 'work/build/wkc2-vulkan/WKC2Native.exe' }
 $p = Start-Process -FilePath $exe -ArgumentList ('"'+$elf+'"') -WorkingDirectory $Workspace -WindowStyle Hidden -RedirectStandardOutput "$logRoot/$tag.stdout.log" -RedirectStandardError "$logRoot/$tag.stderr.log" -PassThru
 $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
 $timedOut = $false
@@ -46,5 +51,5 @@ if ($lastVerification) {
     $flips = [uint32]$lastVerification.Matches[0].Groups[1].Value
     $presented = [uint32]$lastVerification.Matches[0].Groups[2].Value
 }
-[ordered]@{pid=$p.Id; timed_out=$timedOut; exit_code=$p.ExitCode; seconds_limit=$Seconds; guest_present_only=($env:WKC2_GUEST_PRESENT_ONLY -eq '1'); capture_directory=$env:CELLMARK_DUMP_DIR; capture_count=$CaptureFrameCount; capture_every=$CaptureEvery; capture_skip=$CaptureSkip; controller_script=$env:PAD_SCRIPT; last_observed_guest_flips=$flips; last_observed_presented_frames=$presented; title_screen_verified=$false; gameplay_verified=$false} | ConvertTo-Json | Set-Content "$logRoot/$tag.result.json"
+[ordered]@{pid=$p.Id; renderer=$Renderer; timed_out=$timedOut; exit_code=$p.ExitCode; seconds_limit=$Seconds; guest_present_only=($env:WKC2_GUEST_PRESENT_ONLY -eq '1'); capture_directory=$(if ($Renderer -eq 'Vulkan') { $env:RSX_ENGINE_SNAP_DIR } else { $env:CELLMARK_DUMP_DIR }); capture_count=$CaptureFrameCount; capture_every=$CaptureEvery; capture_skip=$CaptureSkip; controller_script=$env:PAD_SCRIPT; last_observed_guest_flips=$flips; last_observed_presented_frames=$presented; title_screen_verified=$false; gameplay_verified=$false} | ConvertTo-Json | Set-Content "$logRoot/$tag.result.json"
 Write-Output "Probe logs: $logRoot/$tag.*"

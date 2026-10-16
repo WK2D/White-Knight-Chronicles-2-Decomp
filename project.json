@@ -118,5 +118,14 @@
   "native_avatar_review_verified": true,
   "native_clean_regeneration_build_and_known_boot_verified": true,
   "native_avatar_acceptance_and_opening_movie_verified": true,
-  "native_avatar_acceptance_and_opening_movie_scope": "Fresh PPU/SPU code; confirms avatar and plays the prerecorded WKC1 opening movie. Interactive 3D gameplay remains unverified."
+  "native_avatar_acceptance_and_opening_movie_scope": "Fresh PPU/SPU code; confirms avatar and plays the prerecorded WKC1 opening movie. Interactive 3D gameplay remains unverified.",
+  "renderers": {
+    "default_windows": "Vulkan shared RSX draw engine",
+    "vulkan_avatar_and_room_verified": true,
+    "vulkan_initial_red_tint_removed": true,
+    "vulkan_full_visual_fidelity_verified": false,
+    "future_apple_silicon": "Metal shared RSX draw engine; untested",
+    "optional_windows": "D3D12",
+    "future_linux": "Vulkan; platform integration and execution untested"
+  }
 }

@@ -1,0 +1,311 @@
+Keep a pre-draw copy when a fragment texture reads a current colour target.
+
+The requirement and snapshot timing were checked against off_rt_snapshot in
+JonathanDC64's ps3recomp fork, commit 61909373a2cb59f8679d8b96382e2899d656e4d0,
+as used by DemonsSoulsRecomp e5a7426a01e2ffebc2820965a384f59518a15b53.
+This implements it through the shared backend's optional colour-copy operation.
+The SDK and that reference implementation retain their MIT licensing.
+
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -94,6 +94,9 @@
+     rsx_be_format fmt;
+     u32 handle;
+     u64 color_serial;       /* g.write_serial of the last colour write, or 0 */
++    u32 snapshot;           /* separate image for a draw reading its own target */
++    u64 snapshot_serial;
++    int snapshot_valid;
+     int guest_dirty;        /* rendered since guest memory last got a copy   */
+ } eng_surface;
+ 
+@@ -599,6 +602,9 @@
+ 
+     eng_surface* s = &g.surfaces[slot];
+     if (s->handle) g.be->color_target_release(g.be->user, s->handle);
++    if (s->snapshot) g.be->color_target_release(g.be->user, s->snapshot);
++    s->snapshot = 0;
++    s->snapshot_valid = 0;
+     g.readback_epoch++;
+     s->location = location; s->offset = offset;
+     s->w = want_w; s->h = want_h; s->fmt = want_fmt;
+@@ -611,6 +617,32 @@
+                 location, offset, want_w, want_h, (int)want_fmt,
+                 seed ? " (seeded from guest memory)" : ""); }
+     return slot;
++}
++
++/* A draw can read the pixels that preceded it at its own colour address.
++ * The host APIs cannot bind one image for both uses, and guest memory can be
++ * several passes behind. Keep a separate GPU image, copied immediately before
++ * the consuming draw. Multiple units in that draw share the copy; the next
++ * colour write makes it stale. DemonsSoulsRecomp's off_rt_snapshot demonstrates
++ * this requirement for its exposure pass; WKC uses it in colour correction. */
++static u32 eng_surface_snapshot(u32 slot)
++{
++    eng_surface* s = &g.surfaces[slot];
++    if (!g.be->color_target_copy) return 0;
++    if (!s->snapshot) {
++        s->snapshot = g.be->color_target_create(g.be->user, s->fmt, s->w, s->h,
++                                                NULL, 0);
++        s->snapshot_valid = 0;
++        if (!s->snapshot) return 0;
++    }
++    if (!s->snapshot_valid || s->snapshot_serial != s->color_serial) {
++        if (g.be->color_target_copy(g.be->user, s->snapshot, 0, 0, s->handle,
++                                     0, 0, s->w, s->h) != 0)
++            return 0;
++        s->snapshot_serial = s->color_serial;
++        s->snapshot_valid = 1;
++    }
++    return s->snapshot;
+ }
+ 
+ /* The colour targets SET_SURFACE_COLOR_TARGET names, as slots into
+@@ -1050,6 +1082,7 @@
+                         " %u non-zero pixels\n", location, offset, w, h, s->offset, x, y,
+                 eng_nonzero_pixels(rows, w * h));
+     g.be->color_target_write(g.be->user, s->handle, x, y, w, h, rows, w * 4u);
++    g.surfaces[slot].snapshot_valid = 0;
+     g.readback_epoch++;
+ }
+ 
+@@ -1979,11 +2012,8 @@
+                 g.surfaces[i].offset != t.offset)
+                 continue;
+             surface_at = (int)i;
+-            /* Not one this draw writes: reading a target a pass is writing
+-             * is undefined on every API, and an MRT set writes more than
+-             * one of them. */
++            /* A target in this draw's MRT set needs a pre-draw copy. */
+             for (u32 k = 0; k < n_targets; k++) if (target_slots[k] == i) own = 1;
+-            if (own) break;
+             sampled = (int)i;
+             break;
+         }
+@@ -2023,11 +2053,24 @@
+             continue;
+         }
+         if (sampled >= 0) {
++            u32 handle = g.surfaces[sampled].handle;
++            if (own) {
++                handle = eng_surface_snapshot((u32)sampled);
++                if (!handle) {
++                    /* Backends without GPU copies still need current pixels,
++                     * rather than an old upload from guest memory. */
++                    eng_surface_to_guest((u32)sampled);
++                    textures[u] = eng_texture_slot(t.location, t.offset, t.format,
++                                                   t.width, t.height, t.mipmaps, t.pitch,
++                                                   (int)t.cubemap, t.remap & 0xFFFFu);
++                    continue;
++                }
++            }
+             const u32 view = g.be->surface_view
+-                ? g.be->surface_view(g.be->user, g.surfaces[sampled].handle,
++                ? g.be->surface_view(g.be->user, handle,
+                                      t.remap & 0xFFFFu, t.format)
+                 : 0;
+-            textures[u] = view ? view : g.surfaces[sampled].handle;
++            textures[u] = view ? view : handle;
+             continue;
+         }
+         if (base_fmt == RSX_TEX_FMT_DEPTH24_D8) {
+@@ -2773,8 +2816,10 @@
+         if (g.textures[i].handle) g.be->texture_release(g.be->user, g.textures[i].handle);
+     for (u32 i = 0; i < g.n_pipelines; i++)
+         if (g.pipelines[i].handle) g.be->pipeline_release(g.be->user, g.pipelines[i].handle);
+-    for (u32 i = 0; i < g.n_surfaces; i++)
++    for (u32 i = 0; i < g.n_surfaces; i++) {
+         if (g.surfaces[i].handle) g.be->color_target_release(g.be->user, g.surfaces[i].handle);
++        if (g.surfaces[i].snapshot) g.be->color_target_release(g.be->user, g.surfaces[i].snapshot);
++    }
+     for (u32 i = 0; i < g.n_zdepths; i++) {
+         if (g.zdepths[i].handle) g.be->depth_target_release(g.be->user, g.zdepths[i].handle);
+         if (g.zdepths[i].snapshot) g.be->texture_release(g.be->user, g.zdepths[i].snapshot);
+diff --git a/libs/video/rsx_draw_engine.h b/libs/video/rsx_draw_engine.h
+--- a/libs/video/rsx_draw_engine.h
++++ b/libs/video/rsx_draw_engine.h
+@@ -221,9 +221,10 @@
+ 
+     /* Optional: copy a w x h rectangle of colour target `src` at (sx, sy) to
+      * (dx, dy) of colour target `dst`, on the GPU and ordered with the draws
+-     * and clears around it. Both are R,G,B,A targets. Returns 0 on success.
++     * and clears around it. Both targets have the same format. Returns 0 on success.
+      * The engine keeps a resolve (a scaled 2D transfer out of a supersampled
+-     * surface) on the GPU with it rather than reading the picture back. */
++     * surface) and a pre-draw colour-feedback snapshot on the GPU with it
++     * rather than reading the picture back. */
+     int  (*color_target_copy)(void* user, u32 dst, u32 dx, u32 dy, u32 src,
+                               u32 sx, u32 sy, u32 w, u32 h);
+ } rsx_draw_backend;
+diff --git a/libs/video/tests/test_rsx_draw_engine.c b/libs/video/tests/test_rsx_draw_engine.c
+--- a/libs/video/tests/test_rsx_draw_engine.c
++++ b/libs/video/tests/test_rsx_draw_engine.c
+@@ -91,6 +91,11 @@
+     u32 last_released;
+     float last_clear_depth;
+     int n_depth_readback;
++    int n_color_copy, copy_failure, n_color_readback;
++    u32 copied_src, copied_dst, copied_w, copied_h;
++    u32 color_stamp[STUB_MAX_OBJECTS], sampled_stamp;
++    u32 pipeline_color_mask[STUB_MAX_OBJECTS];
++    u32 last_view_surface, last_view_remap;
+ } StubState;
+ 
+ static StubState stub;
+@@ -149,7 +154,24 @@
+ { stub.n_color_release++; stub_release(u, handle); }
+ 
+ static u32 stub_surface_view(void* u, u32 surface, u32 remap, u32 fmt)
+-{ (void)u; (void)remap; (void)fmt; return surface; }
++{
++    (void)u; (void)fmt;
++    stub.last_view_surface = surface;
++    stub.last_view_remap = remap;
++    return surface;
++}
++
++static int stub_color_copy(void* u, u32 dst, u32 dx, u32 dy, u32 src,
++                            u32 sx, u32 sy, u32 w, u32 h)
++{
++    (void)u; (void)dx; (void)dy; (void)sx; (void)sy;
++    stub.n_color_copy++;
++    stub.copied_src = src; stub.copied_dst = dst;
++    stub.copied_w = w; stub.copied_h = h;
++    if (stub.copy_failure) return -1;
++    stub.color_stamp[dst] = stub.color_stamp[src];
++    return 0;
++}
+ 
+ static u32 stub_depth_create(void* u, u32 w, u32 h)
+ { (void)u; (void)w; (void)h; stub.n_depth_create++; return stub_handle(); }
+@@ -166,7 +188,9 @@
+     if (!vs || !ps || !*vs || !*ps) return 0;
+     stub.n_pipeline_create++;
+     stub.pipeline_rt_count = rt_count;
+-    return stub_handle();
++    const u32 handle = stub_handle();
++    stub.pipeline_color_mask[handle] = rs->color_mask;
++    return handle;
+ }
+ 
+ static void stub_pipeline_release(void* u, u32 p) { (void)u; (void)p; }
+@@ -221,6 +245,9 @@
+     stub.draw_vertices = count;
+     stub.draw_stride = stride;
+     stub.draw_indices = index_count;
++    stub.sampled_stamp = stub.color_stamp[stub.bound_tex[0]];
++    if (stub.bound_surface && stub.pipeline_color_mask[stub.bound_pipeline])
++        stub.color_stamp[stub.bound_surface]++;
+ }
+ 
+ static void stub_clear_color(void* u, u32 s, const float rgba[4])
+@@ -245,6 +272,7 @@
+                           void* out, u32 pitch)
+ {
+     (void)u; (void)s; (void)x; (void)y;
++    stub.n_color_readback++;
+     for (u32 r = 0; r < h; r++)
+         for (u32 c = 0; c < w; c++)
+             memcpy((u8*)out + (size_t)r * pitch + c * 4u, g_stub_pixel, 4);
+@@ -498,6 +526,92 @@
+     engine_down();
+ }
+ 
++/* A backend with GPU copies must preserve the pixels before the consuming
++ * draw, rather than read stale guest bytes or bind an attachment as a texture. */
++static void test_surface_feedback(void)
++{
++    printf("-- colour target feedback\n");
++    rsx_draw_backend backend = g_stub_backend;
++    backend.color_target_copy = stub_color_copy;
++    engine_up();
++    rsx_draw_engine_set_backend(&backend);
++    m(M_COLOR_MASK, 0x01010101u);
++    m(M_COLOR_A_PITCH, 256u * 4u);
++    draw_triangle();
++    const u32 surface = stub.bound_surface;
++    stub.color_stamp[surface] = 42u;
++    bind_texture_unit(RSX_LOCATION_LOCAL, 0x40000u);
++    /* A second unit reads the same target: one copy for the whole draw. */
++    for (u32 off = 0; off <= 0x18u; off += 4u) {
++        const u32 values[] = { 0x40000u, 1u | (2u << 4) | (0xA5u << 8) | (1u << 16),
++                               0u, 0x80000000u, 0xA9E4u, 0u, (4u << 16) | 4u };
++        m(M_TEX_UNIT + 0x20u + off, values[off / 4u]);
++    }
++    m(M_TEX_UNIT + 0x10, 0xA9E4u);
++    const int uploads = stub.n_texture_create;
++    draw_triangle();
++    const u32 snapshot = stub.bound_tex[0];
++    CHECK(snapshot && snapshot != surface && stub.bound_tex[1] == snapshot,
++          "both units sample a separate pre-draw image");
++    CHECK(stub.n_color_copy == 1 && stub.copied_src == surface &&
++          stub.copied_dst == snapshot && stub.copied_w == 256 && stub.copied_h == 256,
++          "one full-target GPU copy precedes the draw");
++    CHECK(stub.sampled_stamp == 42u && stub.color_stamp[surface] == 43u,
++          "the sampled pixels precede this draw's colour write");
++    CHECK(stub.n_texture_create == uploads && stub.last_view_surface == snapshot,
++          "feedback uses a surface view without a guest upload");
++    /* Unit 1 is bound last. Its non-identity crossbar must be retained too. */
++    CHECK(stub.last_view_remap == 0xA9E4u, "the copy uses the texture unit's remap");
++    draw_triangle();
++    CHECK(stub.n_color_copy == 2 && stub.bound_tex[0] == snapshot &&
++          stub.sampled_stamp == 43u,
++          "the next draw refreshes the existing copy after a colour write");
++    m(M_COLOR_MASK, 0u);
++    draw_triangle();
++    const int copies = stub.n_color_copy;
++    draw_triangle();
++    CHECK(stub.n_color_copy == copies,
++          "draws without colour writes reuse an unchanged snapshot");
++    stub.color_stamp[surface] = 99u;
++    rsx_draw_engine_guest_wrote(RSX_LOCATION_LOCAL, 0x40000u, 256u * 4u, 1u, 1u);
++    draw_triangle();
++    CHECK(stub.n_color_copy == copies + 1 && stub.sampled_stamp == 99u,
++          "a guest transfer invalidates the cached snapshot");
++
++    /* The snapshot allocation and its views cannot survive a target resize. */
++    m(M_SURFACE_CLIP_H, 128u << 16);
++    m(M_SURFACE_CLIP_V, 64u << 16);
++    draw_triangle();
++    const u32 resized_snapshot = stub.bound_tex[0];
++    CHECK(!stub.alive[surface] && !stub.alive[snapshot] &&
++          resized_snapshot != snapshot && stub.copied_w == 128 && stub.copied_h == 64,
++          "resizing retires both old images and copies the new dimensions");
++    engine_down();
++    CHECK(!stub.alive[resized_snapshot], "shutdown releases the feedback image");
++
++    /* A missing or failed GPU copy falls back to the rendered guest bytes. */
++    for (int failed_copy = 0; failed_copy < 2; failed_copy++) {
++        engine_up();
++        if (failed_copy) {
++            rsx_draw_engine_set_backend(&backend);
++            stub.copy_failure = 1;
++        }
++        m(M_COLOR_MASK, 0x01010101u);
++        m(M_COLOR_A_PITCH, 256u * 4u);
++        memset(vm_base + GUEST_LOCAL_EA + 0x40000u, 0, 256u * 256u * 4u);
++        m(M_CLEAR_BUFFERS, 0xF0u);
++        bind_texture_unit(RSX_LOCATION_LOCAL, 0x40000u);
++        draw_triangle();
++        const u8* pixel = vm_base + GUEST_LOCAL_EA + 0x40000u;
++        CHECK(stub.n_color_readback == 1 &&
++              pixel[0] == 0x44 && pixel[1] == 0x11 && pixel[2] == 0x22 && pixel[3] == 0x33 &&
++              stub.bound_tex[0] == stub.last_created_texture,
++              "feedback without a working GPU copy uploads current A,R,G,B bytes (%d)",
++              failed_copy);
++        engine_down();
++    }
++}
++
+ /* ---- 2b. the MRT set ----------------------------------------------------- */
+ 
+ static void test_mrt_set(void)
+@@ -1162,6 +1276,7 @@
+ 
+     test_surface_set();
+     test_surface_aliasing();
++    test_surface_feedback();
+     test_mrt_set();
+     test_texture_cache();
+     test_pipeline_key();

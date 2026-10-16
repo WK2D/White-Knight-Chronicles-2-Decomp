@@ -70,7 +70,7 @@ for name in names:
         continue
     data = git('show', ':' + name)
     total += len(data)
-    if len(data) > 2_000_000:
+    if len(data) > (8_000_000 if screenshot else 2_000_000):
         findings.append({'file': name, 'reason': 'unexpected source file size'})
     if screenshot:
         reason = check_png(data)

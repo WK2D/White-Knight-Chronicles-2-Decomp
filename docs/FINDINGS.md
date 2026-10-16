@@ -19,7 +19,8 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and 31 runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and 35 runtime regression checks | Compilation alone does not verify gameplay |
+| Experimental Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | Character creation only; full visual fidelity, gameplay and save/load unverified |
 | WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Full visual fidelity, completed character creation, gameplay and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
@@ -539,6 +540,42 @@ generations, cancellation, abort and scripted UTF-8 input. Separate tests of the
 production Windows controls cover Unicode editing, OK, Cancel, early closure,
 window reuse and shutdown. These checks do not establish completed character
 creation, gameplay or saving.
+
+## Shared renderer and colour feedback
+
+The experimental Windows Vulkan build uses the shared draw engine and batched
+backend from Soulcalibur2HD-recomp patches 0005/0006, pinned in the port's patches
+0035/0036. Native startup, title menus, WKC1 selection, avatar rendering and name
+entry work. Its first character scene had a strong red tint while the UI remained
+correct. Intermediate GPU readbacks narrowed the change to a post-processing pass:
+the room had normal colours before a draw sampled the target it was updating.
+That draw writes green and blue while preserving red. The engine excluded the
+active target and sampled stale guest-memory bytes instead.
+
+After inspecting `off_rt_snapshot` in the DemonsSoulsRecomp SDK fork, patch 0038
+implements a separate pre-draw GPU copy through the shared backend interface.
+A normal native run now shows the avatar, clothing and room without the red tint,
+with no render-state overrides or debugger writes. The screenshot is an unchanged
+GPU readback; it is not evidence of interactive gameplay or a completed renderer.
+The implementations actually used, with pinned revisions, are linked in
+[the build instructions](BUILD.md#windows-renderer).
+
+The shared engine tracks separate depth targets and sampleable depth snapshots.
+The existing D3D12 path still has its shared-depth limitations described earlier.
+Neither API's full-game compatibility has been established. The shared engine's
+Metal backend is useful for the intended Apple Silicon work, but this port has
+not run on macOS yet. Vulkan is the primary Windows development and default
+build path; D3D12 remains an optional comparison/fallback renderer. Linux is
+another intended Vulkan target, with platform integration and testing outstanding.
+
+A separate Windows PPU join race could exhaust the thread table after repeated
+movie transitions: the guest-exit event precedes the host epilogue, which could
+mark a joined or reused slot finished again. Patch 0037 waits for host termination
+before freeing the slot. A controlled regression fails on the old code and passes
+128 slot-reuse iterations on the fix. A native observation now has 34 free slots
+instead of the earlier exhausted table. The current later loading transition
+still needs investigation; this does not establish that movie transitions or
+world loading are fully fixed.
 
 ## Update 1.01 and DLC integration
 

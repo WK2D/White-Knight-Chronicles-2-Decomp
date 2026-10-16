@@ -1,6 +1,6 @@
 # Native port progress gallery
 
-Screenshots captured from native Windows x86-64 execution with the D3D12 backend,
+Screenshots captured from native Windows x86-64 execution with D3D12 or Vulkan,
 using USA BLUS30784 v01.00. These are game-frame GPU readbacks, losslessly encoded
 as PNG. All optional metadata has been removed. Images contain the game frame only.
 
@@ -16,6 +16,18 @@ Starting gameplay and save/load remain unverified;
 complete audio fidelity and timing against original hardware remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
+
+## 2026-10-16 — Vulkan avatar colours restored
+
+The experimental Vulkan renderer now shows the WKC1 avatar and room without the
+red tint seen in its first build. A post-processing draw reads the colour target
+it is updating; preserving the preceding pixels in a separate GPU image restores
+the missing colour channels. The entered name is retained. This is live 3D
+rendering from statically recompiled C/C++ with the shared RSX draw engine.
+The 1920×1080 display readback contains the game's 1280×720 scene. Full visual
+fidelity, interactive gameplay, save/load and macOS execution remain unverified.
+
+![Native Vulkan WKC1 avatar and room after colour-feedback correction](../verification/screenshots/2026-10-16-native-vulkan-avatar-colours.png)
 
 ## 2026-10-16 — WKC1 opening movie after avatar confirmation
 
