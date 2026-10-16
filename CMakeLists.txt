@@ -291,6 +291,17 @@ install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
 option(WKC2_BUILD_TESTS "Build port-specific regression tests" ON)
 if(WKC2_BUILD_TESTS)
     enable_testing()
+    # Exercise the linked channel implementation without loading game files.
+    target_sources(${PROJECT_NAME} PRIVATE tests/spu_title_test.cpp)
+    set_source_files_properties(tests/spu_title_test.cpp PROPERTIES
+        INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/runtime/spu")
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS WKC2_BUILD_SELF_TESTS)
+    foreach(cri_id IN ITEMS -1 22 23)
+        add_test(NAME wkc2_spu_title_${cri_id}
+            COMMAND ${PROJECT_NAME} --test-spu-title ${cri_id})
+        set_tests_properties(wkc2_spu_title_${cri_id} PROPERTIES
+            ENVIRONMENT "SPU_CRI_IMAGE=${cri_id}" TIMEOUT 10)
+    endforeach()
     find_package(Threads REQUIRED)
     set(SPURS_ABI_FIXTURE "${CMAKE_BINARY_DIR}/spurs-abi-fixture")
     add_custom_command(OUTPUT "${SPURS_ABI_FIXTURE}/fixture.c" "${SPURS_ABI_FIXTURE}/fixture.h"

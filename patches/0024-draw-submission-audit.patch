@@ -1,0 +1,136 @@
+diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
+--- a/libs/video/rsx_d3d12_backend.c
++++ b/libs/video/rsx_d3d12_backend.c
+@@ -347,6 +347,7 @@
+ } D3D12State;
+ 
+ static D3D12State s_d3d;
++static void rsx_draw_audit_dump(const char* path);
+ char g_rsx_title_base[128] = "ps3recomp";
+ static u32 s_dbg_last_draws = 0;
+ static u64 s_req_verts = 0, s_req_draws = 0, s_drop_draws = 0;
+@@ -1480,6 +1481,7 @@
+                                D3D12_RESOURCE_STATES prior, u32 fi, const char* path)
+ {
+     if (!res || !w || !h) return;
++    rsx_draw_audit_dump(path);
+     u32 bpp = (dxgi == DXGI_FORMAT_R16G16B16A16_FLOAT) ? 8 :
+               (dxgi == DXGI_FORMAT_R32G32B32A32_FLOAT) ? 16 : 4;
+     u32 pitch = (w * bpp + 255) & ~255u;
+@@ -6937,6 +6939,87 @@
+  * Backend registration
+  * -----------------------------------------------------------------------*/
+ 
++/* Optional bounded observation of the callbacks before upload/recording.
++ * A zero-record result is reported, never silently relabelled as a missing
++ * guest draw. Packet continuations may legitimately emit no triangle. */
++#define RSX_DRAW_AUDIT_MAX 8192
++typedef struct {
++    u32 indexed, primitive, first, count, epoch, fp, mask, a0_enable, a0_format, a0_offset;
++    u32 draw_before, draw_after, vp_before, vp_after, basic_before, basic_after;
++    u32 last_before, last_after, resources;
++} RSXDrawAudit;
++static RSXDrawAudit s_draw_audit[RSX_DRAW_AUDIT_MAX];
++static u32 s_draw_audit_count, s_draw_audit_omitted, s_draw_audit_parity;
++static u64 s_draw_audit_frame;
++static int rsx_draw_audit_enabled(void)
++{
++    static int enabled = -1;
++    if (enabled < 0) enabled = getenv("RSX_DRAW_AUDIT") != NULL;
++    return enabled;
++}
++static void rsx_draw_audited(void* opaque, u32 primitive, u32 first, u32 count, int indexed)
++{
++    void (*draw)(void*,u32,u32,u32) = indexed ? d3d12_draw_indexed : d3d12_draw_arrays;
++    if (!rsx_draw_audit_enabled()) { draw(opaque, primitive, first, count); return; }
++    if (s_draw_audit_frame != s_d3d.frame_count || s_draw_audit_parity != (u32)s_d3d.vp_parity) {
++        s_draw_audit_count = s_draw_audit_omitted = 0;
++        s_draw_audit_frame = s_d3d.frame_count;
++        s_draw_audit_parity = (u32)s_d3d.vp_parity;
++    }
++    RSXDrawAudit a = {0};
++    const rsx_state* st = s_d3d.current_rsx_state;
++    a.indexed = indexed; a.primitive = primitive; a.first = first; a.count = count;
++    if (st) {
++        a.epoch = st->begin_epoch; a.fp = st->shader_program;
++        a.mask = st->vertex_attrib_input_mask;
++        a.a0_enable = st->vertex_attribs[0].enabled;
++        a.a0_format = st->vertex_attribs[0].format;
++        a.a0_offset = st->vertex_attribs[0].offset;
++    }
++    a.resources = (s_d3d.pipeline_ready ? 1u : 0u) | (s_d3d.vb_mapped ? 2u : 0u)
++                | (s_d3d.vp_vb_mapped ? 4u : 0u) | (s_d3d.vp_root_sig ? 8u : 0u);
++    a.draw_before = s_d3d.draw_count; a.vp_before = s_d3d.vp_vb_offset;
++    a.basic_before = s_d3d.vb_offset;
++    if (a.draw_before && a.draw_before <= MAX_DRAWS)
++        a.last_before = s_d3d.draws[a.draw_before - 1].vertex_count;
++    draw(opaque, primitive, first, count);
++    a.draw_after = s_d3d.draw_count; a.vp_after = s_d3d.vp_vb_offset;
++    a.basic_after = s_d3d.vb_offset;
++    if (a.draw_after && a.draw_after <= MAX_DRAWS)
++        a.last_after = s_d3d.draws[a.draw_after - 1].vertex_count;
++    if (s_draw_audit_count < RSX_DRAW_AUDIT_MAX) s_draw_audit[s_draw_audit_count++] = a;
++    else ++s_draw_audit_omitted;
++}
++static void d3d12_draw_arrays_audited(void* p,u32 primitive,u32 first,u32 count)
++{ rsx_draw_audited(p,primitive,first,count,0); }
++static void d3d12_draw_indexed_audited(void* p,u32 primitive,u32 first,u32 count)
++{ rsx_draw_audited(p,primitive,first,count,1); }
++static void rsx_draw_audit_dump(const char* image_path)
++{
++    if (!rsx_draw_audit_enabled()) return;
++    const char* tail = strstr(image_path, "/backbuffer.bmp");
++    if (!tail || tail[15] != 0) return;
++    char path[1024];
++    size_t prefix = (size_t)(tail - image_path);
++    if (prefix + sizeof("/draw-inputs.txt") > sizeof path) return;
++    memcpy(path,image_path,prefix);
++    memcpy(path+prefix,"/draw-inputs.txt",sizeof("/draw-inputs.txt"));
++    FILE* f = fopen(path,"w"); if (!f) return;
++    fprintf(f,"completed_frame=%llu callback_frame=%llu callback_parity=%u completed_parity=%u calls=%u omitted=%u\n",
++        (unsigned long long)s_d3d.frame_count,(unsigned long long)s_draw_audit_frame,
++        s_draw_audit_parity,(u32)(s_d3d.vp_parity ^ 1),s_draw_audit_count,s_draw_audit_omitted);
++    fprintf(f,"call indexed primitive first count epoch fp mask a0_enabled a0_format a0_offset records_before records_after vp_bytes_before vp_bytes_after basic_bytes_before basic_bytes_after last_vertices_before last_vertices_after resources\n");
++    for (u32 i=0;i<s_draw_audit_count;++i) {
++        const RSXDrawAudit* a=&s_draw_audit[i];
++        fprintf(f,"%u %u %u %u %u %u %08X %08X %u %08X %08X %u %u %u %u %u %u %u %u %X\n",
++            i,a->indexed,a->primitive,a->first,a->count,a->epoch,a->fp,a->mask,
++            a->a0_enable,a->a0_format,a->a0_offset,a->draw_before,a->draw_after,
++            a->vp_before,a->vp_after,a->basic_before,a->basic_after,
++            a->last_before,a->last_after,a->resources);
++    }
++    fclose(f);
++}
++
+ static rsx_backend s_d3d12_backend = {0};
+ 
+ /* ---------------------------------------------------------------------------
+@@ -6998,8 +7081,8 @@
+     s_d3d12_backend.set_depth_stencil = d3d12_set_depth_stencil;
+     s_d3d12_backend.set_shader        = d3d12_set_shader;
+     s_d3d12_backend.set_vertex_attribs = d3d12_set_vertex_attribs;
+-    s_d3d12_backend.draw_arrays       = d3d12_draw_arrays;
+-    s_d3d12_backend.draw_indexed      = d3d12_draw_indexed;
++    s_d3d12_backend.draw_arrays       = d3d12_draw_arrays_audited;
++    s_d3d12_backend.draw_indexed      = d3d12_draw_indexed_audited;
+     s_d3d12_backend.bind_texture      = d3d12_bind_texture;
+ 
+     rsx_set_backend(&s_d3d12_backend);
+diff --git a/libs/video/rsx_commands.c b/libs/video/rsx_commands.c
+--- a/libs/video/rsx_commands.c
++++ b/libs/video/rsx_commands.c
+@@ -852,6 +852,14 @@
+     }
+ #endif
+ 
++    if (getenv("RSX_DRAW_AUDIT") && method < 0x2000u && !(method & 3u)) {
++        static unsigned char seen[0x800];
++        if (!seen[method >> 2]) {
++            seen[method >> 2] = 1;
++            fprintf(stderr, "[draw-audit] unhandled method=%04X value=%08X primitive=%u in_begin=%d\n",
++                method,data,state->primitive_type,state->in_begin_end);
++        }
++    }
+     return -1;
+ }
+ 

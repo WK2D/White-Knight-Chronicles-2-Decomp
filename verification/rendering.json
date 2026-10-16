@@ -584,5 +584,116 @@
     "seconds_limit": 600,
     "last_reported_guest_flips": 12676,
     "last_reported_presentation_calls": 12676
+  },
+  "wkc1_draw_submission_observation": {
+    "probe": "20261016-094638",
+    "sdk_patches": 24,
+    "regression_checks_passed": 22,
+    "capture_frame_counter": 11523,
+    "capture_operations": 617,
+    "callback_count": 630,
+    "callbacks_omitted": 0,
+    "completed_frame_and_parity_match": true,
+    "callbacks_uploading_or_extending_geometry": 629,
+    "callbacks_without_record_or_geometry_change": 1,
+    "unchanged_callback_index_count": 1,
+    "unchanged_callback_primitive": "triangle strip",
+    "callbacks_at_record_capacity": 0,
+    "unchanged_callbacks_with_missing_resources": 0,
+    "unchanged_callbacks_with_attribute0_disabled": 0,
+    "torso_and_limb_submission_root_cause_verified": false,
+    "render_state_overrides_enabled": false,
+    "complete_avatar_body_visible": false,
+    "new_gallery_milestone": false
+  },
+  "wkc1_spurs_exit_observation": {
+    "probe": "20261016-095850",
+    "sdk_patches": 25,
+    "regression_checks_passed": 22,
+    "capture_frame_counter": 11864,
+    "capture_operations": 617,
+    "distinct_observed_exit_shapes": [
+      {
+        "image_id": 21,
+        "status": 0,
+        "stop_code": 0,
+        "pc": "3FF00",
+        "return_register": "00000000"
+      },
+      {
+        "image_id": 22,
+        "status": 0,
+        "stop_code": 0,
+        "pc": "3FF00",
+        "return_register": "00000020"
+      },
+      {
+        "image_id": 19,
+        "status": 0,
+        "stop_code": 0,
+        "pc": "3FF00",
+        "return_register": "02290A5A"
+      },
+      {
+        "image_id": 20,
+        "status": 0,
+        "stop_code": 0,
+        "pc": "3FF00",
+        "return_register": "00007F30"
+      }
+    ],
+    "returned_to_native_job_manager_sentinel": true,
+    "expected_job_output_correctness_verified": false,
+    "complete_avatar_body_visible": false,
+    "gameplay_verified": false,
+    "save_load_verified": false,
+    "terminated_at_time_limit": false,
+    "manually_stopped_after_observation": true,
+    "seconds_limit": 1800,
+    "last_reported_guest_flips": 12165,
+    "last_reported_presentation_calls": 12165
+  },
+  "title_specific_cri_selection_regression": {
+    "sdk_patches": 26,
+    "regression_checks_passed": 25,
+    "tested_cri_image_ids": [
+      -1,
+      22,
+      23
+    ],
+    "actual_spu_channel_task_exit_path_exercised": true,
+    "legacy_image22_behavior_fails_disabled_cri_expectation": true,
+    "wkc2_cri_special_case_disabled": true,
+    "reference_project": "https://github.com/soyjxck/dod3-recomp/tree/f7d71501ae33aa4b395c6bbf69545f220d4797b3",
+    "adapted_runtime_reference": "https://github.com/soyjxck/ps3recomp/blob/de08397c0a485cd7705c049ca7532dd90fadc704/runtime/spu/spu_context.h",
+    "complete_avatar_body_fix_verified": false,
+    "macos_execution_verified": false
+  },
+  "wkc1_cri_disabled_scene_observation": {
+    "probe": "20261016-101144",
+    "sdk_patches": 26,
+    "regression_checks_passed_after_final_cache_refinement": 25,
+    "scene_check_scope": "Native CRI-disabled run before the subsequent thread-local cache refinement; final cache implementation covered by linked-runtime regressions",
+    "wkc1_level1_selection_verified": true,
+    "reached_customize_avatar": true,
+    "full_scene_capture_frame_counter": 14129,
+    "full_scene_capture_operations": 617,
+    "callback_count": 630,
+    "callbacks_omitted": 0,
+    "notice_dismissed": true,
+    "blank_name_field": true,
+    "room_visible": true,
+    "avatar_clothing_visible": true,
+    "complete_avatar_body_visible": false,
+    "render_state_overrides_enabled": false,
+    "new_gallery_milestone": false,
+    "character_creation_completed": false,
+    "gameplay_verified": false,
+    "save_load_verified": false,
+    "terminated_at_time_limit": false,
+    "manually_stopped_after_observation": true,
+    "seconds_limit": 900,
+    "last_reported_guest_flips": 14148,
+    "last_reported_presentation_calls": 14148
   }
 }

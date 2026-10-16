@@ -17,8 +17,8 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and twenty runtime regression checks | Compilation alone does not verify gameplay |
-| WKC1 reaches Customize Avatar | Readable UI and controller dismissal of the introductory notice; [capture](GALLERY.md) | Character model missing; completed character creation, gameplay and save/load unverified |
+| Native Windows build succeeds | Clang build and twenty-five runtime regression checks | Compilation alone does not verify gameplay |
+| WKC1 reaches Customize Avatar | Readable UI and controller dismissal of the introductory notice; [capture](GALLERY.md) | Room and some avatar pieces render; full body, completed character creation, gameplay and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -318,6 +318,33 @@ or never produced. The next step is to trace their submission and vertex-data
 production. Full avatar rendering remains unverified; there is no new gallery
 milestone from these diagnostics. Patch 0023 retains complete vertices and
 actual fragment constant buffers for this investigation. All 22 checks pass.
+
+A completed-frame submission audit now observes 630 backend callbacks with no
+omitted records. Of these, 629 upload or extend geometry; the remaining callback
+contains a single triangle-strip index and leaves the previous geometry intact.
+No callback reaches record capacity, and the unchanged callback has its required
+resources and position attribute enabled. This narrows the investigation but does
+not establish whether the missing body was produced upstream. Patch 0024 keeps
+this bounded audit available for private captures.
+
+Patch 0025 observes actual SPURS exit state. The sampled job
+images 19 through 22 return to the native manager sentinel without a recorded
+STOP or HALT assertion. That is evidence about their exit path, not proof that
+they wrote the correct geometry or commands. The body remains incomplete.
+
+Reviewing [Drakengard 3's native port](https://github.com/soyjxck/dod3-recomp/blob/f7d71501ae33aa4b395c6bbf69545f220d4797b3/docs/TECHNICAL.md)
+identified a directly applicable runtime assumption: several SDK paths treat
+ordinal image 22 as YDKJ's CRI task. Image IDs depend on each title's generated
+registry. WKC's image 22 is a different asset-backed program, so that ordinal
+must not enable another game's special context, arguments or bootstrap EXIT.
+Patch 0026 adapts the fork's configurable CRI image selection and disables it
+for this runner. All 25 checks pass, including three cases exercising the actual
+SPU task EXIT implementation; restoring the old selection makes the disabled
+case fail. This is not yet evidence of a complete avatar fix or macOS execution.
+The native scene check with CRI selection disabled again reaches WKC1 Customize
+Avatar. The room and clothing remain visible, while the avatar body is still
+incomplete. There is no new visual milestone from this change.
+The native C/C++ target and Windows baseline remain unchanged.
 
 ## Update 1.01 and DLC integration
 

@@ -536,8 +536,22 @@ static void harness_guest_caller(uint32_t opd, uint64_t a0, uint64_t a1,
     ppu_guest_call(opd, a0, a1, a2, a3, a4, a5, a6, a7);
 }
 
+#ifdef WKC2_BUILD_SELF_TESTS
+int wkc2_test_spu_title(int selected);
+#endif
+
 int main(int argc, char** argv)
 {
+#ifdef WKC2_BUILD_SELF_TESTS
+    if (argc == 3 && !strcmp(argv[1], "--test-spu-title"))
+        return wkc2_test_spu_title(atoi(argv[2]));
+#endif
+    // This title's image registry contains no YDKJ CRI media task.
+#ifdef _WIN32
+    _putenv_s("SPU_CRI_IMAGE", "-1");
+#else
+    setenv("SPU_CRI_IMAGE", "-1", 1);
+#endif
     if (argc < 2) {
         printf("usage: %s <PPU ELF>\n", argv[0]);
         return 2;

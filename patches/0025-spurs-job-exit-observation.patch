@@ -1,0 +1,25 @@
+diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
+--- a/runtime/spu/spurs_job.c
++++ b/runtime/spu/spurs_job.c
+@@ -408,6 +408,21 @@
+         fflush(stderr);
+     }
+ 
++    /* Optional bounded post-run observation. Returning from the dispatcher
++     * alone does not establish that the job produced its expected output. */
++    if (getenv("SPURS_JOB_EXIT_TRACE")) {
++        static SPURS_JOB_TLS uint32_t seen[64][4];
++        static SPURS_JOB_TLS unsigned count;
++        uint32_t key[4] = {(uint32_t)image_id,ctx.status,ctx.stop_code,ctx.pc};
++        unsigned i;
++        for (i=0;i<count;++i) if (!memcmp(seen[i],key,sizeof key)) break;
++        if (i==count && count<64) {
++            memcpy(seen[count++],key,sizeof key);
++            fprintf(stderr,"[spurs-exit] image=%d job=%08X status=%X stop=%X pc=%05X r3=%08X\n",
++                image_id,job_ea,ctx.status,ctx.stop_code,ctx.pc,ctx.gpr[3]._u32[0]);
++        }
++    }
++
+     spu_coh_unregister(&ctx);   /* stack local: out of the reserver set */
+     free(ls);
+     return 0;

@@ -46,8 +46,8 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies twenty-three numbered runtime patches idempotently
-and runs twenty checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+SDAT archives. The build applies twenty-six numbered runtime patches idempotently
+and runs twenty-five checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
@@ -277,3 +277,26 @@ retain every converted vertex in `op_NNN.vertices-full.bin`; the original
 16-vertex sample files remain available. This observes completed-frame inputs
 without changing shaders, render states or draw order. Complete vertex buffers
 and fragment constants contain game data and remain private.
+
+Patch 0024 adds optional `RSX_DRAW_AUDIT=1` observation to private frame captures.
+`draw-inputs.txt` records up to 8,192 draw callbacks per frame, with an explicit
+omitted count, resource availability and geometry/record counters before and
+after each original callback. Completed-frame counter and parity accompany the
+records. The option also logs each unhandled RSX method once. It does not alter
+the callback's inputs or resulting draws.
+
+Patch 0025 adds optional `SPURS_JOB_EXIT_TRACE=1` observation. It logs up to 64
+distinct image/status/stop/PC combinations per host thread after job execution.
+The return register is included in each sample but is not part of the distinct
+key. Reaching the native manager's return sentinel does not verify job outputs.
+Logs and captures remain private because they can contain game data.
+
+Patch 0026 makes the SDK's legacy YDKJ CRI task behavior select an image through
+`SPU_CRI_IMAGE`, retaining 22 as the SDK default. This runner sets it to -1 before
+starting SPU threads: WKC's image ordinals must not activate another title's
+bootstrap, argument or context handling. The selection follows the MIT-licensed
+[runtime used by Drakengard 3](https://github.com/soyjxck/ps3recomp/blob/de08397c0a485cd7705c049ca7532dd90fadc704/runtime/spu/spu_context.h).
+Three regression cases execute the linked SPU task EXIT path with CRI handling
+disabled or assigned to image 22 or 23. They check normal task termination and
+the selected task's first-return/subsequent-exit behavior. Running the disabled
+case with the old image-22 selection fails the actual return-path assertion.
