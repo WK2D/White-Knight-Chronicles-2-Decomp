@@ -266,6 +266,20 @@ extern "C" void wkc2_shutdown_dmux(void) {
     for(auto& d:all) stop(d);
     {std::lock_guard l(directory_mutex); es_directory.clear(); directory.clear();}
 }
+extern "C" void wkc2_dump_dmux(void) {
+    std::vector<std::shared_ptr<Demuxer>> all;
+    {std::lock_guard l(directory_mutex); for(auto& [h,d]:directory) all.push_back(d);}
+    for(auto& d:all) {
+        std::lock_guard l(d->mutex);
+        std::fprintf(stderr,"[dmux-state] handle=%08X busy=%d commands=%zu failed=%d\n",d->handle,d->busy,d->commands.size(),d->failed);
+        for(auto& [h,s]:d->streams) {
+            unsigned acquired=0; uint64_t bytes=0;
+            for(auto& u:s->units) acquired+=u.acquired;
+            for(auto& [a,n]:s->free) bytes+=n;
+            std::fprintf(stderr,"[dmux-state] ES=%08X published=%llu pending=%zu acquired=%u free=%llu\n",h,(unsigned long long)s->published,s->units.size(),acquired,(unsigned long long)bytes);
+        }
+    }
+}
 extern "C" void wkc2_register_dmux(void) {
     struct Binding {const char* name; void (*fn)(ppu_context*);};
     const Binding bindings[]={

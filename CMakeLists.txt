@@ -167,6 +167,8 @@ add_executable(${PROJECT_NAME}
     pamf.cpp
     dmux.cpp
     vpost.cpp
+    vdec.cpp
+    adec.cpp
     thread_diagnostics.cpp
     ${PS3RECOMP_SCAFFOLD}
     ${HLE_NID_TABLE}
@@ -266,6 +268,8 @@ endif()
 #     default; a PPC fmadd is spelt as one where the lifter means one.
 #   - /bigobj on MSVC. A single lifted file routinely passes the 65,536-section
 #     limit of the default object format.
+set_source_files_properties(vdec.cpp PROPERTIES INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/libs/codec")
+
 if(MSVC)
     set_source_files_properties(dmux.cpp PROPERTIES COMPILE_OPTIONS "/EHsc")
     set_source_files_properties(${RECOMP_SOURCES} PROPERTIES
@@ -297,7 +301,25 @@ if(WKC2_BUILD_TESTS)
         target_link_libraries(wkc2_vdec_decode_test PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
         add_test(NAME wkc2_vdec_decode COMMAND wkc2_vdec_decode_test decode mpeg2 "${CODEC_FIXTURE}.m2v" "${CODEC_FIXTURE}.yuv" 32 16)
         set_tests_properties(wkc2_vdec_decode PROPERTIES TIMEOUT 20 SKIP_RETURN_CODE 77)
+        add_test(NAME wkc2_vdec_timing COMMAND wkc2_vdec_decode_test timing "${CODEC_FIXTURE}.m2v" 30 1)
+        set_tests_properties(wkc2_vdec_timing PROPERTIES TIMEOUT 20 SKIP_RETURN_CODE 77)
+        add_executable(wkc2_async_vdec_test tests/vdec_test.cpp vdec.cpp
+            "${PS3RECOMP_DIR}/libs/codec/vdec_ffmpeg.c"
+            "${PS3RECOMP_DIR}/libs/codec/ffmpeg_runtime.c")
+        add_dependencies(wkc2_async_vdec_test wkc2_codec_fixture)
+        target_include_directories(wkc2_async_vdec_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include"
+            "${PS3RECOMP_DIR}/libs/codec" "${PS3RECOMP_FFMPEG_INCLUDE_DIR}")
+        target_compile_definitions(wkc2_async_vdec_test PRIVATE PS3RECOMP_FFMPEG_RUNTIME)
+        target_link_libraries(wkc2_async_vdec_test PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
+        add_test(NAME wkc2_async_vdec COMMAND wkc2_async_vdec_test "${CODEC_FIXTURE}.m2v" "${CODEC_FIXTURE}.yuv" 32 16 30 1)
+        set_tests_properties(wkc2_async_vdec PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77)
+
     endif()
+    add_executable(wkc2_adec_test tests/adec_test.cpp adec.cpp)
+    target_include_directories(wkc2_adec_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
+    target_link_libraries(wkc2_adec_test PRIVATE Threads::Threads)
+    add_test(NAME wkc2_adec COMMAND wkc2_adec_test)
+    set_tests_properties(wkc2_adec PROPERTIES TIMEOUT 10)
     add_executable(wkc2_vpost_test tests/vpost_test.cpp vpost.cpp)
     target_include_directories(wkc2_vpost_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
     target_link_libraries(wkc2_vpost_test PRIVATE Threads::Threads)

@@ -18,6 +18,8 @@
 !/mpegps.hpp
 !/dmux.cpp
 !/vpost.cpp
+!/adec.cpp
+!/vdec.cpp
 !/patches/
 !/tests/
 !/tools/

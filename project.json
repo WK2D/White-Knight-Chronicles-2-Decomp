@@ -17,5 +17,7 @@
   },
   "native_data_installation_verified": true,
   "native_decoded_movie_frame_verified": true,
-  "native_continuous_movie_playback_verified": false
+  "native_continuous_movie_playback_verified": true,
+  "native_continuous_movie_playback_scope": "first two LPCM startup movies; AC-3 opening movie is unsupported",
+  "native_complete_audio_fidelity_verified": false
 }

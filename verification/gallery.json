@@ -4,6 +4,74 @@
   "execution": "native Windows x86-64, D3D12",
   "captures": [
     {
+      "milestone": "havok_dolby",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-havok-dolby.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "46c80b448cb126eab883af44721669a1dda6a9ff3a978370a41d1ed8deee6d60",
+      "png_sha256": "ce9d45b6df111ef6e312428948c01a6468a6b2650da5dcff376e8d2a8a3b9aa5",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
+      "milestone": "japan_studio",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-japan-studio.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "526927d494ada55db43f67af5d49586cd1607a1be2600edaa1e7a5623fd40b11",
+      "png_sha256": "8fb3896575c4906eff096e2c309de47e57ed218eca4cbc48ce8de12d7e2cef24",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
+      "milestone": "sony_presents",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-sony-presents.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "4704091020ba5b45196fa478d84216017086021567fb2c7d0a150f38e47a55e4",
+      "png_sha256": "6aaf40fa0874bf8b78e77cf038a8da961601ee490a70a0d08d527a9f04f3de63",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
+      "milestone": "d3publisher_logo",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-d3publisher-logo.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "8d00b8adaffbdd857f05fc0c73ede473a1d18e2aa87956a072451d0036743f16",
+      "png_sha256": "23c896906ad75fb4b5e29a0973d8f0b29abdada64a467249638a74d968db4a4c",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
       "milestone": "first_decoded_logo_frame",
       "date": "2026-10-16",
       "image": "screenshots/2026-10-16-first-logo-frame.png",

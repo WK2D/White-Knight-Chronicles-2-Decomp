@@ -13,7 +13,8 @@ The [findings log](docs/FINDINGS.md) tracks verified results, open issues and ne
 ## Progress gallery
 
 Native language selection, startup warning and autosave notice are now visible.
-The first decoded logo frame also reaches the renderer; continuous playback stalls.
+The first two LPCM startup movies now advance through native decoding and rendering;
+startup reaches the Havok/Dolby screen. The AC-3 opening movie remains unsupported.
 See the [dated screenshots and verification notes](docs/GALLERY.md).
 Title screen, gameplay and save/load remain unverified.
 
@@ -157,13 +158,12 @@ progressive YUV conversion, cropping and bilinear resizing. The build enables th
 SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
-Ten checks pass. A decoded logo frame now renders; see the gallery.
+Thirteen checks pass. The first two LPCM startup movies advance natively; see the gallery.
 
 Current blocker: startup holds that logo image instead of completing the movie.
 Playback timing, decoder metadata and audio queue behavior need investigation.
-Audio is still placeholder silence. No title screen, continuous native movie playback,
-gameplay or save/load has been verified. Missing imports and unresolved audio-worker
-calls remain separate open issues.
+PAMF LPCM now decodes to queued float samples; AC-3 decoding is still missing. The title screen, gameplay and save/load remain unverified. Missing imports and
+the AC-3 decoder remain open issues.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a
 result JSON go into `work/probes/`; unrecognized SPU jobs go into the private

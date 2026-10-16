@@ -142,9 +142,16 @@ void     cellGcm_rsx_process_fifo(void);      /* drain get -> put */
 unsigned cellGcm_flip_request_count(void);
 extern ppu_context* volatile g_ppu_main_ctx;
 void wkc2_dump_threads(void);
+void wkc2_dump_dmux(void);
+void wkc2_dump_adec(void);
+void wkc2_dump_vdec(void);
 void wkc2_register_pamf(void);
 void wkc2_register_dmux(void);
 void wkc2_register_vpost(void);
+void wkc2_register_adec(void);
+void wkc2_register_vdec(void);
+void wkc2_shutdown_vdec(void);
+void wkc2_shutdown_adec(void);
 void wkc2_shutdown_dmux(void);
 }
 
@@ -369,6 +376,9 @@ static DWORD WINAPI frame_clock(LPVOID)
                     (uint32_t)main_ctx->gpr[3],(uint32_t)main_ctx->gpr[4],
                     (uint32_t)main_ctx->gpr[30],(uint32_t)main_ctx->gpr[31]);
                 wkc2_dump_threads();
+                wkc2_dump_dmux();
+                wkc2_dump_adec();
+                wkc2_dump_vdec();
             }
             if (getenv("BCTRL_RING")) ppu_dump_bctrl_ring(1, "frame-progress");
             next_report = now + 5000;
@@ -542,6 +552,10 @@ int main(int argc, char** argv)
     wkc2_register_pamf();
     wkc2_register_dmux();
     wkc2_register_vpost();
+    wkc2_register_adec();
+    wkc2_register_vdec();
+    atexit(wkc2_shutdown_vdec);
+    atexit(wkc2_shutdown_adec);
     atexit(wkc2_shutdown_dmux);
     ppu_sysprx_register();   /* boot-critical CRT */
     ppu_fs_register();       /* cellFs over the game directory */

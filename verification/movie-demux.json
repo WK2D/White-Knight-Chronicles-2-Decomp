@@ -1,6 +1,6 @@
 {
   "verified_on": "2026-10-16",
-  "scope": "Offline access-unit extraction and independent video decoding; native playback is not verified.",
+  "scope": "Offline unit extraction and decoder validation; native playback of the first two LPCM startup movies. AC-3 opening playback remains unsupported.",
   "samples": {
     "first_logo": {
       "input_sha256": "d55bdd4fb5f19723e9ff6c115d9acb1c86a43d8d952169ad5663e15d5a5b725b",
@@ -120,7 +120,7 @@
   },
   "limitations": [
     "LPCM bytes were extracted, but independent LPCM audio comparison is not established.",
-    "A decoded logo frame now renders natively, but continuous playback stalls and audio output is still a placeholder.",
+    "The first two LPCM startup movies advance natively; the following AC-3 opening movie is unsupported.",
     "No game bytes, decoded frames or host paths are included."
   ],
   "native_decoder_check": {
@@ -143,5 +143,58 @@
       102
     ],
     "continuous_native_playback_verified": false
+  },
+  "native_lpcm_check": {
+    "codec": "LPCM",
+    "access_units": 1402,
+    "samples_per_channel": 336480,
+    "sample_rate": 48000,
+    "channels": 2,
+    "output_format": "f32be interleaved",
+    "input_sha256": "62104a4cf3f605d5d719b1982fa3fae6d915f56563eb960984e43c71c102c6dc",
+    "output_sha256": "07d3dedcef010a40e71f8046bfa91d8a4a05a59efc92525ad593aed0f8fb43e1",
+    "all_native_api_samples_match_ffmpeg_pcm_decode": true,
+    "comparison_input": "assembled elementary PCM; independent demux not covered",
+    "native_playback_verified": false,
+    "changed_sample_negative_control_detected": true,
+    "missing_sample_negative_control_detected": true
+  },
+  "native_sparse_video_timing_check": {
+    "sample": "first_logo",
+    "frames": 210,
+    "b_frames": 137,
+    "sequence_passes": 2,
+    "input_timestamps": "only first coded access unit timestamped",
+    "display_rate_numerator": 30000,
+    "display_rate_denominator": 1001,
+    "all_display_timestamps_match_rational_rate": true,
+    "continuous_native_playback_verified": false
+  },
+  "native_async_video_check": {
+    "sample": "first_logo",
+    "api": "project context handlers with FFmpeg backend",
+    "frames_each_pass": 210,
+    "sequence_passes": 2,
+    "all_frame_pixels_match_reference": true,
+    "all_display_timestamps_match_rational_rate": true,
+    "input_timestamps": "only first coded access unit timestamped",
+    "all_input_and_picture_callbacks_accounted_for": true,
+    "output_backpressure_exercised": true,
+    "submitted_input_and_record_overwritten_after_acceptance": true,
+    "continuous_native_playback_verified": false
+  },
+  "native_startup_movie_check": {
+    "duration_limit_seconds": 120,
+    "terminal_reason": "probe time limit",
+    "initial_logo_video_frames_decoded": 210,
+    "input_after_movie_started": false,
+    "first_two_lpcm_movies_advance_to_later_startup": true,
+    "latest_captured_stage": "Havok and Dolby Digital",
+    "next_failure": "AC-3 decoder open returns 0x80610003",
+    "title_screen_verified": false,
+    "gameplay_verified": false,
+    "mixed_audio_samples_all_finite": true,
+    "mixed_audio_peak": 0.9886474609375,
+    "complete_audio_fidelity_verified": false
   }
 }

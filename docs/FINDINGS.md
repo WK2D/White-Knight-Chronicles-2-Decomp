@@ -25,9 +25,11 @@ Keep full traces, generated game code, assets and local paths in the private wor
 | First movie header parses through the guest ABI | Real header reports two streams and 1280x720 video; native execution advances to demux/decoder startup | Movie playback remains unverified |
 | MPEG-2 access-unit extraction matches independent decoding | All 210 logo frames and 3,596 opening-movie frames match FFmpeg's direct demux/decode pixel for pixel; [record](../verification/movie-demux.json) | Offline validation, not native playback |
 | Extracted opening-movie AC-3 decodes | 3,750 audio frames / 5,760,000 samples per channel at 48 kHz | LPCM has not yet had independent audio comparison |
-| Native demux bridge delivers actual access units | Guest video decoder receives the first 19,356-byte unit; audio decoder receives a 960-byte LPCM unit | Continuous playback remains unverified |
+| Native demux bridge delivers actual access units | Guest video decoder receives the first 19,356-byte unit; audio decoder receives a 960-byte LPCM unit | Decoder delivery evidence; later native playback is recorded below |
 | Real video decoding matches reference pixels through the guest API | All 210 logo frames match on two sequence passes, including B-frame reordering; [record](../verification/movie-demux.json) | Standalone decoder validation, not continuous in-game playback |
-| Decoded first-logo image renders natively | D3D12 GPU readback in the [gallery](GALLERY.md) | Later captures hold the image; playback is incomplete |
+| Decoded first-logo image renders natively | D3D12 GPU readback in the [gallery](GALLERY.md) | First-image milestone; later playback is recorded below |
+| Two LPCM startup movies advance natively | Successive readbacks, decoder lifecycle and later Havok/Dolby capture in one 120-second probe with no input after movie start | AC-3 opening movie remains unsupported; title screen unverified |
+| Native LPCM sample conversion matches FFmpeg | All 336,480 stereo sample frames from the first logo match; [record](../verification/movie-demux.json) | Assembled elementary input; independent audio demux and final mix fidelity unverified |
 | Guest flips continue during the later black screen | A 120-second probe observed 6,171 flips and 6,171 presentation calls | Counters do not establish visible rendering |
 
 ## Implemented fixes
@@ -56,7 +58,8 @@ Keep full traces, generated game code, assets and local paths in the private wor
 - Enable real FFmpeg MPEG-2 decoding using pinned public headers and a separately
   supplied library. The optional decoder check reports a skip if no library loads.
 
-Regression checks cover real video decoding, Vpost conversion/windows, callback
+Regression checks cover real video decoding, sparse video timestamps, LPCM sample
+conversion/concurrent queues, Vpost conversion/windows, callback
 stacks, demux ABI/lifetimes, packet/access-unit parsing, PAMF reader ABI, lightweight conditions, memory containers, LFQueue and
 event-queue recycling. PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
@@ -84,21 +87,34 @@ No completion result or installation progress was fabricated.
 
 ## Current blocker
 
-The project demux bridge replaces the SDK's incompatible callback and whole-buffer
-placeholder path. Native startup now allocates the queried ES buffers, delivers
-actual extracted units through guest callbacks and reaches video/audio DecodeAu.
-The previous `0x80610005` worker failure came from the SDK's uninitialized Vpost
-handle path: imported open/query functions were absent and Exec's argument layout
-was incompatible. The replacement Vpost and enabled real video decoder now produce
-a visible logo image. Repeated later captures hold that image. The 100-second probe
-reaches its limit without establishing completed or continuous playback.
+A 120-second native probe now advances through the first two LPCM startup movies
+and reaches the Havok/Dolby screen. Successive movie readbacks differ, and the
+guest closes and reopens the decoders between movies. No controller input occurs
+after movie playback begins. The earlier single-frame stall is resolved for these
+startup clips.
 
-Playback timing, decoder metadata and audio queues are the next investigation.
-The SDK audio path still produces placeholder silence and uses a single output
-slot; correct audio remains unverified. The title screen, completed playback,
-gameplay and save/load remain unverified. Vpost currently implements progressive
-bilinear processing; field deinterlacing and other requested filters return an error.
-Missing imports and unresolved audio-worker calls remain separate open issues.
+The next opening movie uses AC-3. Its audio decoder open returns `0x80610003`
+because the project audio bridge currently supports LPCM only. Implementing real
+AC-3 decoding is the next step; the title screen and gameplay remain unverified.
+
+The asynchronous video bridge owns copies of accepted compressed inputs, separates
+input command capacity from decoded output capacity, and wakes pending work when
+the game consumes pictures. This avoids the SDK's output-count busy deadlock,
+where every accepted input had already completed and the guest waited for a
+callback that could never arrive. Missing presentation timestamps follow the
+decoded rational rate after B-frame reordering.
+
+The LPCM bridge uses distinct output slots, correct guest resource/record layouts,
+real packed samples and sample-count-based timestamps. All 336,480 stereo sample
+frames from the first logo match FFmpeg PCM conversion through the native API.
+This comparison starts from assembled elementary samples; independent audio demux
+and the game's final mix are not established. The native mix is finite and nonzero,
+with a peak of 0.98865, but complete audio fidelity remains unverified.
+
+Fabricated SPURS completion broadcasts were removed. Actual lifted SPU event
+instructions deliver notifications, and the subsequent probe has no unresolved
+audio-worker calls. Missing imports remain open. Vpost currently supports
+progressive bilinear processing; field deinterlacing and other filters return errors.
 
 ## Still unverified
 

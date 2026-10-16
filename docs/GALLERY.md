@@ -4,19 +4,47 @@ Screenshots captured from native Windows x86-64 execution with the D3D12 backend
 using USA BLUS30784 v01.00. These are game-frame GPU readbacks, losslessly encoded
 as PNG. All optional metadata has been removed. Images contain the game frame only.
 
-**Current status:** startup UI renders and language selection responds to controller
-input. A decoded frame from the first logo movie now reaches the renderer.
-Continuous movie playback stalls; correct audio, the title screen, gameplay and
-save/load are still unverified.
+**Current status:** the first two LPCM startup movies now advance through native
+video decoding and rendering. Startup reaches the Havok/Dolby screen. LPCM samples
+are decoded and the host mix is nonzero; complete audio fidelity is still unverified.
+The opening movie then fails because AC-3 decoding is not implemented. The title
+screen, gameplay and save/load remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
+
+## 2026-10-16 — Startup advances to Havok / Dolby
+
+The same native run reaches the Havok and Dolby Digital screen after the studio
+logos. This is a later startup stage, before the unsupported AC-3 opening movie.
+
+![Native Havok and Dolby Digital startup screen](../verification/screenshots/2026-10-16-havok-dolby.png)
+
+## 2026-10-16 — Japan Studio
+
+Japan Studio appears as startup proceeds beyond the earlier movie stall.
+
+![Native Japan Studio logo](../verification/screenshots/2026-10-16-japan-studio.png)
+
+## 2026-10-16 — Sony presents
+
+Startup advances to the Sony Computer Entertainment presentation screen.
+
+![Native Sony Computer Entertainment presents screen](../verification/screenshots/2026-10-16-sony-presents.png)
+
+## 2026-10-16 — D3Publisher logo playback
+
+The first logo movie now animates through to the formed D3Publisher logo.
+Successive GPU readbacks show different movie frames, and the guest then closes
+and reopens the decoders for the next startup movie without a skip input.
+
+![Native D3Publisher logo after its animation](../verification/screenshots/2026-10-16-d3publisher-logo.png)
 
 ## 2026-10-16 — First decoded logo frame
 
 The startup movie now passes through real MPEG-2 decoding, YUV-to-RGBA processing
 and the native renderer. This image is a GPU readback of the first logo sequence.
-Later captures hold this image, so continuous animation remains unverified.
-Audio output is still a placeholder. This establishes visible decoded video,
+At this milestone, later captures held this image and continuous animation was unverified.
+Audio output was still a placeholder at this milestone. This establishes visible decoded video,
 not completed playback or title-screen rendering.
 
 ![Decoded startup logo image rendered natively](../verification/screenshots/2026-10-16-first-logo-frame.png)

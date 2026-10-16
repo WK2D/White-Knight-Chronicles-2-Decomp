@@ -46,8 +46,9 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies eight numbered runtime patches idempotently
-and runs ten checks: real video decoding, Vpost conversion/windows, callback stacks,
+SDAT archives. The build applies ten numbered runtime patches idempotently
+and runs thirteen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion,
+Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue and event queues.
 
@@ -117,3 +118,36 @@ for focused content diagnostics, without enabling other instrumented functions.
 using `PowerPC:BE:64:64-32addr`. It takes a private TSV inventory (hex start, exclusive
 end, TOC), a private output directory, and hex function addresses. It is an analysis
 aid; generated pseudocode is not source distributed by this repository.
+
+`adec.cpp` implements eight guest audio decoder APIs for PAMF LPCM. It owns output
+slots inside the supplied guest work resource and keeps metadata/samples until
+consumption. Supported packed depths are 16/20/24 bits, with dummy-channel removal,
+channel reordering and sample-count-based missing timestamps. Other audio codecs,
+including AC-3, currently return an unsupported argument error.
+
+The LPCM test exercises backpressure, distinct metadata and output queues, 16/24-bit
+samples, mono dummy channels, 5.1 reordering and 1,000 concurrent submissions.
+An optional private test compares every first-logo sample with FFmpeg PCM decoding:
+
+```text
+wkc2_adec_test <private-s16be-input> <private-f32be-output>
+python tools/verify_lpcm.py <private-s16be-input> <private-f32be-output> --record <private-record.json>
+wkc2_vdec_decode_test timing <private-mpeg2-stream> 30000 1001
+```
+
+The PCM comparison starts from assembled elementary samples; it does not independently
+verify demuxing or the game's final audio mix. Sparse video timing is tested after
+B-frame reordering and across two sequence starts. Patch 0009 removes fabricated
+job-completion broadcasts; lifted SPU event instructions retain event delivery.
+Patch 0010 supplies decoded video rate/colour/field metadata and derives missing
+presentation timestamps at the decoded rational frame rate.
+
+`vdec.cpp` supplies asynchronous context handlers for the eight imported video
+APIs and uses the SDK's real FFmpeg backend for pixels. It copies accepted input
+records/data, bounds pending input separately from decoded pictures, and delays
+work when output fills. Consumption wakes the decoder so pending inputs can
+complete. This replaces the SDK's synchronous output-count busy path, which can
+leave the guest waiting after all accepted inputs already reported completion.
+The asynchronous test checks pixels, sparse timestamps, callback counts, sequence
+reset and immediate reuse of the submitted input buffers. The private logo test
+also fills the decoded-output queue before it starts consuming frames.

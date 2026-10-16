@@ -1,0 +1,19 @@
+diff --git a/libs/spurs/cellSpurs.c b/libs/spurs/cellSpurs.c
+index d01a57a..4c7d564 100644
+--- a/libs/spurs/cellSpurs.c
++++ b/libs/spurs/cellSpurs.c
+@@ -2622,12 +2622,8 @@ static void jc_execute(u32 entry_ea, u32 jc_ea, u32 size_desc)
+             int idx = jobs++;
+             jc_run_one_job((u32)(cmd & ~7ull), idx, size_desc);
+             idle = 0;                    /* real work: the chain is healthy */
+-            /* Signal per JOB, not per lap. The application waits once for each
+-             * unit of work it queued -- this title notified the guard 7 times
+-             * and sat in event_queue_receive 30 times -- so batching the
+-             * completion into one event per pass leaves it waiting for
+-             * completions that, from its point of view, never arrive. */
+-            jc_signal_done(jc_ea, idx);
++            /* Only the job's actual send_event instructions deliver user
++             * events. Completing a chain command generates no user event. */
+             pc += 8; continue;
+         }
+         if (op == 1) { pc = (u32)(cmd & ~7ull); continue; }   /* RESET_PC */
