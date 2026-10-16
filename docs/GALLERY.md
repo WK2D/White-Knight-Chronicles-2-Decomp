@@ -14,7 +14,7 @@ Newest milestones appear first. Future captures will be added at the top of the 
 
 ## 2026-10-16 — White Knight Chronicles I selected
 
-The first White Knight Chronicles is selected through native controller input. Its description and selection dialog render correctly. Confirming this choice reaches an unregistered SPU program during loading; no playable scene is verified.
+The first White Knight Chronicles is selected through native controller input. Its description and selection dialog render correctly. Confirming this choice reaches a job with an empty SPU binary source during loading; no playable scene is verified.
 
 ![Native White Knight Chronicles I selected](../verification/screenshots/2026-10-16-wkc1-selection.png)
 

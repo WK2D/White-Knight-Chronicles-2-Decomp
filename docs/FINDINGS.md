@@ -115,9 +115,10 @@ the actual texture and using the shared decoder plus the uploaded DXGI format fi
 the observed menus. The build now runs the SDK texture-layout tests as well.
 
 White Knight Chronicles I was selected and confirmed through the controller path.
-Loading then dispatches an unregistered 258,688-byte asset-backed SPU program
-(fingerprint B31290CE3464E183). Its captured bytes are private input for the next
-static translation. The loading stall does not establish character creation or
+Loading then attempts to dispatch a 258,688-byte SPU image whose captured source
+is entirely zero (fingerprint B31290CE3464E183). This is not valid evidence of a new
+program. The importer rejects empty images; no translated zero/stop placeholder
+is registered. The job descriptor/source memory needs investigation. The loading stall does not establish character creation or
 playable scenes. Missing imports and savedata callback errors remain open.
 
 ## Still unverified

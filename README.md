@@ -16,8 +16,8 @@ The title menu now renders with New Game, Continue and Options over an animated
 background. LPCM startup logos and AC-3 title/attract movies play through the native
 movie pipeline. See the [newest-first gallery](docs/GALLERY.md).
 Controller input opens New Game and selects White Knight Chronicles I. Description
-and dialog text now render correctly. Loading WKC1 reaches a newly observed SPU
-program that still needs translation; gameplay and save/load remain unverified.
+and dialog text now render correctly. Loading WKC1 reaches a job whose binary source is empty; gameplay and save/load
+remain unverified.
 
 [![Native WKC1 selection](verification/screenshots/2026-10-16-wkc1-selection.png)](docs/GALLERY.md)
 
@@ -170,8 +170,8 @@ are readable. The suite also runs the SDK's texture layout, packed-format and
 component-remap checks.
 
 White Knight Chronicles I is the starting point for gameplay validation. Selecting
-and confirming it reaches a previously unseen asset-backed SPU job during loading.
-That program needs a static translation before loading can be tested further.
+and confirming it reaches a job with an empty binary source during loading.
+The source/descriptor must be investigated before loading can be tested further.
 Gameplay, save/load and missing imports remain open.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a

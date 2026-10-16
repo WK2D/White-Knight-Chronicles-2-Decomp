@@ -30,6 +30,9 @@ for path in sorted(a.misses.glob('spujob_*.bin')):
     for byte in data: h = ((h ^ byte)*1099511628211) & ((1<<64)-1)
     if len(data) != int(match[2]) or h != expected:
         raise ValueError(f'Corrupt SPU dump: {path}')
+    if not any(data):
+        print(f'{path.name}: empty image rejected; investigate job descriptor/source memory')
+        continue
     out = a.images/f'zzz_asset_job_{h:016X}.elf'
     out.write_bytes(wrap(data,base=0,entry=0))
     print(f'{out.name}: {len(data)} raw bytes')

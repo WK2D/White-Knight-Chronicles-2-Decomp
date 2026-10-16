@@ -98,6 +98,6 @@
     "guest_flips": 14360,
     "presentation_calls": 14360,
     "terminated_at_time_limit": true,
-    "note": "Readable New Game dialogs and WKC1 selection confirmed. Loading stalls on an unregistered SPU program; playable scenes and save/load unverified."
+    "note": "Readable New Game dialogs and WKC1 selection confirmed. Loading stalls after a job points to an empty SPU binary source; playable scenes and save/load unverified."
   }
 }
