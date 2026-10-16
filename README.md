@@ -31,11 +31,12 @@ The title menu now renders with New Game, Continue and Options over an animated
 background. LPCM startup logos and AC-3 title/attract movies play through the native
 movie pipeline. See the [newest-first gallery](docs/GALLERY.md).
 Controller input opens New Game and selects White Knight Chronicles I. Description
-and dialog text now render correctly. WKC1 loading now passes the guard-registration failure and reaches a further SPU
-job that now runs and returns. Ordered job-list dispatch now reaches four further
-geometry jobs that previously were skipped. Their output and the subsequent
-graphics/FIFO stall still need investigation; gameplay and save/load remain
-unverified.
+and dialog text now render correctly. WKC1 loading passes the guard-registration
+failure and dispatches previously skipped geometry jobs. A native binding for the
+standard SPURS processor-ID query prevents those jobs from reading executable
+bytes as kernel data. Loading advances to a further animation program, now lifted
+and observed dispatching and returning. The latest capture remains black and a
+later graphics wait needs investigation; gameplay and save/load remain unverified.
 
 [![Native WKC1 selection](verification/screenshots/2026-10-16-wkc1-selection.png)](docs/GALLERY.md)
 
@@ -68,8 +69,8 @@ coverage report distinguishes handler presence from verified implementation.
 - Disc metadata and executable identified: complete.
 - Retail SELF decrypted locally using RPCS3 CLI: complete.
 - Function/import/SPU inventory: initial pass complete (56,580 lifted PPU functions;
-  five embedded SPU ELFs, 12 executable-backed raw SPURS jobs and four observed
-  asset-backed jobs; 21 registered SPU images).
+  five embedded SPU ELFs, 12 executable-backed raw SPURS jobs and five observed
+  asset-backed jobs; 22 registered SPU images).
 - Native executable build: passes on Windows using the pinned SDK, Clang 23.1.3,
   local Windows SDK/MSVC headers and DirectX-Headers. `tools/build.ps1` reproduces
   the build from this workspace's prepared inputs; `-Regenerate` also runs the lift.
@@ -178,7 +179,7 @@ progressive YUV conversion, cropping and bilinear resizing. The build enables th
 SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
-Seventeen checks pass. The title screen and its menu render natively; see the gallery.
+Eighteen checks pass. The title screen and its menu render natively; see the gallery.
 
 Packed A4R4G4B4 font textures were excluded by the D3D12 binding filter, leaving
 previous artwork selected for text draws. The backend now records the current
@@ -194,8 +195,12 @@ notifications/reset/waits are synchronized, and joining releases their owning
 chain's entries. Unknown guards stop before dispatch. Regression checks cover
 100 chain lifetimes and 128 simultaneous guards. The native run passes that
 failure. A further 11,856-byte SPU program has been statically translated, and
-eight targeted native dispatches return successfully. Its output correctness and
-the following graphics/FIFO stall still need investigation.
+eight targeted native dispatches return successfully. Ordered job-list execution
+also reaches geometry work previously omitted by the SDK. The standard SPURS
+processor-ID query now reads native handoff metadata, preserving job code at the
+kernel's original local-store address. Loading advances to another 16,912-byte
+animation program; eight dispatch/return pairs have been observed after lifting
+it. Job-output correctness and the later graphics wait still need investigation.
 Gameplay, save/load and missing imports remain open.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a

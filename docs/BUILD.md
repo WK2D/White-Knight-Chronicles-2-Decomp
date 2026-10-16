@@ -46,12 +46,13 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies fourteen numbered runtime patches idempotently
-and runs seventeen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+SDAT archives. The build applies fifteen numbered runtime patches idempotently
+and runs eighteen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
-SPURS guard lifetime/notification behavior and ordered job-list dispatch.
+SPURS guard lifetime/notification behavior, ordered job-list dispatch and the
+native SPURS kernel-ID binding.
 
 `tools/prepare_ffmpeg.py` obtains FFmpeg 8.1 public headers from the official source
 archive, checks SHA-256 `b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a`,
@@ -192,3 +193,12 @@ descriptor size and array address. Every descriptor runs through the existing
 SPU job dispatcher before the walker advances. The SPURS check covers 128-byte
 and 256-byte lists, guarded publication, list order, a following single job,
 empty lists and invalid sizes/ranges. The previous walker fails the list test.
+
+Patch 0015 recognizes the canonical `cellSpursGetSpuId` library routine during
+SPU lifting and binds it to job-manager handoff metadata while running a native
+job. The serial chain walker currently exposes virtual SPU 0. Task/raw contexts
+retain their original LS reads. This avoids overwriting executable job bytes
+with a kernel structure. `SPURS_JOB_ABI_TRACE=1` reports the first eight bound
+queries per host thread. Existing private SPU lifts need regeneration to acquire the binding.
+The ABI test lifts synthetic instructions, runs the query through the actual
+job staging code, checks preserved LS bytes and tests a similar unbound routine.

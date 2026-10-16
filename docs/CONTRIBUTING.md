@@ -23,7 +23,7 @@ staged diff as well: pattern checks cannot recognize every possible secret.
 Use a project identity and a GitHub no-reply email for public commits when
 personal attribution is not desired. Configure them for this repository only.
 
-The four runtime regressions run through `tools/build.ps1`. When reporting a
+The runtime regressions run through `tools/build.ps1`. When reporting a
 rendering improvement, inspect a real GPU readback; frame counters alone do not
 establish correct rendering. Keep full logs private and share only reviewed excerpts.
 

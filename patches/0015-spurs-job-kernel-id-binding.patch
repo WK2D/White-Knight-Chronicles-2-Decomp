@@ -1,0 +1,77 @@
+diff --git a/runtime/spu/spu_context.h b/runtime/spu/spu_context.h
+--- a/runtime/spu/spu_context.h
++++ b/runtime/spu/spu_context.h
+@@ -390,7 +390,15 @@
+      * manager then ran its buffer loop a second time on the job's registers
+      * and died in its own assert (the song-freeze). */
+     uint32_t drain_ret_pc;
++
++    /* Native job-manager handoff. Job code is lifted at link-time LS 0,
++     * so kernel globals must stay separate from its executable bytes. */
++    uint32_t spurs_job_mode;
++    uint32_t spurs_job_spu_num;
+ } spu_context;
++
++/* Native binding for the standard cellSpursGetSpuId library routine. */
++u128 spu_spurs_job_get_spu_id(spu_context* ctx);
+ 
+ /* Reserved LS addresses (inside the kernel area, below the 0xA00 policy-module
+  * base) that the HLE kernel plants as exitToKernelAddr / selectWorkloadAddr in
+diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
+--- a/runtime/spu/spurs_job.c
++++ b/runtime/spu/spurs_job.c
+@@ -339,6 +339,11 @@
+     spu_context ctx;
+     spu_context_init(&ctx, 0);
+     ctx.image_id = image_id;
++    /* The HLE chain walker executes jobs serially on one virtual SPU.
++     * Expose its logical index through native kernel-library bindings;
++     * writing a kernel context at LS 0x1C0 would overwrite this job's code. */
++    ctx.spurs_job_mode = 1;
++    ctx.spurs_job_spu_num = 0;
+     memcpy(ctx.ls, ls, SPU_LS_SIZE);
+     ctx.gpr[1]._u32[0] = (stack_top - 16u) & ~15u;   /* SPU stack grows down */
+     /* Link register: where the job returns when it is done. The job manager
+@@ -407,3 +412,18 @@
+     free(ls);
+     return 0;
+ }
++
++u128 spu_spurs_job_get_spu_id(spu_context* ctx)
++{
++    u128 value = {{0}};
++    value._u32[0] = ctx->spurs_job_spu_num;
++    /* Opt-in evidence that the platform call no longer reads job opcodes. */
++    { static SPU_THREAD_LOCAL int trace = -1; static SPU_THREAD_LOCAL unsigned samples;
++      if (trace < 0) trace = getenv("SPURS_JOB_ABI_TRACE") != NULL;
++      if (trace && samples++ < 8)
++          fprintf(stderr, "[spurs-abi] GetSpuId image=%d virtual_spu=%u displaced_ls_word=%02X%02X%02X%02X\n",
++                  ctx->image_id, value._u32[0], ctx->ls[0x1C8], ctx->ls[0x1C9],
++                  ctx->ls[0x1CA], ctx->ls[0x1CB]); }
++    return value;
++}
++
+diff --git a/tools/spu_lifter.py b/tools/spu_lifter.py
+--- a/tools/spu_lifter.py
++++ b/tools/spu_lifter.py
+@@ -493,6 +493,20 @@
+                       start: int, end: int) -> LiftedFunction:
+         func = LiftedFunction(name=f"{self.prefix}spu_func_{start:08X}",
+                               start_addr=start, end_addr=end)
++
++        # Canonical cellSpursGetSpuId: kernel-context load, lane selection,
++        # return. Native job staging uses LS 0 for PIC job code; the real
++        # kernel lives below the job on hardware. Bind this platform routine
++        # to the handoff metadata, rather than reading an opcode as an ID.
++        # Match instructions, never a title-specific address or fingerprint.
++        first = [i.raw for i in insns if start <= i.addr < end][:3]
++        if first == [0x30803803, 0x3F820183, 0x35000000]:
++            func.body_lines.extend([
++                "    if (ctx->spurs_job_mode) {",
++                "        ctx->gpr[3] = spu_spurs_job_get_spu_id(ctx);",
++                "        SPU_RET(ctx);",
++                "    }",
++            ])
+ 
+         internal: set[int] = set()
+         for insn in insns:

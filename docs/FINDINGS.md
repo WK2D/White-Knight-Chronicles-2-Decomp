@@ -17,7 +17,7 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and seventeen runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and eighteen runtime regression checks | Compilation alone does not verify gameplay |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -173,6 +173,30 @@ and returns. The graphics wait persists, still one submission behind, and the
 last observed writer of the parked command remains fingerprint 687D4BB18564813A.
 Job output correctness, character creation, gameplay and save/load remain
 unverified.
+
+The geometry program calls the canonical `cellSpursGetSpuId` routine. It reads
+the kernel's SPU number at local-store address 0x1C8. Native job staging loads
+the job at address zero, where that location holds an instruction (0x18275E25).
+The job interprets it as an invalid processor ID and takes its error/stop path.
+Patch 0015 recognizes the standard three-instruction library routine during
+lifting and binds it to native job-manager metadata. The serial walker exposes
+virtual SPU 0; task/raw contexts keep their original local-store reads. No job
+instruction bytes are overwritten. A generated-instruction regression exercises
+the actual staging code, preserved bytes, raw/task behavior and a similar routine
+that must remain unbound. Without the binding the new regression fails.
+All eighteen runtime checks pass.
+
+A native WKC1 probe records eight bound queries, with the displaced instruction
+word preserved, and advances beyond the earlier self-jump wait to a missing
+16,912-byte SPU program (fingerprint 66E2457D0BEDAE24). Its strings refer to
+animation jobs. The private static lift finds 176 functions, 94.9% coverage and
+20 undecoded words. The next native run records eight dispatch/return pairs for
+that program, with 22 SPU images registered. Output correctness remains unverified.
+The capture is black and three later graphics-timeout samples agree: the label
+is still one submission behind, but the published GET now points at a normal
+method header rather than a self-jump. The next observation must distinguish
+in-flight command consumption from missing producer output. No new gallery image
+or playable-scene milestone is claimed.
 
 ## Update 1.01 and DLC integration
 

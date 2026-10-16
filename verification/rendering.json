@@ -180,5 +180,56 @@
     "gameplay_verified": false,
     "regression_test": "ordered 128/256-byte lists, guarded publication, empty lists, following single job, invalid descriptor sizes and addresses",
     "previous_walker_fails_regression": true
+  },
+  "wkc1_spurs_kernel_id": {
+    "probe": "20261016-045353",
+    "fingerprint": "38DCC9863DD4E49F",
+    "observed_bound_queries": 8,
+    "virtual_spu": 0,
+    "displaced_ls_word": "18275E25",
+    "binding_preserves_ls_code": true,
+    "old_implementation_fails_regression": true,
+    "regression_scope": "Generated canonical query through actual job staging, preserved LS bytes, task/raw reads, different lane-selection negative control",
+    "multi_spu_scheduling_verified": false,
+    "earlier_self_jump_wait_passed": true,
+    "next_missing_program": {
+      "fingerprint": "66E2457D0BEDAE24",
+      "binary_bytes": 16912
+    },
+    "guest_flips": 15585,
+    "presentation_calls": 15585,
+    "gameplay_verified": false
+  },
+  "wkc1_animation_job": {
+    "probe": "20261016-050241",
+    "fingerprint": "66E2457D0BEDAE24",
+    "binary_bytes": 16912,
+    "lifted_functions": 176,
+    "static_coverage_percent": 94.9,
+    "undecoded_words": 20,
+    "registered_spu_images": 22,
+    "observed_dispatch_return_pairs": 8,
+    "observed_return_codes": [
+      0
+    ],
+    "job_output_correctness_verified": false,
+    "last_captured_frame": "black",
+    "later_graphics_wait": {
+      "matching_samples": 3,
+      "expected_label": 14002,
+      "observed_label": 14001,
+      "published_get": "0020C31C",
+      "published_get_ea": "4620C31C",
+      "get_word": "00041D6C",
+      "get_points_to_self_jump": false,
+      "put": "0022A138",
+      "root_cause_verified": false
+    },
+    "guest_flips": 13989,
+    "presentation_calls": 13989,
+    "stopped_after_repeated_wait": true,
+    "character_creation_verified": false,
+    "gameplay_verified": false,
+    "save_load_verified": false
   }
 }

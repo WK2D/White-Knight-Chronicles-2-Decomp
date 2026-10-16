@@ -292,6 +292,17 @@ option(WKC2_BUILD_TESTS "Build port-specific regression tests" ON)
 if(WKC2_BUILD_TESTS)
     enable_testing()
     find_package(Threads REQUIRED)
+    set(SPURS_ABI_FIXTURE "${CMAKE_BINARY_DIR}/spurs-abi-fixture")
+    add_custom_command(OUTPUT "${SPURS_ABI_FIXTURE}/fixture.c" "${SPURS_ABI_FIXTURE}/fixture.h"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spurs_abi_fixture.py"
+            "${PS3RECOMP_DIR}" "${SPURS_ABI_FIXTURE}"
+        DEPENDS tools/prepare_spurs_abi_fixture.py "${PS3RECOMP_DIR}/tools/spu_lifter.py")
+    add_executable(wkc2_spurs_abi_test tests/spurs_abi_test.c
+        "${SPURS_ABI_FIXTURE}/fixture.c" "${PS3RECOMP_DIR}/runtime/spu/spurs_job.c")
+    target_include_directories(wkc2_spurs_abi_test PRIVATE
+        "${SPURS_ABI_FIXTURE}" "${PS3RECOMP_DIR}/runtime/spu")
+    add_test(NAME wkc2_spurs_abi COMMAND wkc2_spurs_abi_test)
+    set_tests_properties(wkc2_spurs_abi PROPERTIES TIMEOUT 10)
     if(WIN32)
         add_executable(wkc2_spurs_job_test tests/spurs_job_test.c
             "${PS3RECOMP_DIR}/libs/spurs/cellSpurs.c")
