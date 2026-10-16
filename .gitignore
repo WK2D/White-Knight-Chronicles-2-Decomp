@@ -2,6 +2,9 @@
 /*
 !/.gitignore
 !/.gitattributes
+!/.github/
+/.github/*
+!/.github/FUNDING.yml
 !/README.md
 !/LICENSE
 !/LICENSE.ps3recomp
