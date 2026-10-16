@@ -27,8 +27,7 @@ The Japanese game, DLC and ten update packages are available for future research
 The long-term goal is to bring **all Japanese-exclusive content into the port
 with English translations**, and offer **optional Japanese voiceovers**.
 Content differences, translations and cross-region integration still need
-investigation and validation. The immediate priority remains baseline 1.00
-3D rendering and gameplay.
+investigation and validation. 
 
 ## Progress gallery
 
