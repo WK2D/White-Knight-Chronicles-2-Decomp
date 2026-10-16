@@ -6,11 +6,19 @@ as PNG. All optional metadata has been removed. Images contain the game frame on
 
 **Current status:** the native title screen renders with New Game, Continue,
 Options and an animated background. AC-3 and LPCM audio decode, and idle startup
-enters the attract movie. Menu navigation opens New Game, whose dynamic text renders as blocks.
+enters the attract movie. New Game descriptions and selection dialogs are now
+readable, and White Knight Chronicles I reaches Customize Avatar. The avatar
+model is not yet visible.
 Starting gameplay and save/load remain unverified;
 complete audio fidelity and timing against original hardware remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
+
+## 2026-10-16 — Avatar customization UI
+
+Selecting White Knight Chronicles I now reaches Customize Avatar. Controller input dismisses the introductory notice. Text and menu controls render, but the character model is missing. Gameplay, completed character creation and save/load remain unverified. Captured on the original version 1.00 baseline.
+
+![Native Avatar customization UI](../verification/screenshots/2026-10-16-avatar-customization.png)
 
 ## 2026-10-16 — White Knight Chronicles I selected
 

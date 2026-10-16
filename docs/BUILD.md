@@ -46,13 +46,13 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies sixteen numbered runtime patches idempotently
-and runs eighteen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+SDAT archives. The build applies seventeen numbered runtime patches idempotently
+and runs nineteen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
 SPURS guard lifetime/notification behavior, ordered job-list dispatch and the
-native SPURS kernel-ID binding.
+native SPURS kernel-ID binding, plus vertex-program cache identity/lifetime.
 
 `tools/prepare_ffmpeg.py` obtains FFmpeg 8.1 public headers from the official source
 archive, checks SHA-256 `b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a`,
@@ -210,3 +210,11 @@ host atomics; the sample is not a coherent memory snapshot. This distinguishes
 in-flight work from the GET value published only after a drain completes.
 The trace changes timing and does not advance GET, consume commands or release
 labels. Raw words and addresses remain in private logs.
+
+Patch 0017 keeps vertex-program cache IDs stable for deferred draws and keys each
+entry on the actual program through END, with bytecode comparison after hashing.
+The cache grows as distinct programs appear and releases retained shader blobs at
+backend shutdown. Its regression covers 128 queued IDs, copied bytecode, deliberate
+hash collisions, unrelated bytes after END, invalid input and single release of
+each compiled object. A negative control with the old moving 16-slot policy fails.
+This fixes the observed customization UI output; model rendering remains unverified.

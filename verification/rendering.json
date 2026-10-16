@@ -16,7 +16,9 @@
     "continuous_movie_playback": true,
     "readable_new_game_dialogs": true,
     "wkc1_selection": true,
-    "continuous_movie_playback_scope": "LPCM startup logos, AC-3 title background and observed attract playback"
+    "continuous_movie_playback_scope": "LPCM startup logos, AC-3 title background and observed attract playback",
+    "avatar_customization_ui": true,
+    "avatar_model_rendering": false
   },
   "captures": [
     {
@@ -268,5 +270,47 @@
     "character_creation_verified": false,
     "gameplay_verified": false,
     "save_load_verified": false
+  },
+  "wkc1_stable_vertex_program_cache": {
+    "probe": "20261016-053117",
+    "seconds_limit": 600,
+    "terminated_at_time_limit": true,
+    "registered_spu_images": 22,
+    "regression_checks_passed": 19,
+    "moving_16_slot_policy_fails_regression": true,
+    "native_vertex_shader_ids_in_scene_capture": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "scene_capture_operations": 617,
+    "native_avatar_customization_ui_rendered": true,
+    "introductory_notice_dismissed_through_controller": true,
+    "avatar_model_visible": false,
+    "character_creation_completed": false,
+    "gameplay_verified": false,
+    "save_load_verified": false,
+    "last_reported_guest_flips": 16834,
+    "last_reported_presentation_calls": 16834,
+    "gallery_image": "screenshots/2026-10-16-avatar-customization.png",
+    "diagnostic_timing_note": "FIFO provenance and in-flight tracing disabled for this run; capture still changes presentation timing"
   }
 }

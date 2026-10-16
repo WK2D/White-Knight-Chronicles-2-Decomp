@@ -312,6 +312,12 @@ if(WKC2_BUILD_TESTS)
         add_test(NAME wkc2_spurs_job COMMAND wkc2_spurs_job_test)
         set_tests_properties(wkc2_spurs_job PROPERTIES TIMEOUT 20)
     endif()
+    add_executable(wkc2_vp_cache_test tests/vp_cache_test.c
+        "${PS3RECOMP_DIR}/libs/video/rsx_vp_decompiler.c")
+    target_include_directories(wkc2_vp_cache_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
+    add_test(NAME wkc2_vp_cache COMMAND wkc2_vp_cache_test)
+    set_tests_properties(wkc2_vp_cache PROPERTIES TIMEOUT 10)
     add_executable(wkc2_texture_layout_test
         "${PS3RECOMP_DIR}/libs/video/tests/test_texture_layout.c"
         "${PS3RECOMP_DIR}/libs/video/rsx_texture_layout.c")

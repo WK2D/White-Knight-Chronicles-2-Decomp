@@ -17,7 +17,8 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and eighteen runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and nineteen runtime regression checks | Compilation alone does not verify gameplay |
+| WKC1 reaches Customize Avatar | Readable UI and controller dismissal of the introductory notice; [capture](GALLERY.md) | Character model missing; completed character creation, gameplay and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -211,6 +212,23 @@ remaining black output; they do not prove a root cause. Both the backbuffer and
 the main scene render target remain black. Character creation, gameplay and
 save/load remain unverified. The observation changes diagnostic timing but does
 not write guest completion values or advance the queue.
+
+Two vertex-shader cache defects explain a later rendering failure. The backend
+shifted a 16-entry array when full, but queued draws retained the old indices.
+It also hashed unrelated resident instructions after the current program's END,
+causing false cache misses. Patch 0017 retains stable IDs until backend shutdown,
+compares the actual program bytes after hashing and excludes that trailing store
+content. A regression covers 128 retained IDs, copied instructions, deliberate
+hash collisions, bytes after END, invalid inputs and release lifetime. A negative
+control reproducing the moving 16-slot policy fails; all nineteen checks pass.
+
+The next native WKC1 run reaches Customize Avatar with readable menu controls.
+Controller input dismisses the introductory downloadable-content notice. A scene
+capture contains 21 distinct vertex-shader IDs (0 through 20), confirming that
+this path exceeds the previous cache capacity. The newest gallery image shows
+the UI after the notice is dismissed. The character model is still missing, and
+performance remains slow. This verifies the customization screen and that input
+response, not completed character creation, gameplay, saving or DLC integration.
 
 ## Update 1.01 and DLC integration
 

@@ -57,5 +57,9 @@
       "unique_playable_content_verified": false,
       "usa_build_compatibility_verified": false
     }
-  }
+  },
+  "native_avatar_customization_ui_verified": true,
+  "native_avatar_customization_ui_scope": "WKC1 selection reaches Customize Avatar; controller input dismisses the introductory notice",
+  "native_avatar_model_rendering_verified": false,
+  "native_character_creation_completed_verified": false
 }

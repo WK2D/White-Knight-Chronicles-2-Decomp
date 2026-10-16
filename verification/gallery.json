@@ -4,6 +4,23 @@
   "execution": "native Windows x86-64, D3D12",
   "captures": [
     {
+      "milestone": "avatar-customization-ui",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-avatar-customization.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "c8b57ead5d552d975c4c4a29109808a7fa444d3318dd358b3f632983c7bb58b3",
+      "png_sha256": "e7138bbdadcc3ee259cd1a4b12ab7e457c988523afa1cbf52436481830145a01",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
       "milestone": "wkc1-selection",
       "date": "2026-10-16",
       "image": "screenshots/2026-10-16-wkc1-selection.png",

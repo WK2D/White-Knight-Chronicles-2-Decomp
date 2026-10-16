@@ -1,0 +1,168 @@
+diff --git a/libs/video/rsx_vp_cache.h b/libs/video/rsx_vp_cache.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_vp_cache.h
+@@ -0,0 +1,52 @@
++/* Stable vertex-program IDs for deferred draws. Entries live until shutdown. */
++#ifndef RSX_VP_CACHE_H
++#define RSX_VP_CACHE_H
++#include <stdint.h>
++#include <stdlib.h>
++#include <string.h>
++#include <limits.h>
++typedef struct {
++    uint32_t hash, bytes;
++    uint8_t* ucode;
++    void* vs;
++    int uses_c03;
++} rsx_vp_cache_entry;
++typedef struct {
++    rsx_vp_cache_entry* entries;
++    int count;
++    size_t capacity;
++} rsx_vp_cache;
++static inline int rsx_vp_cache_find(const rsx_vp_cache* c, uint32_t hash,
++                                   const uint8_t* code, uint32_t bytes) {
++    if (!code || !bytes) return -1;
++    for (int i=0; i<c->count; ++i)
++        if (c->entries[i].hash==hash && c->entries[i].bytes==bytes &&
++            memcmp(c->entries[i].ucode,code,bytes)==0) return i;
++    return -1;
++}
++static inline int rsx_vp_cache_add(rsx_vp_cache* c, uint32_t hash,
++                                  const uint8_t* code, uint32_t bytes,
++                                  void* compiled, int uses_c03) {
++    if (!code || !bytes || !compiled || c->count==INT_MAX) return -1;
++    uint8_t* copy=(uint8_t*)malloc(bytes);
++    if (!copy) return -1;
++    memcpy(copy,code,bytes);
++    if ((size_t)c->count==c->capacity) {
++        size_t cap=c->capacity ? c->capacity*2 : 16;
++        if (cap<c->capacity || cap>SIZE_MAX/sizeof(*c->entries)) { free(copy);return -1; }
++        void* grown=realloc(c->entries,cap*sizeof(*c->entries));
++        if (!grown) { free(copy);return -1; }
++        c->entries=(rsx_vp_cache_entry*)grown;c->capacity=cap;
++    }
++    int id=c->count++;
++    c->entries[id]=(rsx_vp_cache_entry){hash,bytes,copy,compiled,uses_c03};
++    return id;
++}
++static inline void rsx_vp_cache_clear(rsx_vp_cache* c, void (*release)(void*)) {
++    for (int i=0; i<c->count; ++i) {
++        if (release) release(c->entries[i].vs);
++        free(c->entries[i].ucode);
++    }
++    free(c->entries);memset(c,0,sizeof(*c));
++}
++#endif
+diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
+--- a/libs/video/rsx_d3d12_backend.c
++++ b/libs/video/rsx_d3d12_backend.c
+@@ -181,16 +181,7 @@
+  * draw time (hashed). Apps switch VPs between draws (gcm/cube: its MVP cube VP
+  * vs dbgfont-gcm's text VP); compiling only the first left later draws
+  * transformed by the wrong program (text offscreen). */
+-typedef struct {
+-    u32 hash;               /* FNV-1a of the ucode */
+-    ID3DBlob* vs;
+-    int uses_c03;
+-} VPVSEntry;
+-#define VP_VS_CACHE 16  /* wave uses 5+ distinct VPs; at 4 the cache
+-                         * thrashed every frame and eviction shifted slots
+-                         * under recorded vs_idx values -- the display mesh
+-                         * drew with the WRONG vertex program (sub-rect +
+-                         * edge slivers instead of fullscreen) */
++#include "rsx_vp_cache.h"
+ 
+ /* Compiled guest-FP pipeline cache: decompiled VS (by cache slot) + decompiled
+  * PS (fragment ucode at fp_addr). */
+@@ -309,8 +300,7 @@
+     u32                   vp_gen;               /* bumped per VP recompile       */
+     int                   vp_uses_c03;          /* VS references vp_c[0..3]      */
+     VPTexSlot             vp_tex[VP_TEX_SLOTS]; /* per-frame VP texture slots    */
+-    VPVSEntry             vp_vs[VP_VS_CACHE];   /* per-draw decompiled VS cache  */
+-    int                   vp_vs_n;
++    rsx_vp_cache          vp_vs;   /* stable IDs retained by queued draws */
+     VPFPEntry             vp_fp[VP_FP_CACHE];   /* guest-FP PSO cache            */
+     int                   vp_fp_n;
+     u32                   srv_inc;              /* CBV_SRV_UAV descriptor size   */
+@@ -1782,9 +1772,15 @@
+     if (vstart >= st->vp_ucode_bytes) vstart = 0;
+     const u8* vuc = st->vp_ucode + vstart;
+     u32 vlen = st->vp_ucode_bytes - vstart;
++    /* Resident programs after END are unrelated to this shader. Hashing them
++     * creates false misses whenever another program is uploaded. */
++    extern u32 rsx_vp_program_size_instrs(const u8*, u32);
++    u32 program_instrs = rsx_vp_program_size_instrs(vuc, vlen);
++    if (!program_instrs) return -1;
++    vlen = program_instrs * 16u;
+     u32 hash = vp_hash_ucode(vuc, vlen);
+-    for (int i = 0; i < s_d3d.vp_vs_n; i++)
+-        if (s_d3d.vp_vs[i].hash == hash) return i;
++    int cached = rsx_vp_cache_find(&s_d3d.vp_vs, hash, vuc, vlen);
++    if (cached >= 0) return cached;
+ 
+     static char hlsl[262144];
+     int ni = rsx_vp_decompile(vuc, vlen, hlsl, sizeof hlsl);
+@@ -1849,18 +1845,11 @@
+         static int _e=0; if (_e++<4) printf("[VP] per-draw VS compile FAIL (hash=0x%08X)\n", hash);
+         return -1;
+     }
+-    int slot;
+-    if (s_d3d.vp_vs_n < VP_VS_CACHE) slot = s_d3d.vp_vs_n++;
+-    else {  /* evict slot 0 */
+-        if (s_d3d.vp_vs[0].vs) s_d3d.vp_vs[0].vs->lpVtbl->Release(s_d3d.vp_vs[0].vs);
+-        memmove(&s_d3d.vp_vs[0], &s_d3d.vp_vs[1], sizeof(VPVSEntry)*(VP_VS_CACHE-1));
+-        slot = VP_VS_CACHE - 1;
+-    }
+-    s_d3d.vp_vs[slot].hash = hash;
+-    s_d3d.vp_vs[slot].vs   = vb;
+-    s_d3d.vp_vs[slot].uses_c03 =
++    int uses_c03 =
+         (strstr(hlsl, "vp_c[0]") || strstr(hlsl, "vp_c[1]") ||
+          strstr(hlsl, "vp_c[2]") || strstr(hlsl, "vp_c[3]")) ? 1 : 0;
++    int slot = rsx_vp_cache_add(&s_d3d.vp_vs, hash, vuc, vlen, vb, uses_c03);
++    if (slot < 0) { vb->lpVtbl->Release(vb); return -1; }
+     { static int _n=0; if (_n++<6) printf("[VP] per-draw VS cached (hash=0x%08X, %d instrs, slot %d)\n", hash, ni, slot); }
+     /* Build the base VP pipeline here if it does not exist yet. render_frame's
+      * trigger reads s_d3d.current_rsx_state, which by frame end no longer has
+@@ -2027,8 +2016,8 @@
+     { static int _off=-1; if(_off<0)_off=getenv("FP_OFF")?1:0; if(_off) return NULL; }
+     /* Resolve the VS: the draw's cached per-VP blob, else the primary. */
+     ID3DBlob* vsb = NULL; u32 vs_hash = 0;
+-    if (vs_idx >= 0 && vs_idx < s_d3d.vp_vs_n) {
+-        vsb = s_d3d.vp_vs[vs_idx].vs; vs_hash = s_d3d.vp_vs[vs_idx].hash;
++    if (vs_idx >= 0 && vs_idx < s_d3d.vp_vs.count) {
++        vsb = s_d3d.vp_vs.entries[vs_idx].vs; vs_hash = s_d3d.vp_vs.entries[vs_idx].hash;
+     }
+     if (!vsb) { vsb = s_d3d.vp_vs_blob; vs_idx = -1; }
+     if (!vsb) return NULL;
+@@ -3180,8 +3169,8 @@
+                vpx[0] = k; vpx[1] = k; vpx[4] = -ux * k; vpx[5] = -uy * k; } }
+ 
+     /* Garbage-projection fallback (vkcube; see the original comment). */
+-    int uses_c03 = (vs_idx >= 0 && vs_idx < s_d3d.vp_vs_n)
+-                       ? s_d3d.vp_vs[vs_idx].uses_c03 : s_d3d.vp_uses_c03;
++    int uses_c03 = (vs_idx >= 0 && vs_idx < s_d3d.vp_vs.count)
++                       ? s_d3d.vp_vs.entries[vs_idx].uses_c03 : s_d3d.vp_uses_c03;
+     float* c = (float*)dst;
+     float c00 = c[0];
+     int garbage = !(c00 > 0.0f && c00 < 8.0f);
+@@ -5101,10 +5090,17 @@
+     return 0;
+ }
+ 
++static void vp_release_cached_blob(void* blob)
++{
++    ID3DBlob* vs = (ID3DBlob*)blob;
++    if (vs) vs->lpVtbl->Release(vs);
++}
++
+ static void d3d12_shutdown(void* ud)
+ {
+     (void)ud;
+     printf("[D3D12] Backend shutdown\n");
++    rsx_vp_cache_clear(&s_d3d.vp_vs, vp_release_cached_blob);
+ }
+ 
+ static void d3d12_begin_frame(void* ud)

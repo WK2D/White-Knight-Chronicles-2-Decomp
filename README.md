@@ -35,11 +35,12 @@ and dialog text now render correctly. WKC1 loading passes the guard-registration
 failure and dispatches previously skipped geometry jobs. A native binding for the
 standard SPURS processor-ID query prevents those jobs from reading executable
 bytes as kernel data. Loading advances to a further animation program, now lifted
-and observed dispatching and returning. FIFO observations show work continuing
-through a later graphics timeout, followed by resumed presentation. Slow rendering
-and black output still need investigation; gameplay and save/load remain unverified.
+and observed dispatching and returning. Fixing vertex-shader cache identities now
+reveals the **Customize Avatar** screen. Its text and controls render, and input
+dismisses the introductory notice. The character model is missing; completed
+character creation, gameplay and save/load remain unverified.
 
-[![Native WKC1 selection](verification/screenshots/2026-10-16-wkc1-selection.png)](docs/GALLERY.md)
+[![Native avatar customization UI](verification/screenshots/2026-10-16-avatar-customization.png)](docs/GALLERY.md)
 
 ## Workspace layout
 
@@ -82,6 +83,8 @@ coverage report distinguishes handler presence from verified implementation.
   into the next startup stage. Further input and gameplay remain under test.
 - Title screen and menu input: verified on Windows.
 - Readable New Game and WKC1 selection dialogs: verified on Windows.
+- WKC1 avatar-customization UI: renders and dismisses its introductory notice;
+  the character model is not yet visible.
 - Scene, combat and save/load verification: pending.
 - Apple Silicon build and testing: pending.
 - GeoNet compatibility: separate later research; not established.
@@ -180,7 +183,7 @@ progressive YUV conversion, cropping and bilinear resizing. The build enables th
 SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
-Eighteen checks pass. The title screen and its menu render natively; see the gallery.
+Nineteen checks pass. The title screen and its menu render natively; see the gallery.
 
 Packed A4R4G4B4 font textures were excluded by the D3D12 binding filter, leaving
 previous artwork selected for text draws. The backend now records the current
@@ -201,7 +204,9 @@ also reaches geometry work previously omitted by the SDK. The standard SPURS
 processor-ID query now reads native handoff metadata, preserving job code at the
 kernel's original local-store address. Loading advances to another 16,912-byte
 animation program; eight dispatch/return pairs have been observed after lifting
-it. Job-output correctness and the later graphics wait still need investigation.
+it. FIFO consumption continues through a later timeout. A subsequent vertex-shader
+cache fix reveals avatar-customization menus; model rendering and job-output
+correctness still need investigation.
 Gameplay, save/load and missing imports remain open.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a
