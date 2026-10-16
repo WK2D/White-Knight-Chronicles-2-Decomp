@@ -131,6 +131,28 @@ the formerly missing guards and reaches a real 11,856-byte SPU program
 98.2% code coverage, with seven undecoded words; execution correctness remains
 unproven. Playable scenes and save/load are still unverified.
 
+## Update 1.01 and DLC integration
+
+Planned scope includes the USA 1.01 update and matching DLC. Local package
+inspection confirms update TITLE_ID BLUS30784 and APP_VER 01.01. It contains a
+replacement executable, patch settings and an approximately 199 MB patch archive.
+The USA DLC metadata also targets BLUS30784; a separate European package targets
+BCES01085. Its regional differences are part of the planned DLC investigation.
+
+A byte comparison of the supplied DLC packages finds 21 USA entries and 22 EU
+entries under `USRDIR/cm`. The EU-only entry is `c1267f66.edat` (320 bytes).
+Nine shared files are byte-identical; twelve differ. Package-level differences
+can include licensing/container metadata, so this does not yet identify an extra
+item, quest or other playable feature. Determine what the extra entry unlocks,
+compare the differing shared entries, and test any relevant content against the
+USA build before claiming compatibility.
+
+Next steps are to analyze the updated executable, integrate the patch data and
+DLC discovery, and validate content access plus gameplay/save compatibility.
+The current baseline remains disc v01.00. Neither 1.01 execution nor DLC content
+has been verified in the native port. Package bytes and local source locations
+are not published.
+
 ## Still unverified
 
 Playable scenes, combat, save/load, a complete fresh-disc

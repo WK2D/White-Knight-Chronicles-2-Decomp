@@ -26,5 +26,36 @@
   "native_dynamic_text_rendering_verified": true,
   "gameplay_validation_start": "White Knight Chronicles I",
   "native_dynamic_text_rendering_scope": "New Game description, game-selection dialog and confirmation",
-  "native_wkc1_selection_verified": true
+  "native_wkc1_selection_verified": true,
+  "planned_content_support": {
+    "update_1_01": {
+      "title_id": "BLUS30784",
+      "package_metadata_verified": true,
+      "integration_status": "planned",
+      "native_execution_verified": false
+    },
+    "dlc": {
+      "title_id": "BLUS30784",
+      "package_metadata_verified": true,
+      "integration_status": "planned",
+      "native_content_verified": false
+    },
+    "validation_scope": [
+      "updated executable and patch data",
+      "DLC discovery and loading",
+      "gameplay and save compatibility"
+    ],
+    "eu_dlc_comparison": {
+      "status": "inventory_compared_content_identity_unverified",
+      "us_entry_count": 21,
+      "eu_entry_count": 22,
+      "eu_only_entries": [
+        "c1267f66.edat"
+      ],
+      "identical_shared_entries": 9,
+      "different_shared_entries": 12,
+      "unique_playable_content_verified": false,
+      "usa_build_compatibility_verified": false
+    }
+  }
 }

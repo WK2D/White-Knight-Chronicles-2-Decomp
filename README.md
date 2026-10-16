@@ -10,6 +10,21 @@ establish that the game works.
 See [build instructions](docs/BUILD.md) and [contribution workflow](docs/CONTRIBUTING.md).
 The [findings log](docs/FINDINGS.md) tracks verified results, open issues and next steps.
 
+## Update 1.01 and DLC plans
+
+We will add support for the USA **1.01 update and DLC** as part of this port.
+Development currently uses the original BLUS30784 v01.00 disc executable as its
+baseline, with gameplay testing starting in White Knight Chronicles I.
+
+The supplied update's metadata confirms BLUS30784, APP_VER 01.01. A matching USA
+DLC package has also been identified. Integration will cover the updated
+executable and patch data, DLC discovery/loading, and gameplay/save compatibility.
+**Update 1.01 and DLC are planned work; runtime support is not yet verified.**
+We will also compare the European DLC for content absent from the USA package
+and investigate compatibility with BLUS30784. Initial file comparison finds one
+EU-only entry; what it unlocks and whether it works in the USA build are unverified.
+Original packages, their contents and local source locations remain private.
+
 ## Progress gallery
 
 The title menu now renders with New Game, Continue and Options over an animated
