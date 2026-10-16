@@ -247,6 +247,41 @@ disabled. The customization UI still renders, but the avatar is still missing.
 This corrects depth-state handling without establishing the remaining root cause;
 fragment output, culling and other raster state remain under investigation.
 
+Patch 0020 captures a render target immediately after selected GPU draws, before
+later passes can overwrite it. A known-good startup-logo readback validates the
+copy path. In the customization scene, snapshots after the background and selected
+avatar draws have byte-identical RGB pixels, including after the last model draw.
+Those draws use guest fragment pipelines with culling disabled. Post-processing
+subsequently changes the image. The missing model therefore already fails to
+affect the captured color target before post-processing; this does not identify
+whether depth rejection, fragment output or another earlier stage is responsible.
+These private diagnostic images add no gallery milestone.
+
+A separate run with the existing `DEPTH_OFF=1` diagnostic shows the room and
+avatar. Intermediate copies also show nonzero color changes after the sampled
+body draws. The override disables both depth testing and writes; this establishes
+that those stages affect the missing geometry, not that normal rendering works.
+No image from that override is published as a gallery milestone.
+
+The guest fragment pipelines also left D3D12 depth clipping disabled through
+zero-initialization. Patch 0021 decodes the guest clipping/clamping control and
+retains it in the raster pipeline key. A command-processor regression covers
+reset, disable/restore, clamping and deferred state; the previous no-clipping
+policy fails it. All twenty-one checks pass. A further native run confirms
+clipping-enabled guest pipelines with normal depth testing, but the avatar is
+still missing. Clipping control is corrected without establishing the remaining
+depth failure. The next diagnostic needs the depth target itself and its writers.
+
+Intermediate depth-plane copies now show that the clear contains 1.0. Room
+geometry subsequently fills the sampled avatar positions with nearer depth:
+one sample is approximately 0.785 before the body draw and remains unchanged
+afterward. Sampled body vertices request depth near 0.9964. A separate D3D11
+stream-output replay of the captured vertex shader, constants and attributes
+agrees with the offline transform calculation. This verifies those replayed
+inputs, not the live D3D12 shader bindings or all mesh vertices. The next work
+is to validate the earlier geometry and the depth state around the room/avatar
+transition. Normal-depth avatar rendering remains unverified.
+
 ## Update 1.01 and DLC integration
 
 Planned scope includes the USA 1.01 update and matching DLC. Local package
@@ -275,6 +310,10 @@ has been verified in the native port. Package bytes and local source locations
 are not published.
 
 ## Still unverified
+
+Open audio issue: audible distortion in character-creation music. Device buffer
+starvation, guest mixer scheduling and source decoding have not yet been
+distinguished. Decoder comparisons do not establish real-time mixer fidelity.
 
 Playable scenes, combat, save/load, a complete fresh-disc
 reproduction of the latest boot, macOS execution and online functionality.

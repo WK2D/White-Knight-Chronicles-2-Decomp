@@ -46,7 +46,7 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies nineteen numbered runtime patches idempotently
+SDAT archives. The build applies twenty-one numbered runtime patches idempotently
 and runs twenty checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
@@ -233,3 +233,26 @@ state identity and a UI-quad/model occlusion scenario. Restoring unconditional
 depth testing/writes fails that scenario. Primary fallback pipelines still have
 fixed depth behavior; this change covers the guest fragment-program pipelines.
 The avatar model remains missing in the latest native probe.
+
+Patch 0020 adds optional intermediate GPU readbacks. Set `RSX_DRAW_SNAP_FILE`
+to a private request file containing up to eight decimal draw-operation indices,
+separated by spaces. The backend consumes the request on the next rendered frame,
+queues a copy after each selected draw and maps the copies after GPU completion.
+BMP files go to `RSX_CAP_DIR`; logs identify the actual guest pipeline and its
+depth, culling and alpha state. Clear operations and unsubmitted draws produce
+no image. This changes diagnostic timing without replacing shaders, render state
+or guest memory. Use a completed-frame manifest to select operation indices.
+Also set `RSX_DRAW_SNAP_DEPTH=1` to retain the depth plane after those draws.
+Each `.depth.bin` begins with four little-endian uint32 values (width, height,
+row pitch and device footprint format), followed by the original plane bytes.
+The current D24 source uses its low 24 bits for normalized depth. The device
+may describe the copy footprint as `R32_TYPELESS`; the stored samples remain
+packed depth. These buffers, like shader and geometry captures, remain private.
+
+Patch 0021 decodes `SET_ZMIN_MAX_CONTROL`, including its reset value, and retains
+the depth clipping/clamping selection in each draw's raster-state cache key.
+Bit 3 of the logged `cull` key now means depth clipping; bits 0–2 still describe
+face culling. Guest fragment pipelines set D3D12 `DepthClipEnable` from that key.
+A command-processor regression covers the reset, disable/restore transitions,
+clamping, dirty-state notification and retained draw keys. Nonstandard ignore-W
+behavior and primary fallback-pipeline clipping remain outside this change.

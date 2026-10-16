@@ -1,0 +1,204 @@
+diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
+--- a/libs/video/rsx_d3d12_backend.c
++++ b/libs/video/rsx_d3d12_backend.c
+@@ -1509,6 +1509,170 @@
+         rb->lpVtbl->Unmap(rb, 0, &wr);
+     }
+     rb->lpVtbl->Release(rb);
++}
++
++/* Optional intermediate GPU readbacks. Copies are queued in the original
++ * command list after requested draws and mapped only once that list finishes.
++ * No shader, vertex, render-state or guest-memory replacement is performed. */
++#define RSX_DRAW_SNAP_MAX 8
++static struct {
++    u32 op, w, h, pitch, dxgi;
++    ID3D12Resource* readback;
++    ID3D12Resource* depth_readback;
++    D3D12_PLACED_SUBRESOURCE_FOOTPRINT depth_layout;
++    u64 depth_bytes;
++} s_draw_snap[RSX_DRAW_SNAP_MAX];
++static unsigned s_draw_snap_count;
++static char s_draw_snap_dir[300];
++
++static void draw_snap_begin(void)
++{
++    const char* request = getenv("RSX_DRAW_SNAP_FILE");
++    s_draw_snap_count = 0;
++    if (!request || !*request) return;
++    FILE* f = fopen(request, "r");
++    if (!f) return;
++    u32 op;
++    while (s_draw_snap_count < RSX_DRAW_SNAP_MAX && fscanf(f, "%u", &op) == 1) {
++        if (op >= MAX_DRAWS) continue;
++        unsigned i = s_draw_snap_count++;
++        memset(&s_draw_snap[i], 0, sizeof(s_draw_snap[i]));
++        s_draw_snap[i].op = op;
++    }
++    fclose(f);
++    if (!s_draw_snap_count) return;
++    f = fopen(request, "w"); if (f) fclose(f);
++    const char* base = getenv("RSX_CAP_DIR");
++    snprintf(s_draw_snap_dir, sizeof(s_draw_snap_dir), "%s", base && *base ? base : "rsxcap");
++    CreateDirectoryA(s_draw_snap_dir, NULL);
++    fprintf(stderr, "[draw-snap] requested %u intermediate targets in frame %llu\n",
++        s_draw_snap_count, (unsigned long long)s_d3d.frame_count);
++}
++
++/* Copy the depth plane with the device-provided footprint. Retaining the
++ * original packed samples makes occlusion decidable without changing depth. */
++static void draw_snap_depth(unsigned i)
++{
++    if (!getenv("RSX_DRAW_SNAP_DEPTH") || !s_d3d.depth_buffer) return;
++    D3D12_RESOURCE_DESC desc;
++    s_d3d.depth_buffer->lpVtbl->GetDesc(s_d3d.depth_buffer, &desc);
++    D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp;
++    UINT rows = 0; UINT64 row_bytes = 0, total = 0;
++    s_d3d.device->lpVtbl->GetCopyableFootprints(s_d3d.device, &desc, 0, 1, 0,
++        &fp, &rows, &row_bytes, &total);
++    if (!total || total > 64ull * 1024 * 1024) return;
++    D3D12_HEAP_PROPERTIES hp = {0}; hp.Type = D3D12_HEAP_TYPE_READBACK;
++    D3D12_RESOURCE_DESC rd = {0}; rd.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
++    rd.Width = total; rd.Height = 1; rd.DepthOrArraySize = 1; rd.MipLevels = 1;
++    rd.SampleDesc.Count = 1; rd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
++    ID3D12Resource* rb = NULL;
++    HRESULT hr = s_d3d.device->lpVtbl->CreateCommittedResource(s_d3d.device,
++        &hp, D3D12_HEAP_FLAG_NONE, &rd, D3D12_RESOURCE_STATE_COPY_DEST, NULL,
++        &IID_ID3D12Resource, (void**)&rb);
++    if (FAILED(hr) || !rb) return;
++    D3D12_RESOURCE_BARRIER barrier = {0};
++    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
++    barrier.Transition.pResource = s_d3d.depth_buffer;
++    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
++    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_DEPTH_WRITE;
++    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
++    s_d3d.cmd_list->lpVtbl->ResourceBarrier(s_d3d.cmd_list, 1, &barrier);
++    D3D12_TEXTURE_COPY_LOCATION dst = {0}, src = {0};
++    dst.pResource = rb; dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
++    dst.PlacedFootprint = fp;
++    src.pResource = s_d3d.depth_buffer; src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
++    src.SubresourceIndex = 0;
++    s_d3d.cmd_list->lpVtbl->CopyTextureRegion(s_d3d.cmd_list, &dst, 0, 0, 0, &src, NULL);
++    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
++    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_DEPTH_WRITE;
++    s_d3d.cmd_list->lpVtbl->ResourceBarrier(s_d3d.cmd_list, 1, &barrier);
++    s_draw_snap[i].depth_readback = rb; s_draw_snap[i].depth_layout = fp;
++    s_draw_snap[i].depth_bytes = total;
++}
++
++static void draw_snap_queue(u32 op, ID3D12Resource* target, u32 w, u32 h, u32 dxgi,
++                             const D3D12DrawRecord* dr, int guest_pipeline)
++{
++    for (unsigned i = 0; i < s_draw_snap_count; ++i) {
++        if (s_draw_snap[i].op != op || !target) continue;
++        u32 bpp = dxgi == DXGI_FORMAT_R16G16B16A16_FLOAT ? 8 :
++                  dxgi == DXGI_FORMAT_R32G32B32A32_FLOAT ? 16 : 4;
++        u32 pitch = (w * bpp + 255) & ~255u;
++        if (!w || !h || (u64)pitch * h > 64ull * 1024 * 1024) continue;
++        D3D12_HEAP_PROPERTIES hp = {0}; hp.Type = D3D12_HEAP_TYPE_READBACK;
++        D3D12_RESOURCE_DESC rd = {0};
++        rd.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
++        rd.Width = (u64)pitch * h; rd.Height = 1; rd.DepthOrArraySize = 1;
++        rd.MipLevels = 1; rd.SampleDesc.Count = 1; rd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
++        ID3D12Resource* rb = NULL;
++        HRESULT hr = s_d3d.device->lpVtbl->CreateCommittedResource(s_d3d.device,
++            &hp, D3D12_HEAP_FLAG_NONE, &rd, D3D12_RESOURCE_STATE_COPY_DEST, NULL,
++            &IID_ID3D12Resource, (void**)&rb);
++        if (FAILED(hr) || !rb) { fprintf(stderr, "[draw-snap] allocation failed op=%u hr=%08lX\n", op, hr); continue; }
++        D3D12_RESOURCE_BARRIER b = {0}; b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
++        b.Transition.pResource = target; b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
++        b.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
++        b.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
++        s_d3d.cmd_list->lpVtbl->ResourceBarrier(s_d3d.cmd_list, 1, &b);
++        D3D12_TEXTURE_COPY_LOCATION dst = {0}, src = {0};
++        dst.pResource = rb; dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
++        dst.PlacedFootprint.Footprint.Format = (DXGI_FORMAT)dxgi;
++        dst.PlacedFootprint.Footprint.Width = w; dst.PlacedFootprint.Footprint.Height = h;
++        dst.PlacedFootprint.Footprint.Depth = 1; dst.PlacedFootprint.Footprint.RowPitch = pitch;
++        src.pResource = target; src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
++        s_d3d.cmd_list->lpVtbl->CopyTextureRegion(s_d3d.cmd_list, &dst, 0, 0, 0, &src, NULL);
++        b.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
++        b.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
++        s_d3d.cmd_list->lpVtbl->ResourceBarrier(s_d3d.cmd_list, 1, &b);
++        s_draw_snap[i].readback = rb; s_draw_snap[i].w = w; s_draw_snap[i].h = h;
++        s_draw_snap[i].pitch = pitch; s_draw_snap[i].dxgi = dxgi;
++        draw_snap_depth(i);
++        fprintf(stderr, "[draw-snap] op=%u fp=%08X exp32=%d vs=%d guest-pipeline=%d cull=%u depth=%X alpha=%X ref=%X target=%08X %ux%u\n",
++            op, dr->fp_addr, dr->fp_exp32, dr->vs_idx, guest_pipeline, dr->cull,
++            dr->depth_key, dr->alpha_ctl, dr->alpha_ref, dr->rt_off, w, h);
++    }
++}
++
++static void draw_snap_finish(void)
++{
++    if (!s_draw_snap_count) return;
++    wait_for_gpu();
++    for (unsigned i = 0; i < s_draw_snap_count; ++i) {
++        ID3D12Resource* rb = s_draw_snap[i].readback;
++        if (!rb) { fprintf(stderr, "[draw-snap] no submitted draw at op=%u\n", s_draw_snap[i].op); continue; }
++        void* mapped = NULL; D3D12_RANGE range = {0, (SIZE_T)s_draw_snap[i].pitch * s_draw_snap[i].h};
++        if (SUCCEEDED(rb->lpVtbl->Map(rb, 0, &range, &mapped)) && mapped) {
++            char path[512];
++            snprintf(path, sizeof(path), "%s/draw_%llu_op_%03u.bmp", s_draw_snap_dir,
++                (unsigned long long)s_d3d.frame_count, s_draw_snap[i].op);
++            cap_write_bmp(path, mapped, s_draw_snap[i].w, s_draw_snap[i].h,
++                s_draw_snap[i].pitch, s_draw_snap[i].dxgi);
++            D3D12_RANGE written = {0,0}; rb->lpVtbl->Unmap(rb, 0, &written);
++            fprintf(stderr, "[draw-snap] wrote op=%u\n", s_draw_snap[i].op);
++        }
++        rb->lpVtbl->Release(rb); s_draw_snap[i].readback = NULL;
++        rb = s_draw_snap[i].depth_readback;
++        if (rb) {
++            D3D12_RANGE depth_range = {0, (SIZE_T)s_draw_snap[i].depth_bytes};
++            if (SUCCEEDED(rb->lpVtbl->Map(rb, 0, &depth_range, &mapped)) && mapped) {
++                char path[512];
++                snprintf(path, sizeof(path), "%s/draw_%llu_op_%03u.depth.bin", s_draw_snap_dir,
++                    (unsigned long long)s_d3d.frame_count, s_draw_snap[i].op);
++                D3D12_PLACED_SUBRESOURCE_FOOTPRINT* fp = &s_draw_snap[i].depth_layout;
++                u32 header[4] = {fp->Footprint.Width, fp->Footprint.Height,
++                                fp->Footprint.RowPitch, (u32)fp->Footprint.Format};
++                FILE* f = fopen(path, "wb");
++                if (f) { fwrite(header, sizeof(header), 1, f);
++                    fwrite((u8*)mapped + fp->Offset, 1,
++                        (size_t)(s_draw_snap[i].depth_bytes - fp->Offset), f); fclose(f); }
++                D3D12_RANGE written = {0,0}; rb->lpVtbl->Unmap(rb, 0, &written);
++                fprintf(stderr, "[draw-snap] depth op=%u %ux%u pitch=%u format=%u\n",
++                    s_draw_snap[i].op, header[0], header[1], header[2], header[3]);
++            }
++            rb->lpVtbl->Release(rb); s_draw_snap[i].depth_readback = NULL;
++        }
++    }
++    s_draw_snap_count = 0;
+ }
+ 
+ static void rsx_capture_frame(u32 fi, u32 ndraws, u32 capidx)
+@@ -3816,6 +3980,7 @@
+      * polygons). These workloads are a few draws/frame, so full serialisation
+      * costs little. */
+     wait_for_gpu();
++    draw_snap_begin();
+ 
+     /* Compile the real vertex program once its microcode is captured, and keep
+      * the constant bank uploaded for the VS. */
+@@ -4670,6 +4835,12 @@
+                   } }
+                 s_d3d.cmd_list->lpVtbl->DrawInstanced(s_d3d.cmd_list,
+                     dr->vertex_count, 1, dr->vb_byte_offset / 256, 0);
++                if (s_draw_snap_count) draw_snap_queue(d,
++                    cur_rt >= 0 ? s_d3d.off_rt[cur_rt].res : s_d3d.render_targets[fi],
++                    cur_rt >= 0 ? s_d3d.off_rt[cur_rt].w : s_d3d.width,
++                    cur_rt >= 0 ? s_d3d.off_rt[cur_rt].h : s_d3d.height,
++                    cur_rt >= 0 ? s_d3d.off_rt[cur_rt].dxgi : DXGI_FORMAT_R8G8B8A8_UNORM,
++                    dr, dpso != NULL);
+                 /* VP_SUBMIT=<N>: prove the VP pass actually reaches the GPU.
+                  * "records exist" and "draws were submitted" are different
+                  * claims, and every blank-output investigation conflates them. */
+@@ -5066,6 +5237,8 @@
+         }
+         s_rtsave_state = 0;
+     }
++
++    draw_snap_finish();
+ 
+     /* rsxcap: snapshot whole frames (backbuffer + every offscreen RT + a draw
+      * manifest) at RSX_CAP=start[:count[:stride]] frame_counts. Runs before the

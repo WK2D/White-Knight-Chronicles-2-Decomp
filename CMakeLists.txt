@@ -312,6 +312,12 @@ if(WKC2_BUILD_TESTS)
         add_test(NAME wkc2_spurs_job COMMAND wkc2_spurs_job_test)
         set_tests_properties(wkc2_spurs_job PROPERTIES TIMEOUT 20)
     endif()
+    add_executable(wkc2_depth_clip_test tests/depth_clip_test.c
+        "${PS3RECOMP_DIR}/libs/video/rsx_commands.c")
+    target_include_directories(wkc2_depth_clip_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
+    add_test(NAME wkc2_depth_clip COMMAND wkc2_depth_clip_test)
+    set_tests_properties(wkc2_depth_clip PROPERTIES TIMEOUT 10)
     add_executable(wkc2_depth_state_test tests/depth_state_test.c)
     target_include_directories(wkc2_depth_state_test PRIVATE
         "${PS3RECOMP_DIR}/libs/video")

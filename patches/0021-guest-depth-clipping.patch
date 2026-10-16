@@ -1,0 +1,104 @@
+diff --git a/libs/video/rsx_raster_state.h b/libs/video/rsx_raster_state.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_raster_state.h
+@@ -0,0 +1,18 @@
++/* Immutable raster state. Bit 3 carries depth clipping beside face culling. */
++#ifndef RSX_RASTER_STATE_H
++#define RSX_RASTER_STATE_H
++#include <stdint.h>
++static inline unsigned rsx_raster_depth_clip(uint32_t control) {
++    /* ZMIN_MAX_CONTROL: low nibble enables clipping; next enables clamping. */
++    return (control & 15u) != 0 && (control & 0xf0u) == 0;
++}
++static inline uint32_t rsx_raster_key(int cull, uint32_t face,
++                                     uint32_t front, uint32_t clip_control) {
++    uint32_t key=rsx_raster_depth_clip(clip_control) ? 8u : 0u;
++    if (!cull) return key;
++    key|=1u;
++    if (face==0x404u || face==0x408u) key|=2u;
++    if (front==0x901u) key|=4u;
++    return key;
++}
++#endif
+diff --git a/libs/video/rsx_commands.h b/libs/video/rsx_commands.h
+--- a/libs/video/rsx_commands.h
++++ b/libs/video/rsx_commands.h
+@@ -87,6 +87,7 @@
+  * belong to the dither/alpha-test block, so viewport rects read garbage). */
+ #define NV4097_SET_VIEWPORT_HORIZONTAL         0x00000A00
+ #define NV4097_SET_VIEWPORT_VERTICAL           0x00000A04
++#define NV4097_SET_ZMIN_MAX_CONTROL            0x00001D78
+ #define NV4097_SET_CLIP_MIN                    0x00000394
+ #define NV4097_SET_CLIP_MAX                    0x00000398
+ 
+@@ -255,6 +256,7 @@
+     /* Viewport */
+     u32 viewport_x, viewport_y, viewport_w, viewport_h;
+     float clip_min, clip_max;
++    u32 zmin_max_control; /* depth clipping/clamping register, reset 1 */
+ 
+     /* Scissor */
+     u32 scissor_x, scissor_y, scissor_w, scissor_h;
+diff --git a/libs/video/rsx_commands.c b/libs/video/rsx_commands.c
+--- a/libs/video/rsx_commands.c
++++ b/libs/video/rsx_commands.c
+@@ -60,6 +60,7 @@
+     state->viewport_h = 720;
+     state->clip_min = 0.0f;
+     state->clip_max = 1.0f;
++    state->zmin_max_control = 1;
+ 
+     /* Default scissor */
+     state->scissor_w = 4096;
+@@ -491,6 +492,12 @@
+     if (method == NV4097_SET_BLEND_EQUATION) {
+         state->blend_equation = data;
+         state->blend_dirty = 1;
++        return 0;
++    }
++
++    if (method == NV4097_SET_ZMIN_MAX_CONTROL) {
++        state->zmin_max_control = data;
++        state->depth_dirty = 1;
+         return 0;
+     }
+ 
+diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
+--- a/libs/video/rsx_d3d12_backend.c
++++ b/libs/video/rsx_d3d12_backend.c
+@@ -26,6 +26,7 @@
+ #include <string.h>
+ #include <stdlib.h>
+ #include <math.h>
++#include "rsx_raster_state.h"
+ 
+ #ifndef WIN32_LEAN_AND_MEAN
+ #define WIN32_LEAN_AND_MEAN
+@@ -2064,11 +2065,10 @@
+  * plain 1/0 before any register arrives, so treat those defaults as BACK/CW. */
+ static u32 rsx_cull_key(const rsx_state* st)
+ {
+-    if (!st || !st->cull_face_enable) return 0;
+-    u32 k = 1u;
+-    if (st->cull_face == 0x0404u || st->cull_face == 0x0408u) k |= 2u;  /* FRONT */
+-    if (st->front_face == 0x0901u) k |= 4u;                             /* CCW */
+-    return k;
++    /* The existing per-draw/cache raster key also retains depth clipping. */
++    return rsx_raster_key(st ? st->cull_face_enable : 0,
++        st ? st->cull_face : 0, st ? st->front_face : 0,
++        st ? st->zmin_max_control : 1);
+ }
+ 
+ static u32 rsx_blend_key(const rsx_state* st, int enable)
+@@ -2460,6 +2460,10 @@
+     pd.PS.BytecodeLength  = pb->lpVtbl->GetBufferSize(pb);
+     pd.InputLayout.pInputElementDescs = il; pd.InputLayout.NumElements = 16;
+     pd.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
++    /* Zero-initialization disables D3D depth clipping. Retain the guest's
++     * clipping/clamping selection instead of projecting outside-range faces
++     * onto the depth limits. Bit 3 is part of the immutable raster cache key. */
++    pd.RasterizerState.DepthClipEnable = (cull & 8u) ? TRUE : FALSE;
+     /* Guest face culling. CULL_OFF=1 forces double-sided, the old
+      * unconditional behaviour -- geometry that vanishes under culling is a
+      * winding/front-face problem, not a missing draw. */

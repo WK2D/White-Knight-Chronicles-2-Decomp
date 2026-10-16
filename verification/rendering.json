@@ -365,5 +365,103 @@
     "save_load_verified": false,
     "last_reported_guest_flips": 14978,
     "last_reported_presentation_calls": 14978
+  },
+  "wkc1_intermediate_draw_readbacks": {
+    "probe": "20261016-063330",
+    "seconds_limit": 600,
+    "terminated_at_time_limit": true,
+    "regression_checks_passed": 20,
+    "sdk_patches": 20,
+    "known_good_logo_copy_visually_checked": true,
+    "known_good_logo_pair_identical_rgb": true,
+    "background_rgb_sha256": "9d1df09d3c806dae5d174569c2ff43f02a863a733310b9203f1e87d23e95fc92",
+    "changed_rgb_bytes_vs_background_by_frame_and_operation": {
+      "13278:166": 0,
+      "13278:168": 0,
+      "13364:164": 0,
+      "13364:165": 0,
+      "13364:167": 0,
+      "13364:204": 0
+    },
+    "selected_body_draws_guest_fragment_pipeline": true,
+    "selected_body_draws_culling_enabled": false,
+    "render_state_overrides_enabled": false,
+    "model_target_changes_before_postprocessing": false,
+    "postprocessing_changes_target": true,
+    "remaining_root_cause_verified": false,
+    "avatar_model_visible": false,
+    "gameplay_verified": false,
+    "save_load_verified": false,
+    "last_reported_guest_flips": 13403,
+    "last_reported_presentation_calls": 13403
+  },
+  "wkc1_depth_disabled_diagnostic": {
+    "probe": "20261016-064623",
+    "stopped_after_diagnostic_obtained": true,
+    "render_state_override": "DEPTH_OFF=1: guest fragment pipelines disable depth testing and writes",
+    "capture_frame_counter": 11291,
+    "room_and_avatar_visible_with_override": true,
+    "changed_rgb_bytes_after_body_draws_vs_operation_163": {
+      "164": 50249,
+      "166": 50415,
+      "168": 56176,
+      "204": 63285
+    },
+    "normal_depth_model_rendering_verified_by_this_probe": false,
+    "diagnostic_image_published_as_gallery_milestone": false,
+    "gameplay_verified": false,
+    "save_load_verified": false,
+    "last_reported_guest_flips": 11437,
+    "last_reported_presentation_calls": 11437
+  },
+  "wkc1_guest_depth_clipping": {
+    "probe": "20261016-065819",
+    "stopped_after_diagnostic_obtained": true,
+    "sdk_patches": 21,
+    "regression_checks_passed": 21,
+    "previous_no_clipping_policy_fails_regression": true,
+    "capture_frame_counter": 10980,
+    "capture_operations": 617,
+    "render_state_overrides_enabled": false,
+    "native_guest_pipeline_depth_clipping_enabled": true,
+    "native_raster_key_samples": {
+      "room": 13,
+      "body": 8
+    },
+    "raster_key_depth_clipping_bit": 8,
+    "avatar_customization_ui_rendered": true,
+    "introductory_notice_dismissed": true,
+    "avatar_model_visible": false,
+    "remaining_depth_failure_verified": false,
+    "gameplay_verified": false,
+    "save_load_verified": false,
+    "last_reported_guest_flips": 11299,
+    "last_reported_presentation_calls": 11299
+  },
+  "wkc1_depth_plane_observation": {
+    "probe": "20261016-071802",
+    "seconds_limit": 600,
+    "terminated_at_time_limit": true,
+    "regression_checks_passed": 21,
+    "sdk_patches": 21,
+    "depth_snapshot_frame_counter": 11043,
+    "geometry_capture_frame_counter": 11042,
+    "depth_source": "D24S8 depth plane copied with device-provided footprint",
+    "clear_depth_samples": 1.0,
+    "sample_pixel": [
+      880,
+      481
+    ],
+    "sample_depth_after_room_operation_100": 0.9555010173023354,
+    "sample_depth_before_avatar_operation_163": 0.7847158184478175,
+    "sample_depth_after_body_operation_164": 0.7847158184478175,
+    "sample_body_vertex_gpu_replay_depth": 0.996402025,
+    "vertex_replay_scope": "Separate D3D11 stream-output execution using captured vertex shader, constants and sampled attributes; not live D3D12 pipeline binding validation",
+    "normal_depth_avatar_visible": false,
+    "remaining_root_cause_verified": false,
+    "gameplay_verified": false,
+    "save_load_verified": false,
+    "last_reported_guest_flips": 11368,
+    "last_reported_presentation_calls": 11368
   }
 }
