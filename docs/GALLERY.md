@@ -4,18 +4,26 @@ Screenshots captured from native Windows x86-64 execution with the D3D12 backend
 using USA BLUS30784 v01.00. These are game-frame GPU readbacks, losslessly encoded
 as PNG. All optional metadata has been removed. Images contain the game frame only.
 
-**Current status:** the first two LPCM startup movies now advance through native
-video decoding and rendering. Startup reaches the Havok/Dolby screen. LPCM samples
-are decoded and the host mix is nonzero; complete audio fidelity is still unverified.
-The opening movie then fails because AC-3 decoding is not implemented. The title
-screen, gameplay and save/load remain unverified.
+**Current status:** the native title screen renders with New Game, Continue,
+Options and an animated background. AC-3 and LPCM audio decode, and idle startup
+enters the attract movie. Menu interaction, gameplay and save/load remain unverified;
+complete audio fidelity and timing against original hardware remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
+
+## 2026-10-16 — Title menu
+
+The native title menu displays New Game, Continue and Options over the animated
+background. Successive captures show the title artwork changing. With no input,
+the guest subsequently opens its attract movie. This capture proves menu rendering;
+menu response and gameplay need separate validation.
+
+![Native White Knight Chronicles II title menu](../verification/screenshots/2026-10-16-title-menu.png)
 
 ## 2026-10-16 — Startup advances to Havok / Dolby
 
 The same native run reaches the Havok and Dolby Digital screen after the studio
-logos. This is a later startup stage, before the unsupported AC-3 opening movie.
+logos. This is a later startup stage, before the AC-3 title background was supported.
 
 ![Native Havok and Dolby Digital startup screen](../verification/screenshots/2026-10-16-havok-dolby.png)
 

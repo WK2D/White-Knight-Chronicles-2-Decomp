@@ -1,0 +1,22 @@
+diff --git a/libs/codec/ffmpeg_runtime.h b/libs/codec/ffmpeg_runtime.h
+--- a/libs/codec/ffmpeg_runtime.h
++++ b/libs/codec/ffmpeg_runtime.h
+@@ -51,6 +51,7 @@
+     void (*av_frame_free)(AVFrame** frame);
+     void (*av_frame_unref)(AVFrame* frame);
+     void (*av_log_set_level)(int level);
++    int (*av_opt_set)(void* object, const char* name, const char* value, int flags);
+ } PS3FFmpeg;
+ 
+ /* The function table, loading FFmpeg on the first call. NULL when the build
+diff --git a/libs/codec/ffmpeg_runtime.c b/libs/codec/ffmpeg_runtime.c
+--- a/libs/codec/ffmpeg_runtime.c
++++ b/libs/codec/ffmpeg_runtime.c
+@@ -88,6 +88,7 @@
+     FF_RESOLVE(util, av_frame_free);
+     FF_RESOLVE(util, av_frame_unref);
+     FF_RESOLVE(util, av_log_set_level);
++    FF_RESOLVE(util, av_opt_set);
+ #undef FF_RESOLVE
+ 
+     if (!missing && ((s_ff.avcodec_version() >> 16) != LIBAVCODEC_VERSION_MAJOR ||

@@ -1,6 +1,6 @@
 {
   "verified_on": "2026-10-16",
-  "scope": "Offline unit extraction and decoder validation; native playback of the first two LPCM startup movies. AC-3 opening playback remains unsupported.",
+  "scope": "Offline unit extraction and decoder validation; native startup logos, title menu rendering and observed AC-3 attract playback.",
   "samples": {
     "first_logo": {
       "input_sha256": "d55bdd4fb5f19723e9ff6c115d9acb1c86a43d8d952169ad5663e15d5a5b725b",
@@ -120,7 +120,7 @@
   },
   "limitations": [
     "LPCM bytes were extracted, but independent LPCM audio comparison is not established.",
-    "The first two LPCM startup movies advance natively; the following AC-3 opening movie is unsupported.",
+    "AC-3 title/attract playback now runs; menu interaction, gameplay and save/load remain unverified.",
     "No game bytes, decoded frames or host paths are included."
   ],
   "native_decoder_check": {
@@ -195,6 +195,80 @@
     "gameplay_verified": false,
     "mixed_audio_samples_all_finite": true,
     "mixed_audio_peak": 0.9886474609375,
+    "complete_audio_fidelity_verified": false
+  },
+  "native_ac3_checks": {
+    "opening_stereo": {
+      "codec": "AC-3",
+      "input": "assembled elementary stream",
+      "input_sha256": "2764126fd71717eac4cf28198a861bb3bc6572a0b9ceb7b87f73f1d0f26edb07",
+      "frames": 3750,
+      "samples_per_channel": 5760000,
+      "sample_rate": 48000,
+      "output_channels": 2,
+      "output_format": "interleaved f32be",
+      "channel_order": "L,R",
+      "reference_sha256": "ca96ed6cbf680e2d54e2cec4297ff46bb0c1cab0958f8c59a6c244ceddec087d",
+      "independent_decoder": "FFmpeg through PyAV",
+      "all_native_api_samples_match_reference": true,
+      "native_sequence_passes": 2,
+      "input_copy_and_output_backpressure_tested": true,
+      "independent_container_audio_demux_verified": false,
+      "in_game_playback_verified": false
+    },
+    "opening_surround": {
+      "codec": "AC-3",
+      "input": "assembled elementary stream",
+      "input_sha256": "2764126fd71717eac4cf28198a861bb3bc6572a0b9ceb7b87f73f1d0f26edb07",
+      "frames": 3750,
+      "samples_per_channel": 5760000,
+      "sample_rate": 48000,
+      "output_channels": 6,
+      "output_format": "interleaved f32be",
+      "channel_order": "L,C,R,SL,SR,LFE",
+      "reference_sha256": "4b7c8484bc62a042ea893428d975678d868462d3fdccdb51f209651df4e846e6",
+      "independent_decoder": "FFmpeg through PyAV",
+      "all_native_api_samples_match_reference": true,
+      "native_sequence_passes": 2,
+      "input_copy_and_output_backpressure_tested": true,
+      "independent_container_audio_demux_verified": false,
+      "in_game_playback_verified": false
+    },
+    "title_surround": {
+      "codec": "AC-3",
+      "input": "assembled elementary stream",
+      "input_sha256": "ffe8d0829307ad9261325effbea2f1008ca06f3889e32f8e01acf5dc295bf649",
+      "frames": 938,
+      "samples_per_channel": 1440768,
+      "sample_rate": 48000,
+      "output_channels": 6,
+      "output_format": "interleaved f32be",
+      "channel_order": "L,C,R,SL,SR,LFE",
+      "reference_sha256": "792e21d7b83f143ec6f75740d4696ab3c8fc89be734a754e0a2fe1e86f5ceeb5",
+      "independent_decoder": "FFmpeg through PyAV",
+      "all_native_api_samples_match_reference": true,
+      "native_sequence_passes": 2,
+      "input_copy_and_output_backpressure_tested": true,
+      "independent_container_audio_demux_verified": false,
+      "in_game_playback_verified": false
+    }
+  },
+  "native_title_check": {
+    "duration_limit_seconds": 300,
+    "terminal_reason": "probe time limit",
+    "title_background_file": "title02.pam",
+    "attract_file": "wk2rush.pam",
+    "menu_entries": [
+      "New Game",
+      "Continue",
+      "Options"
+    ],
+    "controller_input_after_first_movie_open": false,
+    "animated_title_and_menu_rendering_verified": true,
+    "observed_attract_decoded_frames": 4595,
+    "title_menu_interaction_verified": false,
+    "gameplay_verified": false,
+    "save_load_verified": false,
     "complete_audio_fidelity_verified": false
   }
 }

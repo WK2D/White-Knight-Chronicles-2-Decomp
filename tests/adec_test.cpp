@@ -8,8 +8,10 @@
 #include <chrono>
 #include <cstring>
 #include <fstream>
+#include <iterator>
 #include <map>
 #include <thread>
+#include <vector>
 
 static std::array<uint8_t,2*1024*1024> memory;
 extern "C" {uint8_t* vm_base=memory.data(); void wkc2_register_adec(); void wkc2_shutdown_adec();}
@@ -53,10 +55,56 @@ static void end() {
 }
 int main(int argc,char** argv) {
     wkc2_register_adec(); assert(handlers.size()==8);
-    w32(0x1000,1); assert(call("cellAdecQueryAttr",{0x1000,0x1100})==0);
+    bool ac3=argc==5 && std::strcmp(argv[1],"ac3")==0;
+    w32(0x1000,ac3?2:1); assert(call("cellAdecQueryAttr",{0x1000,0x1100})==0);
     auto required=r32(0x1100); assert(required>=0x80000 && required<0x100000);
     w32(0x1200,required); w32(0x1204,0x10000); w32(0x1300,0x11223344); w32(0x1304,0x12345678);
-    assert(call("cellAdecOpen",{0x1000,0x1200,0x1300,0x1500})==0 && r32(0x1500)==0x10000);
+    auto opened=call("cellAdecOpen",{0x1000,0x1200,0x1300,0x1500});
+    if(ac3 && opened==0x80610001) return 77;
+    assert(opened==0 && r32(0x1500)==0x10000);
+    if(ac3) {
+        // Optional private file or original synthetic fixture. Mode is encoded
+        // in the reference suffix: stereo or six-channel L,C,R,SL,SR,LFE.
+        std::ifstream compressed(argv[2],std::ios::binary),reference(argv[3],std::ios::binary);assert(compressed && reference);
+        std::vector<uint8_t> input{std::istreambuf_iterator<char>(compressed),{}},expected{std::istreambuf_iterator<char>(reference),{}};
+        unsigned channels=unsigned(std::atoi(argv[4]));assert(channels==2||channels==6);
+        std::vector<std::pair<size_t,size_t>> packets;
+        for(size_t off=0;off<input.size();) {
+            assert(off+7<=input.size() && input[off]==0x0B && input[off+1]==0x77);
+            constexpr unsigned rates[]={32,40,48,56,64,80,96,112,128,160,192,224,256,320,384,448,512,576,640};
+            unsigned code=input[off+4]&63,fscod=input[off+4]>>6;assert(code<38&&fscod==0);
+            size_t size=rates[code/2]*4;assert(off+size<=input.size());packets.emplace_back(off,size);off+=size;
+        }
+        assert(!packets.empty() && expected.size()==packets.size()*1536*channels*4);
+        for(unsigned pass=0;pass<2;++pass) {
+            std::memset(memory.data()+0x1400,0,48);memory[0x1400]=1;memory[0x1401]=channels==2?2:7;memory[0x1402]=channels==6;
+            w32(0x1404,0x3F800000);w32(0x1408,0x3F800000);memory[0x140C]=2;memory[0x140D]=uint8_t(channels);memory[0x1410]=3;w32(0x1414,0x3F800000);
+            for(unsigned n=0;n<channels;++n)w32(0x1418+n*4,channels==2?n*2:n);
+            assert(call("cellAdecStartSeq",{0x10000,0x1400})==0);
+            std::atomic<bool> submitted=false;unsigned read_count=0;auto before=produced.load();
+            std::thread producer([&] {
+                for(unsigned n=0;n<packets.size();++n) {
+                    auto [off,size]=packets[n];std::memcpy(memory.data()+0x1800,input.data()+off,size);
+                    w32(0x1600,0x1800);w32(0x1604,uint32_t(size));w64(0x1608,n?~uint64_t(0):90000);w64(0x1610,n);
+                    wait_until([]{auto rc=call("cellAdecDecodeAu",{0x10000,0x1600});assert(!rc||rc==0x80610004);return !rc;});
+                    std::memset(memory.data()+0x1800,0xA5,size);
+                }
+                submitted=true;
+            });
+            if(packets.size()>16)wait_until([&]{return produced.load()>=before+16;});
+            while(read_count<packets.size()) {
+                auto a=item();assert(r32(a+12)==1536*channels*4 && r64(a+32)==90000+uint64_t(read_count)*2880);
+                auto bsi=r32(a+16);assert(r32(bsi)==2&&r32(bsi+20)==1536*channels*4&&r32(bsi+24)==packets[read_count].second*8);
+                assert(memory[bsi+34]==channels&&memory[bsi+35]==0&&memory[bsi+36]==1);
+                assert(call("cellAdecGetPcm",{0x10000,0x3000})==0);
+                assert(!std::memcmp(memory.data()+0x3000,expected.data()+size_t(read_count)*1536*channels*4,1536*channels*4));
+                ++read_count;
+            }
+            producer.join();assert(submitted);end();
+            std::printf("AC3 pass %u: %u frames, %u channels; every sample matches\n",pass,read_count,channels);
+        }
+        assert(call("cellAdecClose",{0x10000})==0);wkc2_shutdown_adec();return 0;
+    }
     if(argc==3) {
         // Optional private fixture: packed stereo s16be, 240 samples per AU.
         std::ifstream input(argv[1],std::ios::binary); std::ofstream output(argv[2],std::ios::binary);

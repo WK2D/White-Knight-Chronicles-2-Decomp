@@ -46,8 +46,8 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies ten numbered runtime patches idempotently
-and runs thirteen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion,
+SDAT archives. The build applies eleven numbered runtime patches idempotently
+and runs fifteen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue and event queues.
@@ -119,11 +119,12 @@ using `PowerPC:BE:64:64-32addr`. It takes a private TSV inventory (hex start, ex
 end, TOC), a private output directory, and hex function addresses. It is an analysis
 aid; generated pseudocode is not source distributed by this repository.
 
-`adec.cpp` implements eight guest audio decoder APIs for PAMF LPCM. It owns output
+`adec.cpp` implements eight guest audio decoder APIs for PAMF LPCM and AC-3. It owns output
 slots inside the supplied guest work resource and keeps metadata/samples until
 consumption. Supported packed depths are 16/20/24 bits, with dummy-channel removal,
-channel reordering and sample-count-based missing timestamps. Other audio codecs,
-including AC-3, currently return an unsupported argument error.
+channel reordering and sample-count-based missing timestamps. The AC-3 path uses FFmpeg, channel-pointer mapping, requested mono/stereo downmix
+or full 5.1, PCM scaling and line/RF dynamic range modes. Unsupported custom
+compression, forced stereo/dual-mono and karaoke modes return an argument error.
 
 The LPCM test exercises backpressure, distinct metadata and output queues, 16/24-bit
 samples, mono dummy channels, 5.1 reordering and 1,000 concurrent submissions.
@@ -151,3 +152,18 @@ leave the guest waiting after all accepted inputs already reported completion.
 The asynchronous test checks pixels, sparse timestamps, callback counts, sequence
 reset and immediate reuse of the submitted input buffers. The private logo test
 also fills the decoded-output queue before it starts consuming frames.
+
+AC-3 checks use original synthetic six-channel tones with independent float
+references for stereo and 5.1. Every sample is compared across two sequence starts.
+The optional private verifier generates a reference and runs the same native API
+check against a complete elementary stream:
+
+```text
+python tools/verify_ac3.py <private-ac3-stream> <private-reference.f32be> --channels 6 --decoder-test <wkc2_adec_test.exe> --record <private-record.json>
+```
+
+The first-logo LPCM and opening/title AC-3 records are in
+`verification/movie-demux.json`. Audio comparisons begin with assembled elementary
+streams; independent container audio demux and original-console mix fidelity are
+not established. Patch 0011 resolves FFmpeg's option setter for decoder downmix/DRC.
+Matching runtime libraries are required; unavailable AC-3 decoders fail explicitly.

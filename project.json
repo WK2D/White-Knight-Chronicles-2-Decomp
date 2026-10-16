@@ -7,7 +7,7 @@
   "future_platform": "macOS Apple Silicon",
   "native_gameplay_verified": false,
   "native_startup_ui_verified": true,
-  "native_title_screen_verified": false,
+  "native_title_screen_verified": true,
   "native_save_load_verified": false,
   "progress_reporting": {
     "findings_log": "docs/FINDINGS.md",
@@ -18,6 +18,7 @@
   "native_data_installation_verified": true,
   "native_decoded_movie_frame_verified": true,
   "native_continuous_movie_playback_verified": true,
-  "native_continuous_movie_playback_scope": "first two LPCM startup movies; AC-3 opening movie is unsupported",
-  "native_complete_audio_fidelity_verified": false
+  "native_continuous_movie_playback_scope": "LPCM startup logos, AC-3 title background and observed attract-movie playback",
+  "native_complete_audio_fidelity_verified": false,
+  "native_ac3_decode_verified": true
 }

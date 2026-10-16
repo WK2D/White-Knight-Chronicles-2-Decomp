@@ -4,6 +4,23 @@
   "execution": "native Windows x86-64, D3D12",
   "captures": [
     {
+      "milestone": "title_menu",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-title-menu.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "9c5d3a3e91a0636a4b9e32d2f683f8e2620a7b09069153319ffc84c58129ef01",
+      "png_sha256": "a392c1385b174522a98ed5eda5b180a42bb392dbaf1a8e3518d605c2739d3a00",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
       "milestone": "havok_dolby",
       "date": "2026-10-16",
       "image": "screenshots/2026-10-16-havok-dolby.png",

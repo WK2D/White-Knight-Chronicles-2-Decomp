@@ -269,6 +269,9 @@ endif()
 #   - /bigobj on MSVC. A single lifted file routinely passes the 65,536-section
 #     limit of the default object format.
 set_source_files_properties(vdec.cpp PROPERTIES INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/libs/codec")
+set_source_files_properties(adec.cpp PROPERTIES
+    INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/libs/codec;${PS3RECOMP_FFMPEG_INCLUDE_DIR}"
+    COMPILE_DEFINITIONS PS3RECOMP_FFMPEG_RUNTIME)
 
 if(MSVC)
     set_source_files_properties(dmux.cpp PROPERTIES COMPILE_OPTIONS "/EHsc")
@@ -315,11 +318,25 @@ if(WKC2_BUILD_TESTS)
         set_tests_properties(wkc2_async_vdec PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77)
 
     endif()
-    add_executable(wkc2_adec_test tests/adec_test.cpp adec.cpp)
+    add_executable(wkc2_adec_test tests/adec_test.cpp adec.cpp "${PS3RECOMP_DIR}/libs/codec/ffmpeg_runtime.c")
+    target_include_directories(wkc2_adec_test PRIVATE "${PS3RECOMP_FFMPEG_INCLUDE_DIR}")
+    target_compile_definitions(wkc2_adec_test PRIVATE PS3RECOMP_FFMPEG_RUNTIME)
     target_include_directories(wkc2_adec_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
     target_link_libraries(wkc2_adec_test PRIVATE Threads::Threads)
     add_test(NAME wkc2_adec COMMAND wkc2_adec_test)
     set_tests_properties(wkc2_adec PROPERTIES TIMEOUT 10)
+    if(PS3RECOMP_FFMPEG_RUNTIME)
+        set(AUDIO_FIXTURE "${CMAKE_BINARY_DIR}/audio-fixture")
+        add_custom_command(OUTPUT "${AUDIO_FIXTURE}.ac3" "${AUDIO_FIXTURE}.stereo.f32be" "${AUDIO_FIXTURE}.surround.f32be"
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_audio_fixture.py" "${AUDIO_FIXTURE}"
+            DEPENDS tools/prepare_audio_fixture.py)
+        add_custom_target(wkc2_audio_fixture DEPENDS "${AUDIO_FIXTURE}.ac3" "${AUDIO_FIXTURE}.stereo.f32be" "${AUDIO_FIXTURE}.surround.f32be")
+        add_dependencies(wkc2_adec_test wkc2_audio_fixture)
+        add_test(NAME wkc2_ac3_stereo COMMAND wkc2_adec_test ac3 "${AUDIO_FIXTURE}.ac3" "${AUDIO_FIXTURE}.stereo.f32be" 2)
+        add_test(NAME wkc2_ac3_surround COMMAND wkc2_adec_test ac3 "${AUDIO_FIXTURE}.ac3" "${AUDIO_FIXTURE}.surround.f32be" 6)
+        set_tests_properties(wkc2_ac3_stereo wkc2_ac3_surround PROPERTIES TIMEOUT 20 SKIP_RETURN_CODE 77)
+    endif()
+
     add_executable(wkc2_vpost_test tests/vpost_test.cpp vpost.cpp)
     target_include_directories(wkc2_vpost_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
     target_link_libraries(wkc2_vpost_test PRIVATE Threads::Threads)

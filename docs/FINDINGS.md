@@ -85,40 +85,31 @@ an empty isolated emulated HDD, with detailed tracing disabled, reproduces the
 installation and all three matching archive hashes.
 No completion result or installation progress was fabricated.
 
-## Current blocker
+## Current startup status
 
-A 120-second native probe now advances through the first two LPCM startup movies
-and reaches the Havok/Dolby screen. Successive movie readbacks differ, and the
-guest closes and reopens the decoders between movies. No controller input occurs
-after movie playback begins. The earlier single-frame stall is resolved for these
-startup clips.
+AC-3 decoding removes the audio-open failure after the startup logos. The file
+trace identifies the previously blocked clip as `title02.pam`, the animated title
+background. The native title screen displays New Game, Continue and Options.
+With no controller input after the startup notices, it enters `wk2rush.pam`, the
+attract movie. The [gallery](GALLERY.md) includes the rendered title menu.
 
-The next opening movie uses AC-3. Its audio decoder open returns `0x80610003`
-because the project audio bridge currently supports LPCM only. Implementing real
-AC-3 decoding is the next step; the title screen and gameplay remain unverified.
+The asynchronous video bridge separates pending compressed inputs from decoded
+output capacity, preventing the earlier busy/callback deadlock. Both LPCM and AC-3
+use real samples, per-output guest records and sample-count-based timestamps.
+The game requests six-channel AC-3 output in the observed run. Synthetic stereo
+and 5.1 checks pass; all samples from the opening stream and title background
+match an independent FFmpeg elementary-stream decode across two sequence starts.
+See the [sample counts and hashes](../verification/movie-demux.json).
 
-The asynchronous video bridge owns copies of accepted compressed inputs, separates
-input command capacity from decoded output capacity, and wakes pending work when
-the game consumes pictures. This avoids the SDK's output-count busy deadlock,
-where every accepted input had already completed and the guest waited for a
-callback that could never arrive. Missing presentation timestamps follow the
-decoded rational rate after B-frame reordering.
-
-The LPCM bridge uses distinct output slots, correct guest resource/record layouts,
-real packed samples and sample-count-based timestamps. All 336,480 stereo sample
-frames from the first logo match FFmpeg PCM conversion through the native API.
-This comparison starts from assembled elementary samples; independent audio demux
-and the game's final mix are not established. The native mix is finite and nonzero,
-with a peak of 0.98865, but complete audio fidelity remains unverified.
-
-Fabricated SPURS completion broadcasts were removed. Actual lifted SPU event
-instructions deliver notifications, and the subsequent probe has no unresolved
-audio-worker calls. Missing imports remain open. Vpost currently supports
-progressive bilinear processing; field deinterlacing and other filters return errors.
+The AC-3 comparisons cover sample conversion, requested downmix/channel order,
+input copies, output backpressure and reset. They do not independently validate
+container audio demux or prove identical output to original console hardware.
+The native title menu's response, starting gameplay and save/load are the next
+validation steps. Missing imports and savedata callback errors remain open.
 
 ## Still unverified
 
-Title-screen rendering, playable scenes, combat, save/load, a complete fresh-disc
+Title-menu interaction, playable scenes, combat, save/load, a complete fresh-disc
 reproduction of the latest boot, macOS execution and online functionality.
 
 See the [build limitations](BUILD.md) and [capture manifest](../verification/gallery.json)

@@ -12,13 +12,12 @@ The [findings log](docs/FINDINGS.md) tracks verified results, open issues and ne
 
 ## Progress gallery
 
-Native language selection, startup warning and autosave notice are now visible.
-The first two LPCM startup movies now advance through native decoding and rendering;
-startup reaches the Havok/Dolby screen. The AC-3 opening movie remains unsupported.
-See the [dated screenshots and verification notes](docs/GALLERY.md).
-Title screen, gameplay and save/load remain unverified.
+The title menu now renders with New Game, Continue and Options over an animated
+background. LPCM startup logos and AC-3 title/attract movies play through the native
+movie pipeline. See the [newest-first gallery](docs/GALLERY.md).
+Menu interaction, gameplay and save/load remain unverified.
 
-[![Native language-selection screen](verification/screenshots/2026-10-15-language-selection.png)](docs/GALLERY.md)
+[![Native title menu](verification/screenshots/2026-10-16-title-menu.png)](docs/GALLERY.md)
 
 ## Workspace layout
 
@@ -158,12 +157,11 @@ progressive YUV conversion, cropping and bilinear resizing. The build enables th
 SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
-Thirteen checks pass. The first two LPCM startup movies advance natively; see the gallery.
+Fifteen checks pass. The title screen and its menu render natively; see the gallery.
 
 Current blocker: startup holds that logo image instead of completing the movie.
 Playback timing, decoder metadata and audio queue behavior need investigation.
-PAMF LPCM now decodes to queued float samples; AC-3 decoding is still missing. The title screen, gameplay and save/load remain unverified. Missing imports and
-the AC-3 decoder remain open issues.
+PAMF LPCM and AC-3 decode to queued PCM; stereo downmix and six-channel output are tested. Menu response, gameplay and save/load remain unverified. Missing imports remain open.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a
 result JSON go into `work/probes/`; unrecognized SPU jobs go into the private
