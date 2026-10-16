@@ -46,8 +46,8 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies twenty-six numbered runtime patches idempotently
-and runs twenty-five checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+SDAT archives. The build applies twenty-eight numbered runtime patches idempotently
+and runs twenty-six checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
@@ -300,3 +300,25 @@ Three regression cases execute the linked SPU task EXIT path with CRI handling
 disabled or assigned to image 22 or 23. They check normal task termination and
 the selected task's first-return/subsequent-exit behavior. Running the disabled
 case with the old image-22 selection fails the actual return-path assertion.
+
+Patch 0027 exposes an optional read-only SPURS job observer before and after the
+same job. The port's observer is enabled only when `WKC2_JOB_CAPTURE_FILE` and
+`WKC2_JOB_CAPTURE_DIR` name private request/output locations. Write three decimal
+integers to the request file: an increasing request ID, a job count from 1 to 32,
+and the image ID. For example, `1 4 19` selects the next four jobs of image 19.
+Up to 128 jobs can be captured in one run. Each capture contains the full local
+store and register file before/after execution, plus up to 512 ordinary DMA PUT
+records and 1 MiB of their payload. Limits, nested jobs and I/O errors are
+reported explicitly; atomic commits are outside this observer's scope. The
+existing command-buffer writer observer remains connected when both are enabled.
+These files contain game code/data and must stay in the private workspace.
+
+Patch 0028 implements FNMS (`c - a*b`) using integer significands for SPU
+single-precision extended-range values. Exponent 255 is finite; exponent-zero
+inputs/results flush to zero, overflow saturates and results truncate toward
+zero. In particular, zero multiplied by an extended value does not become a
+host NaN. A separate unbounded-integer oracle generates 7,099 synthetic cases
+covering extended operands, zero, cancellation, exponent boundaries and random
+values. The native check compares all four lanes, totaling 28,396 results.
+This patch covers FNMS result bits; it does not add FPSCR exception flags or
+change the other floating-point operations.

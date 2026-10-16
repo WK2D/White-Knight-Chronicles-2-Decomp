@@ -9,6 +9,14 @@ void abi_fixture_spu_func_00000000(spu_context*);
 void abi_fixture_spu_func_00000040(spu_context*);
 int spu_run_spurs_job(void (*)(spu_context*),int,uint32_t,uint32_t);
 static uint32_t queries;
+static unsigned observed_before,observed_after;
+extern void (*g_spu_job_trace_hook)(const spu_context*,uint32_t,uint32_t,int);
+static void observe_job(const spu_context* ctx,uint32_t job,uint32_t size,int after) {
+ assert(job==0x1000 && size==256 && ctx->image_id==9);
+ assert(ctx->spurs_job_mode==1);
+ if(after) { assert(queries==1 && ctx->gpr[3]._u32[0]==0);++observed_after; }
+ else { assert(queries==0 && ctx->gpr[3]._u32[0]!=0);++observed_before; }
+}
 
 static void put32(uint8_t* p,uint32_t value) {
  p[0]=(uint8_t)(value>>24);p[1]=(uint8_t)(value>>16);
@@ -32,7 +40,10 @@ int main(void) {
  put32(vm_base+0x2000+0x1C8,0xDEADBEEF);
  put32(vm_base+0x1004,0x2000);  // BE64 binary EA, high word zero.
  put32(vm_base+0x1008,0x00200000); // Binary length = 32 quadwords.
+ g_spu_job_trace_hook=observe_job;
  assert(spu_run_spurs_job(job_entry,9,0x1000,256)==0);assert(queries==1);
+ assert(observed_before==1 && observed_after==1);
+ g_spu_job_trace_hook=NULL;
  assert(*(vm_base+0x21C8)==0xDE);
 
  spu_context* ctx=malloc(sizeof *ctx);assert(ctx);

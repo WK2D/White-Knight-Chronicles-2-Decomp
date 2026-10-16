@@ -146,6 +146,7 @@ void wkc2_dump_dmux(void);
 void wkc2_dump_adec(void);
 void wkc2_dump_vdec(void);
 void wkc2_init_graphics_writers(void);
+void wkc2_init_spu_job_capture(void);
 void wkc2_dump_graphics_writers(uint32_t);
 void wkc2_register_pamf(void);
 void wkc2_register_dmux(void);
@@ -594,6 +595,7 @@ int main(int argc, char** argv)
 
     ppu_recomp_register();   /* lifted function table -> address map */
     wkc2_init_graphics_writers();
+    wkc2_init_spu_job_capture();
     ps3_load_prx_modules();  /* this game's lifted system PRX, if it has any */
     ppu_hle_init();          /* firmware import NID -> HLE handlers */
     wkc2_register_lwcond();  /* register before the SDK's fallback ctx handlers */

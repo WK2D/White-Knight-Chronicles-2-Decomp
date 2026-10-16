@@ -18,7 +18,9 @@
     "wkc1_selection": true,
     "continuous_movie_playback_scope": "LPCM startup logos, AC-3 title background and observed attract playback",
     "avatar_customization_ui": true,
-    "avatar_model_rendering": false
+    "avatar_model_rendering": false,
+    "avatar_body_geometry": true,
+    "avatar_material_and_face_shading": false
   },
   "captures": [
     {
@@ -695,5 +697,90 @@
     "seconds_limit": 900,
     "last_reported_guest_flips": 14148,
     "last_reported_presentation_calls": 14148
+  },
+  "wkc1_job_output_observation": {
+    "probe": "20261016-102635",
+    "sdk_patches": 27,
+    "regression_checks_passed": 25,
+    "captured_jobs": 37,
+    "geometry_job_image": 19,
+    "geometry_job_samples": 24,
+    "all_sampled_geometry_job_ordinary_put_payloads_zero": true,
+    "sampled_geometry_job_put_bytes": 6784,
+    "capture_record_or_byte_limits_hit": false,
+    "capture_io_errors": 0,
+    "nested_jobs_omitted": 0,
+    "atomic_writes_in_capture_scope": false,
+    "transformed_vertex_data_present_in_local_store": true,
+    "complete_avatar_body_visible": false,
+    "render_state_overrides_enabled": false,
+    "manually_stopped_after_observation": true,
+    "terminated_at_time_limit": false,
+    "seconds_limit": 1800,
+    "last_reported_guest_flips": 13078,
+    "last_reported_presentation_calls": 13078
+  },
+  "spu_fnms_regression": {
+    "sdk_patches": 28,
+    "regression_checks_passed": 26,
+    "operation": "FNMS result bits: c - a*b, SPU single-precision extended range",
+    "independent_oracle": "Exact arbitrary-precision integer arithmetic",
+    "private_exploratory_scalar_vectors": 101728,
+    "private_exploratory_mismatches": 0,
+    "reproducible_synthetic_vector_cases": 7099,
+    "reproducible_lane_comparisons": 28396,
+    "reproducible_mismatches": 0,
+    "original_helper_negative_control_failures": 13972,
+    "fpscr_exception_flags_covered": false,
+    "other_float_operations_changed": false,
+    "compiled_cull_replay_original_surviving_indices": 0,
+    "compiled_cull_replay_corrected_surviving_indices": 282,
+    "replay_scope": "Separate native execution of the lifted culling function from a captured post-job local-store state; not full-game validation",
+    "semantics_reference": "https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Cell/SPUInterpreter.cpp"
+  },
+  "wkc1_fnms_body_geometry_observation": {
+    "probe": "20261016-105440",
+    "sdk_patches": 28,
+    "regression_checks_passed": 26,
+    "wkc1_level1_selection_verified": true,
+    "confirmation_verified": true,
+    "full_scene_capture_frame_counter": 13014,
+    "full_scene_capture_operations": 685,
+    "callback_count": 765,
+    "callbacks_omitted": 0,
+    "clean_scene_capture_frame_counter": 13083,
+    "clean_scene_capture_operations": 509,
+    "introductory_notice_dismissed": true,
+    "blank_name_field": true,
+    "room_visible": true,
+    "avatar_body_geometry_visible": true,
+    "visible_new_parts": [
+      "arms",
+      "hands",
+      "trousers",
+      "boots"
+    ],
+    "full_material_and_face_shading_correct": false,
+    "render_state_overrides_enabled": false,
+    "sampled_settled_geometry_jobs": 4,
+    "ordinary_put_counts": [
+      3,
+      3,
+      3,
+      3
+    ],
+    "ordinary_put_bytes": [
+      9264,
+      9280,
+      6096,
+      6096
+    ],
+    "all_sampled_jobs_have_nonzero_output": true,
+    "capture_record_or_byte_limits_hit": false,
+    "capture_io_errors": 0,
+    "published_gallery_image": "screenshots/2026-10-16-native-avatar-body.png",
+    "character_creation_completed": false,
+    "gameplay_verified": false,
+    "save_load_verified": false
   }
 }

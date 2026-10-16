@@ -8,12 +8,19 @@ as PNG. All optional metadata has been removed. Images contain the game frame on
 Options and an animated background. AC-3 and LPCM audio decode, and idle startup
 enters the attract movie. New Game descriptions and selection dialogs are now
 readable, and White Knight Chronicles I reaches Customize Avatar. The 3D room
-now renders with normal depth testing. Some avatar pieces appear, but the body
-is incomplete.
+now renders with normal depth testing. Avatar body geometry now appears,
+including arms, hands, trousers and boots. Face shading and clothing materials
+remain incorrect.
 Starting gameplay and save/load remain unverified;
 complete audio fidelity and timing against original hardware remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
+
+## 2026-10-16 — Avatar body geometry
+
+The avatar body now appears in the native WKC1 character creator after correcting SPU FNMS extended-range arithmetic. Previously missing arms, hands, trousers and boots are visible with normal depth and culling. Face shading and clothing materials remain incorrect; completed character creation, gameplay and save/load are still unverified. Captured on the original version 1.00 baseline.
+
+![Native Avatar body geometry](../verification/screenshots/2026-10-16-native-avatar-body.png)
 
 ## 2026-10-16 — 3D room with normal depth
 

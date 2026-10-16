@@ -1,0 +1,30 @@
+diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
+--- a/runtime/spu/spurs_job.c
++++ b/runtime/spu/spurs_job.c
+@@ -42,6 +42,10 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++
++/* Optional host observer: const context, before and after the same job.
++ * The observer owns its storage and must not change guest execution state. */
++void (*g_spu_job_trace_hook)(const spu_context*,uint32_t,uint32_t,int) = 0;
+ 
+ extern uint8_t* vm_base;
+ extern int spu_run_with_halt(void (*)(spu_context*), spu_context*);
+@@ -358,6 +362,7 @@
+           fprintf(stderr, "[spurs-job] ENTER r3=%08X r4=%08X r1=%08X entry-fn image=%d\n",
+                   ctx.gpr[3]._u32[0], ctx.gpr[4]._u32[0], ctx.gpr[1]._u32[0],
+                   image_id); }
++    if (g_spu_job_trace_hook) g_spu_job_trace_hook(&ctx,job_ea,dsz,0);
+     /* NOTE: after its work the job's runtime jumps to LS 0 ("return to the
+      * jm2 kernel" -- real layout has the kernel at 0, jobs above; we load the
+      * job at 0). That second lap re-enters the job's crt with dead registers
+@@ -377,6 +382,7 @@
+      * allocation request. Kept because the printf service needs them. */
+     memcpy(s_job_ls, ctx.ls, SPU_LS_SIZE);   /* keep the store readable */
+     s_job_ls_valid = 1;
++    if (g_spu_job_trace_hook) g_spu_job_trace_hook(&ctx,job_ea,dsz,1);
+ 
+     g_spurs_job_mbox      = spu_channel_has_data(&ctx.ch_out_mbox)
+                           ? ctx.ch_out_mbox.value : 0;

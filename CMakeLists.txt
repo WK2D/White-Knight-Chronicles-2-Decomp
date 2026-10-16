@@ -171,6 +171,7 @@ add_executable(${PROJECT_NAME}
     adec.cpp
     thread_diagnostics.cpp
     graphics_diagnostics.cpp
+    spu_job_diagnostics.cpp
     ${PS3RECOMP_SCAFFOLD}
     ${HLE_NID_TABLE}
     ${RECOMP_SOURCES}
@@ -193,6 +194,9 @@ if(SPU_SOURCES)
         set_source_files_properties(${SPU_SOURCES} PROPERTIES COMPILE_OPTIONS "-O2")
     endif()
 endif()
+
+set_source_files_properties(spu_job_diagnostics.cpp PROPERTIES
+    INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/runtime/spu")
 
 # app.rc carries the icon, the version block and the manifest, and needs a
 # resource compiler. Listing it as a source on a host that has none is not a
@@ -303,6 +307,15 @@ if(WKC2_BUILD_TESTS)
             ENVIRONMENT "SPU_CRI_IMAGE=${cri_id}" TIMEOUT 10)
     endforeach()
     find_package(Threads REQUIRED)
+    set(SPU_FP_FIXTURE "${CMAKE_BINARY_DIR}/spu-fp-fixture/spu_fp_vectors.h")
+    add_custom_command(OUTPUT "${SPU_FP_FIXTURE}"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spu_fp_fixture.py" "${SPU_FP_FIXTURE}"
+        DEPENDS tools/prepare_spu_fp_fixture.py)
+    add_executable(wkc2_spu_fp_test tests/spu_fp_test.c "${SPU_FP_FIXTURE}")
+    target_include_directories(wkc2_spu_fp_test PRIVATE
+        "${CMAKE_BINARY_DIR}/spu-fp-fixture" "${PS3RECOMP_DIR}/runtime/spu")
+    add_test(NAME wkc2_spu_fp COMMAND wkc2_spu_fp_test)
+    set_tests_properties(wkc2_spu_fp PROPERTIES TIMEOUT 10)
     set(SPURS_ABI_FIXTURE "${CMAKE_BINARY_DIR}/spurs-abi-fixture")
     add_custom_command(OUTPUT "${SPURS_ABI_FIXTURE}/fixture.c" "${SPURS_ABI_FIXTURE}/fixture.h"
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spurs_abi_fixture.py"

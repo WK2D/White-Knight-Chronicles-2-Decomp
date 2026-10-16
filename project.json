@@ -95,6 +95,8 @@
   "native_character_creation_completed_verified": false,
   "development_priority": "Baseline 01.00 native 3D rendering and gameplay, starting with White Knight Chronicles I",
   "native_character_creation_room_rendering_verified": true,
-  "native_character_creation_room_rendering_scope": "WKC1 Customize Avatar room visible with normal guest depth testing and culling; avatar body remains incomplete",
-  "native_partial_avatar_rendering_verified": true
+  "native_character_creation_room_rendering_scope": "WKC1 Customize Avatar room visible with normal guest depth testing and culling",
+  "native_partial_avatar_rendering_verified": true,
+  "native_avatar_body_geometry_verified": true,
+  "native_avatar_body_geometry_scope": "WKC1 Customize Avatar body geometry, including arms, hands, trousers and boots; normal depth/culling; face and clothing shading incorrect"
 }

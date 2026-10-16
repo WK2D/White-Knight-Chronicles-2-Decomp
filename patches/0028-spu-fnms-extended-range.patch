@@ -1,0 +1,51 @@
+diff --git a/runtime/spu/spu_helpers.h b/runtime/spu/spu_helpers.h
+--- a/runtime/spu/spu_helpers.h
++++ b/runtime/spu/spu_helpers.h
+@@ -290,7 +290,46 @@
+ static inline u128 spu_fm(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._f32[i]=a._f32[i]*b._f32[i]; return r; }
+ static inline u128 spu_fma(u128 a, u128 b, u128 c)  { u128 r; for(int i=0;i<4;i++) r._f32[i]=fmaf(a._f32[i], b._f32[i], c._f32[i]); return r; }
+ static inline u128 spu_fms(u128 a, u128 b, u128 c)  { u128 r; for(int i=0;i<4;i++) r._f32[i]=fmaf(a._f32[i], b._f32[i], -c._f32[i]); return r; }
+-static inline u128 spu_fnms(u128 a, u128 b, u128 c) { u128 r; for(int i=0;i<4;i++) r._f32[i]=fmaf(a._f32[i], -b._f32[i], c._f32[i]); return r; }
++/* SPU single-precision extended range: exponent 255 is finite, exponent 0
++ * flushes to zero. Form c-a*b with integer significands, then truncate to
++ * 24 bits. This avoids host NaNs and host floating-point rounding modes. */
++static inline unsigned spu_sf_msb64(uint64_t v) {
++    uint32_t high=(uint32_t)(v>>32);
++    return high ? 63u-(unsigned)spu_clz32(high) : 31u-(unsigned)spu_clz32((uint32_t)v);
++}
++static inline uint64_t spu_sf_align(uint64_t v,int shift) {
++    if(shift<=0) return v<<(unsigned)-shift;
++    if(shift>=64) return v!=0;
++    return (v>>(unsigned)shift) | ((v & ((UINT64_C(1)<<(unsigned)shift)-1))!=0);
++}
++static inline uint32_t spu_sf_fnms(uint32_t a,uint32_t b,uint32_t c) {
++    int ea=(int)((a>>23)&255),eb=(int)((b>>23)&255),ec=(int)((c>>23)&255);
++    if(!ea || !eb) return ec ? c : 0;
++    uint64_t product=(uint64_t)((a&0x7fffffu)|0x800000u)*((b&0x7fffffu)|0x800000u);
++    uint64_t addend=ec ? ((c&0x7fffffu)|0x800000u) : 0;
++    int pe=ea+eb-300,ce=ec-150;
++    int pt=pe+(int)spu_sf_msb64(product);
++    int ct=addend ? ce+(int)spu_sf_msb64(addend) : pt;
++    int unit=(pt>ct ? pt : ct)-61;
++    uint64_t p=spu_sf_align(product,unit-pe),q=addend ? spu_sf_align(addend,unit-ce) : 0;
++    uint32_t ps=(a^b^0x80000000u)&0x80000000u,cs=c&0x80000000u,sign;
++    uint64_t magnitude;
++    if(ps==cs) { magnitude=p+q;sign=ps; }
++    else if(p>=q) { magnitude=p-q;sign=ps; }
++    else { magnitude=q-p;sign=cs; }
++    if(!magnitude) return 0;
++    unsigned top=spu_sf_msb64(magnitude);
++    int exponent=unit+(int)top+127;
++    if(exponent<=0) return 0;
++    if(exponent>255) return sign|0x7fffffffu;
++    uint64_t sig=top>23 ? magnitude>>(top-23) : magnitude<<(23-top);
++    return sign|((uint32_t)exponent<<23)|((uint32_t)sig&0x7fffffu);
++}
++static inline u128 spu_fnms(u128 a,u128 b,u128 c) {
++    u128 r;
++    for(int i=0;i<4;i++) r._u32[i]=spu_sf_fnms(a._u32[i],b._u32[i],c._u32[i]);
++    return r;
++}
+ static inline u128 spu_fceq(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._u32[i]=(a._f32[i]==b._f32[i])?0xFFFFFFFFu:0; return r; }
+ static inline u128 spu_fcgt(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._u32[i]=(a._f32[i]>b._f32[i])?0xFFFFFFFFu:0; return r; }
+ 

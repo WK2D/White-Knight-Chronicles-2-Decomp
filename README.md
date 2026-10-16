@@ -42,10 +42,12 @@ bytes as kernel data. Loading advances to a further animation program, now lifte
 and observed dispatching and returning. Fixing vertex-shader cache identities now
 reveals the **Customize Avatar** screen. Correcting indexed triangle strips and
 primitive restart now renders the **3D room with normal depth testing**. Some
-avatar pieces appear, but the body is incomplete. Completed character creation,
-gameplay and save/load remain unverified.
+avatar pieces appeared first; correcting SPU extended-range FNMS arithmetic now
+reveals the **avatar body geometry**, including arms, hands, trousers and boots.
+Face shading and clothing materials remain incorrect. Completed character
+creation, gameplay and save/load remain unverified.
 
-[![Native 3D room with partial avatar rendering](verification/screenshots/2026-10-16-native-3d-room.png)](docs/GALLERY.md)
+[![Native avatar body geometry with remaining shading issues](verification/screenshots/2026-10-16-native-avatar-body.png)](docs/GALLERY.md)
 
 ## Workspace layout
 

@@ -17,8 +17,8 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and twenty-five runtime regression checks | Compilation alone does not verify gameplay |
-| WKC1 reaches Customize Avatar | Readable UI and controller dismissal of the introductory notice; [capture](GALLERY.md) | Room and some avatar pieces render; full body, completed character creation, gameplay and save/load unverified |
+| Native Windows build succeeds | Clang build and twenty-six runtime regression checks | Compilation alone does not verify gameplay |
+| WKC1 reaches Customize Avatar | Readable UI, room and avatar body geometry; [capture](GALLERY.md) | Face/material shading incorrect; completed character creation, gameplay and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -345,6 +345,35 @@ The native scene check with CRI selection disabled again reaches WKC1 Customize
 Avatar. The room and clothing remain visible, while the avatar body is still
 incomplete. There is no new visual milestone from this change.
 The native C/C++ target and Windows baseline remain unchanged.
+
+The bounded job observer in patch 0027 captures 37 jobs, including 24 geometry
+jobs. All 24 write only zero-filled ordinary DMA output, totaling 6,784 bytes,
+although transformed vertices exist in their local stores. No capture limit,
+nested-job omission or I/O error affects these samples. Atomic writes are outside
+this observer's scope. This places a concrete fault before geometry/command output.
+
+An isolated native replay narrows the failure to FNMS in the geometry culling
+routine. A zero operand multiplied by bit pattern `FFFFFFFF` produces a host NaN
+in the old helper. The SPU treats exponent 255 as a finite extended-range value,
+so that product must be zero. The NaN contaminates the culling mask and the replay
+returns no surviving indices. [RPCS3's precise SPU arithmetic](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Cell/SPUInterpreter.cpp)
+was consulted for the number-format, zero, saturation and truncation semantics;
+its implementation was not copied. Patch 0028 implements FNMS result bits with
+integer significands. The same compiled replay now returns 282 indices.
+
+An independent exact-integer oracle checks 101,728 exploratory scalar cases
+without a mismatch. The reproducible regression checks 7,099 synthetic cases in
+all four lanes, totaling 28,396 comparisons; the old helper fails 13,972 of those
+comparisons. All 26 regression checks pass. FPSCR exception flags and other SPU
+floating-point operations are outside this fix's scope.
+
+The native follow-up confirms the practical result: avatar body geometry appears
+in WKC1 Customize Avatar with normal depth and culling. Arms, hands, trousers and
+boots are visible. Four sampled settled-scene geometry jobs now each write three
+ordinary DMA payloads, including nonzero data, instead of a small zero-filled
+block. The gallery records the blank-name scene after dismissing the introductory
+notice. Face shading and clothing materials are still incorrect. This milestone
+does not verify full visual fidelity, completed character creation or gameplay.
 
 ## Update 1.01 and DLC integration
 
