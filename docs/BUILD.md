@@ -500,3 +500,21 @@ supports UTF-16 surrogate pairs. Shift-JIS conversion is not implemented here.
 The intended replacement for the temporary Windows editor is an in-game keyboard
 with complete gamepad navigation, acceptance and cancellation, sharing the same
 guest protocol on Windows and macOS. That interface remains planned work.
+
+## Diagnostic probes
+
+Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a
+result JSON go into `work/probes/`; unrecognized SPU jobs go into the private
+analysis directory. Probes record the last observed guest flip and presented-frame
+counts every five seconds; these counters alone do not verify visible content.
+`-CaptureFrames` saves four backend BMP readbacks by default in a private probe
+subdirectory. `-CaptureFrameCount`, `-CaptureEvery` and `-CaptureSkip` select a
+longer sampling interval; probes accept durations up to 600 seconds, with each
+host wait bounded to five seconds. `PAD_SCRIPT` can supply timed controller pulses
+through the SDK's controller path; the probe records that script in its result.
+Capture suppresses the runner's pre-flip placeholder presents, changing
+presentation timing for diagnostics. `WKC2_THREADS=1` adds guest thread register
+snapshots at each progress report.
+`tools/trace_calls.py` optionally adds opt-in return/argument
+tracing to selected generated functions. Those diagnostics are disabled unless
+`WKC2_TRACE_CALLS=1` is set.

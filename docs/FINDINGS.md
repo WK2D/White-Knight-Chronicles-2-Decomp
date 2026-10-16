@@ -619,6 +619,160 @@ The current baseline remains disc v01.00. Neither 1.01 execution nor DLC content
 has been verified in the native port. Package bytes and local source locations
 are not published.
 
+## Investigation history
+
+This narrative log was previously kept in the README. It records the order in
+which problems were found and fixed; the sections above hold the current detail.
+
+### Progress summary
+
+The title menu now renders with New Game, Continue and Options over an animated
+background. LPCM startup logos and AC-3 title/attract movies play through the native
+movie pipeline. See the [newest-first gallery](docs/GALLERY.md).
+Controller input opens New Game and selects White Knight Chronicles I. Description
+and dialog text now render correctly. WKC1 loading passes the guard-registration
+failure and dispatches previously skipped geometry jobs. A native binding for the
+standard SPURS processor-ID query prevents those jobs from reading executable
+bytes as kernel data. Loading advances to a further animation program, now lifted
+and observed dispatching and returning. Fixing vertex-shader cache identities now
+reveals the **Customize Avatar** screen. Correcting indexed triangle strips and
+primitive restart now renders the **3D room with normal depth testing**. Some
+avatar pieces appeared first; correcting SPU extended-range FNMS arithmetic now
+reveals the **avatar body geometry**, including arms, hands, trousers and boots.
+Correcting packed vertex normals and fragment source-range modifiers now also
+restores **face shading and textured clothing**. Native text entry and character-name
+conversion now retain the name through Quick Start to the **final avatar Review**.
+Avatar confirmation now enters the **WKC1 opening movie**; completing GPU batches
+at guest flip boundaries prevents presentation from stalling at that transition.
+Full visual fidelity, interactive gameplay and save/load remain unverified.
+
+Vulkan is the primary Windows renderer. It now renders the avatar and room
+without its initial red tint after correcting colour-target feedback. D3D12
+remains available as an optional comparison/fallback build. Both execute the
+recompiled C/C++ game code natively. Full-game rendering remains unverified.
+
+### Runtime investigation
+
+The first native run spun on invalid FIOS conditions. `lwcond.cpp` corrects the
+8-byte guest layout and implements waits/signals with portable C++ synchronization.
+Its regression test checks adjacent memory, timeout/reacquisition and a real wakeup.
+
+The runtime patches fix Windows offsets above 2 GB, reject partial SDAT caches,
+avoid duplicate synthetic completions after real SPU events, and make job-chain
+shutdown/join wait for actual walker termination. They also implement syscall
+350 (allocation from a memory container), track container capacity and frees,
+correct the container-size query ABI, and accept heap-backed SPU job binaries
+instead of rejecting every binary above 0x10000000. Changes stay in `patches/` and
+are applied idempotently by the build script.
+
+`tools/prepare_sdat.py` prepares the three large disc archives with accelerated
+AES and authenticates every block. It writes atomic caches beside the extracted
+files; the original ISO is unchanged.
+
+The pool-28 allocation failure is resolved: the runtime previously acknowledged
+syscall 350 without allocating its requested 24 MB. The settings file now loads
+and initialization advances. Both the lightweight-condition and memory-container
+regression tests pass.
+
+`lfqueue.cpp` implements import 0x8A85674D (`_cellSpursLFQueuePushBody`) and the
+guest queue initializer used by WKC2. It serializes producers with the SPU atomic
+line lock, publishes copied ring entries, and signals registered task waiters.
+The queue regression test covers capacity, sequence wrap, waiter routing and
+guest layout. All three regression tests pass.
+
+Eight real asset blocks decoded by the lifted SPU match independent Python zlib
+raw-DEFLATE output byte for byte (256 bytes and seven 64 KB blocks). The hashes
+and validation method are in `decompression-verification.json`; private game
+bytes remain under `work/`. Temporary SPU capture instrumentation was removed.
+
+The heap-binary fix exposed two raw jobs (fingerprints
+687D4BB18564813A, 54,544 bytes; 164B23483A68CBEA, 1,968 bytes). Both have now
+been lifted and execute natively. The renderer worker passes its previous wait.
+Those jobs and four later discoveries have now been located byte-for-byte in
+the baseline executable and added to `tools/extract_raw_jobs.py`. They no longer
+require runtime captures for regeneration. `tools/import_spu_misses.py` validates
+newly dumped job fingerprints during further scene research. All original game
+bytes and generated game code remain in the private workspace.
+
+The D3D12 fragment path now binds all 16 RSX texture/sampler units. WKC2's UI
+shader uses units 4 and 7; the old four-unit root signature rejected its pipeline.
+It also uses the current buffered-constant decompiler API, snapshots exact inline
+constant bits for each draw, honors the export-width control, and uses the API's
+cubemap, alpha-test and unnormalized-coordinate handling. The shader cache includes
+the static alpha comparison and coordinate dimensions. The old screen-size texture
+substitution heuristic is opt-in (`SCREEN_AS_TEX=1`); it replaced real render-target
+textures with a black previous-frame copy during WKC2 startup.
+
+The runner consumes each pending flip once, removing a duplicate presentation
+path. A 120-second probe observed 6,171 guest flips and 6,171 presentation calls.
+GPU readback, rather than those counters, establishes the visible UI milestone.
+Original GPU captures are retained in the private workspace. The gallery publishes
+lossless PNG versions with optional metadata removed, alongside verification notes.
+
+Queue creation publishes its host wait primitives before the queue becomes active,
+and SPURS completion sends hold table ownership through enqueue, avoiding the
+observed send-versus-create crash. A fourth regression test concurrently sends
+while creating/destroying the same queue ID 2,000 times, then checks capacity and
+payload order.
+
+The FIFO walker preserves self-jumps while the SPU command producer fills its
+segment. Previously it skipped to PUT and discarded commands and completion labels;
+that caused a graphics-fence stall after language selection. Intentional producer
+and semaphore waits are excluded from the stalled-GET recovery heuristic. SPURS
+guard waits now last until notification or shutdown instead of killing an idle
+chain after 20 seconds.
+
+The later startup stall was traced to a dropped installation request: a background
+check was still pending when the request arrived. `tools/apply_port_hooks.py`
+installs synchronization before the original guest request. The guest then performs
+the actual installation and starts loading the first logo movie. All three large
+installed archives (4,364,470,879 bytes total) match their disc data by SHA-256;
+see `verification/installation.json`.
+
+The nine imported PAMF reader APIs now use the guest ABI, big-endian output and
+actual stream descriptors. A fifth regression check covers synthetic video/audio
+headers, 64-bit sizes, copied readers and invalid input. An optional private fixture
+parses the first logo's two streams and 1280x720 video. Native startup now passes
+reader initialization and reaches movie demux/decoder threads.
+
+`dmux.cpp` now supplies memory queries, real MPEG program-stream/access-unit
+parsing, guest callbacks, AU lifetimes and queue backpressure. Independent decoding
+matches every pixel in 3,806 extracted video frames across the logo and opening
+movie; extracted AC-3 also decodes. See [verification](verification/movie-demux.json).
+The native guest receives actual video and LPCM units through its decoder calls.
+Callback stacks are isolated across host threads and nesting.
+
+The imported video-postprocessor interface now has correct guest fields and actual
+progressive YUV conversion, cropping and bilinear resizing. The build enables the
+SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
+library. A 210-frame decoder check matches every frame through the guest video API
+on two sequence passes, including reordering and corruption/drop negative controls.
+Twenty checks pass. The title screen and its menu render natively; see the gallery.
+
+Packed A4R4G4B4 font textures were excluded by the D3D12 binding filter, leaving
+previous artwork selected for text draws. The backend now records the current
+texture, decodes through the shared RSX format/row-pitch path and creates the SRV
+with the uploaded resource's format. New Game description and confirmation text
+are readable. The suite also runs the SDK's texture layout, packed-format and
+component-remap checks.
+
+White Knight Chronicles I is the starting point for gameplay validation. The old
+32-entry guard table filled while the game created several guards per live chain.
+An unknown guard then let an unprepared job run. Guards now use allocated entries,
+notifications/reset/waits are synchronized, and joining releases their owning
+chain's entries. Unknown guards stop before dispatch. Regression checks cover
+100 chain lifetimes and 128 simultaneous guards. The native run passes that
+failure. A further 11,856-byte SPU program has been statically translated, and
+eight targeted native dispatches return successfully. Ordered job-list execution
+also reaches geometry work previously omitted by the SDK. The standard SPURS
+processor-ID query now reads native handoff metadata, preserving job code at the
+kernel's original local-store address. Loading advances to another 16,912-byte
+animation program; eight dispatch/return pairs have been observed after lifting
+it. FIFO consumption continues through a later timeout. A subsequent vertex-shader
+cache fix reveals avatar-customization menus; model rendering and job-output
+correctness still need investigation.
+Gameplay, save/load and missing imports remain open.
+
 ## Still unverified
 
 Open audio issue: audible distortion in character-creation music. Device buffer
