@@ -244,6 +244,35 @@ extern "C" void wkc2_wait_for_content_check(void)
     if (waited) fprintf(stderr, "[content-sync] check completed; entering original installation request\n");
 }
 
+/* Read-only observation at the game's own graphics timeout. All addresses
+ * and command words remain in the private probe log. */
+extern "C" uint32_t* cellGcmGetLabelAddress(uint8_t index);
+extern "C" void* cellGcmGetControlRegister(void);
+extern "C" uint32_t cellGcmResolveIO(uint32_t offset);
+extern "C" void wkc2_observe_graphics_wait(ppu_context* ctx)
+{
+    if (!getenv("WKC2_FIFO_TRACE")) return;
+    static unsigned samples = 0;
+    if (samples++ >= 3) return;
+    uint32_t object = (uint32_t)ctx->gpr[29];
+    uint32_t label = (uint32_t)(uintptr_t)cellGcmGetLabelAddress(0x48);
+    uint32_t control = (uint32_t)(uintptr_t)cellGcmGetControlRegister();
+    uint32_t put = vm_read32(control), get = vm_read32(control + 4);
+    fprintf(stderr, "[graphics-wait] object=%08X expected=%08X label48=%08X get=%08X put=%08X ref=%08X\n",
+        object, vm_read32(object + 0x30), vm_read32(label), get, put, vm_read32(control + 8));
+    for (unsigned end = 0; end < 2; ++end) {
+        uint32_t center = end ? put : get;
+        for (int k = -8; k < 24; ++k) {
+            uint32_t io = center + (uint32_t)(k * 4);
+            uint32_t ea = cellGcmResolveIO(io);
+            if (!ea || ea == UINT32_MAX) continue;
+            fprintf(stderr, "[graphics-fifo] %s%+d io=%08X ea=%08X word=%08X\n",
+                end ? "put" : "get", k * 4, io, ea, vm_read32(ea));
+        }
+    }
+    fflush(stderr);
+}
+
 extern "C" void wkc2_observe_content_request(ppu_context* ctx)
 {
     if (!getenv("WKC2_CONTENT_TRACE")) return;

@@ -39,3 +39,7 @@ install('0006A0A8', 'extern "C" void wkc2_observe_content_request(ppu_context* c
 install('0006CFA4', 'extern "C" void wkc2_observe_content_worker(ppu_context* ctx);',
         'wkc2_observe_content_worker(ctx);',
         'ctx->lr = 0x0006D0FC; func_0006C390(ctx); DRAIN_TRAMPOLINE(ctx);')
+
+install('00AEF65C', 'extern "C" void wkc2_observe_graphics_wait(ppu_context* ctx);',
+        'wkc2_observe_graphics_wait(ctx);',
+        'if ((!((ctx->cr >> 0) & 4))) goto loc_00AEF6C0;')

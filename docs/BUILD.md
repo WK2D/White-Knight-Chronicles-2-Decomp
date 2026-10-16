@@ -173,3 +173,8 @@ For a focused private job trace, set `SPURS_JOB_TRACE_FP` to a hexadecimal SPU
 binary fingerprint before launching the probe. Patch 0012 logs dispatch and return
 for at most eight matching jobs without enabling global per-job verbose output.
 A successful return alone does not validate the job's output.
+
+`WKC2_FIFO_TRACE=1` enables a read-only observation at the original game's graphics
+wait timeout. It records at most three expected/current completion-label samples
+and command words around GET/PUT in the private probe log. It does not advance
+the command queue or change completion values.

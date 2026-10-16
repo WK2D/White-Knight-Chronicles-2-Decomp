@@ -135,6 +135,13 @@ the game subsequently reports a graphics/FIFO error and stalls. Inspect the
 produced command buffers and FIFO consumption next. Playable scenes and save/load
 remain unverified.
 
+A read-only observer at the game's graphics timeout captures three matching
+samples: the completion label is one submission behind the expected value, and
+GET points at a JUMP to its own address. That command is a producer wait, so the
+next task is to identify the producer responsible for replacing it and verify
+its output. Advancing GET or inventing a label completion would skip pending
+work and would not establish correct gameplay.
+
 ## Update 1.01 and DLC integration
 
 Planned scope includes the USA 1.01 update and matching DLC. Local package

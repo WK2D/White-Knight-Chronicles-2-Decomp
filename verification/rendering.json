@@ -124,5 +124,14 @@
     "gameplay_verified": false,
     "guest_flips": 22491,
     "presentation_calls": 22491
+  },
+  "wkc1_graphics_wait": {
+    "probe": "20261016-034536",
+    "matching_timeout_samples": 3,
+    "expected_label": 20197,
+    "observed_label": 20196,
+    "get_points_to_self_jump": true,
+    "producer_output_correctness_verified": false,
+    "gameplay_verified": false
   }
 }
