@@ -32,7 +32,8 @@ background. LPCM startup logos and AC-3 title/attract movies play through the na
 movie pipeline. See the [newest-first gallery](docs/GALLERY.md).
 Controller input opens New Game and selects White Knight Chronicles I. Description
 and dialog text now render correctly. WKC1 loading now passes the guard-registration failure and reaches a further SPU
-job. Gameplay and save/load remain unverified.
+job that now runs and returns. A subsequent graphics/FIFO stall remains; gameplay
+and save/load remain unverified.
 
 [![Native WKC1 selection](verification/screenshots/2026-10-16-wkc1-selection.png)](docs/GALLERY.md)
 
@@ -190,7 +191,9 @@ An unknown guard then let an unprepared job run. Guards now use allocated entrie
 notifications/reset/waits are synchronized, and joining releases their owning
 chain's entries. Unknown guards stop before dispatch. Regression checks cover
 100 chain lifetimes and 128 simultaneous guards. The native run passes that
-failure and captures a further 11,856-byte SPU program for static translation.
+failure. A further 11,856-byte SPU program has been statically translated, and
+eight targeted native dispatches return successfully. Its output correctness and
+the following graphics/FIFO stall still need investigation.
 Gameplay, save/load and missing imports remain open.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a

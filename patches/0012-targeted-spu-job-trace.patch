@@ -1,0 +1,17 @@
+diff --git a/runtime/spu/spu_workload.c b/runtime/spu/spu_workload.c
+index 6a19d5b..03ba8f0 100644
+--- a/runtime/spu/spu_workload.c
++++ b/runtime/spu/spu_workload.c
+@@ -852,6 +852,12 @@ int spu_workload_dispatch_job(const uint8_t* image, uint32_t image_size,
+      * enough to change what the title does (see ps3_log.h). Milestones stay;
+      * the per-job pair is verbose-only. */
+     int verbose = ps3_log_verbose();
++    /* Trace one observed binary without enabling per-job audio logging. */
++    { const char* selected = getenv("SPURS_JOB_TRACE_FP");
++      static volatile LONG trace_count;
++      if (selected && fp == strtoull(selected, NULL, 16) &&
++          InterlockedIncrement(&trace_count) <= 8) verbose = 1;
++    }
+     if (verbose) {
+         fprintf(stderr, "[spurs-job] dispatch HIT fp=0x%016llX image=%d job=0x%08X\n",
+                 (unsigned long long)fp, image_id, job_ea);

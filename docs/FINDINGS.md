@@ -128,8 +128,12 @@ waits, reset, queued notifications, 128 simultaneous guards and invalid guards.
 The previous implementation fails this test. The native WKC1 attempt now registers
 the formerly missing guards and reaches a real 11,856-byte SPU program
 (fingerprint 6AEA19F8490A2656). Its private static lift finds 123 functions and
-98.2% code coverage, with seven undecoded words; execution correctness remains
-unproven. Playable scenes and save/load are still unverified.
+98.2% code coverage, with seven undecoded words. A subsequent native WKC1 run
+traces eight dispatches of this program, all returning `rc=0`. No unregistered-job
+warning appears in that run. This verifies dispatch/return, not output correctness:
+the game subsequently reports a graphics/FIFO error and stalls. Inspect the
+produced command buffers and FIFO consumption next. Playable scenes and save/load
+remain unverified.
 
 ## Update 1.01 and DLC integration
 

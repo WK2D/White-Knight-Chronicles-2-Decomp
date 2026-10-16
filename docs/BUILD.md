@@ -46,7 +46,7 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies eleven numbered runtime patches idempotently
+SDAT archives. The build applies twelve numbered runtime patches idempotently
 and runs seventeen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
@@ -168,3 +168,8 @@ The first-logo LPCM and opening/title AC-3 records are in
 streams; independent container audio demux and original-console mix fidelity are
 not established. Patch 0011 resolves FFmpeg's option setter for decoder downmix/DRC.
 Matching runtime libraries are required; unavailable AC-3 decoders fail explicitly.
+
+For a focused private job trace, set `SPURS_JOB_TRACE_FP` to a hexadecimal SPU
+binary fingerprint before launching the probe. Patch 0012 logs dispatch and return
+for at most eight matching jobs without enabling global per-job verbose output.
+A successful return alone does not validate the job's output.

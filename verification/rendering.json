@@ -109,5 +109,20 @@
     "presentation_calls": 17042,
     "stopped_after_failure_observed": true,
     "note": "WKC1 passes guard exhaustion and reaches an unregistered nonempty 11856-byte SPU job. Main loop later reports graphics error; playable scenes unverified."
+  },
+  "wkc1_job_trace": {
+    "probe": "20261016-032229",
+    "fingerprint": "6AEA19F8490A2656",
+    "binary_size": 11856,
+    "observed_dispatch_return_pairs": 8,
+    "observed_return_codes": [
+      0
+    ],
+    "registered_spu_images": 20,
+    "job_output_correctness_verified": false,
+    "following_graphics_fifo_error": true,
+    "gameplay_verified": false,
+    "guest_flips": 22491,
+    "presentation_calls": 22491
   }
 }
