@@ -51,7 +51,7 @@ scene rendering, gameplay and save/load remain under investigation.
 `tools/import_spu_misses.py` is available for discovering additional jobs.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies thirty numbered runtime patches idempotently
+SDAT archives. The build applies the numbered runtime patches idempotently
 and runs 31 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
@@ -360,6 +360,12 @@ surface clip bounds. It creates no window and uses no game inputs. Partial
 colour-component masks remain unsupported and are reported instead of clearing
 unrequested components. Separate depth attachments, stencil write masks and
 depth-texture sampling remain outside this patch.
+
+Patch 0033 raises the deferred draw-record limit from 2048 to 4096. A native
+WKC1 cutscene transition reached the old limit before the final display draw.
+The follow-up retains 2149 operations, including that final composite, with
+2246 audited callbacks and none omitted. Its vertex upload remains within
+the existing capacity. This verifies record retention, not a correct scene.
 
 Patch 0032 increases the offscreen colour-target table from 16 to 32 entries.
 A captured later WKC1 frame submits 22 distinct targets; six post-processing

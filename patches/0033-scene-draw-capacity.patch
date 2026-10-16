@@ -1,0 +1,20 @@
+diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
+--- a/libs/video/rsx_d3d12_backend.c
++++ b/libs/video/rsx_d3d12_backend.c
+@@ -56,11 +56,11 @@
+ #define FRAME_COUNT         2   /* double buffering */
+ #define MAX_VERTICES    393216  /* per-frame vertex buffer (dbgfont submits
+                                  * ~7.5k verts/frame; leave generous headroom) */
+-#define MAX_DRAWS         2048  /* per-frame draw records. Sized from the
+-                                 * measured worst case (~1841, FRAME_BUDGET);
+-                                 * the per-draw constant buffer is
+-                                 * VP_CB_STRIDE * MAX_DRAWS * 2 bytes, so 16384
+-                                 * asked for a 264 MB upload allocation. */
++#define MAX_DRAWS         4096  /* A captured WKC1 transition reaches 2048
++                                 * records with 170 later callbacks still to
++                                 * process, including the display composite.
++                                 * The double-buffered VP constants now use
++                                 * 66 MiB, retaining bounded allocations. */
+ /* Per-draw VP constant-buffer slot: vp_c[512] + posscale + posoffset
+  * (514 vec4 = 8224 B) rounded up to D3D12's 256-byte CBV alignment.
+  * Constants are snapshotted at RECORD time -- wave's passes each set their

@@ -493,6 +493,18 @@ flip boundaries. This run verifies continued native presentation, without
 establishing a frame-rate improvement. All 32 checks pass; the surface-clear
 GPU test also passes with optimizations and `NDEBUG` enabled.
 
+## Scene draw-record capacity
+
+A WKC1 transition exhausted the backend's 2048 deferred records. The audit
+continued receiving draw callbacks, including the final screen composite,
+after the record table was full. Vertex-upload space remained available.
+Patch 0033 raises the record capacity to 4096 and grows its constant buffers
+accordingly. A normal native follow-up retains 2149 operations and the final
+display draw; all 2246 callbacks are audited, with none omitted. The follow-up
+also retains all 22 observed offscreen targets. The existing 32 checks pass.
+This establishes that the later draw is retained, without establishing correct
+world rendering. Gameplay and save/load remain unverified.
+
 ## Character-name input
 
 Selecting Name reaches a keyboard stub that requires an initialization call

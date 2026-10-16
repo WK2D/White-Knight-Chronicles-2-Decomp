@@ -1181,5 +1181,29 @@
     "interactive_3d_gameplay_verified": false,
     "save_load_verified": false,
     "surface_clear_optimized_ndebug_gpu_check_passed": true
+  },
+  "scene_draw_capacity": {
+    "port_checks_passed": 32,
+    "before_probe": "20261016-200507",
+    "before_capture_frame": 11650,
+    "before_recorded_operations": 2048,
+    "before_audited_callbacks": 2259,
+    "before_final_display_draw_retained": false,
+    "current_record_capacity": 4096,
+    "normal_probe": "20261016-203157",
+    "capture_frame": 21525,
+    "recorded_operations": 2149,
+    "audited_callbacks": 2246,
+    "callbacks_omitted": 0,
+    "final_display_draw_retained": true,
+    "vertex_upload_bytes": 95899392,
+    "vertex_upload_capacity_bytes": 100663296,
+    "distinct_offscreen_targets": 22,
+    "allocated_offscreen_targets": 22,
+    "debugger_writes": false,
+    "render_state_overrides_enabled": false,
+    "world_rendering_visually_correct": false,
+    "interactive_3d_gameplay_verified": false,
+    "save_load_verified": false
   }
 }
