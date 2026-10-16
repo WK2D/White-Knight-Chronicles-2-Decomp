@@ -13,6 +13,7 @@ The [findings log](docs/FINDINGS.md) tracks verified results, open issues and ne
 ## Progress gallery
 
 Native language selection, startup warning and autosave notice are now visible.
+The first decoded logo frame also reaches the renderer; continuous playback stalls.
 See the [dated screenshots and verification notes](docs/GALLERY.md).
 Title screen, gameplay and save/load remain unverified.
 
@@ -149,13 +150,20 @@ parsing, guest callbacks, AU lifetimes and queue backpressure. Independent decod
 matches every pixel in 3,806 extracted video frames across the logo and opening
 movie; extracted AC-3 also decodes. See [verification](verification/movie-demux.json).
 The native guest receives actual video and LPCM units through its decoder calls.
-Callback stacks are isolated across host threads and nesting. Eight checks pass.
+Callback stacks are isolated across host threads and nesting.
 
-Current blocker: movie workers report decoder errors after the first submissions.
-The SDK configuration still uses placeholder decoded output. Decoder ABI/order and
-real video/audio decoding are next. No title screen, native movie playback, gameplay
-or save/load has been verified. Missing imports and unresolved audio-worker calls
-remain separate open issues.
+The imported video-postprocessor interface now has correct guest fields and actual
+progressive YUV conversion, cropping and bilinear resizing. The build enables the
+SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
+library. A 210-frame decoder check matches every frame through the guest video API
+on two sequence passes, including reordering and corruption/drop negative controls.
+Ten checks pass. A decoded logo frame now renders; see the gallery.
+
+Current blocker: startup holds that logo image instead of completing the movie.
+Playback timing, decoder metadata and audio queue behavior need investigation.
+Audio is still placeholder silence. No title screen, continuous native movie playback,
+gameplay or save/load has been verified. Missing imports and unresolved audio-worker
+calls remain separate open issues.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a
 result JSON go into `work/probes/`; unrecognized SPU jobs go into the private

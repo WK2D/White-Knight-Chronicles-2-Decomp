@@ -16,7 +16,7 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and eight runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and ten runtime regression checks | Compilation alone does not verify gameplay |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -25,7 +25,9 @@ Keep full traces, generated game code, assets and local paths in the private wor
 | First movie header parses through the guest ABI | Real header reports two streams and 1280x720 video; native execution advances to demux/decoder startup | Movie playback remains unverified |
 | MPEG-2 access-unit extraction matches independent decoding | All 210 logo frames and 3,596 opening-movie frames match FFmpeg's direct demux/decode pixel for pixel; [record](../verification/movie-demux.json) | Offline validation, not native playback |
 | Extracted opening-movie AC-3 decodes | 3,750 audio frames / 5,760,000 samples per channel at 48 kHz | LPCM has not yet had independent audio comparison |
-| Native demux bridge delivers actual access units | Guest video decoder receives the first 19,356-byte unit; audio decoder receives a 960-byte LPCM unit | Decoder workers then report errors |
+| Native demux bridge delivers actual access units | Guest video decoder receives the first 19,356-byte unit; audio decoder receives a 960-byte LPCM unit | Continuous playback remains unverified |
+| Real video decoding matches reference pixels through the guest API | All 210 logo frames match on two sequence passes, including B-frame reordering; [record](../verification/movie-demux.json) | Standalone decoder validation, not continuous in-game playback |
+| Decoded first-logo image renders natively | D3D12 GPU readback in the [gallery](GALLERY.md) | Later captures hold the image; playback is incomplete |
 | Guest flips continue during the later black screen | A 120-second probe observed 6,171 flips and 6,171 presentation calls | Counters do not establish visible rendering |
 
 ## Implemented fixes
@@ -49,9 +51,13 @@ Keep full traces, generated game code, assets and local paths in the private wor
   guest callback messages, queue backpressure, flush and release lifetimes.
 - Give callback threads separate guest stack slots, with separate slices for
   nested callbacks and slot reuse when host threads exit.
+- Implement imported Vpost open/query/close/exec interfaces, with the actual
+  argument/field layout and progressive YUV420 crop, bilinear resize and RGBA output.
+- Enable real FFmpeg MPEG-2 decoding using pinned public headers and a separately
+  supplied library. The optional decoder check reports a skip if no library loads.
 
-Regression checks cover callback stacks, demux ABI/lifetimes, packet/access-unit
-parsing, PAMF reader ABI, lightweight conditions, memory containers, LFQueue and
+Regression checks cover real video decoding, Vpost conversion/windows, callback
+stacks, demux ABI/lifetimes, packet/access-unit parsing, PAMF reader ABI, lightweight conditions, memory containers, LFQueue and
 event-queue recycling. PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
@@ -81,11 +87,17 @@ No completion result or installation progress was fabricated.
 The project demux bridge replaces the SDK's incompatible callback and whole-buffer
 placeholder path. Native startup now allocates the queried ES buffers, delivers
 actual extracted units through guest callbacks and reaches video/audio DecodeAu.
-The movie's worker threads then report `0x80610005` and exit. The bounded native
-probe reaches its time limit without proving playback. Decoder ABI, callback
-ordering, and real decoded output are the next investigation; the current SDK
-configuration still has callback-only video and silent placeholder audio.
-The title screen, playback, gameplay and save/load remain unverified.
+The previous `0x80610005` worker failure came from the SDK's uninitialized Vpost
+handle path: imported open/query functions were absent and Exec's argument layout
+was incompatible. The replacement Vpost and enabled real video decoder now produce
+a visible logo image. Repeated later captures hold that image. The 100-second probe
+reaches its limit without establishing completed or continuous playback.
+
+Playback timing, decoder metadata and audio queues are the next investigation.
+The SDK audio path still produces placeholder silence and uses a single output
+slot; correct audio remains unverified. The title screen, completed playback,
+gameplay and save/load remain unverified. Vpost currently implements progressive
+bilinear processing; field deinterlacing and other requested filters return an error.
 Missing imports and unresolved audio-worker calls remain separate open issues.
 
 ## Still unverified

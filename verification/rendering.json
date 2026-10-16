@@ -11,7 +11,9 @@
     "gameplay": false,
     "save_load": false,
     "macOS_Apple_Silicon": false,
-    "autosave_notice_rendered": true
+    "autosave_notice_rendered": true,
+    "decoded_logo_frame_rendered": true,
+    "continuous_movie_playback": false
   },
   "captures": [
     {
@@ -25,10 +27,22 @@
       "private_source_probe": "20261015-232002.frames/frame_011.bmp",
       "sha256": "e1f6f5bcae0086ee3c88fa55c9175afa0eb17a1242bc5de7e5138a57083e0a1f",
       "method": "unmodified D3D12 GPU readback; visually inspected"
+    },
+    {
+      "file": "first-logo-frame.bmp",
+      "private_source_probe": "20261016-005717.frames/frame_007.bmp",
+      "sha256": "ea80cb24db4a718aaa49d6d637afb3ddfc6e3abc77c14b9989246db762629c43",
+      "method": "unmodified D3D12 GPU readback; visually inspected"
     }
   ],
   "checks": {
     "passed": [
+      "wkc2_vdec_decode",
+      "wkc2_vpost",
+      "wkc2_callback_stack",
+      "wkc2_dmux",
+      "wkc2_mpegps",
+      "wkc2_pamf",
       "wkc2_lwcond",
       "wkc2_memory",
       "wkc2_lfqueue",
@@ -36,7 +50,8 @@
     ],
     "event_queue_recycles": 2000
   },
-  "probe": {
+  "gallery": "gallery.json",
+  "historical_probe": {
     "name": "20261015-232356",
     "seconds": 120,
     "guest_flips": 6171,
@@ -48,5 +63,14 @@
     "controller_script": "5:0x4000,35:0x4000,60:0x0008,90:0x4000",
     "note": "Later GPU captures are black. Counts do not prove title-screen rendering or gameplay."
   },
-  "gallery": "gallery.json"
+  "probe": {
+    "name": "20261016-005717",
+    "seconds": 100,
+    "guest_flips": 4901,
+    "presentation_calls": 4901,
+    "terminated_at_time_limit": true,
+    "host_exception_observed": false,
+    "controller_script": "5:0x4000,25:0x4000,50:0x4000,80:0x4000",
+    "note": "A decoded first-logo image reaches GPU readback. Repeated later captures hold that image; continuous animation and correct audio are not verified."
+  }
 }

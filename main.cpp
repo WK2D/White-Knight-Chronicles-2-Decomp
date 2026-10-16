@@ -144,6 +144,7 @@ extern ppu_context* volatile g_ppu_main_ctx;
 void wkc2_dump_threads(void);
 void wkc2_register_pamf(void);
 void wkc2_register_dmux(void);
+void wkc2_register_vpost(void);
 void wkc2_shutdown_dmux(void);
 }
 
@@ -540,6 +541,7 @@ int main(int argc, char** argv)
     wkc2_register_lfqueue();
     wkc2_register_pamf();
     wkc2_register_dmux();
+    wkc2_register_vpost();
     atexit(wkc2_shutdown_dmux);
     ppu_sysprx_register();   /* boot-critical CRT */
     ppu_fs_register();       /* cellFs over the game directory */

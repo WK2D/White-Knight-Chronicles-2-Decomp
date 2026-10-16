@@ -53,6 +53,24 @@
         "IEND",
         "IHDR"
       ]
+    },
+    {
+      "milestone": "first_decoded_logo_frame",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-first-logo-frame.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "ea80cb24db4a718aaa49d6d637afb3ddfc6e3abc77c14b9989246db762629c43",
+      "png_sha256": "04307a1fbe726226ee0cb6794bfc6377e3dae36f16266833fa912b39778e989b",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "continuous_playback_verified": false
     }
   ]
 }

@@ -1,0 +1,94 @@
+"""Write a tiny synthetic MPEG-2 regression fixture; contains no game content.
+
+Eight 32x16 moving luma/chroma patterns, GOP=4, B-frames=2. Encoded with
+FFmpeg 62.28.102; the reference is the decoded, unpadded YUV420 plane data.
+Embedded bytes keep the default decoder test independent of an encoder install.
+"""
+import argparse
+import base64
+from pathlib import Path
+import zlib
+
+VIDEO = (
+    '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'
+)
+REFERENCE = (
+    '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'
+    'rQT2xq69KLdebAt0/zwe4PcfHCf3jg=='
+)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('prefix', type=Path)
+    args = parser.parse_args()
+    args.prefix.parent.mkdir(parents=True, exist_ok=True)
+    Path(str(args.prefix) + '.m2v').write_bytes(base64.b64decode(VIDEO))
+    Path(str(args.prefix) + '.yuv').write_bytes(zlib.decompress(base64.b64decode(REFERENCE)))
+    print('Prepared synthetic MPEG-2 fixture: 8 frames, including 4 B frames')
+
+
+if __name__ == '__main__':
+    main()

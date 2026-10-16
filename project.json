@@ -14,5 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true
   },
-  "native_data_installation_verified": true
+  "native_data_installation_verified": true,
+  "native_decoded_movie_frame_verified": true,
+  "native_continuous_movie_playback_verified": false
 }

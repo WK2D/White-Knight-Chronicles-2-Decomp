@@ -36,7 +36,9 @@ if ($Regenerate) {
 }
 Invoke-CheckedPython "$project/tools/apply_port_hooks.py" "$generated/ppu"
 Invoke-CheckedPython "$project/tools/apply_diagnostics.py" "$generated/ppu"
-cmake -S $project -B $build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl "-DPS3RECOMP_DIR=$sdk" "-DRECOMP_DIR=$generated/ppu" "-DSPU_DIR=$generated/spu" "-DDIRECTX_HEADERS_DIR=$Workspace/work/deps/DirectX-Headers" "-DPython3_EXECUTABLE=$python" '-DCMAKE_C_FLAGS=/w' '-DCMAKE_CXX_FLAGS=/w' -DPORT_ENABLE_SPU=ON -DWKC2_BUILD_TESTS=ON
+Invoke-CheckedPython "$project/tools/prepare_ffmpeg.py" "$Workspace/work/deps"
+. "$project/tools/media-env.ps1" -Workspace $Workspace
+cmake -S $project -B $build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl "-DPS3RECOMP_DIR=$sdk" "-DRECOMP_DIR=$generated/ppu" "-DSPU_DIR=$generated/spu" "-DDIRECTX_HEADERS_DIR=$Workspace/work/deps/DirectX-Headers" "-DPython3_EXECUTABLE=$python" '-DCMAKE_C_FLAGS=/w' '-DCMAKE_CXX_FLAGS=/w' -DPORT_ENABLE_SPU=ON -DWKC2_BUILD_TESTS=ON -DPS3RECOMP_FFMPEG_RUNTIME=ON "-DPS3RECOMP_FFMPEG_INCLUDE_DIR=$Workspace/work/deps/ffmpeg-8.1"
 if ($LASTEXITCODE -ne 0) { throw 'CMake configuration failed' }
 cmake --build $build -j $Jobs
 if ($LASTEXITCODE -ne 0) { throw 'Compilation failed' }

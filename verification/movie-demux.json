@@ -120,7 +120,28 @@
   },
   "limitations": [
     "LPCM bytes were extracted, but independent LPCM audio comparison is not established.",
-    "Native decoder workers still report errors after receiving the extracted access units.",
+    "A decoded logo frame now renders natively, but continuous playback stalls and audio output is still a placeholder.",
     "No game bytes, decoded frames or host paths are included."
-  ]
+  ],
+  "native_decoder_check": {
+    "sample": "first_logo",
+    "api": "cellVdecDecodeAu/GetPicItem/GetPicture through SDK test harness",
+    "frames": 210,
+    "sequence_passes": 2,
+    "pixel_mismatches_each_pass": 0,
+    "picture_types": {
+      "I": 13,
+      "P": 60,
+      "B": 137
+    },
+    "reordered_frames_each_pass": 206,
+    "changed_pixel_negative_control_detected": true,
+    "dropped_access_unit_negative_control_mismatches": 207,
+    "ffmpeg_avcodec_version": [
+      62,
+      28,
+      102
+    ],
+    "continuous_native_playback_verified": false
+  }
 }

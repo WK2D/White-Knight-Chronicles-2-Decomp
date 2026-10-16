@@ -5,8 +5,9 @@ using USA BLUS30784 v01.00. These are game-frame GPU readbacks, losslessly encod
 as PNG. All optional metadata has been removed. Images contain the game frame only.
 
 **Current status:** startup UI renders and language selection responds to controller
-input. The title screen, gameplay and save/load are still unverified. The installer now advances
-startup, but movie-reader initialization fails before the first logo can play.
+input. A decoded frame from the first logo movie now reaches the renderer.
+Continuous movie playback stalls; correct audio, the title screen, gameplay and
+save/load are still unverified.
 
 ## 2026-10-15 — Language selection
 
@@ -28,6 +29,16 @@ The autosave notice renders at a later startup stage. This screenshot establishe
 that the notice displays; it does not establish that saving or loading works.
 
 ![Native autosave notice with warning icon and text](../verification/screenshots/2026-10-15-autosave-notice.png)
+
+## 2026-10-16 — First decoded logo frame
+
+The startup movie now passes through real MPEG-2 decoding, YUV-to-RGBA processing
+and the native renderer. This image is a GPU readback of the first logo sequence.
+Later captures hold this image, so continuous animation remains unverified.
+Audio output is still a placeholder. This establishes visible decoded video,
+not completed playback or title-screen rendering.
+
+![Decoded startup logo image rendered natively](../verification/screenshots/2026-10-16-first-logo-frame.png)
 
 ## Evidence and updates
 

@@ -8,6 +8,7 @@ param(
     [ValidateRange(0,3600)][int]$CaptureSkip = 0
 )
 $ErrorActionPreference = 'Stop'
+. "$PSScriptRoot/media-env.ps1" -Workspace $Workspace
 $logRoot = Join-Path $Workspace 'work/probes'
 $missRoot = Join-Path $Workspace 'work/wkc2-analysis/spu-misses'
 New-Item -ItemType Directory -Force $logRoot,$missRoot | Out-Null

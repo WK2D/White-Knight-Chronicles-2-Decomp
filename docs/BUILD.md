@@ -46,9 +46,28 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies the seven numbered runtime patches idempotently
-and runs eight checks: callback stacks, demux ABI/lifetimes, MPEG packet/access-unit
-parsing, PAMF reader, lightweight conditions, memory containers, LFQueue and event queues.
+SDAT archives. The build applies eight numbered runtime patches idempotently
+and runs ten checks: real video decoding, Vpost conversion/windows, callback stacks,
+demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
+conditions, memory containers, LFQueue and event queues.
+
+`tools/prepare_ffmpeg.py` obtains FFmpeg 8.1 public headers from the official source
+archive, checks SHA-256 `b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a`,
+and writes the local public header configuration. The build enables the SDK's
+runtime-loaded decoder. A matching libavcodec 62 / libavutil 60 is needed to decode
+video; no FFmpeg binary is included here. The tested Windows installation uses
+PyAV 18.1.0 in the private venv. `tools/media-env.ps1`, loaded by build and probe,
+locates its DLLs and dependencies. Alternatively, set `PS3RECOMP_FFMPEG_AVCODEC`
+and `PS3RECOMP_FFMPEG_AVUTIL` to matching library paths and provide their dependencies
+on the host loader path. A different-major library is rejected.
+
+The automatic decoder check uses eight original synthetic frames, including
+B-frame reordering, with a decoded pixel reference. It exercises the SDK's existing
+guest API test, two sequence passes, a changed pixel and a dropped-unit negative
+control. It skips when the runtime library cannot load; a skip does not verify
+decoding. The separate private logo check covered all 210 frames at 1280x720.
+Patch 0008 fixes that SDK test's 64-bit seen-set limit so sequences above 64 frames
+are checked without undefined shifts.
 
 `pamf.cpp` supplies project-local context handlers for the nine imported PAMF APIs
 before SDK fallback registration. The reader test uses synthetic headers by default.
@@ -73,8 +92,14 @@ The test exports elementary video/audio plus video-unit sizes to the private pre
 The verifier decodes those video units and compares every frame against FFmpeg's
 independent MPEG demux/decode of the original movie. It also decodes exported AC-3
 when present. Records contain hashes and counts, never game bytes or host paths.
-The checked samples are in `verification/movie-demux.json`. This does not establish
-native playback: real codec output and movie-worker behavior still need work.
+The checked samples are in `verification/movie-demux.json`. Real decoded video now
+also reaches the native renderer, but these checks do not establish continuous
+in-game playback or correct audio.
+
+`vpost.cpp` implements the four imported video-postprocessor APIs with guest field
+layouts and real progressive YUV420 processing. Tested paths include legal-range
+black/white, cropped/scaled RGBA output, planar output, guest metadata and output
+window guards. Field deinterlacing and non-bilinear filters are not implemented.
 
 Set `WKC2_UPDATE_DIAGNOSTICS=1` for dispatcher/scene state samples. The generated
 update hook is applied by the build script and is disabled by default at runtime.

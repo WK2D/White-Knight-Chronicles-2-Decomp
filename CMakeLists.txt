@@ -166,6 +166,7 @@ add_executable(${PROJECT_NAME}
     lfqueue.cpp
     pamf.cpp
     dmux.cpp
+    vpost.cpp
     thread_diagnostics.cpp
     ${PS3RECOMP_SCAFFOLD}
     ${HLE_NID_TABLE}
@@ -283,6 +284,25 @@ option(WKC2_BUILD_TESTS "Build port-specific regression tests" ON)
 if(WKC2_BUILD_TESTS)
     enable_testing()
     find_package(Threads REQUIRED)
+    if(PS3RECOMP_FFMPEG_RUNTIME)
+        set(CODEC_FIXTURE "${CMAKE_BINARY_DIR}/codec-fixture")
+        add_custom_command(OUTPUT "${CODEC_FIXTURE}.m2v" "${CODEC_FIXTURE}.yuv"
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_codec_fixture.py" "${CODEC_FIXTURE}"
+            DEPENDS tools/prepare_codec_fixture.py)
+        add_custom_target(wkc2_codec_fixture DEPENDS "${CODEC_FIXTURE}.m2v" "${CODEC_FIXTURE}.yuv")
+        add_executable(wkc2_vdec_decode_test "${PS3RECOMP_DIR}/libs/codec/tests/test_vdec_decode.c")
+        add_dependencies(wkc2_vdec_decode_test wkc2_codec_fixture)
+        target_include_directories(wkc2_vdec_decode_test PRIVATE "${PS3RECOMP_DIR}/include" "${PS3RECOMP_FFMPEG_INCLUDE_DIR}")
+        target_compile_definitions(wkc2_vdec_decode_test PRIVATE PS3RECOMP_FFMPEG_RUNTIME)
+        target_link_libraries(wkc2_vdec_decode_test PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
+        add_test(NAME wkc2_vdec_decode COMMAND wkc2_vdec_decode_test decode mpeg2 "${CODEC_FIXTURE}.m2v" "${CODEC_FIXTURE}.yuv" 32 16)
+        set_tests_properties(wkc2_vdec_decode PROPERTIES TIMEOUT 20 SKIP_RETURN_CODE 77)
+    endif()
+    add_executable(wkc2_vpost_test tests/vpost_test.cpp vpost.cpp)
+    target_include_directories(wkc2_vpost_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
+    target_link_libraries(wkc2_vpost_test PRIVATE Threads::Threads)
+    add_test(NAME wkc2_vpost COMMAND wkc2_vpost_test)
+    set_tests_properties(wkc2_vpost PROPERTIES TIMEOUT 10)
     add_executable(wkc2_callback_stack_test tests/callback_stack_test.cpp)
     target_include_directories(wkc2_callback_stack_test PRIVATE "${PS3RECOMP_DIR}/runtime/ppu")
     target_link_libraries(wkc2_callback_stack_test PRIVATE Threads::Threads)

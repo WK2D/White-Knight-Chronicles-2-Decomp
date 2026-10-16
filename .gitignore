@@ -17,6 +17,7 @@
 !/pamf.cpp
 !/mpegps.hpp
 !/dmux.cpp
+!/vpost.cpp
 !/patches/
 !/tests/
 !/tools/

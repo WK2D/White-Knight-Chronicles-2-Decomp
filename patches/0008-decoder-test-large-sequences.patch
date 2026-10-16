@@ -1,0 +1,23 @@
+diff --git a/libs/codec/tests/test_vdec_decode.c b/libs/codec/tests/test_vdec_decode.c
+index 5aa78d9..b14e1a9 100644
+--- a/libs/codec/tests/test_vdec_decode.c
++++ b/libs/codec/tests/test_vdec_decode.c
+@@ -315,15 +315,15 @@ static int mode_decode(int argc, char** argv)
+         printf("pass %d: %d pictures, %d differ from ffmpeg's decode\n", pass, s_npic, bad);
+         CHECK(bad == 0);
+         int types[4] = {0}, idr = 0, reordered = 0;
+-        u64 seen = 0;
++        u8 seen[MAX_AU] = {0};
+         for (int i = 0; i < s_npic; i++) {
+             const Item* x = &s_items[i];
+             CHECK(x->w == W && x->h == H);
+             int k = (int)((x->pts - 90000ull) / 3600ull);   /* the AU it came from */
+             CHECK(k >= 0 && k < s_nau && au_pts(k) == x->pts);
+             CHECK(x->dts == (u64)k && x->user == 0xABCD0000ull + (u64)k);
+-            CHECK(!(seen & (1ull << k)));
+-            seen |= 1ull << k;
++            CHECK(!seen[k]);
++            seen[k] = 1;
+             reordered += k != i;
+             if (codec == CELL_VDEC_CODEC_TYPE_AVC) { CHECK(x->type <= 2); types[x->type + 1]++; idr += x->idr; }
+             else { CHECK(x->type >= 1 && x->type <= 3); types[x->type]++; }
