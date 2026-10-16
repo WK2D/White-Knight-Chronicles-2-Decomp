@@ -389,6 +389,14 @@ if(WKC2_BUILD_TESTS)
         "${PS3RECOMP_DIR}/libs/video")
     add_test(NAME wkc2_depth_state COMMAND wkc2_depth_state_test)
     set_tests_properties(wkc2_depth_state PROPERTIES TIMEOUT 10)
+    if(WIN32)
+        add_executable(wkc2_surface_clear_gpu_test tests/surface_clear_gpu_test.c)
+        target_include_directories(wkc2_surface_clear_gpu_test PRIVATE
+            "${PS3RECOMP_DIR}/libs/video")
+        target_link_libraries(wkc2_surface_clear_gpu_test PRIVATE d3d12 dxgi dxguid)
+        add_test(NAME wkc2_surface_clear_gpu COMMAND wkc2_surface_clear_gpu_test)
+        set_tests_properties(wkc2_surface_clear_gpu PROPERTIES TIMEOUT 20)
+    endif()
     add_executable(wkc2_vp_cache_test tests/vp_cache_test.c
         "${PS3RECOMP_DIR}/libs/video/rsx_vp_decompiler.c")
     target_include_directories(wkc2_vp_cache_test PRIVATE

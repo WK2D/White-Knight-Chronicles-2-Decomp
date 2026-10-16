@@ -1,0 +1,259 @@
+diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
+--- a/libs/video/rsx_d3d12_backend.c
++++ b/libs/video/rsx_d3d12_backend.c
+@@ -35,6 +35,7 @@
+ 
+ /* D3D12 headers */
+ #include <d3d12.h>
++#include "rsx_d3d12_clear.h"
+ #include <d3d12sdklayers.h>   /* ID3D12Debug / ID3D12InfoQueue */
+ #include <dxgi1_4.h>
+ #include <dxgi1_6.h>
+@@ -134,11 +135,12 @@
+      * (wave's debug tiles) position quads with this, not with constants --
+      * forcing full-target viewports drew every tile window-sized. */
+     u32 vp_x, vp_y, vp_w, vp_h;
+-    /* Ordered clear op (offscreen surfaces only; display clears stay the
+-     * frame-start backbuffer clear). is_clear records also set is_vp so the
+-     * legacy replay pass skips them. */
++    /* Ordered surface clear. In guest-flip accumulation mode display clears
++     * are records too; the clear mask must not become a colour-only clear. */
+     int   is_clear;
+     float cc[4];
++    rsx_surface_clear clear;
++    u32 zeta_off, zeta_pitch, surface_w, surface_h, color_target;
+     u32 depth_key;      /* immutable guest depth test/write/comparison */
+ } D3D12DrawRecord;
+ 
+@@ -1745,6 +1747,16 @@
+             if (!r->is_clear) fprintf(mf, "depth%03u key=%08X test=%u write=%u comparison=%u\n",
+                 d, r->depth_key, rsx_depth_enabled(r->depth_key),
+                 rsx_depth_writes(r->depth_key), rsx_depth_comparison(r->depth_key));
++        }
++        for (u32 d = 0; d < ndraws && d < MAX_DRAWS; ++d) {
++            const D3D12DrawRecord* r = &s_d3d.draws[d];
++            fprintf(mf, "surface%03u zeta=%08X pitch=%u clip=%ux%u fmt=%X target=%X\n",
++                d, r->zeta_off, r->zeta_pitch, r->surface_w, r->surface_h,
++                r->rt_fmt, r->color_target);
++            if (r->is_clear) fprintf(mf,
++                "clear%03u flags=%X depth=%.9g stencil=%u rect=%u,%u,%ux%u\n",
++                d, r->clear.flags, r->clear.depth, r->clear.stencil,
++                r->clear.x, r->clear.y, r->clear.w, r->clear.h);
+         }
+         fprintf(mf, "--- ops ---\n");
+         for (u32 d = 0; d < ndraws && d < MAX_DRAWS; d++) {
+@@ -4014,6 +4026,54 @@
+     s_d3d.cmd_list->lpVtbl->ResourceBarrier(s_d3d.cmd_list, 1, &gb);
+ }
+ 
++
++/* Keep guest clear components and scissor bounds independent. A Z-only
++ * clear between two draws must neither erase colour nor wait for a target
++ * switch. Clear rectangles are clipped to each actual host attachment. */
++static void replay_color_clear(const D3D12DrawRecord* dr,
++    D3D12_CPU_DESCRIPTOR_HANDLE handle, u32 w, u32 h)
++{
++    if (rsx_d3d12_clear_color(s_d3d.cmd_list,&dr->clear,dr->cc,handle,w,h)<0) {
++        static unsigned reports;
++        if (reports++<8) fprintf(stderr,
++            "[RSX] unsupported partial colour clear mask=%X\n",dr->clear.flags);
++    }
++}
++static void replay_depth_clear(const D3D12DrawRecord* dr,
++    D3D12_CPU_DESCRIPTOR_HANDLE handle)
++{
++    rsx_d3d12_clear_depth(s_d3d.cmd_list,s_d3d.depth_buffer,&dr->clear,handle);
++}
++
++static void record_surface_info(D3D12DrawRecord* dr)
++{
++    const rsx_state* st = s_d3d.current_rsx_state;
++    dr->zeta_off = st ? st->surface_zeta_offset : 0;
++    dr->zeta_pitch = st ? st->surface_zeta_pitch : 0;
++    dr->surface_w = st ? st->surface_clip_w : 0;
++    dr->surface_h = st ? st->surface_clip_h : 0;
++    dr->color_target = st ? st->color_target : 0;
++}
++
++static void record_surface_clear(u32 rt, u32 w, u32 h, const u32 mrt[3],
++    u32 flags, const float cc[4], float depth, u8 stencil)
++{
++    if (!(flags & 0xF3u) || s_d3d.draw_count >= MAX_DRAWS) return;
++    D3D12DrawRecord* dr = &s_d3d.draws[s_d3d.draw_count++];
++    memset(dr, 0, sizeof(*dr));
++    dr->is_vp = 1; dr->is_clear = 1; dr->tex_slot = -1;
++    dr->rt_off = rt; memcpy(dr->rt_mrt, mrt, sizeof(dr->rt_mrt));
++    dr->rt_w = w; dr->rt_h = h;
++    const rsx_state* st = s_d3d.current_rsx_state;
++    dr->rt_fmt = st ? st->surface_format : 0;
++    record_surface_info(dr);
++    dr->clear = rsx_surface_clear_make(flags,depth,stencil,
++        st?st->scissor_x:0,st?st->scissor_y:0,
++        st?st->scissor_w:s_d3d.width,st?st->scissor_h:s_d3d.height,
++        dr->surface_w?dr->surface_w:s_d3d.width,
++        dr->surface_h?dr->surface_h:s_d3d.height);
++    memcpy(dr->cc, cc, sizeof(dr->cc));
++}
+ 
+ static void render_frame(void)
+ {
+@@ -4774,25 +4834,14 @@
+                 if (dr->is_clear) {
+                     D3D12_CPU_DESCRIPTOR_HANDLE rh =
+                         (cur_rt >= 0) ? off_rt_rtv(cur_rt) : rtv_handle;
+-                    /* RT_CLEARDBG=1: clear offscreen targets to magenta rather
+-                     * than the guest colour. "0.000% nonzero" cannot tell an
+-                     * untouched surface from one written black, and that
+-                     * ambiguity invalidates every read of an offscreen target.
+-                     * If the surface comes back magenta the clears land and the
+-                     * draws are writing black; if it stays black, nothing
+-                     * reaches it at all. */
+-                    { static int cd = -1;
+-                      if (cd < 0) { const char* e = getenv("RT_CLEARDBG"); cd = e ? atoi(e) : 0; }
+-                      if (cd && cur_rt >= 0) {
+-                          const float mag[4] = {1.0f, 0.0f, 1.0f, 1.0f};
+-                          s_d3d.cmd_list->lpVtbl->ClearRenderTargetView(s_d3d.cmd_list, rh, mag, 0, NULL);
+-                      } else
+-                          s_d3d.cmd_list->lpVtbl->ClearRenderTargetView(s_d3d.cmd_list, rh, dr->cc, 0, NULL); }
+-                    for (int _m = 0; _m < 3; _m++)
+-                        if (cur_m[_m] >= 0) {
+-                            D3D12_CPU_DESCRIPTOR_HANDLE rhm = off_rt_rtv(cur_m[_m]);
+-                            s_d3d.cmd_list->lpVtbl->ClearRenderTargetView(s_d3d.cmd_list, rhm, dr->cc, 0, NULL);
+-                        }
++                    u32 w = cur_rt >= 0 ? s_d3d.off_rt[cur_rt].w : s_d3d.width;
++                    u32 h = cur_rt >= 0 ? s_d3d.off_rt[cur_rt].h : s_d3d.height;
++                    replay_color_clear(dr, rh, w, h);
++                    for (int m = 0; m < 3; ++m)
++                        if (cur_m[m] >= 0) replay_color_clear(dr,
++                            off_rt_rtv(cur_m[m]), s_d3d.off_rt[cur_m[m]].w,
++                            s_d3d.off_rt[cur_m[m]].h);
++                    replay_depth_clear(dr, dsv_handle);
+                     continue;
+                 }
+                 /* Per-draw pipeline: prefer the guest's own compiled FP; fall
+@@ -5441,9 +5490,6 @@
+ static void d3d12_clear(void* ud, u32 flags, u32 color, float depth, u8 stencil)
+ {
+     (void)ud;
+-    (void)flags;
+-    (void)depth;
+-    (void)stencil;
+ 
+     /* Convert RSX ARGB u32 to float[4] RGBA */
+     float cc[4];
+@@ -5462,23 +5508,12 @@
+     u32 rt_w = 0, rt_h = 0, mrt[3] = {0, 0, 0};
+     u32 rt = current_rt_off(&rt_w, &rt_h, mrt);
+ 
+-    /* An OFFSCREEN clear is just an ordered op in the current frame's pass
+-     * chain (demosaic clears each effect pass's surface) -- record it, don't
+-     * touch the frame boundary. */
+-    if (rt != 0) {
+-        if (s_d3d.draw_count < MAX_DRAWS) {
+-            D3D12DrawRecord* dr = &s_d3d.draws[s_d3d.draw_count++];
+-            memset(dr, 0, sizeof(*dr));
+-            dr->is_vp = 1; dr->is_clear = 1; dr->tex_slot = -1;
+-            dr->rt_off = rt; memcpy(dr->rt_mrt, mrt, sizeof(mrt));
+-            dr->rt_w = rt_w; dr->rt_h = rt_h;
+-            dr->rt_fmt = s_d3d.current_rsx_state ? s_d3d.current_rsx_state->surface_format : 0;
+-        dr->depth_key = s_d3d.current_rsx_state ? rsx_depth_key(
+-            s_d3d.current_rsx_state->depth_test_enable,
+-            s_d3d.current_rsx_state->depth_mask,
+-            s_d3d.current_rsx_state->depth_func) : 0;
+-            memcpy(dr->cc, cc, sizeof(cc));
+-        }
++    /* WKC uses guest flips as boundaries. Preserve every clear in that
++     * batch, including multiple clears of the same display/depth surface. */
++    static int accum = -1;
++    if (accum < 0) { const char* e = getenv("RSX_ACCUM_FRAME"); accum = e ? atoi(e) : 0; }
++    if (rt != 0 || accum) {
++        record_surface_clear(rt, rt_w, rt_h, mrt, flags, cc, depth, stencil);
+         return;
+     }
+ 
+@@ -6423,6 +6458,7 @@
+                                 dr->blend, dr->blend_key, 10); } }
+                 dr->rt_off = current_rt_off(&dr->rt_w, &dr->rt_h, dr->rt_mrt);
+                 dr->rt_fmt = s_d3d.current_rsx_state ? s_d3d.current_rsx_state->surface_format : 0;
++                record_surface_info(dr);
+         dr->depth_key = s_d3d.current_rsx_state ? rsx_depth_key(
+             s_d3d.current_rsx_state->depth_test_enable,
+             s_d3d.current_rsx_state->depth_mask,
+@@ -6545,6 +6581,7 @@
+             dr->blend_key = rsx_blend_key(s_d3d.current_rsx_state, dr->blend);
+             dr->rt_off = current_rt_off(&dr->rt_w, &dr->rt_h, dr->rt_mrt);
+             dr->rt_fmt = s_d3d.current_rsx_state ? s_d3d.current_rsx_state->surface_format : 0;
++                record_surface_info(dr);
+         dr->depth_key = s_d3d.current_rsx_state ? rsx_depth_key(
+             s_d3d.current_rsx_state->depth_test_enable,
+             s_d3d.current_rsx_state->depth_mask,
+@@ -6694,6 +6731,7 @@
+         dr->blend_key = rsx_blend_key(s_d3d.current_rsx_state, dr->blend);
+         dr->rt_off = current_rt_off(&dr->rt_w, &dr->rt_h, dr->rt_mrt);
+         dr->rt_fmt = s_d3d.current_rsx_state ? s_d3d.current_rsx_state->surface_format : 0;
++                record_surface_info(dr);
+         dr->depth_key = s_d3d.current_rsx_state ? rsx_depth_key(
+             s_d3d.current_rsx_state->depth_test_enable,
+             s_d3d.current_rsx_state->depth_mask,
+diff --git a/libs/video/rsx_d3d12_clear.h b/libs/video/rsx_d3d12_clear.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_d3d12_clear.h
+@@ -0,0 +1,57 @@
++/* Production D3D12 surface-clear operations, also exercised on WARP. */
++#ifndef RSX_D3D12_CLEAR_H
++#define RSX_D3D12_CLEAR_H
++#include <stdint.h>
++#include <d3d12.h>
++typedef struct rsx_surface_clear {
++    uint32_t flags;
++    float depth;
++    uint8_t stencil;
++    uint32_t x, y, w, h;
++} rsx_surface_clear;
++static inline rsx_surface_clear rsx_surface_clear_make(uint32_t flags,
++    float depth, uint8_t stencil, uint32_t x, uint32_t y, uint32_t w,
++    uint32_t h, uint32_t surface_w, uint32_t surface_h)
++{
++    rsx_surface_clear c = {flags,depth,stencil,x,y,w,h};
++    if (x >= surface_w) c.w=0;
++    else if (w > surface_w-x) c.w=surface_w-x;
++    if (y >= surface_h) c.h=0;
++    else if (h > surface_h-y) c.h=surface_h-y;
++    return c;
++}
++static inline int rsx_clear_rect(const rsx_surface_clear* c,
++    uint32_t w, uint32_t h, D3D12_RECT* r)
++{
++    uint64_t right=(uint64_t)c->x+c->w, bottom=(uint64_t)c->y+c->h;
++    r->left=(LONG)(c->x<w?c->x:w); r->top=(LONG)(c->y<h?c->y:h);
++    r->right=(LONG)(right<w?right:w); r->bottom=(LONG)(bottom<h?bottom:h);
++    return r->left<r->right && r->top<r->bottom;
++}
++/* -1 explicitly reports unsupported partial colour masks. Clearing all
++ * components for a depth-only or partial-colour operation corrupts the pass. */
++static inline int rsx_d3d12_clear_color(ID3D12GraphicsCommandList* list,
++    const rsx_surface_clear* c, const float rgba[4],
++    D3D12_CPU_DESCRIPTOR_HANDLE handle, uint32_t w, uint32_t h)
++{
++    if (!(c->flags&0xF0u)) return 0;
++    if ((c->flags&0xF0u)!=0xF0u) return -1;
++    D3D12_RECT rect;
++    if (!rsx_clear_rect(c,w,h,&rect)) return 0;
++    list->lpVtbl->ClearRenderTargetView(list,handle,rgba,1,&rect);
++    return 1;
++}
++static inline void rsx_d3d12_clear_depth(ID3D12GraphicsCommandList* list,
++    ID3D12Resource* resource, const rsx_surface_clear* c,
++    D3D12_CPU_DESCRIPTOR_HANDLE handle)
++{
++    if (!(c->flags&3u) || !resource) return;
++    D3D12_RESOURCE_DESC desc; resource->lpVtbl->GetDesc(resource,&desc);
++    D3D12_RECT rect;
++    if (!rsx_clear_rect(c,(uint32_t)desc.Width,desc.Height,&rect)) return;
++    D3D12_CLEAR_FLAGS flags=(D3D12_CLEAR_FLAGS)(
++        ((c->flags&1u)?D3D12_CLEAR_FLAG_DEPTH:0) |
++        ((c->flags&2u)?D3D12_CLEAR_FLAG_STENCIL:0));
++    list->lpVtbl->ClearDepthStencilView(list,handle,flags,c->depth,c->stencil,1,&rect);
++}
++#endif

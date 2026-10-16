@@ -347,6 +347,20 @@ D3D11 WARP and compares float readbacks with independently calculated values.
 It also checks a negative lighting term through SAT, LG2, EX2 and ADD, where
 ignoring saturation previously generated a NaN. No game assets are used.
 
+Patch 0031 records surface clears in submission order, including display clears
+when guest-flip accumulation is enabled. It preserves the depth/stencil values,
+aspect mask and scissor bounds at recording time. A depth-only clear no longer
+becomes a colour clear. Captures include immutable surface dimensions, zeta
+offset/pitch and clear parameters for pass diagnosis.
+
+The Windows `wkc2_surface_clear_gpu` check runs production clear helpers on D3D12
+WARP. It checks every pixel of synthetic colour, depth and stencil attachments
+for independent aspect masks, exact depth values, clipped/empty scissors and
+surface clip bounds. It creates no window and uses no game inputs. Partial
+colour-component masks remain unsupported and are reported instead of clearing
+unrequested components. Separate depth attachments, stencil write masks and
+depth-texture sampling remain outside this patch.
+
 ## Guest frame presentation
 
 The runner sets `RSX_ACCUM_FRAME=1` before graphics initialization. Its existing

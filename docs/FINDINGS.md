@@ -453,6 +453,21 @@ the first captured batch. Live requests continue to be consumed without a debugg
 reset. The gallery labels this as prerecorded footage. Interactive scene rendering,
 gameplay and save/load remain unverified.
 
+## Ordered surface clears
+
+The D3D12 clear callback discarded the guest mask, depth and stencil values.
+It recorded offscreen operations as colour clears and omitted display clears
+inside an accumulated frame. WKC1 avatar captures include RGBA+Z (`F1`),
+RGBA-only (`F0`) and Z-only (`1`) clears, including a 2560x2560 shadow pass.
+Those operations must keep their distinct effects and submission order.
+
+Patch 0031 records the values and bounded scissor rectangle, then clears the
+requested colour/depth/stencil aspects at the recorded position. Nine synthetic
+D3D12 WARP cases check every pixel of all three aspects. All 32 current checks
+pass. A native follow-up retains the shaded avatar, room and entered name.
+This does not establish that later scenes render correctly. The shared depth
+attachment and missing depth-texture sampling still need investigation.
+
 ## Character-name input
 
 Selecting Name reaches a keyboard stub that requires an initialization call
@@ -525,8 +540,9 @@ Open audio issue: audible distortion in character-creation music. Device buffer
 starvation, guest mixer scheduling and source decoding have not yet been
 distinguished. Decoder comparisons do not establish real-time mixer fidelity.
 
-Playable scenes, combat, save/load, a complete fresh-disc
-reproduction of the latest boot, macOS execution and online functionality.
+Playable scenes, combat, save/load, macOS execution and online functionality.
+Fresh extraction, static generation and a full native build reproduce the
+startup route described above; later gameplay remains unverified.
 
 See the [build limitations](BUILD.md) and [capture manifest](../verification/gallery.json)
 for reproduction requirements and screenshot provenance.

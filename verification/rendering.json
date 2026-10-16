@@ -1097,5 +1097,30 @@
     "published_gallery_image": "screenshots/2026-10-16-native-wkc1-opening-movie.png",
     "interactive_3d_gameplay_verified": false,
     "save_load_verified": false
+  },
+  "ordered_surface_clears": {
+    "port_checks_passed": 32,
+    "synthetic_gpu_backend": "D3D12 WARP",
+    "synthetic_cases": 9,
+    "pixels_checked_per_case": 64,
+    "aspects_checked": [
+      "RGBA colour",
+      "24-bit depth",
+      "8-bit stencil"
+    ],
+    "native_probe": "20261016-195242",
+    "native_capture_frame": 9485,
+    "native_capture_operations": 516,
+    "native_shaded_avatar_room_and_name_retention_verified": true,
+    "observed_guest_masks": [
+      "F1",
+      "F0",
+      "1"
+    ],
+    "separate_depth_attachments_implemented": false,
+    "depth_texture_sampling_implemented": false,
+    "partial_colour_component_clear_implemented": false,
+    "interactive_3d_gameplay_verified": false,
+    "save_load_verified": false
   }
 }
