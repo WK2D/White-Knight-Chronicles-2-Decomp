@@ -231,5 +231,42 @@
     "character_creation_verified": false,
     "gameplay_verified": false,
     "save_load_verified": false
+  },
+  "wkc1_fifo_inflight_observation": {
+    "probe": "20261016-051440",
+    "seconds_limit": 600,
+    "terminated_at_time_limit": true,
+    "timeout_sample_count": 2,
+    "same_published_get": true,
+    "inflight_samples": [
+      {
+        "packet_count": 47466077,
+        "io": "00DF0380",
+        "word": "40081824",
+        "branch_count": 31402
+      },
+      {
+        "packet_count": 47469771,
+        "io": "0014E1E0",
+        "word": "00041814",
+        "branch_count": 31421
+      }
+    ],
+    "further_drains_completed": true,
+    "presentation_resumed": true,
+    "last_reported_guest_flips": 13628,
+    "last_reported_presentation_calls": 13628,
+    "later_capture": {
+      "frame_counter": 13699,
+      "recorded_operations": 623,
+      "backbuffer": "black",
+      "main_scene_render_target": "black"
+    },
+    "host_thread_sample": "rsx_fetch_attrib, with vertex upload and d3d12_draw_arrays stack candidates",
+    "snapshot_scope": "Optional independent host atomics; approximate fields and branch history; diagnostic timing affected",
+    "root_cause_verified": false,
+    "character_creation_verified": false,
+    "gameplay_verified": false,
+    "save_load_verified": false
   }
 }

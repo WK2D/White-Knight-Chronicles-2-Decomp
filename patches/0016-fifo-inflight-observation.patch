@@ -1,0 +1,88 @@
+diff --git a/libs/video/cellGcmSys.c b/libs/video/cellGcmSys.c
+--- a/libs/video/cellGcmSys.c
++++ b/libs/video/cellGcmSys.c
+@@ -1515,6 +1515,34 @@
+     ReleaseSRWLockExclusive(&s_gcm_fifo_lock);
+ }
+ 
++/* Optional host-only FIFO observations. Published GET updates at the end of
++ * a drain; these atomics reveal progress inside a long or blocked pass.
++ * Fields are sampled independently and are approximate, not a coherent dump. */
++#include <stdatomic.h>
++static atomic_uint s_debug_fifo_get, s_debug_fifo_word, s_debug_fifo_data;
++static atomic_uint s_debug_fifo_phase, s_debug_fifo_steps, s_debug_fifo_branches;
++static atomic_uint s_debug_branch_get[16], s_debug_branch_word[16];
++
++void cellGcmDebugFifoSnapshot(void)
++{
++    if (!getenv("GCM_FIFO_PROGRESS")) return;
++    fprintf(stderr, "[fifo-progress] approximate phase=%u steps=%u inflight_get=%08X word=%08X data=%08X branches=%u\n",
++        atomic_load(&s_debug_fifo_phase), atomic_load(&s_debug_fifo_steps),
++        atomic_load(&s_debug_fifo_get), atomic_load(&s_debug_fifo_word),
++        atomic_load(&s_debug_fifo_data), atomic_load(&s_debug_fifo_branches));
++    u32 count = atomic_load(&s_debug_fifo_branches);
++    for (u32 i = count > 16 ? count - 16 : 0; i < count; ++i)
++        fprintf(stderr, "[fifo-branch] sample=%u get=%08X word=%08X\n", i,
++            atomic_load(&s_debug_branch_get[i % 16]),
++            atomic_load(&s_debug_branch_word[i % 16]));
++    u32 get = atomic_load(&s_debug_fifo_get);
++    for (u32 i = 0; i < 16; ++i) {
++        u32 ea = gcm_io2ea(get + i * 4);
++        if (ea) fprintf(stderr, "[fifo-inflight] io=%08X ea=%08X word=%08X\n",
++            get + i * 4, ea, vm_read32(ea));
++    }
++}
++
+ static void gcm_rsx_process_fifo_unlocked(void)
+ {
+     { static unsigned _n = 0; static unsigned long long _t0 = 0;
+@@ -1576,6 +1604,9 @@
+         }
+     }
+ 
++    static int debug_progress = -1;
++    if (debug_progress < 0) debug_progress = getenv("GCM_FIFO_PROGRESS") != NULL;
++    if (debug_progress) atomic_store(&s_debug_fifo_phase, 1);
+     u32 start_off = s_fifo_getoff;
+     if (getenv("GCM_DRAINDBG")) {
+         static int n = 0;
+@@ -1663,6 +1694,19 @@
+         s_tr_w[s_tr_i % GCM_TRACE_N] = w;
+         s_tr_i++;
+         u32 type = w >> 29;
++        if (debug_progress) {
++            atomic_store(&s_debug_fifo_get, s_fifo_getoff);
++            atomic_store(&s_debug_fifo_word, w);
++            atomic_store(&s_debug_fifo_phase, 2);
++            atomic_fetch_add(&s_debug_fifo_steps, 1);
++            if (type == 1 || (w & 3) == 2 || w == 0x00020000u) {
++                u32 n = atomic_load(&s_debug_fifo_branches);
++                atomic_store(&s_debug_branch_get[n % 16], s_fifo_getoff);
++                atomic_store(&s_debug_branch_word[n % 16], w);
++                atomic_store(&s_debug_fifo_branches, n + 1);
++            }
++        }
++
+ 
+         if ((w & 0xFFFF0000u) == 0xFEAD0000u) {
+             /* lv1 driver flip: statically-linked libgcm cellGcmSetFlip writes
+@@ -1809,6 +1853,10 @@
+                 u32 dea = gcm_io2ea(s_fifo_getoff + 4 + i * 4);
+                 if (!dea) break;
+                 u32 m = (type == 0) ? method + i * 4 : method;
++                if (debug_progress) {
++                    atomic_store(&s_debug_fifo_data, vm_read32(dea));
++                    atomic_store(&s_debug_fifo_phase, 3);
++                }
+                 /* GCM_SET_USER_COMMAND is method 0xEB00, which this decode
+                  * splits into subchannel 7 / method 0x0B00 -- so it was landing
+                  * in the 2D engine path and being dropped as unrecognised. It
+@@ -1953,6 +2001,8 @@
+             fprintf(stderr, "[FIFOUW] unknown word 0x%08X at getoff 0x%X\n", w, s_fifo_getoff); }
+         s_fifo_getoff += 4;                    /* unknown word: skip */
+     }
++
++    if (debug_progress) atomic_store(&s_debug_fifo_phase, 4);
+ 
+     /* Walker watchdog. Everything above recovers from a *recognised* stall --
+      * a branch we cannot take, a park the title abandoned. A walker that stops

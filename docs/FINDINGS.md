@@ -198,6 +198,20 @@ method header rather than a self-jump. The next observation must distinguish
 in-flight command consumption from missing producer output. No new gallery image
 or playable-scene milestone is claimed.
 
+Patch 0016 observes the FIFO worker inside a drain using optional host atomics.
+The next ten-minute WKC1 probe captures two timeout samples with the same
+published GET, while the in-flight packet moves and the packet count increases
+by 3,694. Recent branch records include calls into generated command segments
+and returns. Further drains complete and presentation resumes, with a later
+capture containing 623 recorded operations. The earlier timeout therefore does
+not establish that command consumption stopped. A native thread sample also
+finds the worker in vertex-attribute fetch, through vertex upload and drawing.
+These observations narrow the next investigation to slow rendering and the
+remaining black output; they do not prove a root cause. Both the backbuffer and
+the main scene render target remain black. Character creation, gameplay and
+save/load remain unverified. The observation changes diagnostic timing but does
+not write guest completion values or advance the queue.
+
 ## Update 1.01 and DLC integration
 
 Planned scope includes the USA 1.01 update and matching DLC. Local package

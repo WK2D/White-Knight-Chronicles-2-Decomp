@@ -35,8 +35,9 @@ and dialog text now render correctly. WKC1 loading passes the guard-registration
 failure and dispatches previously skipped geometry jobs. A native binding for the
 standard SPURS processor-ID query prevents those jobs from reading executable
 bytes as kernel data. Loading advances to a further animation program, now lifted
-and observed dispatching and returning. The latest capture remains black and a
-later graphics wait needs investigation; gameplay and save/load remain unverified.
+and observed dispatching and returning. FIFO observations show work continuing
+through a later graphics timeout, followed by resumed presentation. Slow rendering
+and black output still need investigation; gameplay and save/load remain unverified.
 
 [![Native WKC1 selection](verification/screenshots/2026-10-16-wkc1-selection.png)](docs/GALLERY.md)
 

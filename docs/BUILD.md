@@ -46,7 +46,7 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies fifteen numbered runtime patches idempotently
+SDAT archives. The build applies sixteen numbered runtime patches idempotently
 and runs eighteen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
@@ -202,3 +202,11 @@ with a kernel structure. `SPURS_JOB_ABI_TRACE=1` reports the first eight bound
 queries per host thread. Existing private SPU lifts need regeneration to acquire the binding.
 The ABI test lifts synthetic instructions, runs the query through the actual
 job staging code, checks preserved LS bytes and tests a similar unbound routine.
+
+Patch 0016 adds `GCM_FIFO_PROGRESS=1` for a read-only view inside FIFO drains.
+At the game's observed timeout it reports an approximate in-flight packet,
+phase, packet count and the last sixteen branch words. Individual fields use
+host atomics; the sample is not a coherent memory snapshot. This distinguishes
+in-flight work from the GET value published only after a drain completes.
+The trace changes timing and does not advance GET, consume commands or release
+labels. Raw words and addresses remain in private logs.

@@ -251,6 +251,7 @@ extern "C" void wkc2_wait_for_content_check(void)
 extern "C" uint32_t* cellGcmGetLabelAddress(uint8_t index);
 extern "C" void* cellGcmGetControlRegister(void);
 extern "C" uint32_t cellGcmResolveIO(uint32_t offset);
+extern "C" void cellGcmDebugFifoSnapshot(void);
 extern "C" void wkc2_observe_graphics_wait(ppu_context* ctx)
 {
     if (!getenv("WKC2_FIFO_TRACE")) return;
@@ -263,6 +264,7 @@ extern "C" void wkc2_observe_graphics_wait(ppu_context* ctx)
     fprintf(stderr, "[graphics-wait] object=%08X expected=%08X label48=%08X get=%08X put=%08X ref=%08X\n",
         object, vm_read32(object + 0x30), vm_read32(label), get, put, vm_read32(control + 8));
     wkc2_dump_graphics_writers(cellGcmResolveIO(get));
+    cellGcmDebugFifoSnapshot();
     for (unsigned end = 0; end < 2; ++end) {
         uint32_t center = end ? put : get;
         for (int k = -8; k < 24; ++k) {
