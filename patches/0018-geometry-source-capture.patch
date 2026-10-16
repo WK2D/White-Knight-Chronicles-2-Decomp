@@ -1,0 +1,62 @@
+diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
+--- a/libs/video/rsx_d3d12_backend.c
++++ b/libs/video/rsx_d3d12_backend.c
+@@ -1389,6 +1389,49 @@
+  * Self-contained: waits, resets the frame command list, copies, executes,
+  * waits, maps. `prior` is the resource's current tracked state (restored after
+  * the copy so the caller's state tracking stays valid). */
++static void cap_geometry_dump(const char* dir, u32 ndraws)
++{
++    char path[512];
++    /* Exact host-side inputs retained by the completed frame. All files stay
++     * in the selected private capture directory. Bounded to 16 vertices/draw. */
++    if (getenv("RSX_CAP_GEOMETRY")) {
++        u32 par = (u32)(s_d3d.vp_parity ^ 1);
++        const u32 stride = 16u * 4u * sizeof(float); /* ATTR0..15 float4 */
++        snprintf(path, sizeof path, "%s/geometry.txt", dir);
++        FILE* gf = fopen(path, "w");
++        if (gf) fprintf(gf, "Native little-endian float32; vertex stride=%u; CB bytes=%u; max vertices per draw=16\n", stride, VP_CB_STRIDE);
++        for (int v = 0; v < s_d3d.vp_vs.count; ++v) {
++            int used = 0;
++            for (u32 d = 0; d < ndraws && d < MAX_DRAWS; ++d)
++                if (!s_d3d.draws[d].is_clear && s_d3d.draws[d].vs_idx == v) { used = 1; break; }
++            if (!used) continue;
++            const rsx_vp_cache_entry* e = &s_d3d.vp_vs.entries[v];
++            snprintf(path, sizeof path, "%s/vs_%03d.bin", dir, v);
++            FILE* f = fopen(path, "wb");
++            if (f) { fwrite(e->ucode, 1, e->bytes, f); fclose(f); }
++        }
++        for (u32 d = 0; d < ndraws && d < MAX_DRAWS; ++d) {
++            const D3D12DrawRecord* r = &s_d3d.draws[d];
++            if (r->is_clear || !r->is_vp) continue;
++            u32 n = r->vertex_count < 16 ? r->vertex_count : 16;
++            if ((u64)r->vb_byte_offset + (u64)n * stride > (u64)MAX_VERTICES * stride || r->cb_slot >= MAX_DRAWS) continue;
++            if (gf) fprintf(gf, "op%03u vs=%d vertices=%u/%u cb_slot=%u vb_offset=%u\n",
++                d, r->vs_idx, n, r->vertex_count, r->cb_slot, r->vb_byte_offset);
++            if (s_d3d.vp_vb_mapped) {
++                snprintf(path, sizeof path, "%s/op_%03u.vertices.bin", dir, d);
++                FILE* f = fopen(path, "wb");
++                if (f) { fwrite((const u8*)s_d3d.vp_vb_mapped + (u64)par * MAX_VERTICES * stride + r->vb_byte_offset, stride, n, f); fclose(f); }
++            }
++            if (s_d3d.vp_cb_mapped) {
++                snprintf(path, sizeof path, "%s/op_%03u.constants.bin", dir, d);
++                FILE* f = fopen(path, "wb");
++                if (f) { fwrite((const u8*)s_d3d.vp_cb_mapped + ((u64)par * MAX_DRAWS + r->cb_slot) * VP_CB_STRIDE, 1, VP_CB_STRIDE, f); fclose(f); }
++            }
++        }
++        if (gf) fclose(gf);
++    }
++}
++
+ static void cap_readback_write(ID3D12Resource* res, u32 w, u32 h, u32 dxgi,
+                                D3D12_RESOURCE_STATES prior, u32 fi, const char* path)
+ {
+@@ -1473,6 +1516,8 @@
+     snprintf(dir, sizeof dir, "%s/frame_%02u", base, capidx);
+     CreateDirectoryA(dir, NULL);
+     char path[512];
++
++    cap_geometry_dump(dir, ndraws);
+ 
+     /* Manifest: every op in submission order with full state. */
+     snprintf(path, sizeof path, "%s/manifest.txt", dir);

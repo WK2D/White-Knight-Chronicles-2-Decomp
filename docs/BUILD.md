@@ -46,13 +46,13 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies seventeen numbered runtime patches idempotently
-and runs nineteen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+SDAT archives. The build applies nineteen numbered runtime patches idempotently
+and runs twenty checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
 SPURS guard lifetime/notification behavior, ordered job-list dispatch and the
-native SPURS kernel-ID binding, plus vertex-program cache identity/lifetime.
+native SPURS kernel-ID binding, plus vertex-program cache identity/lifetime and guest depth state.
 
 `tools/prepare_ffmpeg.py` obtains FFmpeg 8.1 public headers from the official source
 archive, checks SHA-256 `b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a`,
@@ -218,3 +218,18 @@ backend shutdown. Its regression covers 128 queued IDs, copied bytecode, deliber
 hash collisions, unrelated bytes after END, invalid input and single release of
 each compiled object. A negative control with the old moving 16-slot policy fails.
 This fixes the observed customization UI output; model rendering remains unverified.
+
+Patch 0018 adds `RSX_CAP_GEOMETRY=1` to completed-frame private captures. It
+records the exact cached vertex programs, each draw's vertex constants and the
+first sixteen uploaded vertices (all sixteen float4 attributes). The geometry
+manifest records offsets and counts. Data is read after frame completion from
+the retained parity buffers; source bytes remain private.
+
+Patch 0019 records the guest depth-test enable, write mask and comparison with
+each draw, includes that state in fragment-pipeline identity and applies it to
+the D3D12 pipeline. It supports the eight GL comparisons and the runtime's
+initializer ordinal. The helper regression checks comparison mapping, deferred
+state identity and a UI-quad/model occlusion scenario. Restoring unconditional
+depth testing/writes fails that scenario. Primary fallback pipelines still have
+fixed depth behavior; this change covers the guest fragment-program pipelines.
+The avatar model remains missing in the latest native probe.

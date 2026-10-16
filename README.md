@@ -23,6 +23,9 @@ executable and patch data, DLC discovery/loading, and gameplay/save compatibilit
 We will also compare the European DLC for content absent from the USA package
 and investigate compatibility with BLUS30784. Initial file comparison finds one
 EU-only entry; what it unlocks and whether it works in the USA build are unverified.
+Japanese DLC files are also available for future research. Their package metadata
+targets BCJS30042; unique content and compatibility with the USA build remain
+unverified.
 Original packages, their contents and local source locations remain private.
 
 ## Progress gallery
@@ -183,7 +186,7 @@ progressive YUV conversion, cropping and bilinear resizing. The build enables th
 SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
-Nineteen checks pass. The title screen and its menu render natively; see the gallery.
+Twenty checks pass. The title screen and its menu render natively; see the gallery.
 
 Packed A4R4G4B4 font textures were excluded by the D3D12 binding filter, leaving
 previous artwork selected for text draws. The backend now records the current

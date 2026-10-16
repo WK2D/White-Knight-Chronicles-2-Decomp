@@ -56,6 +56,15 @@
       "different_shared_entries": 12,
       "unique_playable_content_verified": false,
       "usa_build_compatibility_verified": false
+    },
+    "japanese_dlc_research": {
+      "files_available": true,
+      "package_metadata_verified": true,
+      "title_id": "BCJS30042",
+      "status": "available_for_future_investigation",
+      "unique_playable_content_verified": false,
+      "usa_build_compatibility_verified": false,
+      "native_content_verified": false
     }
   },
   "native_avatar_customization_ui_verified": true,

@@ -1,0 +1,137 @@
+diff --git a/libs/video/rsx_depth_state.h b/libs/video/rsx_depth_state.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_depth_state.h
+@@ -0,0 +1,17 @@
++/* Guest depth state packed for immutable per-draw pipeline keys. */
++#ifndef RSX_DEPTH_STATE_H
++#define RSX_DEPTH_STATE_H
++#include <stdint.h>
++static inline uint32_t rsx_depth_key(int enable, int write, uint32_t function) {
++    /* GL NEVER..ALWAYS are 0x200..0x207. The state initializer also uses
++     * the corresponding zero-based ordinal (1 = LESS). D3D values are 1..8. */
++    uint32_t f;
++    if (function>=0x200 && function<=0x207) f=function-0x200+1;
++    else if (function<=7) f=function+1;
++    else return 0; /* invalid comparison, never create a misleading pipeline */
++    return (enable ? 1u : 0u) | (write ? 2u : 0u) | (f<<2);
++}
++static inline unsigned rsx_depth_enabled(uint32_t key) { return key&1u; }
++static inline unsigned rsx_depth_writes(uint32_t key) { return (key&3u)==3u; }
++static inline unsigned rsx_depth_comparison(uint32_t key) { return key>>2; }
++#endif
+diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
+--- a/libs/video/rsx_d3d12_backend.c
++++ b/libs/video/rsx_d3d12_backend.c
+@@ -17,6 +17,7 @@
+ #ifdef _WIN32
+ 
+ #include <time.h>
++#include "rsx_depth_state.h"
+ #include "rsx_d3d12_backend.h"
+ #include "rsx_primitives.h"
+ #include "rsx_vertex_fetch.h"
+@@ -137,6 +138,7 @@
+      * legacy replay pass skips them. */
+     int   is_clear;
+     float cc[4];
++    u32 depth_key;      /* immutable guest depth test/write/comparison */
+ } D3D12DrawRecord;
+ 
+ /* Offscreen render target (render-to-texture). Persistent across frames --
+@@ -206,6 +208,7 @@
+                              * declares those samplers as TextureCube, so a cube
+                              * and a 2D variant of the same program are different
+                              * pipelines and must not share a cache entry. */
++    u32 depth_key;
+     ID3D12PipelineState* pso;
+ } VPFPEntry;
+ /* Guest-FP PSO cache. 16 entries thrashed badly: this title needs far more
+@@ -1529,6 +1532,12 @@
+             if (s_d3d.off_rt[i].res && s_d3d.off_rt[i].used)
+                 fprintf(mf, "offrt[%d] off=0x%08X %ux%u dxgi=%u\n", i, s_d3d.off_rt[i].off,
+                         s_d3d.off_rt[i].w, s_d3d.off_rt[i].h, s_d3d.off_rt[i].dxgi);
++        for (u32 d = 0; d < ndraws && d < MAX_DRAWS; ++d) {
++            const D3D12DrawRecord* r = &s_d3d.draws[d];
++            if (!r->is_clear) fprintf(mf, "depth%03u key=%08X test=%u write=%u comparison=%u\n",
++                d, r->depth_key, rsx_depth_enabled(r->depth_key),
++                rsx_depth_writes(r->depth_key), rsx_depth_comparison(r->depth_key));
++        }
+         fprintf(mf, "--- ops ---\n");
+         for (u32 d = 0; d < ndraws && d < MAX_DRAWS; d++) {
+             const D3D12DrawRecord* r = &s_d3d.draws[d];
+@@ -2080,7 +2089,7 @@
+ 
+     s_perf_pso_calls++;
+     for (int i = 0; i < s_d3d.vp_fp_n; i++)
+-        if (s_d3d.vp_fp[i].fp_addr != fp_addr) continue;   /* cheap reject first */
++        if (s_d3d.vp_fp[i].fp_addr != fp_addr || s_d3d.vp_fp[i].depth_key != dr->depth_key) continue;   /* cheap reject first */
+         else if (s_d3d.vp_fp[i].vs_idx == vs_idx &&
+             s_d3d.vp_fp[i].vs_hash == vs_hash && s_d3d.vp_fp[i].gen == s_d3d.vp_gen &&
+             s_d3d.vp_fp[i].blend == blend && s_d3d.vp_fp[i].nrt == nrt &&
+@@ -2398,9 +2407,10 @@
+     for (int _r = 0; _r < nrt; _r++)
+         pd.BlendState.RenderTarget[_r].RenderTargetWriteMask = (UINT8)(cmask & 0xF);
+     pd.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+-    pd.DepthStencilState.DepthEnable = TRUE;
+-    pd.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+-    pd.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
++    pd.DepthStencilState.DepthEnable = rsx_depth_enabled(dr->depth_key) ? TRUE : FALSE;
++    pd.DepthStencilState.DepthWriteMask = rsx_depth_writes(dr->depth_key)
++        ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
++    pd.DepthStencilState.DepthFunc = (D3D12_COMPARISON_FUNC)rsx_depth_comparison(dr->depth_key);
+     pd.DepthStencilState.StencilEnable = FALSE;
+     /* DEPTH_OFF=1: drop the depth test for guest-FP draws, so submission order
+      * alone decides what is on top. Paired with DRAW_LAST_TEX this puts one
+@@ -2433,6 +2443,7 @@
+     s_d3d.vp_fp[s_d3d.vp_fp_n].vs_idx  = vs_idx;
+     s_d3d.vp_fp[s_d3d.vp_fp_n].vs_hash = vs_hash;
+     s_d3d.vp_fp[s_d3d.vp_fp_n].gen     = s_d3d.vp_gen;
++    s_d3d.vp_fp[s_d3d.vp_fp_n].depth_key = dr->depth_key;
+     s_d3d.vp_fp[s_d3d.vp_fp_n].blend   = blend;
+     s_d3d.vp_fp[s_d3d.vp_fp_n].nrt     = nrt;
+     s_d3d.vp_fp[s_d3d.vp_fp_n].rtfmt   = (u32)rtfmt;
+@@ -5242,6 +5253,10 @@
+             dr->rt_off = rt; memcpy(dr->rt_mrt, mrt, sizeof(mrt));
+             dr->rt_w = rt_w; dr->rt_h = rt_h;
+             dr->rt_fmt = s_d3d.current_rsx_state ? s_d3d.current_rsx_state->surface_format : 0;
++        dr->depth_key = s_d3d.current_rsx_state ? rsx_depth_key(
++            s_d3d.current_rsx_state->depth_test_enable,
++            s_d3d.current_rsx_state->depth_mask,
++            s_d3d.current_rsx_state->depth_func) : 0;
+             memcpy(dr->cc, cc, sizeof(cc));
+         }
+         return;
+@@ -6111,6 +6126,10 @@
+                                 dr->blend, dr->blend_key, 10); } }
+                 dr->rt_off = current_rt_off(&dr->rt_w, &dr->rt_h, dr->rt_mrt);
+                 dr->rt_fmt = s_d3d.current_rsx_state ? s_d3d.current_rsx_state->surface_format : 0;
++        dr->depth_key = s_d3d.current_rsx_state ? rsx_depth_key(
++            s_d3d.current_rsx_state->depth_test_enable,
++            s_d3d.current_rsx_state->depth_mask,
++            s_d3d.current_rsx_state->depth_func) : 0;
+                 if (s_d3d.current_rsx_state) {
+                     dr->vp_x = s_d3d.current_rsx_state->viewport_x;
+                     dr->vp_y = s_d3d.current_rsx_state->viewport_y;
+@@ -6229,6 +6248,10 @@
+             dr->blend_key = rsx_blend_key(s_d3d.current_rsx_state, dr->blend);
+             dr->rt_off = current_rt_off(&dr->rt_w, &dr->rt_h, dr->rt_mrt);
+             dr->rt_fmt = s_d3d.current_rsx_state ? s_d3d.current_rsx_state->surface_format : 0;
++        dr->depth_key = s_d3d.current_rsx_state ? rsx_depth_key(
++            s_d3d.current_rsx_state->depth_test_enable,
++            s_d3d.current_rsx_state->depth_mask,
++            s_d3d.current_rsx_state->depth_func) : 0;
+             if (s_d3d.current_rsx_state) {
+                 dr->vp_x = s_d3d.current_rsx_state->viewport_x;
+                 dr->vp_y = s_d3d.current_rsx_state->viewport_y;
+@@ -6374,6 +6397,10 @@
+         dr->blend_key = rsx_blend_key(s_d3d.current_rsx_state, dr->blend);
+         dr->rt_off = current_rt_off(&dr->rt_w, &dr->rt_h, dr->rt_mrt);
+         dr->rt_fmt = s_d3d.current_rsx_state ? s_d3d.current_rsx_state->surface_format : 0;
++        dr->depth_key = s_d3d.current_rsx_state ? rsx_depth_key(
++            s_d3d.current_rsx_state->depth_test_enable,
++            s_d3d.current_rsx_state->depth_mask,
++            s_d3d.current_rsx_state->depth_func) : 0;
+         if (s_d3d.current_rsx_state) {
+             dr->vp_x = s_d3d.current_rsx_state->viewport_x;
+             dr->vp_y = s_d3d.current_rsx_state->viewport_y;

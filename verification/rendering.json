@@ -312,5 +312,58 @@
     "last_reported_presentation_calls": 16834,
     "gallery_image": "screenshots/2026-10-16-avatar-customization.png",
     "diagnostic_timing_note": "FIFO provenance and in-flight tracing disabled for this run; capture still changes presentation timing"
+  },
+  "wkc1_geometry_input_observation": {
+    "probe": "20261016-055124",
+    "capture_frame_counter": 13747,
+    "capture_operations": 617,
+    "captured_inputs": "cached vertex-program bytes, vertex constants and first sixteen uploaded vertices per draw",
+    "offline_evaluation_scope": "Sampled body vertex programs and working UI, using the SDK HLSL evaluator; not GPU execution or all-vertex validation",
+    "sampled_body_positive_w": true,
+    "sampled_body_positions_inside_view": true,
+    "avatar_model_visible": false,
+    "gameplay_verified": false,
+    "last_reported_guest_flips": 14002,
+    "last_reported_presentation_calls": 14002
+  },
+  "wkc1_guest_depth_state": {
+    "probe": "20261016-061346",
+    "seconds_limit": 600,
+    "terminated_at_time_limit": true,
+    "capture_frame_counter": 14717,
+    "capture_operations": 617,
+    "native_state_samples": {
+      "ui_quad": {
+        "test": true,
+        "write": false,
+        "comparison": "LESS_EQUAL"
+      },
+      "texture_preparation": {
+        "test": false,
+        "write": false,
+        "comparison": "LESS_EQUAL"
+      },
+      "model_geometry": {
+        "test": true,
+        "write": true,
+        "comparison": "LESS_EQUAL"
+      },
+      "overlay": {
+        "test": true,
+        "write": false,
+        "comparison": "LESS_EQUAL"
+      }
+    },
+    "regression_checks_passed": 20,
+    "forced_depth_negative_control_fails": true,
+    "guest_fragment_pipeline_depth_state_applied": true,
+    "primary_fallback_pipeline_depth_state_implemented": false,
+    "avatar_customization_ui_rendered": true,
+    "avatar_model_visible": false,
+    "remaining_root_cause_verified": false,
+    "gameplay_verified": false,
+    "save_load_verified": false,
+    "last_reported_guest_flips": 14978,
+    "last_reported_presentation_calls": 14978
   }
 }

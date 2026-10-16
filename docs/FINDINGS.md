@@ -17,7 +17,7 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and nineteen runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and twenty runtime regression checks | Compilation alone does not verify gameplay |
 | WKC1 reaches Customize Avatar | Readable UI and controller dismissal of the introductory notice; [capture](GALLERY.md) | Character model missing; completed character creation, gameplay and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
@@ -230,6 +230,23 @@ the UI after the notice is dismissed. The character model is still missing, and
 performance remains slow. This verifies the customization screen and that input
 response, not completed character creation, gameplay, saving or DLC integration.
 
+Patch 0018 extends private frame captures with exact vertex-program bytes,
+constant banks and up to sixteen uploaded vertices per draw. Offline evaluation
+of sampled avatar body vertices produces finite clip coordinates, positive W
+and positions inside the view. Working UI draws produce their expected screen
+positions. This rules out wholly empty/offscreen inputs for those samples; it
+does not verify every vertex, GPU rasterization or fragment output.
+
+The backend also forced depth testing and writes for all guest fragment-program
+draws. Patch 0019 retains the guest's depth enable, mask and comparison per draw
+and includes them in pipeline identity. A regression covers all eight comparison
+functions and a UI-before-model occlusion case. An unconditional-depth negative
+control fails; all twenty checks pass. The native capture records UI draws with
+depth disabled, geometry with depth writes enabled and overlay passes with writes
+disabled. The customization UI still renders, but the avatar is still missing.
+This corrects depth-state handling without establishing the remaining root cause;
+fragment output, culling and other raster state remain under investigation.
+
 ## Update 1.01 and DLC integration
 
 Planned scope includes the USA 1.01 update and matching DLC. Local package
@@ -245,6 +262,11 @@ can include licensing/container metadata, so this does not yet identify an extra
 item, quest or other playable feature. Determine what the extra entry unlocks,
 compare the differing shared entries, and test any relevant content against the
 USA build before claiming compatibility.
+
+Japanese DLC files are also available for future investigation. Package metadata
+identifies BCJS30042. Their availability does not establish unique content,
+compatibility with the USA executable or native DLC support. Files and local
+source locations remain private.
 
 Next steps are to analyze the updated executable, integrate the patch data and
 DLC discovery, and validate content access plus gameplay/save compatibility.
