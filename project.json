@@ -115,5 +115,8 @@
   },
   "native_character_name_entry_verified": true,
   "native_character_name_entry_scope": "Windows editor and guest ABI tested; native WKC1 retains the entered test name through Quick Start to final Review and start-game confirmation",
-  "native_avatar_review_verified": true
+  "native_avatar_review_verified": true,
+  "native_clean_regeneration_build_and_known_boot_verified": true,
+  "native_avatar_acceptance_and_opening_movie_verified": true,
+  "native_avatar_acceptance_and_opening_movie_scope": "Fresh PPU/SPU code; confirms avatar and plays the prerecorded WKC1 opening movie. Interactive 3D gameplay remains unverified."
 }

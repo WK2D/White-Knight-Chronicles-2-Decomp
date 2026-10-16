@@ -552,8 +552,13 @@ int main(int argc, char** argv)
     // This title's image registry contains no YDKJ CRI media task.
 #ifdef _WIN32
     _putenv_s("SPU_CRI_IMAGE", "-1");
+    // Present the completed batch at the guest's FIFO flip. The backend's
+    // clear-based fallback can retain a large scene's draw-count threshold
+    // across a transition and indefinitely withhold a smaller movie batch.
+    _putenv_s("RSX_ACCUM_FRAME", "1");
 #else
     setenv("SPU_CRI_IMAGE", "-1", 1);
+    setenv("RSX_ACCUM_FRAME", "1", 1);
 #endif
     if (argc < 2) {
         printf("usage: %s <PPU ELF>\n", argv[0]);

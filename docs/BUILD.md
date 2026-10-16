@@ -44,9 +44,11 @@ SPURS jobs. `tools/extract_raw_jobs.py` checks the pinned executable's SHA-256
 before extracting those jobs. Six jobs initially found through runtime captures
 were subsequently located byte-for-byte in that executable. A clean extraction
 and static lift now reproduces all 23 registered image inputs without captures.
-This verifies SPU input reproduction; a clean full build and boot comparison
-remains a separate check. `tools/import_spu_misses.py` is available for discovering
-additional jobs in future scenes.
+A clean PPU/SPU regeneration, full native build and all 31 checks also pass.
+That executable boots through the title menu, WKC1 selection and the shaded
+avatar scene. This verifies the known boot path with regenerated code; further
+scene rendering, gameplay and save/load remain under investigation.
+`tools/import_spu_misses.py` is available for discovering additional jobs.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies thirty numbered runtime patches idempotently
@@ -344,6 +346,14 @@ The Windows regression executes 72 synthetic source/modifier programs through
 D3D11 WARP and compares float readbacks with independently calculated values.
 It also checks a negative lighting term through SAT, LG2, EX2 and ADD, where
 ignoring saturation previously generated a NaN. No game assets are used.
+
+## Guest frame presentation
+
+The runner sets `RSX_ACCUM_FRAME=1` before graphics initialization. Its existing
+pending-FIFO-flip path presents complete batches; display-clear heuristics can
+otherwise retain a larger scene's threshold and stop presenting a subsequent
+small movie batch. This selects frame completion policy and leaves the guest's
+shaders, depth and culling state intact.
 
 ## Native text entry
 

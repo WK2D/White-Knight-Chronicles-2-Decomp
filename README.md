@@ -47,10 +47,14 @@ reveals the **avatar body geometry**, including arms, hands, trousers and boots.
 Correcting packed vertex normals and fragment source-range modifiers now also
 restores **face shading and textured clothing**. Native text entry and character-name
 conversion now retain the name through Quick Start to the **final avatar Review**.
-Full visual fidelity, completed
-character creation, gameplay and save/load remain unverified.
+Avatar confirmation now enters the **WKC1 opening movie**; completing GPU batches
+at guest flip boundaries prevents presentation from stalling at that transition.
+Full visual fidelity, interactive gameplay and save/load remain unverified.
 
-[![Native avatar Review with the entered name retained](verification/screenshots/2026-10-16-native-avatar-review.png)](docs/GALLERY.md)
+[![Native playback of the prerecorded WKC1 opening movie](verification/screenshots/2026-10-16-native-wkc1-opening-movie.png)](docs/GALLERY.md)
+
+The latest image shows prerecorded movie footage. Earlier avatar-rendering
+captures are in the gallery.
 
 ## Workspace layout
 
@@ -98,6 +102,8 @@ coverage report distinguishes handler presence from verified implementation.
   the default male character is visible with face shading and textured clothing.
   Name entry is retained through Quick Start to final Review and the start-game
   confirmation. Full visual fidelity and completed character creation remain unverified.
+- Avatar confirmation enters the WKC1 opening movie: verified with freshly
+  regenerated PPU/SPU code. This does not establish interactive 3D gameplay.
 - Scene, combat and save/load verification: pending.
 - In-game keyboard with gamepad navigation, shared across Windows and macOS:
   planned. The current Windows text-entry window is temporary.

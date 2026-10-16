@@ -426,8 +426,32 @@ A clean directory, populated only from that executable by the public extraction
 scripts, contains 23 images. Their complete SHA-256 multiset matches the prepared
 registry inputs exactly, with no missing or additional images. Static lifting
 of all 23 fresh inputs succeeds. Runtime captures are therefore unnecessary for
-regenerating the known SPU input set. A clean full build and native boot comparison
-remain to be checked; further scenes may expose additional jobs.
+regenerating the known SPU input set. A clean analysis, PPU/SPU regeneration and
+full native build now also pass all 31 checks. That executable reproduces the
+title menu, WKC1 level-1 selection and shaded avatar scene, with name entry
+retained. Further scenes may expose additional jobs; gameplay and save/load
+remain unverified.
+
+## Guest flip presentation through scene changes
+
+The post-avatar intro exposed a presentation stall. Guest flips kept advancing,
+while the backend's last completed frame and live-capture request stopped
+advancing. Its clear-present counter remained at 420. The SDK disables its
+ordinary present path after a clear-triggered present; its remaining clear
+heuristic also retains a draw-count threshold from the earlier larger scene.
+A smaller movie batch can consequently remain accumulated indefinitely.
+
+A diagnostic reset of that host counter immediately resumed GPU presentation
+and consumed the pending capture, showing the intro and its pause menu. This
+diagnostic is evidence for the cause, rather than a normal-run validation.
+The runner now selects the SDK's existing RSX_ACCUM_FRAME mode before startup,
+so complete batches present at pending guest FIFO flips instead of display-clear
+heuristics. A normal launch with this policy renders startup movies, the title
+menu and the shaded avatar. Avatar confirmation now reaches the opening movie,
+and successive captures show different movie scenes with only 17 operations in
+the first captured batch. Live requests continue to be consumed without a debugger
+reset. The gallery labels this as prerecorded footage. Interactive scene rendering,
+gameplay and save/load remain unverified.
 
 ## Character-name input
 

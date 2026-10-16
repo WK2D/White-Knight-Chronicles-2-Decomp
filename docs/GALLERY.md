@@ -17,6 +17,12 @@ complete audio fidelity and timing against original hardware remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 
+## 2026-10-16 — WKC1 opening movie after avatar confirmation
+
+The native executable now accepts the avatar and enters the WKC1 opening movie. Presenting completed batches at guest FIFO flips prevents the small movie batches from being withheld by the earlier scene threshold. This capture shows prerecorded movie footage. Interactive 3D gameplay and save/load remain unverified. The run uses freshly regenerated PPU and SPU code from the baseline executable.
+
+![Native WKC1 opening movie after avatar confirmation](../verification/screenshots/2026-10-16-native-wkc1-opening-movie.png)
+
 ## 2026-10-16 — Character name retained through avatar review
 
 Native WKC1 character creation now retains the entered name and reaches the final Review page through Quick Start. The avatar, face shading and textured clothing render with normal depth testing and culling. This capture verifies name retention and review navigation; entering gameplay and save/load remain unverified. A gamepad-operated in-game keyboard is planned; the Windows text-entry window is temporary.
