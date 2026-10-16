@@ -4,6 +4,23 @@
   "execution": "native Windows x86-64, D3D12",
   "captures": [
     {
+      "milestone": "wkc1_native_name_entry_and_review",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-native-avatar-review.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "2125e4add270cdbee50888450ed25e50a87db61c868f3f4d45a698c02ecdbeef",
+      "png_sha256": "91f0e259e4ba436a67b5759c8213652e87cc751b82e242ae431026075c4d26a3",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
       "milestone": "native-avatar-shading",
       "date": "2026-10-16",
       "image": "screenshots/2026-10-16-native-avatar-shading.png",

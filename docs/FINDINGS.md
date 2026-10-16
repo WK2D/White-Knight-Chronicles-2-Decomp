@@ -8,6 +8,8 @@ Develop native Windows C/C++ execution through the title screen, gameplay and
 verified save/load, with an architecture suitable for later Apple Silicon work.
 Completion remains unproven until those behaviors have been tested.
 Start gameplay validation with White Knight Chronicles I, included on the disc.
+Provide an in-game keyboard operated entirely by gamepad for both Windows and
+macOS. The native Windows text-entry window is a temporary development interface.
 
 Maintain this log as research progresses. Publish checked code, concise findings
 and new verified screenshots together when a meaningful milestone is reached.
@@ -17,8 +19,8 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and twenty-eight runtime regression checks | Compilation alone does not verify gameplay |
-| WKC1 reaches Customize Avatar | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Full visual fidelity, completed character creation, gameplay and save/load unverified |
+| Native Windows build succeeds | Clang build and 31 runtime regression checks | Compilation alone does not verify gameplay |
+| WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Full visual fidelity, completed character creation, gameplay and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -411,6 +413,41 @@ centred virtual sticks; disabling keyboard fallback alone had left the test pad'
 sticks off-centre and rotated the camera in the earlier diagnostic run.
 Full visual fidelity, completed character creation, gameplay and save/load remain
 unverified.
+
+## Character-name input
+
+Selecting Name reaches a keyboard stub that requires an initialization call
+absent from WKC's imports. The stub also lacks completion events. The native
+bridge now opens a Windows editor without that dependency. Its guest layouts,
+UTF-16 fields and status values were checked against
+[RPCS3's public OSK interface](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Cell/Modules/cellOskDialog.h).
+The implementation is independently written C++.
+
+The game's private call path also contains support for continuous separate-window
+entry through GetInputText after INPUT_ENTERED. The observed Name dialog uses
+ordinary mode instead: FINISHED is followed by UnloadAsync returning the text.
+Both lifecycles were checked against
+[RPCS3's OSK lifecycle](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Cell/Modules/cellOskDialog.cpp).
+An interactive native run returned a four-unit name successfully through Unload,
+but the in-game name field remained blank and Quick Start reported a missing
+name. The subsequent UCS2stoUTF8s conversion had no registered handler.
+`l10n.cpp` now supplies that conversion and UTF8stoUCS2s using big-endian guest
+fields, exact input counts, output size queries and partial-conversion errors.
+The interfaces were checked against
+[RPCS3's L10n module](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Cell/Modules/cellL10n.cpp).
+Synthetic checks cover ASCII, accented and Japanese characters, embedded NUL,
+capacity limits, invalid sequences and UCS-2 surrogate rejection. A new native
+run now displays the entered name in the name field and avatar caption. Quick
+Start passes the missing-name check and reaches the final Review page, retaining
+the name there as well. Accept opens the start-game confirmation. This verifies
+name retention and review navigation; completed character creation, gameplay and
+save/load remain unverified at this milestone.
+
+Synthetic checks cover the guest ABI, Unicode limits, callback order, stale
+generations, cancellation, abort and scripted UTF-8 input. Separate tests of the
+production Windows controls cover Unicode editing, OK, Cancel, early closure,
+window reuse and shutdown. These checks do not establish completed character
+creation, gameplay or saving.
 
 ## Update 1.01 and DLC integration
 

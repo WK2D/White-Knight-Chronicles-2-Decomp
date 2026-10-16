@@ -101,5 +101,19 @@
   "native_avatar_body_geometry_scope": "WKC1 Customize Avatar body, including arms, hands, trousers and boots; normal depth/culling",
   "native_avatar_model_rendering_scope": "Observed WKC1 default male avatar in Customize Avatar; full body, face and clothing visible with normal depth/culling",
   "native_avatar_material_and_face_shading_improved_verified": true,
-  "native_avatar_full_visual_fidelity_verified": false
+  "native_avatar_full_visual_fidelity_verified": false,
+  "planned_text_entry": {
+    "interface": "in-game keyboard",
+    "input": "gamepad navigation, editing, acceptance and cancellation",
+    "platforms": [
+      "Windows",
+      "macOS Apple Silicon"
+    ],
+    "status": "planned",
+    "current_windows_editor": "temporary development interface",
+    "controller_keyboard_verified": false
+  },
+  "native_character_name_entry_verified": true,
+  "native_character_name_entry_scope": "Windows editor and guest ABI tested; native WKC1 retains the entered test name through Quick Start to final Review and start-game confirmation",
+  "native_avatar_review_verified": true
 }

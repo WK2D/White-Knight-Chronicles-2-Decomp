@@ -941,5 +941,81 @@
     "character_creation_completed": false,
     "gameplay_verified": false,
     "save_load_verified": false
+  },
+  "native_osk_regression": {
+    "sdk_patches": 30,
+    "port_checks_passed": 31,
+    "handler_registration_count": 7,
+    "guest_abi_tests": "tests/osk_test.cpp",
+    "platform_ui_tests": "tests/osk_window_test.cpp",
+    "requires_invented_init_call": false,
+    "host_editor": "Windows Unicode edit control and buttons, C++",
+    "portable_boundary": "osk.hpp; shared guest protocol in osk.cpp",
+    "macos_editor_implemented": false,
+    "guest_text_encoding": "big-endian UTF-16 with 32-bit guest pointers",
+    "preserves_output_capacity": true,
+    "bounded_copy_and_surrogate_boundary_checks_pass": true,
+    "continuous_modes_checked": [
+      1,
+      2,
+      3
+    ],
+    "continuous_input_entered_and_canceled_checked": true,
+    "callback_delivery": "deferred until guest sysutil polling",
+    "cancel_abort_stale_duplicate_generation_checks_pass": true,
+    "scripted_utf8_malformed_and_embedded_nul_checks_pass": true,
+    "production_windows_controls_checked": [
+      "initial Unicode text",
+      "edited Unicode text and OK",
+      "user cancellation",
+      "programmatic close",
+      "early close",
+      "window reuse",
+      "exit with an open window"
+    ],
+    "test_windows_hidden": true,
+    "default_player_name_injected": false,
+    "entered_text_logged": false,
+    "interface_reference": "https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Cell/Modules/cellOskDialog.h",
+    "lifecycle_reference": "https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Cell/Modules/cellOskDialog.cpp",
+    "character_creation_completed_by_regressions": false,
+    "gameplay_verified_by_regressions": false,
+    "save_load_verified_by_regressions": false
+  },
+  "native_l10n_regression": {
+    "port_checks_passed": 31,
+    "source": "l10n.cpp",
+    "tests": "tests/l10n_test.cpp",
+    "import_handlers": [
+      "UCS2stoUTF8s",
+      "UTF8stoUCS2s"
+    ],
+    "guest_byte_order": "big-endian",
+    "exact_counts_and_embedded_nul_checked": true,
+    "capacity_canaries_and_size_queries_checked": true,
+    "invalid_utf8_and_ucs2_surrogates_checked": true,
+    "interface_reference": "https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Cell/Modules/cellL10n.cpp",
+    "shift_jis_implemented": false
+  },
+  "wkc1_native_name_review_observation": {
+    "probe": "20261016-182025",
+    "sdk_patches": 30,
+    "port_checks_passed": 31,
+    "wkc1_level1_selection_verified": true,
+    "observed_keyboard_mode": 0,
+    "name_text_units_returned": 4,
+    "unload_result": 0,
+    "name_field_and_avatar_caption_retained": true,
+    "quick_start_missing_name_check_passed": true,
+    "final_review_name_retained": true,
+    "start_game_confirmation_reached": true,
+    "capture_frame_counter": 12378,
+    "capture_draws": 508,
+    "render_state_overrides_enabled": false,
+    "published_gallery_image": "screenshots/2026-10-16-native-avatar-review.png",
+    "character_creation_completed": false,
+    "gameplay_verified": false,
+    "save_load_verified": false,
+    "input_scope": "Interactive Windows editor returned text in the earlier run; this run submitted the same test text through the optional request file and shared completion path."
   }
 }

@@ -25,6 +25,10 @@
 !/vpost.cpp
 !/adec.cpp
 !/vdec.cpp
+!/osk.cpp
+!/osk.hpp
+!/osk_win32.cpp
+!/l10n.cpp
 !/patches/
 !/tests/
 !/tools/

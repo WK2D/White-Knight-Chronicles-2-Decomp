@@ -153,6 +153,8 @@ void wkc2_register_dmux(void);
 void wkc2_register_vpost(void);
 void wkc2_register_adec(void);
 void wkc2_register_vdec(void);
+void wkc2_register_osk(void);
+void wkc2_register_l10n(void);
 void wkc2_shutdown_vdec(void);
 void wkc2_shutdown_adec(void);
 void wkc2_shutdown_dmux(void);
@@ -605,6 +607,8 @@ int main(int argc, char** argv)
     wkc2_register_vpost();
     wkc2_register_adec();
     wkc2_register_vdec();
+    wkc2_register_osk();
+    wkc2_register_l10n();
     atexit(wkc2_shutdown_vdec);
     atexit(wkc2_shutdown_adec);
     atexit(wkc2_shutdown_dmux);

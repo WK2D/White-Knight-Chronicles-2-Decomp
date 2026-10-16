@@ -45,10 +45,12 @@ primitive restart now renders the **3D room with normal depth testing**. Some
 avatar pieces appeared first; correcting SPU extended-range FNMS arithmetic now
 reveals the **avatar body geometry**, including arms, hands, trousers and boots.
 Correcting packed vertex normals and fragment source-range modifiers now also
-restores **face shading and textured clothing**. Full visual fidelity, completed
+restores **face shading and textured clothing**. Native text entry and character-name
+conversion now retain the name through Quick Start to the **final avatar Review**.
+Full visual fidelity, completed
 character creation, gameplay and save/load remain unverified.
 
-[![Native avatar with face shading and textured clothing](verification/screenshots/2026-10-16-native-avatar-shading.png)](docs/GALLERY.md)
+[![Native avatar Review with the entered name retained](verification/screenshots/2026-10-16-native-avatar-review.png)](docs/GALLERY.md)
 
 ## Workspace layout
 
@@ -93,8 +95,11 @@ coverage report distinguishes handler presence from verified implementation.
 - Readable New Game and WKC1 selection dialogs: verified on Windows.
 - WKC1 avatar-customization UI: renders and dismisses its introductory notice;
   the default male character is visible with face shading and textured clothing.
-  Full visual fidelity and completed character creation remain unverified.
+  Name entry is retained through Quick Start to final Review and the start-game
+  confirmation. Full visual fidelity and completed character creation remain unverified.
 - Scene, combat and save/load verification: pending.
+- In-game keyboard with gamepad navigation, shared across Windows and macOS:
+  planned. The current Windows text-entry window is temporary.
 - Apple Silicon build and testing: pending.
 - GeoNet compatibility: separate later research; not established.
 

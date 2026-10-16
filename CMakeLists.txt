@@ -169,6 +169,8 @@ add_executable(${PROJECT_NAME}
     vpost.cpp
     vdec.cpp
     adec.cpp
+    osk.cpp
+    l10n.cpp
     thread_diagnostics.cpp
     graphics_diagnostics.cpp
     spu_job_diagnostics.cpp
@@ -177,6 +179,11 @@ add_executable(${PROJECT_NAME}
     ${RECOMP_SOURCES}
     ${SPU_SOURCES}
 )
+
+if(WIN32)
+    target_sources(${PROJECT_NAME} PRIVATE osk_win32.cpp)
+    target_link_libraries(${PROJECT_NAME} PRIVATE user32 gdi32)
+endif()
 
 # The lifted SPU sources use bare #include "spu_context.h". Scope that include
 # directory (and their flags) to those TUs alone: adding it to the whole target
@@ -307,6 +314,15 @@ if(WKC2_BUILD_TESTS)
             ENVIRONMENT "SPU_CRI_IMAGE=${cri_id}" TIMEOUT 10)
     endforeach()
     find_package(Threads REQUIRED)
+    add_executable(wkc2_osk_test tests/osk_test.cpp osk.cpp)
+    target_include_directories(wkc2_osk_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
+    target_compile_definitions(wkc2_osk_test PRIVATE WKC2_OSK_TEST_BACKEND)
+    target_link_libraries(wkc2_osk_test PRIVATE Threads::Threads)
+    add_test(NAME wkc2_osk COMMAND wkc2_osk_test "${CMAKE_BINARY_DIR}/osk-input-fixture.txt")
+    set_tests_properties(wkc2_osk PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_l10n_test tests/l10n_test.cpp l10n.cpp)
+    target_include_directories(wkc2_l10n_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
+    add_test(NAME wkc2_l10n COMMAND wkc2_l10n_test)
     add_executable(wkc2_vertex_fetch_test tests/vertex_fetch_test.c
         "${PS3RECOMP_DIR}/libs/video/rsx_vertex_fetch.c")
     target_include_directories(wkc2_vertex_fetch_test PRIVATE
@@ -334,6 +350,13 @@ if(WKC2_BUILD_TESTS)
     add_test(NAME wkc2_spurs_abi COMMAND wkc2_spurs_abi_test)
     set_tests_properties(wkc2_spurs_abi PROPERTIES TIMEOUT 10)
     if(WIN32)
+        add_executable(wkc2_osk_window_test tests/osk_window_test.cpp)
+        target_link_libraries(wkc2_osk_window_test PRIVATE user32 gdi32 Threads::Threads)
+        if(MSVC)
+            target_compile_options(wkc2_osk_window_test PRIVATE /EHsc)
+        endif()
+        add_test(NAME wkc2_osk_window COMMAND wkc2_osk_window_test)
+        set_tests_properties(wkc2_osk_window PROPERTIES TIMEOUT 10)
         add_executable(wkc2_fp_precision_test tests/fp_precision_test.cpp
             "${PS3RECOMP_DIR}/libs/video/rsx_fp_decompiler.c")
         target_include_directories(wkc2_fp_precision_test PRIVATE

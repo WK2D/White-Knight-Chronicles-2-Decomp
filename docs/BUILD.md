@@ -47,13 +47,13 @@ build is therefore not yet a complete reproduction of the latest verified UI boo
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies thirty numbered runtime patches idempotently
-and runs twenty-eight checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs 31 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
 SPURS guard lifetime/notification behavior, ordered job-list dispatch and the
 native SPURS kernel-ID binding, vertex-program cache identity/lifetime, guest depth
-state, packed vertex normals and fragment source precision.
+state, packed vertex normals, fragment source precision and the keyboard ABI/lifecycle.
 
 `tools/prepare_ffmpeg.py` obtains FFmpeg 8.1 public headers from the official source
 archive, checks SHA-256 `b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a`,
@@ -252,7 +252,7 @@ packed depth. These buffers, like shader and geometry captures, remain private.
 
 Patch 0021 decodes `SET_ZMIN_MAX_CONTROL`, including its reset value, and retains
 the depth clipping/clamping selection in each draw's raster-state cache key.
-Bit 3 of the logged `cull` key now means depth clipping; bits 0–2 still describe
+Bit 3 of the logged `cull` key now means depth clipping; bits 0â€“2 still describe
 face culling. Guest fragment pipelines set D3D12 `DepthClipEnable` from that key.
 A command-processor regression covers the reset, disable/restore transitions,
 clamping, dirty-state notification and retained draw keys. Nonstandard ignore-W
@@ -341,3 +341,33 @@ The Windows regression executes 72 synthetic source/modifier programs through
 D3D11 WARP and compares float readbacks with independently calculated values.
 It also checks a negative lighting term through SAT, LG2, EX2 and ADD, where
 ignoring saturation previously generated a NaN. No game assets are used.
+
+## Native text entry
+
+`osk.cpp` replaces the imported keyboard handlers and integrates their events
+with the guest's sysutil callback polling. It reads guest pointers and UTF-16
+explicitly, preserves the caller's output capacity, and supports ordinary and
+continuous entry/cancel/abort lifetimes. `osk_win32.cpp` supplies a Windows editor;
+the platform boundary is declared in `osk.hpp`. A macOS editor is not implemented.
+
+One regression uses synthetic guest memory and a controlled UI backend. It covers
+Unicode boundaries, output canaries, callback order, duplicate/stale completion,
+cancellation, abort, platform-open failure and continuous-mode text retrieval.
+It also exercises optional scripted UTF-8 input through the same completion path.
+Set `WKC2_OSK_INPUT_FILE` to a private request file for this path: `submit <text>`
+submits a line and `cancel` requests cancellation. Requests are consumed only while
+the keyboard is open. Malformed UTF-8 and embedded NUL bytes are rejected. No
+default player name is supplied. Entered text is not written to the diagnostic log.
+A second Windows regression exercises the production edit control and window
+procedure with hidden test windows. It checks Unicode text, OK, Cancel, closure,
+reuse and orderly shutdown.
+
+`l10n.cpp` registers the UCS2stoUTF8s and UTF8stoUCS2s imports used around name
+entry. Its synthetic regression checks guest byte order, exact counts (including
+embedded NUL), output canaries, size queries and partial-conversion errors.
+These UCS-2 APIs reject supplementary characters; the keyboard protocol itself
+supports UTF-16 surrogate pairs. Shift-JIS conversion is not implemented here.
+
+The intended replacement for the temporary Windows editor is an in-game keyboard
+with complete gamepad navigation, acceptance and cancellation, sharing the same
+guest protocol on Windows and macOS. That interface remains planned work.
