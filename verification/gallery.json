@@ -4,6 +4,23 @@
   "execution": "native Windows x86-64, D3D12",
   "captures": [
     {
+      "milestone": "native-3d-room",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-native-3d-room.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "ca916e686c850b1bdf7d894ed2936f34064d1398ee76eab3e5afbfcc32151f41",
+      "png_sha256": "ca3b1e63a4a9ee65d35957310bbfecdeaa4db8833b2455994d4926eaf6a38b62",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
       "milestone": "avatar-customization-ui",
       "date": "2026-10-16",
       "image": "screenshots/2026-10-16-avatar-customization.png",

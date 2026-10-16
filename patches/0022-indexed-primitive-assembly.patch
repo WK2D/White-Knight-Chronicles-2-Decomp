@@ -1,0 +1,213 @@
+diff --git a/libs/video/rsx_commands.h b/libs/video/rsx_commands.h
+--- a/libs/video/rsx_commands.h
++++ b/libs/video/rsx_commands.h
+@@ -377,6 +377,10 @@
+     int stencil_dirty;
+     int texture_dirty;
+     int vertex_dirty;
++
++    /* Primitive restart is part of the indexed input stream. */
++    u32 restart_index_enable;
++    u32 restart_index;
+ } rsx_state;
+ 
+ /* ---------------------------------------------------------------------------
+diff --git a/libs/video/rsx_commands.c b/libs/video/rsx_commands.c
+--- a/libs/video/rsx_commands.c
++++ b/libs/video/rsx_commands.c
+@@ -835,6 +835,16 @@
+ 
+     /* Unrecognized method -- log in debug builds */
+ #ifndef NDEBUG
++    if (method == 0x1DAC || method == 0x1DB0) {
++        if (method == 0x1DAC) state->restart_index_enable = data;
++        else state->restart_index = data;
++        if (getenv("RSX_INDEX_TRACE")) {
++            static unsigned n;
++            if (n++ < 16) fprintf(stderr, "[IDX-STATE] method=%04X value=%08X\n", method, data);
++        }
++        return 0;
++    }
++
+     static int s_unknown_count = 0;
+     if (s_unknown_count < 50) {
+         printf("[RSX] unknown method 0x%04X = 0x%08X\n", method, data);
+diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
+--- a/libs/video/rsx_d3d12_backend.c
++++ b/libs/video/rsx_d3d12_backend.c
+@@ -5650,6 +5650,7 @@
+  * by its RSX type; disabled slots read (0,0,0,1). */
+ typedef struct { float v[4]; } VPSlot;
+ #define VP_VERT_STRIDE (16 * sizeof(VPSlot))   /* 256 */
++#include "rsx_index_assembly.h"
+ 
+ 
+ void rsx_vtx_pos_dbg(const rsx_state* state, const float* v, u32 n);
+@@ -5932,6 +5933,60 @@
+     }
+     p += (u64)k * 4;
+     return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
++}
++
++/* Optional bounded input capture. Data stays in the selected private capture
++ * directory. This observes original indices before strip/fan expansion. */
++static void trace_indexed_input(const rsx_state* state, u32 first, u32 count, int fan)
++{
++    static int limit = -1;
++    static unsigned seen;
++    if (limit < 0) {
++        const char* e = getenv("RSX_INDEX_TRACE");
++        limit = e ? atoi(e) : 0;
++        if (limit > 64) limit = 64;
++    }
++    if (limit <= 0 || seen >= (unsigned)limit) return;
++    const char* dir = getenv("RSX_CAP_DIR");
++    if (!dir || !*dir) return;
++    unsigned serial = seen++;
++    char path[2048];
++    snprintf(path, sizeof(path), "%s/index_%03u.txt", dir, serial);
++    FILE* text = fopen(path, "w");
++    snprintf(path, sizeof(path), "%s/index_%03u.indices.bin", dir, serial);
++    FILE* indices = fopen(path, "wb");
++    snprintf(path, sizeof(path), "%s/index_%03u.vertices.bin", dir, serial);
++    FILE* vertices = fopen(path, "wb");
++    const rsx_vertex_attrib* a = &state->vertex_attribs[0];
++    unsigned zeros = 0, cuts = 0;
++    u32 lo = 0xffffffffu, hi = 0;
++    if (text) fprintf(text,
++        "fp=%08X epoch=%u first=%u count=%u fan=%d index_offset=%08X dma=%08X restart_enable=%u restart=%08X\n"
++        "a0 offset=%08X stride=%u size=%u type=%u frequency=%u divisor=%08X\n",
++        state->shader_program, state->begin_epoch, first, count, fan,
++        state->index_array_offset, state->index_array_dma,
++        state->restart_index_enable, state->restart_index,
++        a->offset, a->stride, a->size, a->type, a->frequency, state->frequency_divider_op);
++    for (u32 k = 0; k < count; ++k) {
++        u32 ix = read_guest_index(state, first + k);
++        VPSlot v[16] = {{0}};
++        int cut = state->restart_index_enable && ix == state->restart_index;
++        /* The marker is not a vertex, including in diagnostics. */
++        if (!cut) read_vp_vertex(state, ix, v);
++        if (ix < lo) lo = ix;
++        if (ix > hi) hi = ix;
++        if (cut) ++cuts;
++        if (!cut && v[0].v[0] == 0 && v[0].v[1] == 0 && v[0].v[2] == 0) ++zeros;
++        if (indices) fwrite(&ix, sizeof(ix), 1, indices);
++        if (vertices) fwrite(v, sizeof(v), 1, vertices);
++        if (text) fprintf(text, "%u: index=%u pos=(%.9g %.9g %.9g %.9g)\n",
++            k, ix, v[0].v[0], v[0].v[1], v[0].v[2], v[0].v[3]);
++    }
++    if (text) fclose(text);
++    if (indices) fclose(indices);
++    if (vertices) fclose(vertices);
++    fprintf(stderr, "[IDX-INPUT] sample=%u fp=%08X first=%u count=%u range=%u..%u zero_positions=%u restart_matches=%u\n",
++        serial, state->shader_program, first, count, lo, hi, zeros, cuts);
+ }
+ 
+ /* Indexed variants of the VP-path uploads. */
+@@ -6188,27 +6243,49 @@
+     return count;
+ }
+ 
+-/* Indexed TRIANGLE_STRIP / TRIANGLE_FAN, expanded CPU-side into a triangle
+- * list (the whole VP path draws lists; CullMode is NONE so strip parity
+- * winding doesn't matter). DeferredShading's spline tube meshes -- the
+- * octopus tentacles -- are indexed strips. */
++/* Indexed strips/fans become lists, preserving winding, restart boundaries
++ * and continuity across the 256-index method packets of one BEGIN/END. */
+ static u32 upload_strip_vp_indexed(const rsx_state* state, u32 first, u32 count, int fan)
+ {
+     extern uint8_t* vm_base;
++    static struct {
++        rsx_index_assembly cursor;
++        const rsx_state* state;
++        u32 epoch, end, offset, dma;
++        int fan, active;
++    } stream;
+     if (!state || !vm_base || !s_d3d.vp_vb_mapped) return 0;
+     if (!state->vertex_attribs[0].enabled) return 0;
+-    if (count < 3) return 0;
+-    u32 tris = count - 2;
++    trace_indexed_input(state, first, count, fan);
++    if (!stream.active || stream.state != state || stream.epoch != state->begin_epoch ||
++        stream.end != first || stream.offset != state->index_array_offset ||
++        stream.dma != state->index_array_dma || stream.fan != fan) {
++        rsx_index_assembly_reset(&stream.cursor);
++    }
++    stream.active = 1;
++    stream.state = state;
++    stream.epoch = state->begin_epoch;
++    stream.end = first + count;
++    stream.offset = state->index_array_offset;
++    stream.dma = state->index_array_dma;
++    stream.fan = fan;
+     u32 maxv = (MAX_VERTICES * VP_VERT_STRIDE - s_d3d.vp_vb_offset) / VP_VERT_STRIDE;
+-    if (tris * 3 > maxv) tris = maxv / 3;
+     VPSlot* out = (VPSlot*)((u8*)s_d3d.vp_vb_mapped
+         + (u64)s_d3d.vp_parity * MAX_VERTICES * VP_VERT_STRIDE + s_d3d.vp_vb_offset);
+     u32 o = 0;
+-    for (u32 t = 0; t < tris; t++) {
+-        u32 i0 = fan ? 0 : t;
+-        read_vp_vertex(state, read_guest_index(state, first + i0),    &out[o*16]); o++;
+-        read_vp_vertex(state, read_guest_index(state, first + t + 1), &out[o*16]); o++;
+-        read_vp_vertex(state, read_guest_index(state, first + t + 2), &out[o*16]); o++;
++    for (u32 k = 0; k < count; ++k) {
++        u32 triangle[3];
++        u32 index = read_guest_index(state, first + k);
++        if (!rsx_index_assembly_push(&stream.cursor, index, fan,
++                state->restart_index_enable != 0, state->restart_index, triangle))
++            continue;
++        /* Consume the complete input even when the upload buffer is full,
++         * retaining the correct cursor for a following packet. */
++        if (maxv - o < 3) continue;
++        for (u32 j = 0; j < 3; ++j) {
++            read_vp_vertex(state, triangle[j], &out[o*16]);
++            ++o;
++        }
+     }
+     s_d3d.vp_vb_offset += o * VP_VERT_STRIDE;
+     return o;
+diff --git a/libs/video/rsx_index_assembly.h b/libs/video/rsx_index_assembly.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_index_assembly.h
+@@ -0,0 +1,40 @@
++#ifndef RSX_INDEX_ASSEMBLY_H
++#define RSX_INDEX_ASSEMBLY_H
++#include <stdint.h>
++
++/* Keep this cursor across contiguous packets in a single BEGIN/END stream.
++ * Restart markers terminate the current primitive and never name a vertex. */
++typedef struct rsx_index_assembly {
++    uint32_t previous[2];
++    unsigned have;
++    unsigned odd;
++} rsx_index_assembly;
++
++static inline void rsx_index_assembly_reset(rsx_index_assembly* s) {
++    s->have = 0;
++    s->odd = 0;
++}
++
++/* Returns one triangle, or zero while collecting a new strip/fan. The full
++ * restart value is compared: a value above 0xffff cannot match a u16 index. */
++static inline int rsx_index_assembly_push(rsx_index_assembly* s, uint32_t index,
++        int fan, int restart_enabled, uint32_t restart, uint32_t triangle[3]) {
++    if (restart_enabled && index == restart) {
++        rsx_index_assembly_reset(s);
++        return 0;
++    }
++    if (s->have < 2) {
++        s->previous[s->have++] = index;
++        return 0;
++    }
++    triangle[0] = s->previous[!fan && s->odd ? 1 : 0];
++    triangle[1] = s->previous[!fan && s->odd ? 0 : 1];
++    triangle[2] = index;
++    if (!fan) {
++        s->previous[0] = s->previous[1];
++        s->odd ^= 1;
++    }
++    s->previous[1] = index;
++    return 1;
++}
++#endif

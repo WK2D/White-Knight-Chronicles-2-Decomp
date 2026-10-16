@@ -64,11 +64,37 @@
       "status": "available_for_future_investigation",
       "unique_playable_content_verified": false,
       "usa_build_compatibility_verified": false,
-      "native_content_verified": false
+      "native_content_verified": false,
+      "base_game_files_available": true,
+      "update_package_count": 10,
+      "update_versions_from_filenames": [
+        "01.01",
+        "01.02",
+        "01.03",
+        "01.04",
+        "01.10",
+        "01.11",
+        "01.12",
+        "01.13",
+        "01.14",
+        "01.15"
+      ],
+      "updated_executables_verified": false,
+      "long_term_objectives": [
+        "Integrate all Japanese-exclusive content",
+        "Provide English translations for Japanese-exclusive content",
+        "Offer optional Japanese voiceovers"
+      ],
+      "translation_integration_verified": false,
+      "japanese_voiceover_integration_verified": false
     }
   },
   "native_avatar_customization_ui_verified": true,
   "native_avatar_customization_ui_scope": "WKC1 selection reaches Customize Avatar; controller input dismisses the introductory notice",
   "native_avatar_model_rendering_verified": false,
-  "native_character_creation_completed_verified": false
+  "native_character_creation_completed_verified": false,
+  "development_priority": "Baseline 01.00 native 3D rendering and gameplay, starting with White Knight Chronicles I",
+  "native_character_creation_room_rendering_verified": true,
+  "native_character_creation_room_rendering_scope": "WKC1 Customize Avatar room visible with normal guest depth testing and culling; avatar body remains incomplete",
+  "native_partial_avatar_rendering_verified": true
 }

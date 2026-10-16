@@ -23,9 +23,12 @@ executable and patch data, DLC discovery/loading, and gameplay/save compatibilit
 We will also compare the European DLC for content absent from the USA package
 and investigate compatibility with BLUS30784. Initial file comparison finds one
 EU-only entry; what it unlocks and whether it works in the USA build are unverified.
-Japanese DLC files are also available for future research. Their package metadata
-targets BCJS30042; unique content and compatibility with the USA build remain
-unverified.
+The Japanese game, DLC and ten update packages are available for future research.
+The long-term goal is to bring **all Japanese-exclusive content into the port
+with English translations**, and offer **optional Japanese voiceovers**.
+Content differences, translations and cross-region integration still need
+investigation and validation. The immediate priority remains baseline 1.00
+3D rendering and gameplay.
 
 ## Progress gallery
 
@@ -38,11 +41,12 @@ failure and dispatches previously skipped geometry jobs. A native binding for th
 standard SPURS processor-ID query prevents those jobs from reading executable
 bytes as kernel data. Loading advances to a further animation program, now lifted
 and observed dispatching and returning. Fixing vertex-shader cache identities now
-reveals the **Customize Avatar** screen. Its text and controls render, and input
-dismisses the introductory notice. The character model is missing; completed
-character creation, gameplay and save/load remain unverified.
+reveals the **Customize Avatar** screen. Correcting indexed triangle strips and
+primitive restart now renders the **3D room with normal depth testing**. Some
+avatar pieces appear, but the body is incomplete. Completed character creation,
+gameplay and save/load remain unverified.
 
-[![Native avatar customization UI](verification/screenshots/2026-10-16-avatar-customization.png)](docs/GALLERY.md)
+[![Native 3D room with partial avatar rendering](verification/screenshots/2026-10-16-native-3d-room.png)](docs/GALLERY.md)
 
 ## Workspace layout
 

@@ -46,7 +46,7 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies twenty-one numbered runtime patches idempotently
+SDAT archives. The build applies twenty-two numbered runtime patches idempotently
 and runs twenty checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
@@ -256,3 +256,15 @@ face culling. Guest fragment pipelines set D3D12 `DepthClipEnable` from that key
 A command-processor regression covers the reset, disable/restore transitions,
 clamping, dirty-state notification and retained draw keys. Nonstandard ignore-W
 behavior and primary fallback-pipeline clipping remain outside this change.
+
+Patch 0022 decodes primitive-restart enable/value commands and assembles indexed
+triangle strips and fans with restart boundaries and consistent winding. The
+cursor survives contiguous command packets within one BEGIN/END stream, including
+packets too short to produce a triangle. A C++ regression checks winding,
+degenerate triangles, packet boundaries, repeated markers, disabled restart,
+32-bit markers and fan anchors. Independently removing restart or winding
+handling makes the regression fail.
+
+Optional `RSX_INDEX_TRACE=N` captures up to 64 indexed strip/fan input packets in
+`RSX_CAP_DIR`. Each contains the original indices, converted vertex attributes
+and input-state description. These files include game data and remain private.

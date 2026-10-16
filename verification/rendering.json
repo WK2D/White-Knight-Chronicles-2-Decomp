@@ -463,5 +463,48 @@
     "save_load_verified": false,
     "last_reported_guest_flips": 11368,
     "last_reported_presentation_calls": 11368
+  },
+  "wkc1_indexed_input_observation": {
+    "probe": "20261016-075410",
+    "sampled_draw_packets": 32,
+    "indices": 5128,
+    "restart_matches": 708,
+    "zero_positions": 711,
+    "restart_enable_register_observed": true,
+    "restart_value": 65535,
+    "marker_was_fetched_as_vertex": true,
+    "normal_depth_room_rendering_verified_by_this_probe": false,
+    "terminated_at_time_limit": true,
+    "seconds_limit": 600,
+    "last_reported_guest_flips": 9784,
+    "last_reported_presentation_calls": 9784
+  },
+  "wkc1_indexed_primitive_assembly": {
+    "probe": "20261016-084321",
+    "sdk_patches": 22,
+    "regression_checks_passed": 22,
+    "missing_restart_negative_control_fails": true,
+    "missing_winding_negative_control_fails": true,
+    "render_state_overrides_enabled": false,
+    "capture_frame_counter": 10457,
+    "capture_operations": 439,
+    "depth_snapshot_frame_counter": 10431,
+    "room_visible": true,
+    "avatar_pieces_visible": true,
+    "complete_avatar_body_visible": false,
+    "sample_pixel": [
+      880,
+      481
+    ],
+    "sample_depth_before_model_operation_163": 0.9985319375116788,
+    "sample_depth_after_model_operation_164": 0.9964034555198822,
+    "published_gallery_image": "screenshots/2026-10-16-native-3d-room.png",
+    "gameplay_verified": false,
+    "character_creation_completed": false,
+    "save_load_verified": false,
+    "terminated_at_time_limit": true,
+    "seconds_limit": 600,
+    "last_reported_guest_flips": 10771,
+    "last_reported_presentation_calls": 10771
   }
 }

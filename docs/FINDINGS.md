@@ -282,6 +282,27 @@ inputs, not the live D3D12 shader bindings or all mesh vertices. The next work
 is to validate the earlier geometry and the depth state around the room/avatar
 transition. Normal-depth avatar rendering remains unverified.
 
+The next native input capture identifies a concrete assembly error: the game
+enables primitive restart with value 65535, while the indexed strip path treated
+that marker as a vertex index. In the captured room packets these reads produce
+zero-position vertices, joining separate strips into false triangles. The path
+also omitted alternating strip winding and lost continuity between command
+packets. Patch 0022 corrects those behaviors. The C++ regression fails when
+either restart handling or alternating winding is independently removed.
+[RPCS3's index handling](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/Common/BufferUtils.cpp)
+was used to check restart semantics, including full-width marker comparison for
+16-bit indices.
+
+The native capture contains 708 restart markers across 32 room command packets
+(5,128 indices). With patch 0022, the room renders with normal guest depth and
+culling enabled. At the previously observed body pixel, room depth is now about
+0.99853 and the following model draw writes about 0.99640 in front of it, instead
+of being rejected behind false room geometry. The gallery records this room
+milestone. Some avatar pieces render, but the body remains incomplete; this does
+not verify full character rendering, completed character creation or gameplay.
+All twenty-two regression checks pass. The next rendering investigation must
+distinguish missing mesh geometry, depth-prepass agreement and shader output.
+
 ## Update 1.01 and DLC integration
 
 Planned scope includes the USA 1.01 update and matching DLC. Local package
@@ -298,10 +319,14 @@ item, quest or other playable feature. Determine what the extra entry unlocks,
 compare the differing shared entries, and test any relevant content against the
 USA build before claiming compatibility.
 
-Japanese DLC files are also available for future investigation. Package metadata
-identifies BCJS30042. Their availability does not establish unique content,
-compatibility with the USA executable or native DLC support. Files and local
-source locations remain private.
+The Japanese game, DLC and ten update packages are available for future
+investigation. The DLC metadata identifies BCJS30042; update filenames indicate
+a chain from 1.00 to 1.15. Updated executables and content have not been validated.
+The long-term goal is to integrate all Japanese-exclusive content with English
+translations, plus optional Japanese voiceovers. This requires identifying the
+regional differences, translating relevant text and validating integration and
+save compatibility. It does not change the immediate priority of baseline 1.00
+3D rendering and gameplay. Files and local source locations remain private.
 
 Next steps are to analyze the updated executable, integrate the patch data and
 DLC discovery, and validate content access plus gameplay/save compatibility.

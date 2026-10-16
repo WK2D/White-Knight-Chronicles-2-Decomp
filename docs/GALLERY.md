@@ -7,12 +7,19 @@ as PNG. All optional metadata has been removed. Images contain the game frame on
 **Current status:** the native title screen renders with New Game, Continue,
 Options and an animated background. AC-3 and LPCM audio decode, and idle startup
 enters the attract movie. New Game descriptions and selection dialogs are now
-readable, and White Knight Chronicles I reaches Customize Avatar. The avatar
-model is not yet visible.
+readable, and White Knight Chronicles I reaches Customize Avatar. The 3D room
+now renders with normal depth testing. Some avatar pieces appear, but the body
+is incomplete.
 Starting gameplay and save/load remain unverified;
 complete audio fidelity and timing against original hardware remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
+
+## 2026-10-16 — 3D room with normal depth
+
+The character-creation room now renders with normal depth testing after correcting indexed triangle strips and primitive restart. Some avatar pieces appear, but the body is incomplete. Captured from native C/C++ execution on the original version 1.00 baseline after selecting White Knight Chronicles I. Completed character creation, gameplay and save/load remain unverified.
+
+![Native 3D room with normal depth](../verification/screenshots/2026-10-16-native-3d-room.png)
 
 ## 2026-10-16 — Avatar customization UI
 
