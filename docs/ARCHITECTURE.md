@@ -1,7 +1,14 @@
 # Execution architecture and modding scope
 
-This project uses binary recompilation into host-compiled C/C++, together with
-a PS3 compatibility runtime. The current build is a hybrid, not a verified
+This project uses static recompilation: the game's PPU and SPU machine code is
+translated into C/C++ ahead of time and compiled into the host program, together
+with a PS3 compatibility runtime. Static recompilation is a form of binary
+recompilation. It differs from dynamic recompilation and interpretation, which
+translate or execute code while the game runs.
+
+Execution is not yet fully static. SPU code that the recompiler does not cover
+still reaches an interpreter fallback, so the current build is a static
+recompilation with an observed interpreter fallback. It is not a verified
 interpreter-free port or a recovered, readable version of the original source.
 
 ## What executes

@@ -1,13 +1,17 @@
 # White Knight Chronicles II native-port research
 
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
-using binary recompilation to C/C++ and a PS3 compatibility runtime, followed by
-Apple Silicon portability testing.
+through **static recompilation**, followed by Apple Silicon portability testing.
+The game's PS3 machine code is translated to C/C++ ahead of time and compiled
+into a normal PC program. A runtime reimplements the PS3 system services the
+game calls, such as threads, files, graphics and movie playback.
 
-**The current build is hybrid:** PPU and SPU code is compiled ahead of time, but
-an SPU interpreter fallback is also present and has executed in observed runs.
-This is not a complete source-level decompilation or a verified interpreter-free
-port. See [execution architecture and modding scope](docs/ARCHITECTURE.md).
+Static recompilation is one kind of binary recompilation. Emulators such as
+RPCS3 instead translate or interpret the game's code while it runs.
+
+All 56,580 main-CPU (PPU) functions and all 23 known SPU programs are statically
+recompiled; some remaining SPU code still uses an interpreter fallback. See
+[execution architecture and modding scope](docs/ARCHITECTURE.md).
 
 **This is not a playable port yet.** Analysis, compilation, boot, rendering and
 gameplay are distinct milestones. Passing an analysis or build step does not
@@ -47,7 +51,7 @@ control, combat and save/load remain unverified; this is not yet a playable port
 Vulkan is the primary Windows renderer. It now renders the avatar and room
 without its initial red tint after correcting colour-target feedback. D3D12
 remains available as an optional comparison/fallback build. Both use the
-host-compiled hybrid build described above. Full-game rendering remains unverified.
+statically recompiled build described above. Full-game rendering remains unverified.
 
 ## Update 1.01 and DLC plans
 
