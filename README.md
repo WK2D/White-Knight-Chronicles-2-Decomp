@@ -15,7 +15,8 @@ The [findings log](docs/FINDINGS.md) tracks verified results, open issues and ne
 The title menu now renders with New Game, Continue and Options over an animated
 background. LPCM startup logos and AC-3 title/attract movies play through the native
 movie pipeline. See the [newest-first gallery](docs/GALLERY.md).
-Menu interaction, gameplay and save/load remain unverified.
+Controller input opens New Game. Dynamic description/dialog text renders as blocks;
+starting gameplay and save/load remain unverified.
 
 [![Native title menu](verification/screenshots/2026-10-16-title-menu.png)](docs/GALLERY.md)
 
@@ -161,7 +162,8 @@ Fifteen checks pass. The title screen and its menu render natively; see the gall
 
 Current blocker: startup holds that logo image instead of completing the movie.
 Playback timing, decoder metadata and audio queue behavior need investigation.
-PAMF LPCM and AC-3 decode to queued PCM; stereo downmix and six-channel output are tested. Menu response, gameplay and save/load remain unverified. Missing imports remain open.
+PAMF LPCM and AC-3 decode to queued PCM; stereo downmix and six-channel output are tested. Menu response is verified through New Game, but dynamic text is corrupted.
+Gameplay, save/load and missing imports remain open.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a
 result JSON go into `work/probes/`; unrecognized SPU jobs go into the private

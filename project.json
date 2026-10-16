@@ -20,5 +20,8 @@
   "native_continuous_movie_playback_verified": true,
   "native_continuous_movie_playback_scope": "LPCM startup logos, AC-3 title background and observed attract-movie playback",
   "native_complete_audio_fidelity_verified": false,
-  "native_ac3_decode_verified": true
+  "native_ac3_decode_verified": true,
+  "native_title_menu_input_verified": true,
+  "native_new_game_menu_verified": true,
+  "native_dynamic_text_rendering_verified": false
 }

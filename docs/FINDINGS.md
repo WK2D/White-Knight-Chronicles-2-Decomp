@@ -16,20 +16,22 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and ten runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and fifteen runtime regression checks | Compilation alone does not verify gameplay |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
 | Lifted SPU decoder produces correct output for sampled assets | Eight outputs match independent raw-DEFLATE decoding byte for byte; [record](../decompression-verification.json) | Sampled blocks, not all assets |
 | Native guest installer writes the large data archives | Three installed archives, totaling 4,364,470,879 bytes, hash-identical to their disc data; [record](../verification/installation.json) | Installation progress, not gameplay or save/load |
-| First movie header parses through the guest ABI | Real header reports two streams and 1280x720 video; native execution advances to demux/decoder startup | Movie playback remains unverified |
+| First movie header parses through the guest ABI | Real header reports two streams and 1280x720 video; native execution advances to demux/decoder startup | Header parsing scope; later playback is recorded below |
 | MPEG-2 access-unit extraction matches independent decoding | All 210 logo frames and 3,596 opening-movie frames match FFmpeg's direct demux/decode pixel for pixel; [record](../verification/movie-demux.json) | Offline validation, not native playback |
-| Extracted opening-movie AC-3 decodes | 3,750 audio frames / 5,760,000 samples per channel at 48 kHz | LPCM has not yet had independent audio comparison |
+| Extracted opening-movie AC-3 decodes | 3,750 audio frames / 5,760,000 samples per channel at 48 kHz | Elementary-stream decode; native API comparison is recorded below |
 | Native demux bridge delivers actual access units | Guest video decoder receives the first 19,356-byte unit; audio decoder receives a 960-byte LPCM unit | Decoder delivery evidence; later native playback is recorded below |
 | Real video decoding matches reference pixels through the guest API | All 210 logo frames match on two sequence passes, including B-frame reordering; [record](../verification/movie-demux.json) | Standalone decoder validation, not continuous in-game playback |
 | Decoded first-logo image renders natively | D3D12 GPU readback in the [gallery](GALLERY.md) | First-image milestone; later playback is recorded below |
-| Two LPCM startup movies advance natively | Successive readbacks, decoder lifecycle and later Havok/Dolby capture in one 120-second probe with no input after movie start | AC-3 opening movie remains unsupported; title screen unverified |
+| Two LPCM startup movies advance natively | Successive readbacks, decoder lifecycle and later Havok/Dolby capture in one 120-second probe with no input after movie start | Startup-clip evidence; title rendering is recorded below |
 | Native LPCM sample conversion matches FFmpeg | All 336,480 stereo sample frames from the first logo match; [record](../verification/movie-demux.json) | Assembled elementary input; independent audio demux and final mix fidelity unverified |
+| Native title menu renders over an animated background | GPU readback shows New Game, Continue and Options; idle execution proceeds to the attract movie | Controller navigation is recorded below; gameplay remains unverified |
+| AC-3 samples match the reference through the guest API | Opening: 3,750 frames in stereo and 5.1; title: 938 frames in 5.1; two sequence passes each | Assembled elementary input; original-console mix fidelity unverified |
 | Guest flips continue during the later black screen | A 120-second probe observed 6,171 flips and 6,171 presentation calls | Counters do not establish visible rendering |
 
 ## Implemented fixes
@@ -59,7 +61,7 @@ Keep full traces, generated game code, assets and local paths in the private wor
   supplied library. The optional decoder check reports a skip if no library loads.
 
 Regression checks cover real video decoding, sparse video timestamps, LPCM sample
-conversion/concurrent queues, Vpost conversion/windows, callback
+conversion/concurrent queues, stereo/surround AC-3, Vpost conversion/windows, callback
 stacks, demux ABI/lifetimes, packet/access-unit parsing, PAMF reader ABI, lightweight conditions, memory containers, LFQueue and
 event-queue recycling. PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
@@ -104,12 +106,16 @@ See the [sample counts and hashes](../verification/movie-demux.json).
 The AC-3 comparisons cover sample conversion, requested downmix/channel order,
 input copies, output backpressure and reset. They do not independently validate
 container audio demux or prove identical output to original console hardware.
-The native title menu's response, starting gameplay and save/load are the next
-validation steps. Missing imports and savedata callback errors remain open.
+Live controller input changes the title highlight and opens New Game, then a
+confirmation dialog. Description/dialog glyphs render as rectangular blocks.
+The next investigation is that dynamic-text path before confirming the unreadable
+dialog. The executable imports no cellFont module, so the game's own font path
+and RSX texture/shader handling need inspection. Missing imports and savedata
+callback errors remain open.
 
 ## Still unverified
 
-Title-menu interaction, playable scenes, combat, save/load, a complete fresh-disc
+Readable dynamic text, playable scenes, combat, save/load, a complete fresh-disc
 reproduction of the latest boot, macOS execution and online functionality.
 
 See the [build limitations](BUILD.md) and [capture manifest](../verification/gallery.json)

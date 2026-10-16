@@ -270,5 +270,17 @@
     "gameplay_verified": false,
     "save_load_verified": false,
     "complete_audio_fidelity_verified": false
+  },
+  "native_menu_input_check": {
+    "input_method": "SDK PAD_FILE controller polling",
+    "actions": [
+      "UP moves highlight from Continue to New Game",
+      "CROSS opens New Game submenu",
+      "CROSS opens a dialog"
+    ],
+    "menu_response_verified": true,
+    "dynamic_text_glyphs": "block corruption",
+    "dialog_confirmed_after_corruption": false,
+    "gameplay_verified": false
   }
 }

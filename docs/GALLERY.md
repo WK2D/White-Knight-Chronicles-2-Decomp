@@ -6,17 +6,24 @@ as PNG. All optional metadata has been removed. Images contain the game frame on
 
 **Current status:** the native title screen renders with New Game, Continue,
 Options and an animated background. AC-3 and LPCM audio decode, and idle startup
-enters the attract movie. Menu interaction, gameplay and save/load remain unverified;
+enters the attract movie. Menu navigation opens New Game, whose dynamic text renders as blocks.
+Starting gameplay and save/load remain unverified;
 complete audio fidelity and timing against original hardware remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
+
+## 2026-10-16 — New Game submenu
+
+Live controller input moves the title highlight and opens New Game. Its submenu renders the book artwork, labels and cursor. Description text is visibly corrupted into blocks. A further confirm opens a dialog with the same glyph issue; starting gameplay remains unverified.
+
+![Native New Game submenu](../verification/screenshots/2026-10-16-new-game-menu.png)
 
 ## 2026-10-16 — Title menu
 
 The native title menu displays New Game, Continue and Options over the animated
 background. Successive captures show the title artwork changing. With no input,
 the guest subsequently opens its attract movie. This capture proves menu rendering;
-menu response and gameplay need separate validation.
+menu response was validated later; gameplay remains unverified.
 
 ![Native White Knight Chronicles II title menu](../verification/screenshots/2026-10-16-title-menu.png)
 

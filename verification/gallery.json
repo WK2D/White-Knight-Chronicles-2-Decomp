@@ -4,6 +4,23 @@
   "execution": "native Windows x86-64, D3D12",
   "captures": [
     {
+      "milestone": "new_game_menu",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-new-game-menu.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "261302d7e7f60c69f47f4844b4783c7c8f99ce80a38c33567d1204bc12f19a28",
+      "png_sha256": "857644e4226406e333cfbde380142f320b7fa90807f164b2594f1010c1e6b067",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
       "milestone": "title_menu",
       "date": "2026-10-16",
       "image": "screenshots/2026-10-16-title-menu.png",
