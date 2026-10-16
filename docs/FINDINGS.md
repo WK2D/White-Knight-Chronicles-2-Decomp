@@ -7,6 +7,7 @@ Updated 2026-10-16. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 Develop native Windows C/C++ execution through the title screen, gameplay and
 verified save/load, with an architecture suitable for later Apple Silicon work.
 Completion remains unproven until those behaviors have been tested.
+Start gameplay validation with White Knight Chronicles I, included on the disc.
 
 Maintain this log as research progresses. Publish checked code, concise findings
 and new verified screenshots together when a meaningful milestone is reached.
@@ -16,7 +17,7 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and fifteen runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and sixteen runtime regression checks | Compilation alone does not verify gameplay |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -106,16 +107,22 @@ See the [sample counts and hashes](../verification/movie-demux.json).
 The AC-3 comparisons cover sample conversion, requested downmix/channel order,
 input copies, output backpressure and reset. They do not independently validate
 container audio demux or prove identical output to original console hardware.
-Live controller input changes the title highlight and opens New Game, then a
-confirmation dialog. Description/dialog glyphs render as rectangular blocks.
-The next investigation is that dynamic-text path before confirming the unreadable
-dialog. The executable imports no cellFont module, so the game's own font path
-and RSX texture/shader handling need inspection. Missing imports and savedata
-callback errors remain open.
+Live controller input changes the title highlight and opens New Game. Description,
+game-selection and confirmation text now render correctly. The font atlas is a
+2048x1024 linear A4R4G4B4 texture, with a 4096-byte row pitch. The earlier binding
+filter excluded this format, so text draws sampled the previous artwork. Recording
+the actual texture and using the shared decoder plus the uploaded DXGI format fixes
+the observed menus. The build now runs the SDK texture-layout tests as well.
+
+White Knight Chronicles I was selected and confirmed through the controller path.
+Loading then dispatches an unregistered 258,688-byte asset-backed SPU program
+(fingerprint B31290CE3464E183). Its captured bytes are private input for the next
+static translation. The loading stall does not establish character creation or
+playable scenes. Missing imports and savedata callback errors remain open.
 
 ## Still unverified
 
-Readable dynamic text, playable scenes, combat, save/load, a complete fresh-disc
+Playable scenes, combat, save/load, a complete fresh-disc
 reproduction of the latest boot, macOS execution and online functionality.
 
 See the [build limitations](BUILD.md) and [capture manifest](../verification/gallery.json)

@@ -291,6 +291,13 @@ option(WKC2_BUILD_TESTS "Build port-specific regression tests" ON)
 if(WKC2_BUILD_TESTS)
     enable_testing()
     find_package(Threads REQUIRED)
+    add_executable(wkc2_texture_layout_test
+        "${PS3RECOMP_DIR}/libs/video/tests/test_texture_layout.c"
+        "${PS3RECOMP_DIR}/libs/video/rsx_texture_layout.c")
+    target_include_directories(wkc2_texture_layout_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
+    add_test(NAME wkc2_texture_layout COMMAND wkc2_texture_layout_test)
+    set_tests_properties(wkc2_texture_layout PROPERTIES TIMEOUT 10)
     if(PS3RECOMP_FFMPEG_RUNTIME)
         set(CODEC_FIXTURE "${CMAKE_BINARY_DIR}/codec-fixture")
         add_custom_command(OUTPUT "${CODEC_FIXTURE}.m2v" "${CODEC_FIXTURE}.yuv"

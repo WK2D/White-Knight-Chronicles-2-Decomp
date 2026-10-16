@@ -4,6 +4,40 @@
   "execution": "native Windows x86-64, D3D12",
   "captures": [
     {
+      "milestone": "wkc1-selection",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-wkc1-selection.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "0f9d3939d686674ae878bf1e8b58c6ee56adb7751d28e3ce8e93cd909d55c603",
+      "png_sha256": "57088f733ee95c95ee62a8386d757eb203f8099d07467c41b70660f15bc310b7",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
+      "milestone": "readable-new-game",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-readable-new-game.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "a3b3fc17d1862a327ef9515bf4a7a384b7b8ae013b6c25f1771e546f2facf5a1",
+      "png_sha256": "8bae4c3210170ee28e29bbc7119364689edc4457232365f40d553122a06b3c55",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ]
+    },
+    {
       "milestone": "new_game_menu",
       "date": "2026-10-16",
       "image": "screenshots/2026-10-16-new-game-menu.png",

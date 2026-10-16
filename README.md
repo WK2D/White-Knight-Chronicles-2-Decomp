@@ -15,10 +15,11 @@ The [findings log](docs/FINDINGS.md) tracks verified results, open issues and ne
 The title menu now renders with New Game, Continue and Options over an animated
 background. LPCM startup logos and AC-3 title/attract movies play through the native
 movie pipeline. See the [newest-first gallery](docs/GALLERY.md).
-Controller input opens New Game. Dynamic description/dialog text renders as blocks;
-starting gameplay and save/load remain unverified.
+Controller input opens New Game and selects White Knight Chronicles I. Description
+and dialog text now render correctly. Loading WKC1 reaches a newly observed SPU
+program that still needs translation; gameplay and save/load remain unverified.
 
-[![Native title menu](verification/screenshots/2026-10-16-title-menu.png)](docs/GALLERY.md)
+[![Native WKC1 selection](verification/screenshots/2026-10-16-wkc1-selection.png)](docs/GALLERY.md)
 
 ## Workspace layout
 
@@ -59,7 +60,8 @@ coverage report distinguishes handler presence from verified implementation.
   language-selection screen, copyright page and warning screen render natively.
 - Initial UI input: a simulated CROSS press selects English and the screen fades
   into the next startup stage. Further input and gameplay remain under test.
-- Title screen rendered: pending.
+- Title screen and menu input: verified on Windows.
+- Readable New Game and WKC1 selection dialogs: verified on Windows.
 - Scene, combat and save/load verification: pending.
 - Apple Silicon build and testing: pending.
 - GeoNet compatibility: separate later research; not established.
@@ -158,11 +160,18 @@ progressive YUV conversion, cropping and bilinear resizing. The build enables th
 SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
-Fifteen checks pass. The title screen and its menu render natively; see the gallery.
+Sixteen checks pass. The title screen and its menu render natively; see the gallery.
 
-Current blocker: startup holds that logo image instead of completing the movie.
-Playback timing, decoder metadata and audio queue behavior need investigation.
-PAMF LPCM and AC-3 decode to queued PCM; stereo downmix and six-channel output are tested. Menu response is verified through New Game, but dynamic text is corrupted.
+Packed A4R4G4B4 font textures were excluded by the D3D12 binding filter, leaving
+previous artwork selected for text draws. The backend now records the current
+texture, decodes through the shared RSX format/row-pitch path and creates the SRV
+with the uploaded resource's format. New Game description and confirmation text
+are readable. The suite also runs the SDK's texture layout, packed-format and
+component-remap checks.
+
+White Knight Chronicles I is the starting point for gameplay validation. Selecting
+and confirming it reaches a previously unseen asset-backed SPU job during loading.
+That program needs a static translation before loading can be tested further.
 Gameplay, save/load and missing imports remain open.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a

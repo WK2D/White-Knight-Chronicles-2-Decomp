@@ -1,7 +1,16 @@
 diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
-index d629f72..999a911 100644
+index d629f72..6ba8550 100644
 --- a/libs/video/rsx_d3d12_backend.c
 +++ b/libs/video/rsx_d3d12_backend.c
+@@ -38,7 +38,7 @@
+ #include <dxgi1_6.h>
+ #include <d3dcompiler.h>
+ 
+-/* We need these GUIDs — define them here to avoid uuid.lib dependency */
++/* We need these GUIDs â€” define them here to avoid uuid.lib dependency */
+ #include <initguid.h>
+ 
+ /* Link libraries */
 @@ -64,9 +64,12 @@
   * own texScale/offset uniforms, so one per-frame snapshot ran every pass
   * with the LAST pass's constants. */
@@ -26,7 +35,7 @@ index d629f72..999a911 100644
      u32 begin_epoch;    /* SET_BEGIN_END generation, for batch concatenation */
      u32 cull;           /* packed face culling: bit0 enable, bit1 cull FRONT
                           * (else BACK), bit2 front face is CCW. RSX culls back
-@@ -88,8 +92,7 @@ typedef struct {
+@@ -88,13 +92,13 @@ typedef struct {
      u32 cmask;          /* D3D write mask from SET_COLOR_MASK at draw time
                           * (wave's sim passes write single lanes of the height
                           * maps; ignoring the mask stomped persistent state) */
@@ -36,7 +45,13 @@ index d629f72..999a911 100644
      struct {
          u32 off;        /* resolved vm offset (guest upload source), 0 = none */
          u32 raw;        /* raw RSX offset (offscreen-RT matching) */
-@@ -103,8 +106,8 @@ typedef struct {
+         u32 w, h, fmt;  /* dims + RSX base format */
+         u32 ctrl1;      /* NV4097 TEXTURE_CONTROL1: component remap crossbar */
++        u32 pitch;      /* guest TEXTURE_CONTROL3 row pitch, for capture */
+         u32 mips;       /* SET_TEXTURE_FORMAT bits 16..31: mipmap level count.
+                          * Cube faces sit one whole mip pyramid apart, so this
+                          * is what sets the face stride. */
+@@ -103,8 +107,8 @@ typedef struct {
                           * one as 2D is what makes an environment-mapped chrome
                           * surface come out with black patches and banding. */
          int set;
@@ -47,7 +62,7 @@ index d629f72..999a911 100644
      int tex_slot;       /* legacy single-slot path (atlas); -1 = none */
      int vs_idx;         /* VPVSEntry slot for this draw's vertex program (-1 = primary) */
      int blend;          /* guest blend enable at draw time */
-@@ -147,11 +150,9 @@ typedef struct {
+@@ -147,11 +151,9 @@ typedef struct {
  } OffRT;
  #define MAX_OFF_RTS  16  /* demosaic double-buffers its 6-surface pass chain */
  #define RT_SRV_BASE  5   /* SRV heap slots 5..20 hold offscreen-RT SRVs */
@@ -61,7 +76,16 @@ index d629f72..999a911 100644
  
  /* Per-frame VP texture slot: a guest texture uploaded for this frame's VP
   * draws (re-uploaded every frame -- gcm/cube's plasma animates in guest
-@@ -207,6 +208,8 @@ typedef struct {
+@@ -159,7 +161,7 @@ typedef struct {
+ typedef struct {
+     ID3D12Resource* res;
+     ID3D12Resource* up;
+-    u32 off, w, h, fmt; /* current contents (resource reused when dims match) */
++    u32 off, w, h, fmt, src_pitch; /* current contents (resource reused when dims match) */
+     u32 csum;           /* sparse checksum of the source bytes last uploaded */
+     int cube;           /* resource is a 6-face cube, sampled as TextureCube */
+     u32 key;            /* the ORIGINAL bound offset -- the cache lookup key.
+@@ -207,6 +209,8 @@ typedef struct {
                               * stale compile forever. */
      u32 cmask;              /* colour write mask (PSO key) */
      u32 cull;               /* packed face culling (PSO key) */
@@ -70,7 +94,16 @@ index d629f72..999a911 100644
      u32 cube_mask;          /* which units are cube textures (PSO key): the HLSL
                               * declares those samplers as TextureCube, so a cube
                               * and a 2D variant of the same program are different
-@@ -297,7 +300,7 @@ typedef struct {
+@@ -249,7 +253,7 @@ typedef struct {
+ 
+     /* Pipeline */
+     ID3D12RootSignature*  root_signature;
+-    ID3D12PipelineState*  pipeline_state;         /* triangle class — default */
++    ID3D12PipelineState*  pipeline_state;         /* triangle class â€” default */
+     ID3D12PipelineState*  pipeline_state_lines;   /* line class */
+     ID3D12PipelineState*  pipeline_state_points;  /* point class */
+ 
+@@ -297,7 +301,7 @@ typedef struct {
      u32                   vp_vb_offset;
      ID3D12Resource*       vp_cb;                /* per-draw VP constant slots    */
      void*                 vp_cb_mapped;
@@ -79,16 +112,16 @@ index d629f72..999a911 100644
      void*                 vp_fpcb_mapped;
      int                   vp_ready;             /* VS+PSO compiled ok            */
      u32                   vp_compiled_bytes;    /* ucode size when last compiled */
-@@ -311,7 +314,7 @@ typedef struct {
+@@ -311,7 +315,7 @@ typedef struct {
      int                   vp_fp_n;
      u32                   srv_inc;              /* CBV_SRV_UAV descriptor size   */
      /* VP path: latest texture bound per unit (t0-t3). */
 -    struct { u32 off, raw, w, h, fmt, ctrl1, mips; int cube; int set; } cur_texs[4];
-+    struct { u32 off, raw, w, h, fmt, ctrl1, mips; int cube; int set; } cur_texs[RSX_MAX_TEXTURES];
++    struct { u32 off, raw, w, h, fmt, ctrl1, mips, pitch; int cube; int set; } cur_texs[RSX_MAX_TEXTURES];
  
      /* Render-to-texture: offscreen RT pool + their RTV heap. */
      OffRT                 off_rt[MAX_OFF_RTS];
-@@ -341,6 +344,7 @@ typedef struct {
+@@ -341,6 +345,7 @@ typedef struct {
  
      /* Stats */
      u64 frame_count;
@@ -96,7 +129,54 @@ index d629f72..999a911 100644
      u64 last_fps_time;
      u32 fps;
  
-@@ -1113,12 +1117,11 @@ static int init_d3d12(u32 width, u32 height)
+@@ -690,7 +695,7 @@ static int init_d3d12(u32 width, u32 height)
+     /* ---------------------------------------------------------------
+      * Depth/stencil buffer
+      * 24-bit depth + 8-bit stencil (DXGI_FORMAT_D24_UNORM_S8_UINT).
+-     * One shared depth texture across both frames — RSX games on PS3
++     * One shared depth texture across both frames â€” RSX games on PS3
+      * typically use a single zeta surface.
+      * ---------------------------------------------------------------*/
+     {
+@@ -778,7 +783,7 @@ static int init_d3d12(u32 width, u32 height)
+ 
+     /* ---------------------------------------------------------------
+      * Create root signature with 16 root constants (one mat4 MVP at b0).
+-     * Visible only to the vertex shader — pixel shader doesn't need it.
++     * Visible only to the vertex shader â€” pixel shader doesn't need it.
+      * ---------------------------------------------------------------*/
+     {
+         /* param 0: mat4 MVP as 16 root constants at b0 (vertex shader).
+@@ -851,7 +856,7 @@ static int init_d3d12(u32 width, u32 height)
+         /* Basic vertex-colored shader.
+          * The MVP matrix arrives via root constants as 4 vec4 columns
+          * (PS3/OpenGL column-major convention). We multiply explicitly so
+-         * we don't depend on HLSL's matrix packing — matches PS3 semantics
++         * we don't depend on HLSL's matrix packing â€” matches PS3 semantics
+          * `gl_Position = MVP * vec4(pos, 1.0)`. */
+         static const char vs_hlsl[] =
+             "cbuffer cb0 : register(b0) {\n"
+@@ -921,8 +926,8 @@ static int init_d3d12(u32 width, u32 height)
+             pso_desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+             pso_desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+             /* Depth test enabled, write enabled, LESS func.
+-             * Games with depth_test_enable=0 in RSX state can still render —
+-             * LESS just means new-z must be less than existing — but future
++             * Games with depth_test_enable=0 in RSX state can still render â€”
++             * LESS just means new-z must be less than existing â€” but future
+              * work should mirror RSX depth state into a PSO cache. */
+             pso_desc.DepthStencilState.DepthEnable    = TRUE;
+             pso_desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+@@ -940,7 +945,7 @@ static int init_d3d12(u32 width, u32 height)
+                 printf("[D3D12] PSO TRIANGLE creation failed (0x%08lX)\n", hr);
+             }
+ 
+-            /* Line-class PSO — same shader, LINE topology type. */
++            /* Line-class PSO â€” same shader, LINE topology type. */
+             pso_desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+             hr = s_d3d.device->lpVtbl->CreateGraphicsPipelineState(
+                 s_d3d.device, &pso_desc,
+@@ -1113,12 +1118,11 @@ static int init_d3d12(u32 width, u32 height)
       * game uploads its VP microcode (render_frame).
       * ---------------------------------------------------------------*/
      {
@@ -112,7 +192,7 @@ index d629f72..999a911 100644
          srv_range.BaseShaderRegister = 0;
          srv_range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
  
-@@ -1130,12 +1133,12 @@ static int init_d3d12(u32 width, u32 height)
+@@ -1130,12 +1134,12 @@ static int init_d3d12(u32 width, u32 height)
          rp[1].DescriptorTable.NumDescriptorRanges = 1;
          rp[1].DescriptorTable.pDescriptorRanges = &srv_range;
          rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -128,7 +208,7 @@ index d629f72..999a911 100644
              samp[_s].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
              samp[_s].AddressU = samp[_s].AddressV = samp[_s].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
              samp[_s].ShaderRegister = (UINT)_s;
-@@ -1149,7 +1152,7 @@ static int init_d3d12(u32 width, u32 height)
+@@ -1149,7 +1153,7 @@ static int init_d3d12(u32 width, u32 height)
  
          D3D12_ROOT_SIGNATURE_DESC rd = {0};
          rd.NumParameters = 3; rd.pParameters = rp;
@@ -137,16 +217,66 @@ index d629f72..999a911 100644
          rd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
  
          ID3DBlob* sig = NULL; ID3DBlob* err = NULL;
-@@ -1504,7 +1507,7 @@ static void rsx_capture_frame(u32 fi, u32 ndraws, u32 capidx)
+@@ -1504,13 +1508,13 @@ static void rsx_capture_frame(u32 fi, u32 ndraws, u32 capidx)
                          r->vp_x, r->vp_y, r->vp_w, r->vp_h,
                          r->fp_addr, r->vs_idx, r->vertex_count, r->cmask, r->blend, r->blend_key,
                          r->tex[0].raw, r->tex[1].raw, r->tex[2].raw, r->tex[3].raw);
 -                for (int u = 0; u < 4; u++)
 +                for (int u = 0; u < RSX_MAX_TEXTURES; u++)
                      if (r->tex[u].set)
-                         fprintf(mf, "      t%d off=0x%08X fmt=0x%02X (%s%s) %ux%u remap=0x%04X\n", u,
+-                        fprintf(mf, "      t%d off=0x%08X fmt=0x%02X (%s%s) %ux%u remap=0x%04X\n", u,
++                        fprintf(mf, "      t%d off=0x%08X fmt=0x%02X (%s%s) %ux%u remap=0x%04X pitch=%u\n", u,
                                  r->tex[u].off, r->tex[u].fmt,
-@@ -1943,7 +1946,7 @@ static void hlsl_replace_all(char* buf, size_t cap, const char* find, const char
+                                 (r->tex[u].fmt & 0x20) ? "LN" : "SZ",
+                                 (r->tex[u].fmt & 0x40) ? ",NR" : "",
+-                                r->tex[u].w, r->tex[u].h, r->tex[u].ctrl1 & 0xFFFF);
++                                r->tex[u].w, r->tex[u].h, r->tex[u].ctrl1 & 0xFFFF, r->tex[u].pitch);
+             }
+         }
+         /* Per-draw VP constant banks for the first few offscreen-RT geometry
+@@ -1559,6 +1563,41 @@ static void rsx_capture_frame(u32 fi, u32 ndraws, u32 capidx)
+         snprintf(path, sizeof path, "%s/rt_%08X.bmp", dir, r->off);
+         cap_readback_write(r->res, r->w, r->h, r->dxgi, r->st, fi, path);
+     }
++    /* Optional private source capture for glyph/format investigation. */
++    if (getenv("RSX_CAP_SOURCES")) {
++        extern uint8_t* vm_base;
++        extern u32 cellGcmResolveLocated(int local, u32 offset);
++        u32 seen_tex[64], seen_fp[64]; unsigned nt = 0, nf = 0;
++        for (u32 d = 0; d < ndraws && d < MAX_DRAWS; ++d) {
++            const D3D12DrawRecord* r = &s_d3d.draws[d];
++            if (r->is_clear) continue;
++            int known = 0;
++            for (unsigned k = 0; k < nf; ++k) if (seen_fp[k] == r->fp_addr) known = 1;
++            if (!known && nf < 64) {
++                seen_fp[nf++] = r->fp_addr;
++                u32 ea = cellGcmResolveLocated((r->fp_addr & 3u) == 1, r->fp_addr & ~3u);
++                if (ea && ea != 0xFFFFFFFFu && (u64)ea + VP_FP_MAX_BYTES <= 0x100000000ull) {
++                    snprintf(path, sizeof path, "%s/fp_%08X.bin", dir, r->fp_addr);
++                    FILE* f = fopen(path, "wb"); if (f) { fwrite(vm_base + ea, 1, VP_FP_MAX_BYTES, f); fclose(f); }
++                }
++            }
++            for (unsigned u = 0; u < RSX_MAX_TEXTURES; ++u) {
++                if (!r->tex[u].set || !r->tex[u].off || !r->tex[u].w || !r->tex[u].h) continue;
++                known = 0;
++                for (unsigned k = 0; k < nt; ++k) if (seen_tex[k] == r->tex[u].off) known = 1;
++                if (known || nt == 64) continue;
++                seen_tex[nt++] = r->tex[u].off;
++                rsx_tex_layout tl; rsx_texture_layout(r->tex[u].fmt, r->tex[u].w, r->tex[u].h, &tl);
++                u64 size = tl.face_bytes;
++                if (!tl.swizzled && !tl.compressed && r->tex[u].pitch >= tl.row_bytes)
++                    size = (u64)r->tex[u].pitch * r->tex[u].h;
++                if (!size || size > 4u * 1024u * 1024u || (u64)r->tex[u].off + size > 0x100000000ull) continue;
++                snprintf(path, sizeof path, "%s/tex_%08X_%02X_%ux%u.bin", dir, r->tex[u].off,
++                         r->tex[u].fmt, r->tex[u].w, r->tex[u].h);
++                FILE* f = fopen(path, "wb"); if (f) { fwrite(vm_base + r->tex[u].off, 1, (size_t)size, f); fclose(f); }
++            }
++        }
++    }
+     printf("[RSXCAP] frame %llu -> %s (%u ops)\n",
+            (unsigned long long)s_d3d.frame_count, dir, ndraws);
+ }
+@@ -1943,7 +1982,7 @@ static void hlsl_replace_all(char* buf, size_t cap, const char* find, const char
      }
  }
  
@@ -155,7 +285,7 @@ index d629f72..999a911 100644
  static u32 dr_cube_mask(const D3D12DrawRecord* dr)
  {
      /* ON by default (RSX_CUBE_TEX=0 to disable). This was off while the cube path
-@@ -1956,14 +1959,30 @@ static u32 dr_cube_mask(const D3D12DrawRecord* dr)
+@@ -1956,14 +1995,30 @@ static u32 dr_cube_mask(const D3D12DrawRecord* dr)
      if (en < 0) { const char* e = getenv("RSX_CUBE_TEX"); en = e ? atoi(e) : 1; }
      if (!en) return 0;
      u32 m = 0;
@@ -190,7 +320,7 @@ index d629f72..999a911 100644
      if (nrt < 1) nrt = 1; if (nrt > 4) nrt = 4;
      if (rtfmt == 0) rtfmt = DXGI_FORMAT_R8G8B8A8_UNORM;
      extern uint8_t* vm_base;
-@@ -1984,24 +2003,10 @@ static ID3D12PipelineState* vp_get_fp_pso(int vs_idx, u32 fp_addr, u32 blend, in
+@@ -1984,24 +2039,10 @@ static ID3D12PipelineState* vp_get_fp_pso(int vs_idx, u32 fp_addr, u32 blend, in
      u32 off = cellGcmResolveLocated((fp_addr & 0x3u) == 1, fp_addr & ~0x3u);
      if (off == 0xFFFFFFFFu) return NULL;
  
@@ -219,7 +349,7 @@ index d629f72..999a911 100644
  
      s_perf_pso_calls++;
      for (int i = 0; i < s_d3d.vp_fp_n; i++)
-@@ -2012,7 +2017,9 @@ static ID3D12PipelineState* vp_get_fp_pso(int vs_idx, u32 fp_addr, u32 blend, in
+@@ -2012,7 +2053,9 @@ static ID3D12PipelineState* vp_get_fp_pso(int vs_idx, u32 fp_addr, u32 blend, in
              s_d3d.vp_fp[i].rtfmt == (u32)rtfmt && s_d3d.vp_fp[i].exp32 == exp32 &&
              s_d3d.vp_fp[i].ucode_hash == uhash && s_d3d.vp_fp[i].cmask == cmask &&
              s_d3d.vp_fp[i].cull == cull &&
@@ -230,7 +360,7 @@ index d629f72..999a911 100644
              return s_d3d.vp_fp[i].pso;
      s_perf_pso_miss++;      /* falls through to a full decompile + D3DCompile */
      /* PSOMISSDBG=1: on a miss, name the key field that differs from an existing
-@@ -2061,12 +2068,20 @@ static ID3D12PipelineState* vp_get_fp_pso(int vs_idx, u32 fp_addr, u32 blend, in
+@@ -2061,12 +2104,20 @@ static ID3D12PipelineState* vp_get_fp_pso(int vs_idx, u32 fp_addr, u32 blend, in
              fprintf(stderr, "[CUBEKEY] fp=0x%X cube_mask=0x%X (distinct pairs=%d)%c",
                      fp_addr, cube_mask, ns, 10); } } }
      static char hlsl[RSX_FP_HLSL_BUFFER_SIZE];
@@ -257,7 +387,7 @@ index d629f72..999a911 100644
      /* FP_LIST=1: every program the title actually compiles, with its size. A
       * fragment program that hangs the GPU shows up here as an implausible
       * instruction count long before it shows up as a TDR. */
-@@ -2162,28 +2177,8 @@ static ID3D12PipelineState* vp_get_fp_pso(int vs_idx, u32 fp_addr, u32 blend, in
+@@ -2162,28 +2213,8 @@ static ID3D12PipelineState* vp_get_fp_pso(int vs_idx, u32 fp_addr, u32 blend, in
                  }
              } }
        } }
@@ -288,7 +418,7 @@ index d629f72..999a911 100644
      /* FP_IDCOLOR=1: give every fragment program a distinct flat colour derived
       * from its address. One frame then shows which program paints which surface,
       * instead of one run per candidate to test them by elimination. */
-@@ -2376,6 +2371,8 @@ static ID3D12PipelineState* vp_get_fp_pso(int vs_idx, u32 fp_addr, u32 blend, in
+@@ -2376,6 +2407,8 @@ static ID3D12PipelineState* vp_get_fp_pso(int vs_idx, u32 fp_addr, u32 blend, in
      s_d3d.vp_fp[s_d3d.vp_fp_n].cmask   = cmask;
      s_d3d.vp_fp[s_d3d.vp_fp_n].cull    = cull;
      s_d3d.vp_fp[s_d3d.vp_fp_n].cube_mask = cube_mask;
@@ -297,7 +427,54 @@ index d629f72..999a911 100644
      s_d3d.vp_fp[s_d3d.vp_fp_n].pso     = pso;
      s_d3d.vp_fp_n++;
      return pso;
-@@ -3051,74 +3048,33 @@ static void vp_record_cb(u32 slot, int vs_idx, const D3D12DrawRecord* dr)
+@@ -2440,7 +2473,7 @@ static u32 tex_csum(const u8* base, u32 nbytes)
+     return h;
+ }
+ 
+-static int vp_upload_tex_slot(u32 off, u32 w, u32 h, u32 fmt, int cube, u32 mips)
++static int vp_upload_tex_slot(u32 off, u32 w, u32 h, u32 fmt, int cube, u32 mips, u32 src_pitch)
+ {
+     /* TEX_BUDGET=<n>: cap texture uploads per frame. Off by default -- it was
+      * tried against the TDR and does not help, because PERF shows the upload
+@@ -2464,7 +2497,7 @@ static int vp_upload_tex_slot(u32 off, u32 w, u32 h, u32 fmt, int cube, u32 mips
+      * layout.c owns them so the Metal backend can read a guest texture without
+      * re-deriving any of it. Only the DXGI mapping below is ours. */
+     rsx_tex_layout tl;
+-    rsx_texture_layout(fmt, w, h, &tl);
++    rsx_texture_layout_pitched(fmt, w, h, src_pitch, &tl);
+     u32 basef = fmt & 0x9F;              /* still needed for the SRV remap */
+     int argb = (tl.fmt == RSX_TEXFMT_R8G8B8A8);
+     int dxt  = tl.compressed;
+@@ -2500,7 +2533,7 @@ static int vp_upload_tex_slot(u32 off, u32 w, u32 h, u32 fmt, int cube, u32 mips
+     for (int i = 0; i < VP_TEX_SLOTS; i++) {
+         VPTexSlot* c = &s_d3d.vp_tex[i];
+         if (c->res && c->key == key_off && c->w == w && c->h == h && c->fmt == fmt
+-            && c->cube == cube) {
++            && c->cube == cube && c->src_pitch == src_pitch) {
+             if (c->used) return i;                /* already bound this frame */
+             { static int nocache = -1;            /* TEX_NOCACHE=1: always re-upload */
+               if (nocache < 0) { const char* e = getenv("TEX_NOCACHE");
+@@ -2509,7 +2542,7 @@ static int vp_upload_tex_slot(u32 off, u32 w, u32 h, u32 fmt, int cube, u32 mips
+             /* Held from an earlier frame: re-upload only if the guest bytes
+              * changed. Most of this scene's textures are static, and converting
+              * every one of them every frame was ~70% of the frame's CPU time. */
+-            u32 nb = dxt ? (blkrow * blkrows) : (w * h * bpp);
++            u32 nb = tl.face_bytes;
+             u32 cs = TEX_CSUM(vm_base + c->off, nb);
+             if (cs == c->csum) { c->used = 1; return i; }
+             slot = i; break;                      /* stale: fall through and redo */
+@@ -3026,8 +3059,8 @@ static int vp_upload_tex_slot(u32 off, u32 w, u32 h, u32 fmt, int cube, u32 mips
+     s_d3d.device->lpVtbl->CreateShaderResourceView(s_d3d.device, t->res, &sv, sh);
+ 
+     t->off = off; t->key = key_off; t->w = w; t->h = h; t->fmt = fmt;
+-    t->cube = cube; t->used = 1;
+-    { u32 nb = dxt ? (blkrow * blkrows) : (w * h * bpp);
++    t->cube = cube; t->src_pitch = src_pitch; t->used = 1;
++    { u32 nb = tl.face_bytes;
+       t->csum = TEX_CSUM(vm_base + off, nb); }
+     #undef TEX_CSUM
+     return slot;
+@@ -3051,74 +3084,33 @@ static void vp_record_cb(u32 slot, int vs_idx, const D3D12DrawRecord* dr)
  {
      const rsx_state* st = s_d3d.current_rsx_state;
      if (!s_d3d.vp_cb_mapped || !st || slot >= MAX_DRAWS) return;
@@ -394,7 +571,7 @@ index d629f72..999a911 100644
      }
      char* dst = (char*)s_d3d.vp_cb_mapped
          + ((u64)s_d3d.vp_parity * MAX_DRAWS + slot) * VP_CB_STRIDE;
-@@ -3527,7 +3483,7 @@ static u32 draw_filter_tex(const char* e)
+@@ -3527,7 +3519,7 @@ static u32 draw_filter_tex(const char* e)
  static void screen_copy_capture(u32 fi)
  {
      static int en = -1;
@@ -403,7 +580,7 @@ index d629f72..999a911 100644
      if (!en || !s_d3d.device) return;
              if (!s_screen_copy) {
                  D3D12_HEAP_PROPERTIES hp = {0}; hp.Type = D3D12_HEAP_TYPE_DEFAULT;
-@@ -4080,7 +4036,7 @@ static void render_frame(void)
+@@ -4080,7 +4072,7 @@ static void render_frame(void)
          { static int ed = -1;
            if (ed < 0) { const char* e = getenv("EMPTYTEX"); ed = e ? atoi(e) : 0; }
            extern uint8_t* vm_base;
@@ -412,7 +589,7 @@ index d629f72..999a911 100644
                if (!dr->tex[_u].set || !dr->tex[_u].off) continue;
                u32 nz = 0, sz = dr->tex[_u].w * dr->tex[_u].h * 4u;
                for (u32 i2 = 0; i2 < sz && i2 < 0x20000u; i2 += 997)
-@@ -4123,7 +4079,7 @@ static void render_frame(void)
+@@ -4123,7 +4115,7 @@ static void render_frame(void)
            } }
          { static int sd = -1;
            if (sd < 0) { const char* e = getenv("SCREENTEX"); sd = e ? atoi(e) : 0; }
@@ -421,7 +598,7 @@ index d629f72..999a911 100644
                if (dr->tex[_u].set && dr->tex[_u].w == s_d3d.width &&
                    dr->tex[_u].h == s_d3d.height) {
                    static u32 seen[16]; static int ns = 0; int known = 0;
-@@ -4135,18 +4091,18 @@ static void render_frame(void)
+@@ -4135,18 +4127,18 @@ static void render_frame(void)
                                dr->tex[_u].fmt, dr->fp_addr, dr->vertex_count,
                                dr->vp_x, dr->vp_y, dr->vp_w, dr->vp_h, 10); }
                } }
@@ -444,7 +621,41 @@ index d629f72..999a911 100644
                  if (en) {
                      { static int _n = 0; if (_n++ < 3)
                          fprintf(stderr, "[SCREENTEX] bound frame copy at unit %d for"
-@@ -4232,11 +4188,9 @@ static void render_frame(void)
+@@ -4188,14 +4180,12 @@ static void render_frame(void)
+                     continue;
+                 }
+                 u32 _bf = dr->tex[_u].fmt & 0x9F;
+-                if (dr->tex[_u].off &&
+-                    (_bf == 0x81 || _bf == 0x85 || _bf == 0x8B ||
+-                     (_bf >= 0x86 && _bf <= 0x88))) {
++                if (dr->tex[_u].off) {
+                     double _tt = perf_on() ? perf_now() : 0.0;
+                     int _cube = dr->tex[_u].cube && (dr_cube_mask(dr) & (1u << _u));
+                     int ts = vp_upload_tex_slot(dr->tex[_u].off, dr->tex[_u].w,
+                                                 dr->tex[_u].h, dr->tex[_u].fmt,
+-                                                _cube, dr->tex[_u].mips);
++                                                _cube, dr->tex[_u].mips, dr->tex[_u].pitch);
+                     if (perf_on()) { s_perf_tex += perf_now() - _tt; s_perf_ntex++;
+                         s_perf_texbytes += (u64)dr->tex[_u].w * dr->tex[_u].h * 4u; }
+                     /* Both forms of the offset are in hand here; the filters
+@@ -4203,13 +4193,9 @@ static void render_frame(void)
+                     if (s_duck_off && dr->tex[_u].off == s_duck_off)
+                         s_duck_raw = dr->tex[_u].raw;
+                     if (ts >= 0) {
+-                        DXGI_FORMAT sf =
+-                            (_bf == 0x85) ? DXGI_FORMAT_R8G8B8A8_UNORM :
+-                            (_bf == 0x8B) ? DXGI_FORMAT_R8G8_UNORM :
+-                            (_bf == 0x86) ? DXGI_FORMAT_BC1_UNORM :
+-                            (_bf == 0x87) ? DXGI_FORMAT_BC2_UNORM :
+-                            (_bf == 0x88) ? DXGI_FORMAT_BC3_UNORM :
+-                                            DXGI_FORMAT_R8_UNORM;
++                        D3D12_RESOURCE_DESC uploaded;
++                        s_d3d.vp_tex[ts].res->lpVtbl->GetDesc(s_d3d.vp_tex[ts].res, &uploaded);
++                        DXGI_FORMAT sf = uploaded.Format;
+                         srv_write_ex(wslot, s_d3d.vp_tex[ts].res, sf,
+                                   (_bf == 0x81) ? 0x1000
+                                                 : rsx_remap_to_d3d(dr->tex[_u].ctrl1, _bf),
+@@ -4232,11 +4218,9 @@ static void render_frame(void)
          }
          if (perf_on()) s_perf_srv += perf_now() - _sv0;
          double _ps0 = perf_on() ? perf_now() : 0.0;
@@ -458,7 +669,7 @@ index d629f72..999a911 100644
          if (perf_on()) s_perf_pso += perf_now() - _ps0;
      }
  
-@@ -4557,12 +4511,9 @@ static void render_frame(void)
+@@ -4557,12 +4541,9 @@ static void render_frame(void)
                  /* Per-draw pipeline: prefer the guest's own compiled FP; fall
                   * back to the hardcoded atlas/colour PS pair. */
                  ID3D12PipelineState* dpso =
@@ -473,7 +684,7 @@ index d629f72..999a911 100644
                  s_d3d.cmd_list->lpVtbl->SetPipelineState(s_d3d.cmd_list,
                                                           dpso ? dpso : vpso);
                  /* Per-draw viewport: the guest rect when sane, else the
-@@ -4587,19 +4538,19 @@ static void render_frame(void)
+@@ -4587,19 +4568,19 @@ static void render_frame(void)
                      s_d3d.cmd_list->lpVtbl->RSSetViewports(s_d3d.cmd_list, 1, &dvp);
                      s_d3d.cmd_list->lpVtbl->RSSetScissorRects(s_d3d.cmd_list, 1, &dsc);
                  }
@@ -497,7 +708,26 @@ index d629f72..999a911 100644
                  s_d3d.cmd_list->lpVtbl->SetGraphicsRootConstantBufferView(s_d3d.cmd_list, 0,
                      s_d3d.vp_cb->lpVtbl->GetGPUVirtualAddress(s_d3d.vp_cb)
                      + ((u64)s_d3d.vp_parity * MAX_DRAWS + dr->cb_slot) * VP_CB_STRIDE);
-@@ -5073,6 +5024,7 @@ skip_dump_consider: ;
+@@ -5066,6 +5047,18 @@ skip_dump_consider: ;
+         }
+       } }
+ 
++    /* Optional live capture request, consumed only after a completed frame. */
++    { const char* request = getenv("RSX_CAP_FILE");
++      if (request && *request && s_dbg_last_draws > 0) {
++        FILE* f = fopen(request, "rb"); int fire = f ? fgetc(f) == '1' : 0;
++        if (f) fclose(f);
++        if (fire) {
++            f = fopen(request, "wb"); if (f) fclose(f);
++            static u32 serial = 1000;
++            rsx_capture_frame(fi, s_dbg_last_draws, serial++);
++        }
++      } }
++
+     /* Present */
+     if (s_present_this_frame)
+         s_d3d.swap_chain->lpVtbl->Present(s_d3d.swap_chain, 1, 0); /* vsync */   /* skipped for an offscreen-only batch */
+@@ -5073,6 +5066,7 @@ skip_dump_consider: ;
      move_to_next_frame();
  
      s_d3d.frame_count++;
@@ -505,7 +735,7 @@ index d629f72..999a911 100644
  
      /* RPCS3-style titlebar stats, refreshed once a second: presented FPS,
       * draw count of the last frame, and the backbuffer size. */
-@@ -5166,9 +5118,9 @@ static void d3d12_present(void* ud, u32 buffer_id)
+@@ -5166,9 +5160,9 @@ static void d3d12_present(void* ud, u32 buffer_id)
      /* FPS tracking */
      ULONGLONG now = GetTickCount64();
      if (now - s_d3d.last_fps_time >= 1000) {
@@ -517,7 +747,7 @@ index d629f72..999a911 100644
      }
  }
  
-@@ -6044,12 +5996,13 @@ static void d3d12_draw_arrays(void* ud, u32 primitive, u32 first, u32 count)
+@@ -6044,18 +6038,20 @@ static void d3d12_draw_arrays(void* ud, u32 primitive, u32 first, u32 count)
                                | ((_cm & 0x00000001) ? 4u : 0u)   /* B */
                                | ((_cm & 0x01000000) ? 8u : 0u);  /* A */
                  }
@@ -532,7 +762,14 @@ index d629f72..999a911 100644
                      dr->tex[_u].off = s_d3d.cur_texs[_u].off;
                      dr->tex[_u].raw = s_d3d.cur_texs[_u].raw;
                      dr->tex[_u].w   = s_d3d.cur_texs[_u].w;
-@@ -6166,12 +6119,13 @@ static void d3d12_draw_arrays(void* ud, u32 primitive, u32 first, u32 count)
+                     dr->tex[_u].h   = s_d3d.cur_texs[_u].h;
+                     dr->tex[_u].fmt = s_d3d.cur_texs[_u].fmt;
+                     dr->tex[_u].ctrl1 = s_d3d.cur_texs[_u].ctrl1;
++                    dr->tex[_u].pitch = s_d3d.cur_texs[_u].pitch;
+                     dr->tex[_u].cube  = s_d3d.cur_texs[_u].cube;
+                     dr->tex[_u].mips  = s_d3d.cur_texs[_u].mips;
+                     dr->tex[_u].set = s_d3d.cur_texs[_u].set;
+@@ -6166,18 +6162,20 @@ static void d3d12_draw_arrays(void* ud, u32 primitive, u32 first, u32 count)
                            | ((_cm & 0x00000001) ? 4u : 0u)   /* B */
                            | ((_cm & 0x01000000) ? 8u : 0u);  /* A */
              }
@@ -548,7 +785,23 @@ index d629f72..999a911 100644
                  dr->tex[_u].off = s_d3d.cur_texs[_u].off;
                  dr->tex[_u].raw = s_d3d.cur_texs[_u].raw;
                  dr->tex[_u].w   = s_d3d.cur_texs[_u].w;
-@@ -6309,12 +6263,13 @@ static void d3d12_draw_indexed(void* ud, u32 primitive, u32 first, u32 count)
+                 dr->tex[_u].h   = s_d3d.cur_texs[_u].h;
+                 dr->tex[_u].fmt = s_d3d.cur_texs[_u].fmt;
+                     dr->tex[_u].ctrl1 = s_d3d.cur_texs[_u].ctrl1;
++                    dr->tex[_u].pitch = s_d3d.cur_texs[_u].pitch;
+                     dr->tex[_u].cube  = s_d3d.cur_texs[_u].cube;
+                     dr->tex[_u].mips  = s_d3d.cur_texs[_u].mips;
+                 dr->tex[_u].set = s_d3d.cur_texs[_u].set;
+@@ -6210,7 +6208,7 @@ static void d3d12_draw_arrays(void* ud, u32 primitive, u32 first, u32 count)
+     u32 topo = (u32)rsx_primitive_topology(primitive);
+     if (topo == RSX_TOPOLOGY_UNSUPPORTED) {
+         /* Other primitives still needing index-buffer conversion
+-         * (line loops, triangle fans) — skip rather than draw wrong. */
++         * (line loops, triangle fans) â€” skip rather than draw wrong. */
+         static int s_skipped_nontri = 0;
+         if (s_skipped_nontri < 3) {
+             printf("[D3D12] draw_arrays: skipping prim=%u (needs index conversion)\n",
+@@ -6309,18 +6307,20 @@ static void d3d12_draw_indexed(void* ud, u32 primitive, u32 first, u32 count)
                        | ((_cm & 0x00000001) ? 4u : 0u)   /* B */
                        | ((_cm & 0x01000000) ? 8u : 0u);  /* A */
          }
@@ -564,12 +817,43 @@ index d629f72..999a911 100644
              dr->tex[_u].off = s_d3d.cur_texs[_u].off;
              dr->tex[_u].raw = s_d3d.cur_texs[_u].raw;
              dr->tex[_u].w   = s_d3d.cur_texs[_u].w;
-@@ -6419,7 +6374,7 @@ static void d3d12_bind_texture(void* ud, u32 unit, const rsx_texture_state* tex)
+             dr->tex[_u].h   = s_d3d.cur_texs[_u].h;
+             dr->tex[_u].fmt = s_d3d.cur_texs[_u].fmt;
+                     dr->tex[_u].ctrl1 = s_d3d.cur_texs[_u].ctrl1;
++                    dr->tex[_u].pitch = s_d3d.cur_texs[_u].pitch;
+                     dr->tex[_u].cube  = s_d3d.cur_texs[_u].cube;
+                     dr->tex[_u].mips  = s_d3d.cur_texs[_u].mips;
+             dr->tex[_u].set = s_d3d.cur_texs[_u].set;
+@@ -6419,11 +6419,10 @@ static void d3d12_bind_texture(void* ud, u32 unit, const rsx_texture_state* tex)
      /* VP path: record the latest bound texture (any supported format) so draws
       * can carry it per-draw. Location bits (format[1:0]): 1 = LOCAL, 2 = MAIN. */
      extern u32 cellGcmResolveLocated(int local, u32 offset);
 -    if (unit < 4 &&
-+    if (unit < RSX_MAX_TEXTURES &&
-         (base_fmt == 0x81 /* B8 */ || base_fmt == 0x85 /* A8R8G8B8 */ ||
-          base_fmt == 0x8B /* G8B8: LBP's font atlas */ ||
-          (base_fmt >= 0x86 && base_fmt <= 0x88) /* DXT1/23/45 */ ||
+-        (base_fmt == 0x81 /* B8 */ || base_fmt == 0x85 /* A8R8G8B8 */ ||
+-         base_fmt == 0x8B /* G8B8: LBP's font atlas */ ||
+-         (base_fmt >= 0x86 && base_fmt <= 0x88) /* DXT1/23/45 */ ||
+-         base_fmt == 0x9A /* W16Z16Y16X16 half-float: RTT intermediates */)) {
++    /* Always replace the binding. A format filter here left the preceding
++     * artwork bound when the guest selected a packed font atlas. The upload
++     * path uses the shared RSX format decoder and its resulting host format. */
++    if (unit < RSX_MAX_TEXTURES) {
+         /* TEX_RESOLVE_AUTO=1: resolve through the page tables (local-page map
+          * then IO table) instead of trusting the format's location bits. A
+          * texture the guest built in main memory but tagged local resolves to
+@@ -6469,6 +6468,7 @@ static void d3d12_bind_texture(void* ud, u32 unit, const rsx_texture_state* tex)
+         s_d3d.cur_texs[unit].w = width; s_d3d.cur_texs[unit].h = height;
+         s_d3d.cur_texs[unit].fmt = format;   /* full byte: LN(0x20)/UN(0x40) kept */
+         s_d3d.cur_texs[unit].ctrl1 = tex->control1;
++        s_d3d.cur_texs[unit].pitch = tex->control3 & 0xFFFFFu;
+         s_d3d.cur_texs[unit].cube  = (tex->format & 4) ? 1 : 0;
+         s_d3d.cur_texs[unit].mips  = (tex->format >> 16) & 0xFFFFu;
+         if (getenv("TEXFMTDBG")) { static u32 seen[64]; static int ns=0;
+@@ -6791,7 +6791,7 @@ void rsx_d3d12_backend_present(void)
+ #include <ps3emu/ps3types.h>   /* u32 (header includes above are inside the _WIN32 guard) */
+ #include <stdio.h>
+ 
+-/* Stub for non-Windows — D3D12 is Windows-only */
++/* Stub for non-Windows â€” D3D12 is Windows-only */
+ int rsx_d3d12_backend_init(u32 w, u32 h, const char* t)
+ {
+     (void)w; (void)h; (void)t;

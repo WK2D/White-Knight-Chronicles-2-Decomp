@@ -3,7 +3,7 @@ param(
     [ValidateRange(1,600)][int]$Seconds = 15,
     [switch]$TraceCalls,
     [switch]$CaptureFrames,
-    [ValidateRange(1,32)][int]$CaptureFrameCount = 4,
+    [ValidateRange(1,128)][int]$CaptureFrameCount = 4,
     [ValidateRange(1,3600)][int]$CaptureEvery = 1,
     [ValidateRange(0,3600)][int]$CaptureSkip = 0
 )

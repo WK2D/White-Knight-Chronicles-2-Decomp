@@ -23,5 +23,8 @@
   "native_ac3_decode_verified": true,
   "native_title_menu_input_verified": true,
   "native_new_game_menu_verified": true,
-  "native_dynamic_text_rendering_verified": false
+  "native_dynamic_text_rendering_verified": true,
+  "gameplay_validation_start": "White Knight Chronicles I",
+  "native_dynamic_text_rendering_scope": "New Game description, game-selection dialog and confirmation",
+  "native_wkc1_selection_verified": true
 }

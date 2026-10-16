@@ -12,6 +12,18 @@ complete audio fidelity and timing against original hardware remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 
+## 2026-10-16 — White Knight Chronicles I selected
+
+The first White Knight Chronicles is selected through native controller input. Its description and selection dialog render correctly. Confirming this choice reaches an unregistered SPU program during loading; no playable scene is verified.
+
+![Native White Knight Chronicles I selected](../verification/screenshots/2026-10-16-wkc1-selection.png)
+
+## 2026-10-16 — Readable New Game description
+
+The native New Game description is readable after fixing packed font texture bindings. This verifies this menu text; gameplay and save/load remain unverified.
+
+![Native Readable New Game description](../verification/screenshots/2026-10-16-readable-new-game.png)
+
 ## 2026-10-16 — New Game submenu
 
 Live controller input moves the title highlight and opens New Game. Its submenu renders the book artwork, labels and cursor. Description text is visibly corrupted into blocks. A further confirm opens a dialog with the same glyph issue; starting gameplay remains unverified.

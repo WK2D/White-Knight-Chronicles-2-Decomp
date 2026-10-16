@@ -7,13 +7,16 @@
     "language_selection_controller_response": true,
     "copyright_page_rendered": true,
     "startup_warning_rendered": true,
-    "title_screen": false,
+    "title_screen": true,
     "gameplay": false,
     "save_load": false,
     "macOS_Apple_Silicon": false,
     "autosave_notice_rendered": true,
     "decoded_logo_frame_rendered": true,
-    "continuous_movie_playback": false
+    "continuous_movie_playback": true,
+    "readable_new_game_dialogs": true,
+    "wkc1_selection": true,
+    "continuous_movie_playback_scope": "LPCM startup logos, AC-3 title background and observed attract playback"
   },
   "captures": [
     {
@@ -33,6 +36,16 @@
       "private_source_probe": "20261016-005717.frames/frame_007.bmp",
       "sha256": "ea80cb24db4a718aaa49d6d637afb3ddfc6e3abc77c14b9989246db762629c43",
       "method": "unmodified D3D12 GPU readback; visually inspected"
+    },
+    {
+      "file": "readable-new-game.bmp",
+      "sha256": "a3b3fc17d1862a327ef9515bf4a7a384b7b8ae013b6c25f1771e546f2facf5a1",
+      "method": "unmodified D3D12 GPU readback; visually inspected"
+    },
+    {
+      "file": "wkc1-selection.bmp",
+      "sha256": "0f9d3939d686674ae878bf1e8b58c6ee56adb7751d28e3ce8e93cd909d55c603",
+      "method": "unmodified D3D12 GPU readback; visually inspected"
     }
   ],
   "checks": {
@@ -46,7 +59,13 @@
       "wkc2_lwcond",
       "wkc2_memory",
       "wkc2_lfqueue",
-      "wkc2_event_queue"
+      "wkc2_event_queue",
+      "wkc2_texture_layout",
+      "wkc2_vdec_timing",
+      "wkc2_async_vdec",
+      "wkc2_adec",
+      "wkc2_ac3_stereo",
+      "wkc2_ac3_surround"
     ],
     "event_queue_recycles": 2000
   },
@@ -63,7 +82,7 @@
     "controller_script": "5:0x4000,35:0x4000,60:0x0008,90:0x4000",
     "note": "Later GPU captures are black. Counts do not prove title-screen rendering or gameplay."
   },
-  "probe": {
+  "previous_probe": {
     "name": "20261016-005717",
     "seconds": 100,
     "guest_flips": 4901,
@@ -72,5 +91,13 @@
     "host_exception_observed": false,
     "controller_script": "5:0x4000,25:0x4000,50:0x4000,80:0x4000",
     "note": "A decoded first-logo image reaches GPU readback. Repeated later captures hold that image; continuous animation and correct audio are not verified."
+  },
+  "probe": {
+    "name": "20261016-021640",
+    "seconds": 420,
+    "guest_flips": 14360,
+    "presentation_calls": 14360,
+    "terminated_at_time_limit": true,
+    "note": "Readable New Game dialogs and WKC1 selection confirmed. Loading stalls on an unregistered SPU program; playable scenes and save/load unverified."
   }
 }
