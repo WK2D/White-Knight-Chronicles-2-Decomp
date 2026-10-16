@@ -92,7 +92,7 @@
   "native_avatar_customization_ui_verified": true,
   "native_avatar_customization_ui_scope": "WKC1 selection reaches Customize Avatar; controller input dismisses the introductory notice",
   "native_avatar_model_rendering_verified": true,
-  "native_character_creation_completed_verified": false,
+  "native_character_creation_completed_verified": true,
   "development_priority": "Baseline 01.00 native 3D rendering and gameplay, starting with White Knight Chronicles I",
   "native_character_creation_room_rendering_verified": true,
   "native_character_creation_room_rendering_scope": "WKC1 Customize Avatar room visible with normal guest depth testing and culling",
@@ -142,5 +142,17 @@
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
     "remaining_requirement": "Replace observed interpreted SPU paths with validated static/native implementations and measure fallback coverage"
+  },
+  "native_character_creation_completed_scope": "Default male avatar named and accepted through Quick Start; opening cutscenes advance to the town. Full visual fidelity and all customization options are not verified.",
+  "native_wkc1_town_world_view_verified": true,
+  "native_wkc1_town_world_view_scope": "Live town with Leonard, NPC names, minimap and save crystal visible; stretched geometry and corrupt NPC surfaces remain.",
+  "native_town_pause_resume_input_verified": true,
+  "native_movement_and_camera_control_verified": false,
+  "native_combat_verified": false,
+  "current_build": {
+    "sdk_patch_count": 41,
+    "runtime_checks_passed": 39,
+    "town_native_run_sdk_patch_count": 39,
+    "patches_0040_0041_native_game_run_verified": false
   }
 }

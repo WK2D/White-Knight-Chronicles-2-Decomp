@@ -1,0 +1,44 @@
+Keep valid repeated DMA polling alive; retain an explicit diagnostic cutoff.
+
+diff --git a/runtime/spu/spu_dma.h b/runtime/spu/spu_dma.h
+--- a/runtime/spu/spu_dma.h
++++ b/runtime/spu/spu_dma.h
+@@ -1174,17 +1174,18 @@
+         }
+     }
+ 
+-    /* A job re-issuing the SAME transfer forever is wedged, not slow: nothing
+-     * about its state can change if the DMA is all it is doing. This used to
+-     * count only REJECTED transfers, so once the EA check started committing
+-     * pages on demand the counter never advanced and a spinning job simply hung
+-     * the chain walker instead. Count repeats whether or not the transfer
+-     * succeeds, and halt at a known pc rather than hanging silently. */
+-    { static uint32_t s_last_ea, s_last_lsa, s_rep;
+-      static uint32_t s_limit = 0;
+-      if (!s_limit) { const char* e = getenv("SPU_DMA_REPEAT_LIMIT");
+-                      s_limit = e ? (uint32_t)strtoul(e, 0, 0) : 256u; }
+-      if ((uint32_t)ea == s_last_ea && lsa == s_last_lsa) {
++    /* Repeated GETs can be a valid wait for another producer. WKC's geometry
++     * allocator polls a GPU label this way; halting after 256 reads discarded
++     * unfinished jobs and left the RSX waiting on their unpatched self-jumps.
++     * Keep the repeat cutoff as an explicitly requested diagnostic only.
++     * Zero disables it. Track it separately on each host execution thread. */
++    { static SPU_THREAD_LOCAL uint32_t s_last_ea, s_last_lsa, s_rep, s_limit;
++      static SPU_THREAD_LOCAL int s_initialized;
++      if (!s_initialized) { const char* e = getenv("SPU_DMA_REPEAT_LIMIT");
++          s_limit = e ? (uint32_t)strtoul(e, 0, 0) : 0;
++          s_initialized = 1;
++      }
++      if (s_limit && (uint32_t)ea == s_last_ea && lsa == s_last_lsa) {
+           if (++s_rep >= s_limit) {
+               s_rep = 0;   /* re-arm: the chain may run this job again */
+               extern void spu_halt(spu_context*);
+@@ -1195,7 +1196,7 @@
+               fflush(stderr);
+               spu_halt(spu);
+           }
+-      } else { s_last_ea = (uint32_t)ea; s_last_lsa = lsa; s_rep = 0; } }
++      } else if (s_limit) { s_last_ea = (uint32_t)ea; s_last_lsa = lsa; s_rep = 0; } }
+ 
+     /* Mark tag as in-progress */
+     mfc->tag_completed &= ~(1u << tag);

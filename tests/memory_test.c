@@ -56,6 +56,67 @@ int main(void)
     assert(call(&table, SYS_MEMORY_ALLOCATE_FROM_CONTAINER, 0x10000, cid, 0x200, output + 4) == CELL_ESRCH);
     assert(call(&table, SYS_MEMORY_ALLOCATE, 0x100000, 0x400, output + 4, 0) == CELL_OK);
     assert(call(&table, SYS_MEMORY_FREE, read_be32(output + 4), 0, 0, 0) == CELL_OK);
+
+    /* Freed ranges are reused: repeated large allocate/free cycles, as on
+     * scene changes, must not exhaust the 256 MB allocation window. */
+    for (int cycle = 0; cycle < 8; ++cycle) {
+        assert(call(&table, SYS_MEMORY_ALLOCATE, 0x6000000, 0x400, output + 4, 0) == CELL_OK);
+        uint32_t block = read_be32(output + 4);
+        vm_base[block] = 0xAA;
+        vm_base[block + 0x5FFFFFF] = 0xBB;
+        assert(call(&table, SYS_MEMORY_FREE, block, 0, 0, 0) == CELL_OK);
+    }
+
+    /* A reused range reads as zero, like a fresh commit. */
+    assert(call(&table, SYS_MEMORY_ALLOCATE, 0x6000000, 0x400, output + 4, 0) == CELL_OK);
+    uint32_t reused = read_be32(output + 4);
+    assert(vm_base[reused] == 0 && vm_base[reused + 0x5FFFFFF] == 0);
+
+    /* A gap between live allocations is filled, aligned, without overlap. */
+    assert(call(&table, SYS_MEMORY_ALLOCATE, 0x100000, 0x400, output + 8, 0) == CELL_OK);
+    uint32_t tail = read_be32(output + 8);
+    assert(tail >= reused + 0x6000000);
+    assert(call(&table, SYS_MEMORY_FREE, reused, 0, 0, 0) == CELL_OK);
+    assert(call(&table, SYS_MEMORY_ALLOCATE, 0x10000, 0x200, output + 4, 0) == CELL_OK);
+    uint32_t small = read_be32(output + 4);
+    assert(small == reused && !(small & 0xFFFF));
+    assert(call(&table, SYS_MEMORY_ALLOCATE, 0x100000, 0x400, output + 12, 0) == CELL_OK);
+    uint32_t aligned = read_be32(output + 12);
+    assert(!(aligned & 0xFFFFF) && aligned >= small + 0x10000 && aligned + 0x100000 <= tail);
+    assert(call(&table, SYS_MEMORY_FREE, small, 0, 0, 0) == CELL_OK);
+    assert(call(&table, SYS_MEMORY_FREE, aligned, 0, 0, 0) == CELL_OK);
+    assert(call(&table, SYS_MEMORY_FREE, tail, 0, 0, 0) == CELL_OK);
+    /* Reuse must also respect ranges owned by other users of this window. */
+    assert(call(&table, SYS_MMAPPER_ALLOCATE_ADDRESS, 0x200000, 0, 0x100000, output + 16) == CELL_OK);
+    uint32_t reserved = read_be32(output + 16);
+    vm_base[reserved] = 0xC1;
+    assert(call(&table, SYS_MEMORY_ALLOCATE, reserved - 0x40000000, 0x200, output + 4, 0) == CELL_OK);
+    uint32_t prefix = read_be32(output + 4);
+    assert(prefix == 0x40000000);
+    assert(call(&table, SYS_MEMORY_ALLOCATE, 0x10000, 0x200, output + 8, 0) == CELL_OK);
+    uint32_t after_reservation = read_be32(output + 8);
+    assert(after_reservation >= reserved + 0x200000);
+    assert(vm_base[reserved] == 0xC1);
+    assert(call(&table, 341, output + 20, 0x300000, 0, 0) == CELL_OK);
+    uint32_t mapped = read_be32(output + 20);
+    vm_base[mapped] = 0xC2;
+    assert(call(&table, SYS_MEMORY_ALLOCATE, 0x10000, 0x200, output + 12, 0) == CELL_OK);
+    uint32_t after_mapping = read_be32(output + 12);
+    assert(after_mapping >= mapped + 0x300000);
+    assert(vm_base[mapped] == 0xC2);
+    assert(call(&table, SYS_MMAPPER_ALLOCATE_SHARED_MEMORY, 0, 0x100000, 0, output + 24) == CELL_OK);
+    uint32_t shared_id = read_be32(output + 24);
+    uint32_t shared_address = after_mapping + 0x10000;
+    assert(call(&table, SYS_MMAPPER_MAP_SHARED_MEMORY, shared_address, shared_id, 0, 0) == CELL_OK);
+    vm_base[shared_address] = 0xC3;
+    assert(call(&table, SYS_MEMORY_ALLOCATE, 0x10000, 0x200, output + 28, 0) == CELL_OK);
+    uint32_t after_shared = read_be32(output + 28);
+    assert(after_shared >= shared_address + 0x100000);
+    assert(vm_base[shared_address] == 0xC3);
+    assert(call(&table, SYS_MEMORY_FREE, prefix, 0, 0, 0) == CELL_OK);
+    assert(call(&table, SYS_MEMORY_FREE, after_reservation, 0, 0, 0) == CELL_OK);
+    assert(call(&table, SYS_MEMORY_FREE, after_mapping, 0, 0, 0) == CELL_OK);
+    assert(call(&table, SYS_MEMORY_FREE, after_shared, 0, 0, 0) == CELL_OK);
     vm_shutdown();
     return 0;
 }

@@ -48,15 +48,16 @@ SPURS jobs. `tools/extract_raw_jobs.py` checks the pinned executable's SHA-256
 before extracting those jobs. Six jobs initially found through runtime captures
 were subsequently located byte-for-byte in that executable. A clean extraction
 and static lift now reproduces all 23 registered image inputs without captures.
-A clean PPU/SPU regeneration, full native build and all 31 checks also pass.
+A clean PPU/SPU regeneration and full native build have also been verified.
 That executable boots through the title menu, WKC1 selection and the shaded
-avatar scene. This verifies the known boot path with regenerated code; further
-scene rendering, gameplay and save/load remain under investigation.
+avatar scene. This verifies the known boot path with regenerated code. A later runtime build
+using those generated inputs reaches the town, with rendering faults remaining.
+Movement, combat and save/load remain under investigation.
 `tools/import_spu_misses.py` is available for discovering additional jobs.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies the numbered runtime patches idempotently
-and runs 35 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs 39 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
@@ -65,6 +66,11 @@ native SPURS kernel-ID binding, vertex-program cache identity/lifetime, guest de
 state, packed vertex normals, fragment source precision and the keyboard ABI/lifecycle.
 The current suite also covers fragment-program cache identity, ordered surface
 clears, Windows PPU join lifetime and the shared draw engine's colour feedback.
+It also covers persistent DMA label polling, reuse of freed memory ranges and
+finite digital/analog input through the private controller probe file. The
+current build contains 41 numbered SDK patches; the published town capture
+was made with patches 0001–0039. Patches 0040/0041 pass standalone regressions
+but have not yet been exercised in a native game run.
 
 ## Windows renderer
 
@@ -137,6 +143,40 @@ guest transfers and released on resize/shutdown. Backends without a working GPU
 copy use fresh guest-memory readback for supported RGBA8 surfaces. The production
 engine regression covers copy ordering, refresh, texture remapping, lifetime
 and that fallback; ten checks fail against the previous engine.
+
+Patch 0039 disables the automatic cutoff after 256 repeated DMA transfers.
+Valid SPU jobs can repeatedly read a GPU completion label while waiting for
+buffer space. The old cutoff halted geometry jobs before they completed,
+leaving unpatched command-buffer self-jumps. The regression performs 1,024
+valid reads and observes a producer update after read 768; forcing the old
+cutoff reproduces the failure. `SPU_DMA_REPEAT_LIMIT` is now an opt-in diagnostic:
+zero or an absent value disables it, and a positive value requests a cutoff.
+Its counters are local to each host execution thread. A native run with this
+fix passes the earlier loading stall, reaches the next cutscene and enters
+the live WKC1 town. World geometry and NPC surfaces remain visibly corrupt;
+movement, combat and save/load are unverified.
+
+Patch 0040 incorporates the allocator fix reviewed from the
+[suggestion branch](https://github.com/WK2D/White-Knight-Chronicles-2-Decomp/blob/6ca620d7f328996eeb4bf118652d78528d90107a/patches/0039-memory-range-reuse.patch).
+`sys_memory_allocate` now reuses aligned ranges released by `sys_memory_free`
+and zeroes reused bytes. The old allocator exhausted its address window after
+two freed 96 MiB allocations despite reporting free memory. The Windows
+regression reproduces that failure and passes repeated cycles, zeroed reuse,
+gap filling, alignment and non-overlap with the fix. Native game behavior with
+this patch remains unverified. Review added protection for mapper reservations
+and shared mappings in the same address window; mixed-API cases fail without
+that protection and pass with it. The same branch's patch-0015 context correction
+applies to the pinned SDK without changing the reconstructed source.
+
+Patch 0041 extends the optional private `PAD_FILE` controller probe with
+analog sticks. A line can contain `mask polls lx ly rx ry`, with stick values
+from 0 to 255 (128 is neutral). For example, `0 120 128 0 128 128` requests
+left-stick up for 120 input polls. The existing `mask polls` format still works.
+After the hold expires, the underlying host/`PAD_STICK` state is restored.
+Incomplete or out-of-range numeric stick fields are rejected. The regression exercises
+the production guest input packet, finite holds, stick-only input, digital
+compatibility and invalid input. Native movement with this extension has not
+been tested. This probe is separate from the planned gamepad-operated keyboard.
 
 ## Movie decoding
 
@@ -303,7 +343,8 @@ The cache grows as distinct programs appear and releases retained shader blobs a
 backend shutdown. Its regression covers 128 queued IDs, copied bytecode, deliberate
 hash collisions, unrelated bytes after END, invalid input and single release of
 each compiled object. A negative control with the old moving 16-slot policy fails.
-This fixes the observed customization UI output; model rendering remains unverified.
+This fixed the customization UI at that checkpoint; later patches restore
+avatar geometry, shading and the town view described in the gallery.
 
 Patch 0018 adds `RSX_CAP_GEOMETRY=1` to completed-frame private captures. It
 records the exact cached vertex programs, each draw's vertex constants and the
@@ -318,7 +359,8 @@ initializer ordinal. The helper regression checks comparison mapping, deferred
 state identity and a UI-quad/model occlusion scenario. Restoring unconditional
 depth testing/writes fails that scenario. Primary fallback pipelines still have
 fixed depth behavior; this change covers the guest fragment-program pipelines.
-The avatar model remains missing in the latest native probe.
+The avatar model was still missing in that probe; subsequent fixes are recorded
+in the gallery and findings log.
 
 Patch 0020 adds optional intermediate GPU readbacks. Set `RSX_DRAW_SNAP_FILE`
 to a private request file containing up to eight decimal draw-operation indices,
@@ -337,7 +379,7 @@ packed depth. These buffers, like shader and geometry captures, remain private.
 
 Patch 0021 decodes `SET_ZMIN_MAX_CONTROL`, including its reset value, and retains
 the depth clipping/clamping selection in each draw's raster-state cache key.
-Bit 3 of the logged `cull` key now means depth clipping; bits 0â€“2 still describe
+Bit 3 of the logged `cull` key now means depth clipping; bits 0–2 still describe
 face culling. Guest fragment pipelines set D3D12 `DepthClipEnable` from that key.
 A command-processor regression covers the reset, disable/restore transitions,
 clamping, dirty-state notification and retained draw keys. Nonstandard ignore-W

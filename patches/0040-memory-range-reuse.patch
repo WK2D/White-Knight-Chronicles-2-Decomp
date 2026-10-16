@@ -1,0 +1,160 @@
+Reuse freed sys_memory ranges while preserving memory-mapper reservations.
+
+diff --git a/runtime/syscalls/sys_memory.c b/runtime/syscalls/sys_memory.c
+--- a/runtime/syscalls/sys_memory.c
++++ b/runtime/syscalls/sys_memory.c
+@@ -26,6 +26,23 @@
+  * the pre-committed main region, so pages are committed on demand. */
+ #define SYS_MEM_ALLOC_BASE  0x40000000u
+ #define SYS_MEM_ALLOC_END   0x50000000u
++
++/* Mapper reservations use the same window but are not sys_memory allocation
++ * records. Keep their pages unavailable to the reusable-range search. */
++static uint8_t s_mapper_reserved[(SYS_MEM_ALLOC_END - SYS_MEM_ALLOC_BASE) / VM_PAGE_SIZE / 8];
++
++/* Caller holds the bump lock. Shared mappings may lie outside this window. */
++static void reserve_mapper_range(uint32_t address, uint32_t size)
++{
++    uint64_t first = address, end = first + size;
++    if (first < SYS_MEM_ALLOC_BASE) first = SYS_MEM_ALLOC_BASE;
++    if (end > SYS_MEM_ALLOC_END) end = SYS_MEM_ALLOC_END;
++    if (first >= end) return;
++    uint32_t page = (uint32_t)(first - SYS_MEM_ALLOC_BASE) / VM_PAGE_SIZE;
++    uint32_t last = (uint32_t)(end - 1 - SYS_MEM_ALLOC_BASE) / VM_PAGE_SIZE;
++    for (; page <= last; ++page)
++        s_mapper_reserved[page >> 3] |= (uint8_t)(1u << (page & 7));
++}
+ 
+ static uint32_t s_total_allocated = 0;
+ static uint32_t s_container_reserved = 0;
+@@ -50,6 +67,37 @@
+           ((val <<  8) & 0xFF0000) | ((val << 24) & 0xFF000000u);
+ #endif
+     *p = val;
++}
++
++/* Lowest aligned address in the allocation window whose range overlaps no
++ * active allocation, or 0 when none fits. Caller holds the bump lock. */
++static uint32_t find_free_range(uint32_t size, uint32_t alignment)
++{
++    uint64_t candidate = SYS_MEM_ALLOC_BASE;
++    for (;;) {
++        candidate = (candidate + alignment - 1) & ~(uint64_t)(alignment - 1);
++        if (candidate + size > SYS_MEM_ALLOC_END)
++            return 0;
++        uint64_t blocked_until = 0;
++        for (int i = 0; i < SYS_MEMORY_ALLOC_MAX; i++) {
++            const sys_mem_alloc_info* a = &g_sys_mem_allocs[i];
++            if (!a->active) continue;
++            uint64_t start = a->addr, end = (uint64_t)a->addr + a->size;
++            if (start < candidate + size && candidate < end && end > blocked_until)
++                blocked_until = end;
++        }
++        uint32_t first_page = (uint32_t)(candidate - SYS_MEM_ALLOC_BASE) / VM_PAGE_SIZE;
++        uint32_t last_page = (uint32_t)(candidate + size - 1 - SYS_MEM_ALLOC_BASE) / VM_PAGE_SIZE;
++        for (uint32_t page = first_page; page <= last_page; ++page) {
++            if (s_mapper_reserved[page >> 3] & (1u << (page & 7))) {
++                uint64_t end = SYS_MEM_ALLOC_BASE + (uint64_t)(page + 1) * VM_PAGE_SIZE;
++                if (end > blocked_until) blocked_until = end;
++            }
++        }
++        if (!blocked_until)
++            return (uint32_t)candidate;
++        candidate = blocked_until;
++    }
+ }
+ 
+ /* ---------------------------------------------------------------------------
+@@ -92,15 +140,16 @@
+         return (int64_t)(int32_t)CELL_ENOMEM;
+     }
+ 
+-    /* Initialize bump pointer on first call */
++    /* Initialize the high-water mark on first call */
+     if (g_sys_mem_bump_ptr == 0)
+         g_sys_mem_bump_ptr = SYS_MEM_ALLOC_BASE;
+ 
+-    /* Align bump pointer */
+-    g_sys_mem_bump_ptr = VM_ALIGN_UP(g_sys_mem_bump_ptr, alignment);
+-
+-    /* Check if we have room */
+-    if ((uint64_t)g_sys_mem_bump_ptr + size > SYS_MEM_ALLOC_END) {
++    /* Reuse address ranges released by sys_memory_free. A pure bump pointer
++     * never moves back, so repeated allocate/free cycles (scene changes,
++     * per-movie containers) exhaust the window while accounting says the
++     * memory is free. */
++    uint32_t alloc_addr = find_free_range(size, alignment);
++    if (!alloc_addr) {
+         bump_unlock();
+         return (int64_t)(int32_t)CELL_ENOMEM;
+     }
+@@ -115,13 +164,20 @@
+         return (int64_t)(int32_t)CELL_ENOMEM;
+     }
+ 
+-    uint32_t alloc_addr = g_sys_mem_bump_ptr;
+     /* Publish accounting only after the host commit succeeds. */
+     if (vm_commit(alloc_addr, size) != CELL_OK) {
+         bump_unlock();
+         return (int64_t)(int32_t)CELL_ENOMEM;
+     }
+-    g_sys_mem_bump_ptr += size;
++    /* Fresh commits are zeroed by the OS; give reused ranges the same
++     * contents so behaviour does not depend on allocation history. */
++    if (alloc_addr < g_sys_mem_bump_ptr) {
++        uint32_t used_end = g_sys_mem_bump_ptr;
++        uint32_t reused = used_end - alloc_addr < size ? used_end - alloc_addr : size;
++        memset(vm_base + alloc_addr, 0, reused);
++    }
++    if (alloc_addr + size > g_sys_mem_bump_ptr)
++        g_sys_mem_bump_ptr = alloc_addr + size;
+     if (container) container->used_size += size;
+     else s_total_allocated += size;
+ 
+@@ -383,6 +439,7 @@
+ 
+     uint32_t alloc_addr = g_sys_mem_bump_ptr;
+     g_sys_mem_bump_ptr += size;
++    reserve_mapper_range(alloc_addr, size);
+ 
+     bump_unlock();
+ 
+@@ -487,6 +544,7 @@
+     }
+     uint32_t addr = g_sys_mem_bump_ptr;
+     g_sys_mem_bump_ptr += size;
++    reserve_mapper_range(addr, size);
+     bump_unlock();
+ 
+     vm_commit(addr, size);
+@@ -534,13 +592,19 @@
+     if (!s->active)
+         return (int64_t)(int32_t)CELL_ESRCH;
+ 
+-    /* Commit the memory at the specified address */
++    /* Publish the mapping under the allocator lock before another request
++     * searches this window for a reusable range. */
++    bump_lock();
+     int32_t rc = vm_commit(addr, s->size);
+-    if (rc != CELL_OK)
++    if (rc != CELL_OK) {
++        bump_unlock();
+         return (int64_t)(int32_t)rc;
+-
++    }
++
++    reserve_mapper_range(addr, s->size);
+     s->addr = addr;
+     memset(vm_to_host(addr), 0, s->size);
++    bump_unlock();
+ 
+     return CELL_OK;
+ }
+@@ -554,6 +618,7 @@
+     memset(g_sys_mem_containers, 0, sizeof(g_sys_mem_containers));
+     memset(g_sys_mmapper_shared, 0, sizeof(g_sys_mmapper_shared));
+     g_sys_mem_bump_ptr = 0;
++    memset(s_mapper_reserved, 0, sizeof s_mapper_reserved);
+     s_total_allocated  = 0;
+     s_container_reserved = 0;
+ 

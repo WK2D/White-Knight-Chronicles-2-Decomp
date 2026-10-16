@@ -4,6 +4,30 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_wkc1_town_world_view",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-native-wkc1-town.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "Vulkan shared RSX draw engine",
+      "source_format": "Vulkan GPU readback PPM",
+      "source_sha256": "496555a6cf9cf23b22905c634b93ca0c6f235fab41662ca435e792ad05c3d850",
+      "png_sha256": "c562397e6c84899ac3abde657b71f37ccdd6a6842c88b6d17056b42a9c2973db",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "native_probe": "20261016-233313",
+      "sdk_patch_count_in_captured_run": 39,
+      "live_3d_world_view": true,
+      "visible_geometry_corruption": true,
+      "native_gameplay_verified": false,
+      "movement_combat_and_save_load_verified": false
+    },
+    {
       "milestone": "native_vulkan_avatar_colour_feedback",
       "date": "2026-10-16",
       "image": "screenshots/2026-10-16-native-vulkan-avatar-colours.png",

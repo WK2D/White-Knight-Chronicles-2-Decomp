@@ -282,5 +282,6 @@
     "dynamic_text_glyphs": "block corruption",
     "dialog_confirmed_after_corruption": false,
     "gameplay_verified": false
-  }
+  },
+  "record_scope": "Decoder comparisons and historical startup/menu probes. Failure or unverified fields describe their named checkpoint; see rendering.json for later native progress."
 }

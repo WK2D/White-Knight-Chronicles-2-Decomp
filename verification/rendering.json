@@ -24,7 +24,13 @@
     "avatar_material_and_face_shading_improved": true,
     "avatar_full_visual_fidelity": false,
     "vulkan_avatar_colour_feedback": true,
-    "interpreter_free_cpu_execution": false
+    "interpreter_free_cpu_execution": false,
+    "character_creation_completed": true,
+    "wkc1_town_world_view": true,
+    "town_pause_resume_input": true,
+    "world_full_visual_fidelity": false,
+    "movement_and_camera_control": false,
+    "combat": false
   },
   "captures": [
     {
@@ -58,8 +64,36 @@
   ],
   "checks": {
     "passed": [
+      "wkc2_spu_title_-1",
+      "wkc2_spu_title_22",
+      "wkc2_spu_title_23",
+      "wkc2_spu_dma_poll",
+      "wkc2_spu_dma_poll_default",
+      "wkc2_spu_dma_repeat_diagnostic",
+      "wkc2_pad_file",
+      "wkc2_osk",
+      "wkc2_l10n",
+      "wkc2_vertex_fetch",
+      "wkc2_spu_fp",
+      "wkc2_spurs_abi",
+      "wkc2_ppu_join",
+      "wkc2_osk_window",
+      "wkc2_fp_precision",
       "wkc2_spurs_job",
+      "wkc2_indexed_geometry",
+      "wkc2_depth_clip",
+      "wkc2_depth_state",
+      "wkc2_surface_clear_gpu",
+      "wkc2_vp_cache",
+      "wkc2_fp_identity",
+      "wkc2_draw_engine",
+      "wkc2_texture_layout",
       "wkc2_vdec_decode",
+      "wkc2_vdec_timing",
+      "wkc2_async_vdec",
+      "wkc2_adec",
+      "wkc2_ac3_stereo",
+      "wkc2_ac3_surround",
       "wkc2_vpost",
       "wkc2_callback_stack",
       "wkc2_dmux",
@@ -68,17 +102,13 @@
       "wkc2_lwcond",
       "wkc2_memory",
       "wkc2_lfqueue",
-      "wkc2_event_queue",
-      "wkc2_texture_layout",
-      "wkc2_vdec_timing",
-      "wkc2_async_vdec",
-      "wkc2_adec",
-      "wkc2_ac3_stereo",
-      "wkc2_ac3_surround"
+      "wkc2_event_queue"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
-    "spurs_simultaneous_guards": 128
+    "spurs_simultaneous_guards": 128,
+    "current_sdk_patch_count": 41,
+    "current_passed_count": 39
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -1247,7 +1277,8 @@
         "commit": "61909373a2cb59f8679d8b96382e2899d656e4d0",
         "used_for": "off_rt_snapshot requirement and timing adapted through the shared colour-copy interface; patch 0038"
       }
-    ]
+    ],
+    "record_scope": "Historical avatar-colour checkpoint with patches 0001-0038; see wkc1_town_world_view for later progress."
   },
   "windows_ppu_join_lifetime": {
     "regression_passed": true,
@@ -1274,5 +1305,57 @@
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
     "remaining_requirement": "Replace observed interpreted SPU paths with validated static/native implementations and measure fallback coverage"
-  }
+  },
+  "wkc1_town_world_view": {
+    "probe": "20261016-233313",
+    "capture_date": "2026-10-16",
+    "sdk_patch_count": 39,
+    "renderer": "Vulkan shared RSX draw engine",
+    "gallery_image": "screenshots/2026-10-16-native-wkc1-town.png",
+    "avatar_accepted": true,
+    "opening_cutscenes_advanced_with_normal_skip_inputs": true,
+    "live_3d_world_frame": true,
+    "visible": [
+      "Leonard",
+      "town buildings",
+      "NPC names",
+      "minimap",
+      "save crystal"
+    ],
+    "pause_and_resume_respond": true,
+    "visible_stretched_geometry": true,
+    "visible_corrupt_npc_surfaces": true,
+    "render_state_overrides_enabled": false,
+    "debugger_writes": false,
+    "sampled_image_19_geometry_jobs_returned_without_old_halt": 64,
+    "movement_and_camera_verified": false,
+    "combat_verified": false,
+    "save_load_verified": false,
+    "performance_improvement_verified": false,
+    "run_stopped_after_milestone": true,
+    "last_reported_guest_flips": 19166,
+    "last_reported_presentations": 19166
+  },
+  "spu_dma_label_polling": {
+    "patch": "0039-spu-dma-polling.patch",
+    "old_256_repeat_cutoff_fails_regression": true,
+    "default_poll_iterations_tested": 1024,
+    "producer_update_after_iteration": 768,
+    "default_and_explicit_diagnostic_checks_passed": true,
+    "earlier_native_loading_stall_passed": true
+  },
+  "memory_range_reuse": {
+    "patch": "0040-memory-range-reuse.patch",
+    "old_allocator_fails_reuse_regression": true,
+    "unamended_suggestion_fails_mixed_mapper_regression": true,
+    "amended_patch_passes_reuse_zeroing_alignment_and_mixed_mapper_checks": true,
+    "native_game_run_verified": false
+  },
+  "analog_probe_input": {
+    "patch": "0041-pad-file-analog-input.patch",
+    "production_guest_packet_check_passed": true,
+    "finite_hold_restore_digital_and_invalid_input_checks_passed": true,
+    "native_game_run_verified": false
+  },
+  "record_scope": "Per-probe history plus current verified/checks summaries; older probe counts and failures describe those runs. Latest world-view evidence is in wkc1_town_world_view."
 }

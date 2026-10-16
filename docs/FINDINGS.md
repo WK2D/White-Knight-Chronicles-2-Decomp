@@ -1,6 +1,6 @@
 # Findings
 
-Updated 2026-10-16. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
+Updated 2026-10-17. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
 ## Goal and reporting
 
@@ -30,9 +30,10 @@ do not establish interpreter-free execution.
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and 35 runtime regression checks | Compilation alone does not verify gameplay |
-| Experimental Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | Character creation only; full visual fidelity, gameplay and save/load unverified |
-| WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Full visual fidelity, completed character creation, gameplay and save/load unverified |
+| Native Windows build succeeds | Clang build and 39 runtime regression checks | Compilation alone does not verify gameplay |
+| Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | Character creation only; full visual fidelity, gameplay and save/load unverified |
+| WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
+| WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | Stretched geometry and corrupt NPC surfaces remain; movement, camera control, combat and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -51,6 +52,11 @@ do not establish interpreter-free execution.
 | Guest flips continue during the later black screen | A 120-second probe observed 6,171 flips and 6,171 presentation calls | Counters do not establish visible rendering |
 
 ## Implemented fixes
+
+The investigation sections record successive checkpoints, including failures
+later resolved. Test counts and limitations within those accounts describe
+that checkpoint. The verified table above and the town/polling section below
+record the latest result.
 
 - Correct lightweight-condition layout and wait/signal behavior.
 - Allocate and account for memory-container allocations instead of acknowledging
@@ -103,7 +109,7 @@ an empty isolated emulated HDD, with detailed tracing disabled, reproduces the
 installation and all three matching archive hashes.
 No completion result or installation progress was fabricated.
 
-## Current startup status
+## Startup and early WKC1 checkpoints
 
 AC-3 decoding removes the audio-open failure after the startup logos. The file
 trace identifies the previously blocked clip as `title02.pam`, the animated title
@@ -239,7 +245,7 @@ control reproducing the moving 16-slot policy fails; all nineteen checks pass.
 The next native WKC1 run reaches Customize Avatar with readable menu controls.
 Controller input dismisses the introductory downloadable-content notice. A scene
 capture contains 21 distinct vertex-shader IDs (0 through 20), confirming that
-this path exceeds the previous cache capacity. The newest gallery image shows
+this path exceeds the previous cache capacity. The gallery image from that checkpoint shows
 the UI after the notice is dismissed. The character model is still missing, and
 performance remains slow. This verifies the customization screen and that input
 response, not completed character creation, gameplay, saving or DLC integration.
@@ -475,7 +481,7 @@ Those operations must keep their distinct effects and submission order.
 
 Patch 0031 records the values and bounded scissor rectangle, then clears the
 requested colour/depth/stencil aspects at the recorded position. Nine synthetic
-D3D12 WARP cases check every pixel of all three aspects. All 32 current checks
+D3D12 WARP cases check every pixel of all three aspects. All 32 checks at that checkpoint
 pass. A native follow-up retains the shaded avatar, room and entered name.
 This does not establish that later scenes render correctly. The shared depth
 attachment and missing depth-texture sampling still need investigation.
@@ -554,7 +560,7 @@ creation, gameplay or saving.
 
 ## Shared renderer and colour feedback
 
-The experimental Windows Vulkan build uses the shared draw engine and batched
+The Windows Vulkan build uses the shared draw engine and batched
 backend from Soulcalibur2HD-recomp patches 0005/0006, pinned in the port's patches
 0035/0036. Native startup, title menus, WKC1 selection, avatar rendering and name
 entry work. Its first character scene had a strong red tint while the UI remained
@@ -584,9 +590,60 @@ movie transitions: the guest-exit event precedes the host epilogue, which could
 mark a joined or reused slot finished again. Patch 0037 waits for host termination
 before freeing the slot. A controlled regression fails on the old code and passes
 128 slot-reuse iterations on the fix. A native observation now has 34 free slots
-instead of the earlier exhausted table. The current later loading transition
-still needs investigation; this does not establish that movie transitions or
-world loading are fully fixed.
+instead of the earlier exhausted table. A separate SPU polling cutoff caused
+the later loading stall described below; fixing the join race alone did not
+resolve that transition.
+
+## WKC1 town and SPU completion-label polling
+
+The next native loading stall left the FIFO on a producer self-jump, with its
+completion label one value short. Geometry jobs were repeatedly halted by the
+SDK's automatic cutoff after 256 identical DMA transfers. The observed loop
+validly reads a GPU completion label until command-buffer space becomes free;
+repeated reads alone do not establish a stuck job.
+
+Patch 0039 removes that default cutoff. An explicit positive
+`SPU_DMA_REPEAT_LIMIT` remains available for diagnostics; absent or zero leaves
+valid waits running. Counters are local to each host thread. A production-path
+regression performs 1,024 reads, observes a producer update after read 768 and
+checks completion tags. Forcing the old cutoff fails the regression. Separate
+checks cover the absent setting and an explicit diagnostic cutoff.
+
+With patches 0001–0039, native execution now passes the previous stall, reaches
+the following live cutscene and enters the WKC1 town after normal cutscene-skip
+inputs. Sixty-four sampled geometry-job dispatches from image 19 return without
+the old halt. Town GPU readbacks show Leonard, NPC names, the minimap and a save
+crystal. The pause menu opens and resumes through ordinary controller input.
+The [newest gallery entry](GALLERY.md) is an unchanged world-frame readback,
+not prerecorded movie footage. No debugger writes or render-state overrides
+were used to produce it.
+
+This route still has conspicuous stretched geometry and corrupt NPC surfaces.
+Movement, camera control, combat and save/load are unverified. Seeing a save
+crystal does not verify saving. No performance improvement or full-game
+compatibility is claimed.
+
+## Reviewed allocator suggestion and probe input
+
+Patch 0040 incorporates the suggestion branch's freed-range allocator fix.
+The old allocator can report free memory but exhaust its virtual-address window
+after two freed 96 MiB allocations. The Windows regression reproduces that
+failure and verifies repeated allocation/free cycles, zeroed reused bytes,
+alignment and gap filling on the fix.
+
+Review also found that the proposed allocator could overlap mapper reservations
+in the same window. The amended patch tracks those reserved pages and checks
+mixed normal, mapper and shared-memory allocations. Those cases fail without
+the amendment and pass with it. Mapper free behavior is still conservative;
+this is not a complete mapper implementation. The suggestion branch's patch
+0015 context correction also applies without changing reconstructed SDK code.
+
+Patch 0041 adds finite analog-stick input to the private `PAD_FILE` probe,
+with validation and restoration of underlying input after the hold. Its check
+uses the actual guest packet interface. All 39 runtime checks pass with the
+complete 41-patch stack, and reconstruction from the pinned SDK is verified.
+The town run used patch 0039; neither the amended allocator nor the new analog
+probe has yet been tested in a native game run.
 
 ## Update 1.01 and DLC integration
 
@@ -613,7 +670,7 @@ regional differences, translating relevant text and validating integration and
 save compatibility. It does not change the immediate priority of baseline 1.00
 3D rendering and gameplay. Files and local source locations remain private.
 
-Next steps are to analyze the updated executable, integrate the patch data and
+Later update/DLC work will analyze the updated executable, integrate the patch data and
 DLC discovery, and validate content access plus gameplay/save compatibility.
 The current baseline remains disc v01.00. Neither 1.01 execution nor DLC content
 has been verified in the native port. Package bytes and local source locations
@@ -628,7 +685,7 @@ which problems were found and fixed; the sections above hold the current detail.
 
 The title menu now renders with New Game, Continue and Options over an animated
 background. LPCM startup logos and AC-3 title/attract movies play through the native
-movie pipeline. See the [newest-first gallery](docs/GALLERY.md).
+movie pipeline. See the [newest-first gallery](GALLERY.md).
 Controller input opens New Game and selects White Knight Chronicles I. Description
 and dialog text now render correctly. WKC1 loading passes the guard-registration
 failure and dispatches previously skipped geometry jobs. A native binding for the
@@ -644,12 +701,14 @@ restores **face shading and textured clothing**. Native text entry and character
 conversion now retain the name through Quick Start to the **final avatar Review**.
 Avatar confirmation now enters the **WKC1 opening movie**; completing GPU batches
 at guest flip boundaries prevents presentation from stalling at that transition.
-Full visual fidelity, interactive gameplay and save/load remain unverified.
+A later Vulkan run now reaches the town and responds to pause/resume input,
+with geometry and NPC material faults. Movement, camera control, combat and
+save/load remain unverified.
 
 Vulkan is the primary Windows renderer. It now renders the avatar and room
 without its initial red tint after correcting colour-target feedback. D3D12
-remains available as an optional comparison/fallback build. Both execute the
-recompiled C/C++ game code natively. Full-game rendering remains unverified.
+remains available as an optional comparison/fallback build. Both use the
+host-compiled hybrid build qualified above. Full-game rendering remains unverified.
 
 ### Runtime investigation
 
@@ -738,7 +797,7 @@ reader initialization and reaches movie demux/decoder threads.
 `dmux.cpp` now supplies memory queries, real MPEG program-stream/access-unit
 parsing, guest callbacks, AU lifetimes and queue backpressure. Independent decoding
 matches every pixel in 3,806 extracted video frames across the logo and opening
-movie; extracted AC-3 also decodes. See [verification](verification/movie-demux.json).
+movie; extracted AC-3 also decodes. See [verification](../verification/movie-demux.json).
 The native guest receives actual video and LPCM units through its decoder calls.
 Callback stacks are isolated across host threads and nesting.
 
@@ -779,7 +838,8 @@ Open audio issue: audible distortion in character-creation music. Device buffer
 starvation, guest mixer scheduling and source decoding have not yet been
 distinguished. Decoder comparisons do not establish real-time mixer fidelity.
 
-Playable scenes, combat, save/load, macOS execution and online functionality.
+Correct town rendering, movement, camera control, combat, save/load, macOS
+execution and online functionality.
 Fresh extraction, static generation and a full native build reproduce the
 startup route described above; later gameplay remains unverified.
 

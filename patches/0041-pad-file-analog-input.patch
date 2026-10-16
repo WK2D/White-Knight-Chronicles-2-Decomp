@@ -1,0 +1,78 @@
+Allow finite analog stick holds through the opt-in PAD_FILE probe.
+
+diff --git a/libs/input/cellPad.c b/libs/input/cellPad.c
+--- a/libs/input/cellPad.c
++++ b/libs/input/cellPad.c
+@@ -658,6 +658,8 @@
+           }
+       } }
+ 
++    int file_stick_active = 0;
++    u8 file_sticks[4] = {128,128,128,128};
+     /* PAD_FILE=<path> -- closed-loop input. Each poll, if the file holds a
+      * button mask (same encoding as PAD_SCRIPT), press it for a fixed number
+      * of polls and empty the file. A driver outside the process can then look
+@@ -669,9 +671,12 @@
+      *   echo 0x4000 > pad.txt    # CROSS
+      *   echo 0x0040 4 > pad.txt  # DOWN for 4 polls (menus auto-repeat a
+      *                            # long hold; the default is 40)
++     * Optional fields after mask/polls: lx ly rx ry (0..255). A zero mask
++     * permits stick-only input. The override expires with the button hold.
+      */
+     { static int s_pf = -1; static char pf_path[512];
+       static unsigned held_mask = 0; static int held_n = 0;
++      static int held_sticks = 0; static u8 stick_values[4];
+       if (s_pf < 0) { const char* e = getenv("PAD_FILE");
+                       s_pf = (e && *e) ? 1 : 0;
+                       if (s_pf) { strncpy(pf_path, e, sizeof pf_path - 1); pf_path[sizeof pf_path - 1] = 0; } }
+@@ -679,13 +684,21 @@
+           if (held_n <= 0) {
+               FILE* f = fopen(pf_path, "rb");
+               if (f) {
+-                  char buf[64]; buf[0] = 0;
++                  char buf[128]; buf[0] = 0;
+                   if (fgets(buf, sizeof buf, f)) {
+                       char* rest;
+                       unsigned m = (unsigned)strtoul(buf, &rest, 0);
+-                      int n = (int)strtol(rest, 0, 0);
+-                      if (m) { held_mask = m; held_n = n > 0 ? n : 40;
+-                               printf("[cellPad] PAD_FILE press 0x%04X\n", m); fflush(stdout); }
++                      int n = (int)strtol(rest, &rest, 0);
++                      unsigned a=128,b=128,c=128,d=128;
++                      int fields = sscanf(rest,"%u %u %u %u",&a,&b,&c,&d);
++                      int analog = fields == 4 && a<=255 && b<=255 && c<=255 && d<=255;
++                      if ((fields == EOF || fields == 0 || analog) && (m || analog)) {
++                          held_mask = m; held_n = n > 0 ? n : 40;
++                          held_sticks = analog;
++                          stick_values[0]=(u8)a;stick_values[1]=(u8)b;
++                          stick_values[2]=(u8)c;stick_values[3]=(u8)d;
++                          printf("[cellPad] PAD_FILE press 0x%04X%s\n", m,analog ? " with sticks" : "");fflush(stdout);
++                      }
+                   }
+                   fclose(f);
+                   if (held_n > 0) { FILE* w = fopen(pf_path, "wb"); if (w) fclose(w); }
+@@ -693,7 +706,10 @@
+           }
+           if (held_n > 0) { held_n--;
+               data->button[CELL_PAD_BTN_OFFSET_DIGITAL1] |= (u16)(held_mask & 0xFF);
+-              data->button[CELL_PAD_BTN_OFFSET_DIGITAL2] |= (u16)((held_mask >> 8) & 0xFF); }
++              data->button[CELL_PAD_BTN_OFFSET_DIGITAL2] |= (u16)((held_mask >> 8) & 0xFF);
++              file_stick_active = held_sticks;
++              memcpy(file_sticks,stick_values,sizeof file_sticks);
++          }
+       } }
+ 
+     /* Analog sticks */
+@@ -748,6 +764,12 @@
+     data->button[CELL_PAD_BTN_OFFSET_ANALOG_RIGHT_Y] = hs->analog_ry;
+     data->button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_X]  = hs->analog_lx;
+     data->button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_Y]  = hs->analog_ly;
++    if (file_stick_active) {
++        data->button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_X] = file_sticks[0];
++        data->button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_Y] = file_sticks[1];
++        data->button[CELL_PAD_BTN_OFFSET_ANALOG_RIGHT_X] = file_sticks[2];
++        data->button[CELL_PAD_BTN_OFFSET_ANALOG_RIGHT_Y] = file_sticks[3];
++    }
+ 
+     /* Pressure-sensitive buttons (only meaningful if PRESS_ON) */
+     if (setting & CELL_PAD_SETTING_PRESS_ON) {

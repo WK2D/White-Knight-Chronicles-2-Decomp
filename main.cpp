@@ -558,6 +558,8 @@ static void harness_guest_caller(uint32_t opd, uint64_t a0, uint64_t a1,
 
 #ifdef WKC2_BUILD_SELF_TESTS
 int wkc2_test_spu_title(int selected);
+extern "C" int wkc2_test_spu_dma_poll(int expect_halt);
+extern "C" int wkc2_test_pad_file(const char* path);
 #endif
 
 int main(int argc, char** argv)
@@ -565,6 +567,10 @@ int main(int argc, char** argv)
 #ifdef WKC2_BUILD_SELF_TESTS
     if (argc == 3 && !strcmp(argv[1], "--test-spu-title"))
         return wkc2_test_spu_title(atoi(argv[2]));
+    if (argc == 3 && !strcmp(argv[1], "--test-spu-dma-poll"))
+        return wkc2_test_spu_dma_poll(atoi(argv[2]));
+    if (argc == 3 && !strcmp(argv[1], "--test-pad-file"))
+        return wkc2_test_pad_file(argv[2]);
 #endif
     // This title's image registry contains no YDKJ CRI media task.
 #ifdef _WIN32

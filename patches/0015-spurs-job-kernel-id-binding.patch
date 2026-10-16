@@ -1,7 +1,8 @@
 diff --git a/runtime/spu/spu_context.h b/runtime/spu/spu_context.h
+index 8d8e4aa..48d57c2 100644
 --- a/runtime/spu/spu_context.h
 +++ b/runtime/spu/spu_context.h
-@@ -390,7 +390,15 @@
+@@ -390,8 +390,16 @@ typedef struct spu_context {
       * manager then ran its buffer loop a second time on the job's registers
       * and died in its own assert (the song-freeze). */
      uint32_t drain_ret_pc;
@@ -11,16 +12,18 @@ diff --git a/runtime/spu/spu_context.h b/runtime/spu/spu_context.h
 +    uint32_t spurs_job_mode;
 +    uint32_t spurs_job_spu_num;
  } spu_context;
-+
+ 
 +/* Native binding for the standard cellSpursGetSpuId library routine. */
 +u128 spu_spurs_job_get_spu_id(spu_context* ctx);
- 
++
  /* Reserved LS addresses (inside the kernel area, below the 0xA00 policy-module
   * base) that the HLE kernel plants as exitToKernelAddr / selectWorkloadAddr in
+  * the SpursKernelContext. A policy module branching to them is performing a
 diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
+index 0dba900..737d0a4 100644
 --- a/runtime/spu/spurs_job.c
 +++ b/runtime/spu/spurs_job.c
-@@ -339,6 +339,11 @@
+@@ -339,6 +339,11 @@ int spu_run_spurs_job(spu_lifted_entry_fn entry, int image_id,
      spu_context ctx;
      spu_context_init(&ctx, 0);
      ctx.image_id = image_id;
@@ -32,7 +35,7 @@ diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
      memcpy(ctx.ls, ls, SPU_LS_SIZE);
      ctx.gpr[1]._u32[0] = (stack_top - 16u) & ~15u;   /* SPU stack grows down */
      /* Link register: where the job returns when it is done. The job manager
-@@ -407,3 +412,18 @@
+@@ -407,3 +412,18 @@ int spu_run_spurs_job(spu_lifted_entry_fn entry, int image_id,
      free(ls);
      return 0;
  }
@@ -52,13 +55,13 @@ diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
 +}
 +
 diff --git a/tools/spu_lifter.py b/tools/spu_lifter.py
+index bfc9af4..2e535e7 100644
 --- a/tools/spu_lifter.py
 +++ b/tools/spu_lifter.py
-@@ -493,6 +493,20 @@
-                       start: int, end: int) -> LiftedFunction:
+@@ -494,6 +494,20 @@ class SPULifter:
          func = LiftedFunction(name=f"{self.prefix}spu_func_{start:08X}",
                                start_addr=start, end_addr=end)
-+
+ 
 +        # Canonical cellSpursGetSpuId: kernel-context load, lane selection,
 +        # return. Native job staging uses LS 0 for PIC job code; the real
 +        # kernel lives below the job on hardware. Bind this platform routine
@@ -72,6 +75,7 @@ diff --git a/tools/spu_lifter.py b/tools/spu_lifter.py
 +                "        SPU_RET(ctx);",
 +                "    }",
 +            ])
- 
++
          internal: set[int] = set()
          for insn in insns:
+             if insn.addr < start or insn.addr >= end:

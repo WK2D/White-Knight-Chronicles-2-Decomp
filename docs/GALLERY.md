@@ -8,22 +8,35 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-**Current status:** the native title screen renders with New Game, Continue,
-Options and an animated background. AC-3 and LPCM audio decode, and idle startup
-enters the attract movie. New Game descriptions and selection dialogs are now
-readable, and White Knight Chronicles I reaches Customize Avatar. The 3D room
-now renders with normal depth testing. Avatar body geometry now appears,
-including arms, hands, trousers and boots. Packed normals and fragment source
-modifiers now restore face shading and textured clothing. Full visual fidelity
-remains unverified.
-Starting gameplay and save/load remain unverified;
-complete audio fidelity and timing against original hardware remain unverified.
+**Current status:** the native Vulkan build accepts the WKC1 avatar, advances
+through the opening cutscenes and reaches the live town view. Leonard, NPCs,
+the minimap and a save crystal are visible; pause/resume responds to input.
+Stretched geometry and corrupt NPC surfaces remain. Movement, camera control,
+combat and save/load have not been verified. Complete audio fidelity and timing
+against original hardware also remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
+Each dated entry records what was verified at that checkpoint; later entries
+supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-16 — WKC1 town world view
+
+The native Vulkan build now reaches the town after avatar acceptance and the
+opening cutscenes. Leonard, the surrounding buildings, NPC names, minimap and
+save crystal appear in live 3D. Pause/resume input was checked separately in
+the same run. Fixing a runtime cutoff that halted valid SPU completion-label
+polling lets this run pass the previous loading stall.
+
+There are still obvious stretched triangles and corrupt NPC surfaces, visible
+in this unchanged readback. Movement, camera control, combat and save/load
+remain unverified. This is a world-view milestone, not a playable-port claim.
+The 1920×1080 display readback contains the game's 1280×720 scene.
+
+![Native WKC1 town showing Leonard, NPCs, minimap and save crystal, with visible geometry faults](../verification/screenshots/2026-10-16-native-wkc1-town.png)
 
 ## 2026-10-16 — Vulkan avatar colours restored
 
-The experimental Vulkan renderer now shows the WKC1 avatar and room without the
+The initial Vulkan colour-feedback fix shows the WKC1 avatar and room without the
 red tint seen in its first build. A post-processing draw reads the colour target
 it is updating; preserving the preceding pixels in a separate GPU image restores
 the missing colour channels. The entered name is retained. This is live 3D
@@ -156,8 +169,9 @@ A simulated CROSS press through the controller path selects English and advances
 
 ## Evidence and updates
 
-All images are 1280 × 720. Every pixel was compared with the original BMP readback
-before publication. The [capture manifest](../verification/gallery.json) records
+D3D12 captures are 1280 × 720; Vulkan display captures are 1920 × 1080 and
+contain the game's 1280 × 720 scene. Every published pixel was compared with
+the original BMP or PPM GPU readback before publication. The [capture manifest](../verification/gallery.json) records
 source and PNG hashes. Full probe logs and original captures remain private.
 
 New verified visual milestones will be added here as development progresses.

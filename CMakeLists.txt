@@ -312,9 +312,11 @@ option(WKC2_BUILD_TESTS "Build port-specific regression tests" ON)
 if(WKC2_BUILD_TESTS)
     enable_testing()
     # Exercise the linked channel implementation without loading game files.
-    target_sources(${PROJECT_NAME} PRIVATE tests/spu_title_test.cpp)
-    set_source_files_properties(tests/spu_title_test.cpp PROPERTIES
+    target_sources(${PROJECT_NAME} PRIVATE tests/spu_title_test.cpp tests/spu_dma_poll_test.c tests/pad_file_test.c)
+    set_source_files_properties(tests/spu_title_test.cpp tests/spu_dma_poll_test.c tests/pad_file_test.c PROPERTIES
         INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/runtime/spu")
+    set_source_files_properties(tests/pad_file_test.c PROPERTIES
+        INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/runtime/spu;${PS3RECOMP_DIR}/libs/input")
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS WKC2_BUILD_SELF_TESTS)
     foreach(cri_id IN ITEMS -1 22 23)
         add_test(NAME wkc2_spu_title_${cri_id}
@@ -322,6 +324,16 @@ if(WKC2_BUILD_TESTS)
         set_tests_properties(wkc2_spu_title_${cri_id} PROPERTIES
             ENVIRONMENT "SPU_CRI_IMAGE=${cri_id}" TIMEOUT 10)
     endforeach()
+    add_test(NAME wkc2_spu_dma_poll COMMAND ${PROJECT_NAME} --test-spu-dma-poll 0)
+    set_tests_properties(wkc2_spu_dma_poll PROPERTIES ENVIRONMENT "SPU_DMA_REPEAT_LIMIT=0" TIMEOUT 10)
+    add_test(NAME wkc2_spu_dma_poll_default
+        COMMAND ${CMAKE_COMMAND} -E env --unset=SPU_DMA_REPEAT_LIMIT $<TARGET_FILE:${PROJECT_NAME}> --test-spu-dma-poll 0)
+    set_tests_properties(wkc2_spu_dma_poll_default PROPERTIES TIMEOUT 10)
+    add_test(NAME wkc2_spu_dma_repeat_diagnostic COMMAND ${PROJECT_NAME} --test-spu-dma-poll 1)
+    set_tests_properties(wkc2_spu_dma_repeat_diagnostic PROPERTIES ENVIRONMENT "SPU_DMA_REPEAT_LIMIT=8" TIMEOUT 10)
+    add_test(NAME wkc2_pad_file
+        COMMAND ${PROJECT_NAME} --test-pad-file "${CMAKE_BINARY_DIR}/pad-input-fixture.txt")
+    set_tests_properties(wkc2_pad_file PROPERTIES TIMEOUT 10)
     find_package(Threads REQUIRED)
     add_executable(wkc2_osk_test tests/osk_test.cpp osk.cpp)
     target_include_directories(wkc2_osk_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")

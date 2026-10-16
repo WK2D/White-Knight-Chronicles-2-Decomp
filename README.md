@@ -20,10 +20,11 @@ establish that the game works.
 
 ## Progress
 
-[![Native Vulkan WKC1 avatar and room](verification/screenshots/2026-10-16-native-vulkan-avatar-colours.png)](docs/GALLERY.md)
+[![Native Vulkan WKC1 town with visible geometry faults](verification/screenshots/2026-10-16-native-wkc1-town.png)](docs/GALLERY.md)
 
-The latest image shows live 3D character creation. Earlier captures, including
-prerecorded opening-movie footage, are in the [gallery](docs/GALLERY.md).
+The latest image shows the live WKC1 town after the opening cutscenes, with
+Leonard, NPCs, the minimap and a save crystal visible. Stretched geometry and
+corrupt NPC surfaces remain. Earlier captures are in the [gallery](docs/GALLERY.md).
 
 So far the native build:
 
@@ -36,9 +37,12 @@ So far the native build:
   and boots, with **face shading and textured clothing**;
 - retains a name entered through native text entry through Quick Start to the
   **final avatar Review**;
-- enters the **WKC1 opening movie** after avatar confirmation.
+- accepts the avatar and enters the **WKC1 opening movie**;
+- advances through the opening cutscenes to the **live WKC1 town**, with NPCs,
+  the minimap and a save crystal visible, and responds to pause/resume input.
 
-Full visual fidelity, interactive gameplay and save/load remain unverified.
+Town rendering still has obvious geometry and material faults. Movement, camera
+control, combat and save/load remain unverified; this is not yet a playable port.
 
 Vulkan is the primary Windows renderer. It now renders the avatar and room
 without its initial red tint after correcting colour-target feedback. D3D12
@@ -111,10 +115,13 @@ coverage report distinguishes handler presence from verified implementation.
 - **WKC1 avatar-customization UI:** renders and dismisses its introductory notice; the
   default male character is visible with face shading and textured clothing. Name entry
   is retained through Quick Start to final Review and the start-game confirmation. Full
-  visual fidelity and completed character creation remain unverified.
+  visual fidelity remains unverified. Avatar acceptance and entry into the town
+  have now been observed.
 - **Avatar confirmation enters the WKC1 opening movie:** verified with freshly
   regenerated PPU/SPU code. This does not establish interactive 3D gameplay.
-- **Scene, combat and save/load verification:** pending.
+- **WKC1 town world view and pause/resume:** observed on the native Vulkan build
+  after the opening cutscenes. Geometry and NPC materials remain visibly corrupt.
+- **Movement, camera control, combat and save/load verification:** pending.
 - **In-game keyboard with gamepad navigation, shared across Windows and macOS:**
   planned. The current Windows text-entry window is temporary.
 - **Apple Silicon build and testing:** pending.

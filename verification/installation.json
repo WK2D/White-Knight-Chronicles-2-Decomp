@@ -29,12 +29,14 @@
   "title_screen_verified": false,
   "gameplay_verified": false,
   "save_load_verified": false,
-  "next_failure": "PAMF reader initialization for the first logo movie returns an error and the guest aborts.",
   "repeat_validation": {
     "probe": "20261016-002047",
     "initial_emulated_hdd": "empty isolated directory",
     "detailed_tracing_enabled": false,
     "all_three_archives_match": true,
     "next_failure_reproduced": "PAMF initialization error; guest exit code 1"
-  }
+  },
+  "record_scope": "Historical installation-only checkpoint; title and movie failures here describe that run, not the current build. See rendering.json for later validation.",
+  "next_failure_at_time": "PAMF reader initialization for the first logo movie returns an error and the guest aborts.",
+  "later_pamf_failure_resolved": true
 }

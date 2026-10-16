@@ -12,7 +12,7 @@ interpreter-free port or a recovered, readable version of the original source.
 - The SPU build extracts and lifts 23 image/job inputs, compiles their generated
   C, and registers compiled entries by image fingerprint.
 - The SDK also contains an SPU interpreter and a runtime-code microstep path.
-  The current run reached the interpreter from the microstep path in image 17.
+  An observed native run reached the interpreter from the microstep path in image 17.
   This is observed execution, not merely an unused interpreter in the source tree.
   Registering all 23 inputs does not prove every executed instruction was lifted.
   The proportion of execution using this fallback has not been measured.
