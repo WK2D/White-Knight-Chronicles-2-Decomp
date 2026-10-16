@@ -81,8 +81,9 @@ coverage report distinguishes handler presence from verified implementation.
 - Disc metadata and executable identified: complete.
 - Retail SELF decrypted locally using RPCS3 CLI: complete.
 - Function/import/SPU inventory: initial pass complete (56,580 lifted PPU functions;
-  five embedded SPU ELFs, 12 executable-backed raw SPURS jobs and five observed
-  asset-backed jobs; 22 registered SPU images).
+  five embedded SPU ELFs and 18 executable-backed raw SPURS jobs; 23 registered
+  SPU images). Clean extraction and static lifting reproduce all 23 image inputs
+  from the baseline executable without runtime captures.
 - Native executable build: passes on Windows using the pinned SDK, Clang 23.1.3,
   local Windows SDK/MSVC headers and DirectX-Headers. `tools/build.ps1` reproduces
   the build from this workspace's prepared inputs; `-Regenerate` also runs the lift.
@@ -137,12 +138,14 @@ raw-DEFLATE output byte for byte (256 bytes and seven 64 KB blocks). The hashes
 and validation method are in `decompression-verification.json`; private game
 bytes remain under `work/`. Temporary SPU capture instrumentation was removed.
 
-The heap-binary fix exposed two asset-backed jobs (fingerprints
+The heap-binary fix exposed two raw jobs (fingerprints
 687D4BB18564813A, 54,544 bytes; 164B23483A68CBEA, 1,968 bytes). Both have now
 been lifted and execute natively. The renderer worker passes its previous wait.
-`tools/import_spu_misses.py` validates newly dumped job fingerprints and wraps
-them in private ELF inputs for `build_spu_workloads.py`. Prepared image inputs,
-including these asset-backed captures, remain under `work/` for regeneration.
+Those jobs and four later discoveries have now been located byte-for-byte in
+the baseline executable and added to `tools/extract_raw_jobs.py`. They no longer
+require runtime captures for regeneration. `tools/import_spu_misses.py` validates
+newly dumped job fingerprints during further scene research. All original game
+bytes and generated game code remain in the private workspace.
 
 The D3D12 fragment path now binds all 16 RSX texture/sampler units. WKC2's UI
 shader uses units 4 and 7; the old four-unit root signature rejected its pipeline.

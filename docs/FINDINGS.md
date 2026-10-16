@@ -337,7 +337,7 @@ they wrote the correct geometry or commands. The body remains incomplete.
 Reviewing [Drakengard 3's native port](https://github.com/soyjxck/dod3-recomp/blob/f7d71501ae33aa4b395c6bbf69545f220d4797b3/docs/TECHNICAL.md)
 identified a directly applicable runtime assumption: several SDK paths treat
 ordinal image 22 as YDKJ's CRI task. Image IDs depend on each title's generated
-registry. WKC's image 22 is a different asset-backed program, so that ordinal
+registry. WKC's image 22 is a different raw SPURS program, so that ordinal
 must not enable another game's special context, arguments or bootstrap EXIT.
 Patch 0026 adapts the fork's configurable CRI image selection and disables it
 for this runner. All 25 checks pass, including three cases exercising the actual
@@ -413,6 +413,21 @@ centred virtual sticks; disabling keyboard fallback alone had left the test pad'
 sticks off-centre and rotated the camera in the earlier diagnostic run.
 Full visual fidelity, completed character creation, gameplay and save/load remain
 unverified.
+
+## Reproducing the SPU inputs from the executable
+
+Six jobs initially discovered through runtime captures were described as
+asset-backed. Direct binary comparison corrects that attribution: every byte
+of all six appears in a file-backed segment of the pinned baseline executable.
+The extraction table now includes all 18 observed raw jobs, alongside the five
+embedded SPU ELFs. The newly observed 18,784-byte job is included as well.
+
+A clean directory, populated only from that executable by the public extraction
+scripts, contains 23 images. Their complete SHA-256 multiset matches the prepared
+registry inputs exactly, with no missing or additional images. Static lifting
+of all 23 fresh inputs succeeds. Runtime captures are therefore unnecessary for
+regenerating the known SPU input set. A clean full build and native boot comparison
+remain to be checked; further scenes may expose additional jobs.
 
 ## Character-name input
 

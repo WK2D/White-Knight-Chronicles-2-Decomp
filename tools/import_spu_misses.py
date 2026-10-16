@@ -1,4 +1,4 @@
-"""Wrap newly observed asset-backed SPU jobs for the next static lift.
+"""Wrap newly observed raw SPU jobs for the next static lift.
 
 Inputs are private dumps produced by SPU_DUMP_MISS during a native probe.
 Content fingerprints are checked before import. Existing registered jobs are

@@ -5,6 +5,7 @@ addresses and lengths below come from actual job descriptors in boot logs.
 Wrapped PT_LOAD bytes match the raw binary fingerprint used at runtime.
 """
 import argparse
+import hashlib
 from pathlib import Path
 import sys
 
@@ -19,12 +20,16 @@ from wrap_spu_elf import wrap
 
 elf = ELFFile(str(a.elf)); elf.load()
 data = a.elf.read_bytes()
+if hashlib.sha256(data).hexdigest() != '333400e0b0915e3008a22f29daf95ed2c9b03f3c2a2787cf5705222d73a5ceeb':
+    raise ValueError('Expected the pinned BLUS30784 v01.00 executable')
 a.images.mkdir(parents=True, exist_ok=True)
 for address, size in [
     (0x0121d800, 64656), (0x0122d500, 13968), (0x01230c00, 17552),
     (0x01235100, 73616), (0x01247100, 34704), (0x0124f900, 19616),
     (0x01254600, 24720), (0x0125a700, 25232), (0x01260a00, 9488),
     (0x01262f80, 43600), (0x0126da00, 20752), (0x01272b80, 53024),
+    (0x0127fb00, 16912), (0x01283d80, 67200), (0x01294400, 54544),
+    (0x012a1980, 1968), (0x012a2180, 18784), (0x012a6b00, 11856),
 ]:
     for segment in elf.program_headers:
         if segment.p_type == 1 and segment.p_vaddr <= address and address+size <= segment.p_vaddr+segment.p_filesz:

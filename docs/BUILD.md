@@ -39,11 +39,14 @@ No executable, asset or generated game source is distributed here.
 ./tools/probe.ps1 -Workspace <private-workspace> -Seconds 15
 ```
 
-`-Regenerate` analyzes and lifts the PPU plus embedded/executable-backed SPU jobs.
-Three additional asset-backed SPU jobs were captured during development; reproducing
-the most advanced boot currently requires private captures and the import workflow
-in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh disc-only
-build is therefore not yet a complete reproduction of the latest verified UI boot.
+`-Regenerate` analyzes and lifts the PPU plus five embedded SPU ELFs and 18 raw
+SPURS jobs. `tools/extract_raw_jobs.py` checks the pinned executable's SHA-256
+before extracting those jobs. Six jobs initially found through runtime captures
+were subsequently located byte-for-byte in that executable. A clean extraction
+and static lift now reproduces all 23 registered image inputs without captures.
+This verifies SPU input reproduction; a clean full build and boot comparison
+remains a separate check. `tools/import_spu_misses.py` is available for discovering
+additional jobs in future scenes.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies thirty numbered runtime patches idempotently
