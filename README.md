@@ -44,10 +44,11 @@ reveals the **Customize Avatar** screen. Correcting indexed triangle strips and
 primitive restart now renders the **3D room with normal depth testing**. Some
 avatar pieces appeared first; correcting SPU extended-range FNMS arithmetic now
 reveals the **avatar body geometry**, including arms, hands, trousers and boots.
-Face shading and clothing materials remain incorrect. Completed character
-creation, gameplay and save/load remain unverified.
+Correcting packed vertex normals and fragment source-range modifiers now also
+restores **face shading and textured clothing**. Full visual fidelity, completed
+character creation, gameplay and save/load remain unverified.
 
-[![Native avatar body geometry with remaining shading issues](verification/screenshots/2026-10-16-native-avatar-body.png)](docs/GALLERY.md)
+[![Native avatar with face shading and textured clothing](verification/screenshots/2026-10-16-native-avatar-shading.png)](docs/GALLERY.md)
 
 ## Workspace layout
 
@@ -91,7 +92,8 @@ coverage report distinguishes handler presence from verified implementation.
 - Title screen and menu input: verified on Windows.
 - Readable New Game and WKC1 selection dialogs: verified on Windows.
 - WKC1 avatar-customization UI: renders and dismisses its introductory notice;
-  the character model is not yet visible.
+  the default male character is visible with face shading and textured clothing.
+  Full visual fidelity and completed character creation remain unverified.
 - Scene, combat and save/load verification: pending.
 - Apple Silicon build and testing: pending.
 - GeoNet compatibility: separate later research; not established.

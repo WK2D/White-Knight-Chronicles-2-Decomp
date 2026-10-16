@@ -18,9 +18,11 @@
     "wkc1_selection": true,
     "continuous_movie_playback_scope": "LPCM startup logos, AC-3 title background and observed attract playback",
     "avatar_customization_ui": true,
-    "avatar_model_rendering": false,
+    "avatar_model_rendering": true,
     "avatar_body_geometry": true,
-    "avatar_material_and_face_shading": false
+    "avatar_material_and_face_shading": false,
+    "avatar_material_and_face_shading_improved": true,
+    "avatar_full_visual_fidelity": false
   },
   "captures": [
     {
@@ -779,6 +781,163 @@
     "capture_record_or_byte_limits_hit": false,
     "capture_io_errors": 0,
     "published_gallery_image": "screenshots/2026-10-16-native-avatar-body.png",
+    "character_creation_completed": false,
+    "gameplay_verified": false,
+    "save_load_verified": false
+  },
+  "vertex_cmp_regression": {
+    "sdk_patches": 29,
+    "regression_checks_passed": 27,
+    "format": "RSX CMP type 6, signed X11/Y11/Z10, big-endian word",
+    "nominal_size_one_expands_all_components": true,
+    "scale": "signed fields shifted by 5/5/6, divided by 32767; W=1",
+    "covers": [
+      "signed extrema",
+      "zero",
+      "negative one",
+      "distinct lanes",
+      "byte order",
+      "stride",
+      "frequency divide/modulo",
+      "disabled constant attribute"
+    ],
+    "original_fetch_negative_control_fails": true,
+    "semantics_reference": "https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexFetch.glsl"
+  },
+  "wkc1_cmp_scene_observation": {
+    "probe": "20261016-111904",
+    "sdk_patches": 29,
+    "regression_checks_passed": 27,
+    "wkc1_level1_selection_verified": true,
+    "confirmation_verified": true,
+    "clean_scene_capture_frame_counter": 13964,
+    "clean_scene_capture_operations": 509,
+    "callback_count": 589,
+    "callbacks_omitted": 0,
+    "introductory_notice_dismissed": true,
+    "blank_name_field": true,
+    "actual_type6_fetch_observed": true,
+    "sampled_live_format": "00001816",
+    "sampled_live_packed_word": "00200800",
+    "sampled_live_decoded": [
+      0,
+      -0.999054,
+      0,
+      1
+    ],
+    "captured_face_normal_attribute": [
+      0.9902645945549011,
+      -0.04297006130218506,
+      0.11719107627868652,
+      1
+    ],
+    "room_visible": true,
+    "avatar_body_geometry_visible": true,
+    "clothing_texture_detail_improved": true,
+    "face_shading_defects_remain": true,
+    "render_state_overrides_enabled": false,
+    "manually_stopped_after_observation": true,
+    "terminated_at_time_limit": false,
+    "last_reported_guest_flips": 13991,
+    "last_reported_presentation_calls": 13991,
+    "character_creation_completed": false,
+    "gameplay_verified": false,
+    "save_load_verified": false
+  },
+  "fragment_source_precision_regression": {
+    "sdk_patches": 30,
+    "regression_checks_passed": 28,
+    "existing_sdk_fragment_checks_passed": 39,
+    "synthetic_numerical_source_modifier_cases": 72,
+    "execution": "D3D11 WARP, compiled emitted HLSL, float render-target readback",
+    "source_slots": [
+      0,
+      1,
+      2
+    ],
+    "tested_precision_modes": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "covers": [
+      "swizzle",
+      "source range",
+      "ABS",
+      "negation",
+      "modifier order",
+      "third-source ABS",
+      "negative SAT-LG2-EX2-ADD lighting chain"
+    ],
+    "original_decoder_negative_control_fails": true,
+    "complete_half_register_arithmetic_implemented": false,
+    "semantics_reference": "https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp",
+    "clean_baseline_patch_application_verified": true,
+    "modified_sdk_file_count": 34
+  },
+  "face_fragment_precision_replay": {
+    "scope": "Isolated D3D11 hardware fragment replay; CPU vertex evaluation; t4 shadow texture replaced by constant one; not a full game frame",
+    "sample_groups": [
+      {
+        "packed_normals": false,
+        "source_precision": false,
+        "sample_count": 16,
+        "positive_rgb_count": 0
+      },
+      {
+        "packed_normals": true,
+        "source_precision": false,
+        "sample_count": 16,
+        "positive_rgb_count": 4
+      },
+      {
+        "packed_normals": false,
+        "source_precision": true,
+        "sample_count": 16,
+        "positive_rgb_count": 6
+      },
+      {
+        "packed_normals": true,
+        "source_precision": true,
+        "sample_count": 16,
+        "positive_rgb_count": 16
+      }
+    ],
+    "first_fault_before_normals_fix": "Normalization of near-zero tangent frame",
+    "first_fault_after_normals_fix": "LG2 of a negative term with ignored source saturation",
+    "lg2_source0_precision_mode": 4,
+    "raw_lg2_instruction_dword2": "0021C800",
+    "sample_corrected_rgba": [
+      0.403620243,
+      0.25437206,
+      0.222537905,
+      1
+    ],
+    "full_scene_validation": false
+  },
+  "wkc1_native_avatar_shading_observation": {
+    "probe": "20261016-113545",
+    "sdk_patches": 30,
+    "regression_checks_passed": 28,
+    "wkc1_level1_selection_verified": true,
+    "confirmation_verified": true,
+    "clean_scene_capture_frame_counter": 10893,
+    "clean_scene_capture_operations": 476,
+    "callback_count": 556,
+    "callbacks_omitted": 0,
+    "introductory_notice_dismissed": true,
+    "blank_name_field": true,
+    "centred_virtual_sticks": true,
+    "room_visible": true,
+    "full_default_male_avatar_visible": true,
+    "face_shading_improved": true,
+    "clothing_texture_detail_restored": true,
+    "full_visual_fidelity_verified": false,
+    "render_state_overrides_enabled": false,
+    "published_gallery_image": "screenshots/2026-10-16-native-avatar-shading.png",
     "character_creation_completed": false,
     "gameplay_verified": false,
     "save_load_verified": false

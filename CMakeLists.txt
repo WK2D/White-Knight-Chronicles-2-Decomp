@@ -307,6 +307,12 @@ if(WKC2_BUILD_TESTS)
             ENVIRONMENT "SPU_CRI_IMAGE=${cri_id}" TIMEOUT 10)
     endforeach()
     find_package(Threads REQUIRED)
+    add_executable(wkc2_vertex_fetch_test tests/vertex_fetch_test.c
+        "${PS3RECOMP_DIR}/libs/video/rsx_vertex_fetch.c")
+    target_include_directories(wkc2_vertex_fetch_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
+    add_test(NAME wkc2_vertex_fetch COMMAND wkc2_vertex_fetch_test)
+    set_tests_properties(wkc2_vertex_fetch PROPERTIES TIMEOUT 10)
     set(SPU_FP_FIXTURE "${CMAKE_BINARY_DIR}/spu-fp-fixture/spu_fp_vectors.h")
     add_custom_command(OUTPUT "${SPU_FP_FIXTURE}"
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spu_fp_fixture.py" "${SPU_FP_FIXTURE}"
@@ -328,6 +334,13 @@ if(WKC2_BUILD_TESTS)
     add_test(NAME wkc2_spurs_abi COMMAND wkc2_spurs_abi_test)
     set_tests_properties(wkc2_spurs_abi PROPERTIES TIMEOUT 10)
     if(WIN32)
+        add_executable(wkc2_fp_precision_test tests/fp_precision_test.cpp
+            "${PS3RECOMP_DIR}/libs/video/rsx_fp_decompiler.c")
+        target_include_directories(wkc2_fp_precision_test PRIVATE
+            "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
+        target_link_libraries(wkc2_fp_precision_test PRIVATE d3d11 d3dcompiler)
+        add_test(NAME wkc2_fp_precision COMMAND wkc2_fp_precision_test)
+        set_tests_properties(wkc2_fp_precision PROPERTIES TIMEOUT 60)
         add_executable(wkc2_spurs_job_test tests/spurs_job_test.c
             "${PS3RECOMP_DIR}/libs/spurs/cellSpurs.c")
         target_include_directories(wkc2_spurs_job_test PRIVATE

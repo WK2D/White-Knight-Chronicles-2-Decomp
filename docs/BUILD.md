@@ -46,13 +46,14 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies twenty-eight numbered runtime patches idempotently
-and runs twenty-six checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+SDAT archives. The build applies thirty numbered runtime patches idempotently
+and runs twenty-eight checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
 SPURS guard lifetime/notification behavior, ordered job-list dispatch and the
-native SPURS kernel-ID binding, plus vertex-program cache identity/lifetime and guest depth state.
+native SPURS kernel-ID binding, vertex-program cache identity/lifetime, guest depth
+state, packed vertex normals and fragment source precision.
 
 `tools/prepare_ffmpeg.py` obtains FFmpeg 8.1 public headers from the official source
 archive, checks SHA-256 `b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a`,
@@ -322,3 +323,21 @@ covering extended operands, zero, cancellation, exponent boundaries and random
 values. The native check compares all four lanes, totaling 28,396 results.
 This patch covers FNMS result bits; it does not add FPSCR exception flags or
 change the other floating-point operations.
+
+Patch 0029 decodes RSX type-6 CMP vertex attributes as one big-endian word
+containing signed X11/Y11/Z10 values. The fields expand by 5/5/6 bits and divide
+by 32767, with W=1, including when the format's nominal size is one packed word.
+The regression checks signed boundaries, distinct components, byte order,
+stride, frequency selection and disabled constant attributes. Optional
+`RSX_CMP_TRACE=1` logs at most four fetched samples per attribute; it observes
+the actual format, source word and converted vector without changing them.
+
+Patch 0030 restores the three fragment source-range modifiers encoded in DWORD2.
+The supported ranges are full, half-range, [-2,2], [-1,1] and [0,1]; mode 5
+remains a no-op. Saturation precedes ABS, signed range clamps follow ABS and
+negation is last. The third source's ABS bit is also decoded. These are range
+operations; this patch does not implement complete fp16 register arithmetic.
+The Windows regression executes 72 synthetic source/modifier programs through
+D3D11 WARP and compares float readbacks with independently calculated values.
+It also checks a negative lighting term through SAT, LG2, EX2 and ADD, where
+ignoring saturation previously generated a NaN. No game assets are used.

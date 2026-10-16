@@ -17,8 +17,8 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and twenty-six runtime regression checks | Compilation alone does not verify gameplay |
-| WKC1 reaches Customize Avatar | Readable UI, room and avatar body geometry; [capture](GALLERY.md) | Face/material shading incorrect; completed character creation, gameplay and save/load unverified |
+| Native Windows build succeeds | Clang build and twenty-eight runtime regression checks | Compilation alone does not verify gameplay |
+| WKC1 reaches Customize Avatar | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Full visual fidelity, completed character creation, gameplay and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -374,6 +374,43 @@ ordinary DMA payloads, including nonzero data, instead of a small zero-filled
 block. The gallery records the blank-name scene after dismissing the introductory
 notice. Face shading and clothing materials are still incorrect. This milestone
 does not verify full visual fidelity, completed character creation or gameplay.
+
+## Avatar normals and fragment shading
+
+The next captured face draw exposes two separate shading faults. Type-6 CMP
+attributes fall through to float decoding in the old shared vertex fetcher.
+One normal consequently becomes a tiny float with zero Y/Z components. The
+vertex program produces a nearly zero tangent frame and fragment normalization
+generates non-finite values. Patch 0029 adds signed 11/11/10 decoding with the
+expansion/scaling described by [RPCS3's vertex-fetch shader](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexFetch.glsl).
+The C implementation is independently written. A native follow-up confirms
+actual type-6 fetches and visibly restores clothing texture and detail, although
+the face still has dark shading defects.
+
+After correcting those inputs in an isolated replay, the first non-finite value
+moves to a different instruction: LG2 receives a negative lighting term because
+the source's [0,1] precision modifier was ignored. Patch 0030 decodes these
+modifiers and applies them in the order described by
+[RPCS3's fragment decompiler](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp).
+Its implementation was used to check semantics, without copying its code.
+LG2 itself retains its normal negative-input behavior.
+
+With both fixes, all 16 sampled face vertices produce positive finite RGB in the
+isolated hardware fragment replay, compared with zero of 16 before either fix.
+This replay uses CPU-evaluated vertex outputs and a constant shadow input; it is
+diagnostic evidence rather than full-scene validation. The synthetic numerical
+regression covers all three sources, six range modes, swizzle, ABS and negation,
+plus the negative LG2 lighting chain. The old decoder fails the same regression.
+All 28 port checks pass, and all 30 patches apply cleanly to the pinned SDK.
+
+The full native follow-up confirms the combined result in WKC1 Customize Avatar:
+the default male avatar now has a shaded face and textured clothing, with the
+room and full body visible under normal depth testing and culling. The gallery
+shows a blank name field after dismissing the introductory notice. This run uses
+centred virtual sticks; disabling keyboard fallback alone had left the test pad's
+sticks off-centre and rotated the camera in the earlier diagnostic run.
+Full visual fidelity, completed character creation, gameplay and save/load remain
+unverified.
 
 ## Update 1.01 and DLC integration
 

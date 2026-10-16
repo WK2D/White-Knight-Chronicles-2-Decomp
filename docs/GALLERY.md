@@ -9,12 +9,19 @@ Options and an animated background. AC-3 and LPCM audio decode, and idle startup
 enters the attract movie. New Game descriptions and selection dialogs are now
 readable, and White Knight Chronicles I reaches Customize Avatar. The 3D room
 now renders with normal depth testing. Avatar body geometry now appears,
-including arms, hands, trousers and boots. Face shading and clothing materials
-remain incorrect.
+including arms, hands, trousers and boots. Packed normals and fragment source
+modifiers now restore face shading and textured clothing. Full visual fidelity
+remains unverified.
 Starting gameplay and save/load remain unverified;
 complete audio fidelity and timing against original hardware remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
+
+## 2026-10-16 — Avatar face and clothing shading
+
+The native WKC1 character creator now shows a shaded face and textured clothing after correcting packed vertex normals and fragment source-range modifiers. The complete default male avatar is visible with normal depth testing and culling. Captured on the original version 1.00 baseline. Full visual fidelity, completed character creation, gameplay and save/load remain unverified.
+
+![Native Avatar face and clothing shading](../verification/screenshots/2026-10-16-native-avatar-shading.png)
 
 ## 2026-10-16 — Avatar body geometry
 

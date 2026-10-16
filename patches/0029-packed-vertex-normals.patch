@@ -1,0 +1,27 @@
+diff --git a/libs/video/rsx_vertex_fetch.c b/libs/video/rsx_vertex_fetch.c
+--- a/libs/video/rsx_vertex_fetch.c
++++ b/libs/video/rsx_vertex_fetch.c
+@@ -94,6 +94,23 @@
+         for (u32 k = 0; k < n; k++)
+             out[k] = (float)(s16)((p[k*2] << 8) | p[k*2+1]);
+         break;
++    case 6: { /* CMP: one BE word with signed X11/Y11/Z10 fields. */
++        u32 packed=((u32)p[0]<<24)|((u32)p[1]<<16)|((u32)p[2]<<8)|p[3];
++        s32 x=(s32)(packed & 0x7ffu); if(x & 0x400) x-=0x800;
++        s32 y=(s32)((packed>>11) & 0x7ffu); if(y & 0x400) y-=0x800;
++        s32 z=(s32)(packed>>22); if(z & 0x200) z-=0x400;
++        out[0]=(float)(x*32)/32767.0f;
++        out[1]=(float)(y*32)/32767.0f;
++        out[2]=(float)(z*64)/32767.0f;
++        out[3]=1.0f;
++        /* Optional bounded evidence of the actual format/raw source. */
++        { static int trace=-1; static u32 seen[16];
++          if(trace<0) trace=getenv("RSX_CMP_TRACE")!=NULL;
++          if(trace && idx>=0 && idx<16 && seen[idx]<4 && ++seen[idx])
++              fprintf(stderr,"[vertex-cmp] attr=%d fp=%08X format=%08X offset=%08X index=%u raw=%08X decoded=%g,%g,%g,%g\n",
++                  idx,st->shader_program,a->format,a->offset,vi,packed,out[0],out[1],out[2],out[3]); }
++        break;
++    }
+     case 7: /* UB256: u8 unnormalized */
+         for (u32 k = 0; k < n; k++) out[k] = (float)p[k];
+         break;

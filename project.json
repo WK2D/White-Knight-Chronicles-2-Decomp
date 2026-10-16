@@ -91,12 +91,15 @@
   },
   "native_avatar_customization_ui_verified": true,
   "native_avatar_customization_ui_scope": "WKC1 selection reaches Customize Avatar; controller input dismisses the introductory notice",
-  "native_avatar_model_rendering_verified": false,
+  "native_avatar_model_rendering_verified": true,
   "native_character_creation_completed_verified": false,
   "development_priority": "Baseline 01.00 native 3D rendering and gameplay, starting with White Knight Chronicles I",
   "native_character_creation_room_rendering_verified": true,
   "native_character_creation_room_rendering_scope": "WKC1 Customize Avatar room visible with normal guest depth testing and culling",
   "native_partial_avatar_rendering_verified": true,
   "native_avatar_body_geometry_verified": true,
-  "native_avatar_body_geometry_scope": "WKC1 Customize Avatar body geometry, including arms, hands, trousers and boots; normal depth/culling; face and clothing shading incorrect"
+  "native_avatar_body_geometry_scope": "WKC1 Customize Avatar body, including arms, hands, trousers and boots; normal depth/culling",
+  "native_avatar_model_rendering_scope": "Observed WKC1 default male avatar in Customize Avatar; full body, face and clothing visible with normal depth/culling",
+  "native_avatar_material_and_face_shading_improved_verified": true,
+  "native_avatar_full_visual_fidelity_verified": false
 }

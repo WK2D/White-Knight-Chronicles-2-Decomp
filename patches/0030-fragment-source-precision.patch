@@ -1,0 +1,81 @@
+diff --git a/libs/video/rsx_fp_decompiler.c b/libs/video/rsx_fp_decompiler.c
+--- a/libs/video/rsx_fp_decompiler.c
++++ b/libs/video/rsx_fp_decompiler.c
+@@ -310,10 +310,11 @@
+     int half;
+     int negate;
+     int abs;
++    u32 precision; /* source range modifier from DWORD2 */
+     char swz[5];    /* e.g. "xyzw" */
+ } Src;
+ 
+-static void decode_src(u32 w, int abs_bit, Src* s)
++static void decode_src(u32 w, int abs_bit, u32 precision, Src* s)
+ {
+     static const char comp[4] = {'x','y','z','w'};
+     s->type   = (w & FP_REG_TYPE_MASK) >> FP_REG_TYPE_SHIFT;
+@@ -321,6 +322,7 @@
+     s->half   = (w & FP_SRC_HALF) ? 1 : 0;
+     s->negate = (w & FP_SRC_NEGATE) ? 1 : 0;
+     s->abs    = abs_bit ? 1 : 0;
++    s->precision = precision;
+     for (int i = 0; i < 4; i++)
+         s->swz[i] = comp[(w >> (FP_SRC_SWZ_SHIFT + 2 * i)) & 3];
+     s->swz[4] = '\0';
+@@ -368,11 +370,29 @@
+     char swz[160];
+     snprintf(swz, sizeof(swz), "(%s).%s", base, s->swz);
+ 
+-    const char* pre = "";
+-    const char* post = "";
+-    if (s->abs)    { pre = "abs("; post = ")"; }
+-    if (s->negate) snprintf(buf, bufsz, "-(%s%s%s)", pre, swz, post);
+-    else           snprintf(buf, bufsz, "%s%s%s", pre, swz, post);
++    /* Precision is a source operation, separate from destination SAT.
++     * SATURATE precedes ABS; signed range clamps follow ABS. NEG is last.
++     * Mode 5 has no observed effect; reserved modes 6/7 stay unchanged. */
++    char ranged[192], absolute[208];
++    if (s->precision == 4)
++        snprintf(ranged, sizeof(ranged), "clamp(%s,0.0,1.0)", swz);
++    else
++        snprintf(ranged, sizeof(ranged), "%s", swz);
++    if (s->abs)
++        snprintf(absolute, sizeof(absolute), "abs(%s)", ranged);
++    else
++        snprintf(absolute, sizeof(absolute), "%s", ranged);
++    const char* limit = NULL;
++    if (s->precision == 1) limit = "65504.0";
++    if (s->precision == 2) limit = "2.0";
++    if (s->precision == 3) limit = "1.0";
++    if (limit)
++        snprintf(buf, bufsz, "%sclamp(%s,-%s,%s)%s",
++                 s->negate ? "-(" : "", absolute, limit, limit,
++                 s->negate ? ")" : "");
++    else
++        snprintf(buf, bufsz, "%s%s%s", s->negate ? "-(" : "",
++                 absolute, s->negate ? ")" : "");
+ }
+ 
+ /* Dest write-mask letters from OPDEST bits 9..12 (X..W). */
+@@ -518,9 +538,9 @@
+         else                         cmp_op = "==";  /* exec_eq only */
+ 
+         Src s0, s1, s2;
+-        decode_src(w1, w1 & FP_SRC0_ABS, &s0);
+-        decode_src(w2, w2 & FP_SRC1_ABS, &s1);
+-        decode_src(w3, 0,                &s2);
++        decode_src(w1, w1 & FP_SRC0_ABS, (w2 >> 19) & 7u, &s0);
++        decode_src(w2, w2 & FP_SRC1_ABS, (w2 >> 22) & 7u, &s1);
++        decode_src(w3, w3 & FP_SRC1_ABS, (w2 >> 25) & 7u, &s2);
+ 
+         /* Inline constant: any CONST source pulls the next 16 bytes as a
+          * float4 literal and advances past it. */
+@@ -539,7 +559,7 @@
+             has_k = 1;
+         }
+ 
+-        char a[200], b[200], c[200];
++        char a[288], b[288], c[288];
+         emit_src(
+             &s0, input_src, k, has_k, buffered, constant_slot,
+             a, sizeof(a));
