@@ -8,8 +8,12 @@
 uint8_t* vm_base;
 uint32_t g_spurs_job_ls_handle;
 static volatile LONG jobs_seen;
+static uint32_t job_addresses[512], descriptor_sizes[512];
 int spu_workload_dispatch_job(const uint8_t* image, uint32_t size,uint32_t ea,uint32_t desc) {
-    (void)image;(void)size;(void)ea;(void)desc;
+    (void)image;(void)size;
+    LONG index=InterlockedCompareExchange(&jobs_seen,0,0);
+    assert(index>=0 && index<512);
+    job_addresses[index]=ea;descriptor_sizes[index]=desc;
     InterlockedIncrement(&jobs_seen);return 0;
 }
 extern s32 cellSpursCreateJobChain(u64,u64,u64,u32,u32,u64,u32,u32);
@@ -61,7 +65,55 @@ int main(void) {
  assert(cellSpursCreateJobChain(0x100,0x8000,commands,128,1,0,1,1)==CELL_OK);
  assert(cellSpursRunJobChain(0x8000)==CELL_OK);
  assert(cellSpursJoinJobChain(0x8000)==CELL_OK);assert(jobs_seen==200);
- free(vm_base);puts("SPURS guard lifetime and wait tests passed");return 0;
+ // JOBLIST descriptors are published before releasing the guard. Each list
+ // carries its own descriptor size; preserve array order and following jobs.
+ const u32 list=0x5000,first=0x5100,chain=0xB000,guard=0xA000;
+ for(u32 stride=128;stride<=256;stride*=2) {
+  LONG initial=jobs_seen;
+  vm_write64(commands,guard|15);vm_write64(commands+8,list|6);
+  vm_write64(commands+16,job);vm_write64(commands+24,127);
+  vm_write64(list,0);vm_write64(list+8,0);
+  assert(cellSpursCreateJobChain(0x100,chain,commands,256,1,0,1,1)==CELL_OK);
+  assert(cellSpursJobGuardInitialize(chain,guard,1,1,1)==CELL_OK);
+  assert(cellSpursRunJobChain(chain)==CELL_OK);
+  Sleep(2);assert(jobs_seen==initial);
+  for(u32 i=0;i<3;++i) {
+   vm_write64(first+i*stride,binary);vm_write32(first+i*stride+8,0x00100000);
+  }
+  vm_write32(list,3);vm_write32(list+4,stride);vm_write64(list+8,first);
+  assert(cellSpursJobGuardNotify(guard)==CELL_OK);
+  assert(cellSpursJoinJobChain(chain)==CELL_OK);assert(jobs_seen==initial+4);
+  for(u32 i=0;i<3;++i) {
+   assert(job_addresses[initial+i]==first+i*stride);
+   assert(descriptor_sizes[initial+i]==stride);
+  }
+  assert(job_addresses[initial+3]==job && descriptor_sizes[initial+3]==256);
+ }
+ // An all-zero empty list is valid and still reaches its following job.
+ vm_write64(list,0);vm_write64(list+8,0);
+ vm_write64(commands,list|6);vm_write64(commands+8,job);vm_write64(commands+16,127);
+ LONG initial=jobs_seen;
+ assert(cellSpursCreateJobChain(0x100,chain,commands,256,1,0,1,1)==CELL_OK);
+ assert(cellSpursRunJobChain(chain)==CELL_OK);
+ assert(cellSpursJoinJobChain(chain)==CELL_OK);assert(jobs_seen==initial+1);
+ // Invalid size or overflowing array must stop before a later job executes.
+ const u32 bad_strides[]={0,48,512};
+ for(u32 i=0;i<4;++i) {
+  initial=jobs_seen;
+  vm_write32(list,3);vm_write32(list+4,i<3?bad_strides[i]:256);
+  vm_write64(list+8,i<3?first:UINT64_C(0xFFFFFF00));
+  assert(cellSpursCreateJobChain(0x100,chain,commands,256,1,0,1,1)==CELL_OK);
+  assert(cellSpursRunJobChain(chain)==CELL_OK);
+  assert(cellSpursJoinJobChain(chain)==CELL_OK);assert(jobs_seen==initial);
+ }
+ const u64 bad_lists[]={6,UINT64_C(0x100000006),UINT64_C(0xFFFFFFFFFFFFFFFE)};
+ for(u32 i=0;i<3;++i) {
+  initial=jobs_seen;vm_write64(commands,bad_lists[i]);
+  assert(cellSpursCreateJobChain(0x100,chain,commands,256,1,0,1,1)==CELL_OK);
+  assert(cellSpursRunJobChain(chain)==CELL_OK);
+  assert(cellSpursJoinJobChain(chain)==CELL_OK);assert(jobs_seen==initial);
+ }
+ free(vm_base);puts("SPURS guards and ordered job-list dispatch tests passed");return 0;
 }
 /* Guard tests use PPU memory with no running SPU reservations. Other SPURS
  * subsystems are outside this test and must never be invoked. */

@@ -142,6 +142,38 @@ next task is to identify the producer responsible for replacing it and verify
 its output. Advancing GET or inventing a label completion would skip pending
 work and would not establish correct gameplay.
 
+The next WKC1 probe records write provenance for the mapped command-buffer
+allocation. All three timeout samples identify SPU image 19 (fingerprint
+687D4BB18564813A), at the DMA-writing block beginning at PC 0xB00, as the last
+observed writer of the parked command. That transfer writes 704 bytes, beginning
+with the self-jump. The previous observed contents at that address were also
+written by image 19. This narrows the investigation to its command generation
+and the work that should link the resulting segments; it does not establish a
+root cause or validate the job's output. The observer covers lifted PPU stores,
+their atomic path and completed SPU DMA PUTs, with two records per word. Host
+bulk copies and other unobserved write paths remain outside its coverage.
+This probe was stopped after the repeated stall was captured. No new playable
+scene or screenshot milestone was obtained.
+
+The game also builds `JOBLIST` commands for this rendering pipeline. The SDK
+walker treated them as no-ops, so the jobs in those arrays never ran. Patch 0014
+dispatches the array entries in order using the list's descriptor size, with
+validation of nonempty descriptor sizes and address ranges. Tests cover guarded
+publication, 128/256-byte entries, order, a following single job, empty lists and
+invalid ranges/sizes. The previous walker fails the added list-dispatch check;
+the implementation passes all seventeen regression checks.
+
+A native WKC1 run with this fix reaches a list containing four 256-byte job
+descriptors. They reference a previously unregistered 67,200-byte SPU program
+(fingerprint 38DCC9863DD4E49F), now captured privately and statically lifted.
+Its strings reference Edge vertex processing. The lift discovers 562 functions,
+with 93.3% coverage and 98 undecoded words; those numbers alone do not verify
+execution or correct output. The next native WKC1 run records all four dispatches
+and returns. The graphics wait persists, still one submission behind, and the
+last observed writer of the parked command remains fingerprint 687D4BB18564813A.
+Job output correctness, character creation, gameplay and save/load remain
+unverified.
+
 ## Update 1.01 and DLC integration
 
 Planned scope includes the USA 1.01 update and matching DLC. Local package

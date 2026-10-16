@@ -15,7 +15,7 @@ def git(*args):
 root_files = {
     '.gitignore', '.gitattributes', 'README.md', 'LICENSE', 'LICENSE.ps3recomp', 'CMakeLists.txt',
     'project.json', 'decompression-verification.json', 'main.cpp', 'stubs.cpp',
-    'thread_diagnostics.cpp', 'windows_guids.c', 'lwcond.cpp', 'lfqueue.cpp', 'pamf.cpp', 'mpegps.hpp', 'dmux.cpp', 'vpost.cpp', 'adec.cpp', 'vdec.cpp',
+    'thread_diagnostics.cpp', 'graphics_diagnostics.cpp', 'windows_guids.c', 'lwcond.cpp', 'lfqueue.cpp', 'pamf.cpp', 'mpegps.hpp', 'dmux.cpp', 'vpost.cpp', 'adec.cpp', 'vdec.cpp',
 }
 extensions = {'tools': {'.py', '.ps1', '.java'}, 'tests': {'.cpp', '.c'},
               'patches': {'.patch'}, 'docs': {'.md'}}

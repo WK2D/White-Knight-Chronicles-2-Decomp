@@ -145,6 +145,8 @@ void wkc2_dump_threads(void);
 void wkc2_dump_dmux(void);
 void wkc2_dump_adec(void);
 void wkc2_dump_vdec(void);
+void wkc2_init_graphics_writers(void);
+void wkc2_dump_graphics_writers(uint32_t);
 void wkc2_register_pamf(void);
 void wkc2_register_dmux(void);
 void wkc2_register_vpost(void);
@@ -260,6 +262,7 @@ extern "C" void wkc2_observe_graphics_wait(ppu_context* ctx)
     uint32_t put = vm_read32(control), get = vm_read32(control + 4);
     fprintf(stderr, "[graphics-wait] object=%08X expected=%08X label48=%08X get=%08X put=%08X ref=%08X\n",
         object, vm_read32(object + 0x30), vm_read32(label), get, put, vm_read32(control + 8));
+    wkc2_dump_graphics_writers(cellGcmResolveIO(get));
     for (unsigned end = 0; end < 2; ++end) {
         uint32_t center = end ? put : get;
         for (int k = -8; k < 24; ++k) {
@@ -574,6 +577,7 @@ int main(int argc, char** argv)
     cellGame_init_from_paramsfo(sfo_path);
 
     ppu_recomp_register();   /* lifted function table -> address map */
+    wkc2_init_graphics_writers();
     ps3_load_prx_modules();  /* this game's lifted system PRX, if it has any */
     ppu_hle_init();          /* firmware import NID -> HLE handlers */
     wkc2_register_lwcond();  /* register before the SDK's fallback ctx handlers */

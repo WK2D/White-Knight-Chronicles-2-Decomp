@@ -1,0 +1,52 @@
+diff --git a/libs/spurs/cellSpurs.c b/libs/spurs/cellSpurs.c
+--- a/libs/spurs/cellSpurs.c
++++ b/libs/spurs/cellSpurs.c
+@@ -2653,6 +2653,39 @@
+         if (op == 1) { pc = (u32)(cmd & ~7ull); continue; }   /* RESET_PC */
+         if (op == 3) { pc = (u32)(cmd & ~7ull); continue; }   /* NEXT     */
+         if (op == 4) { ret_pc = pc + 8; pc = (u32)(cmd & ~7ull); continue; }  /* CALL */
++        if (op == 6) {                              /* JOBLIST */
++            /* Guest ABI: BE32 count, BE32 descriptor size, BE64 array EA.
++             * The list descriptor is read after the preceding guard opens,
++             * when the producer has published its descriptors. */
++            u64 list_ea = cmd & ~7ull;
++            if (!list_ea || list_ea > UINT64_C(0xFFFFFFF0)) {
++                fprintf(stderr, "[cellSpurs] chain 0x%08X: invalid JOBLIST address\n", jc_ea);
++                return;
++            }
++            u32 count = vm_read32((u32)list_ea);
++            u32 stride = vm_read32((u32)list_ea + 4);
++            u64 first = vm_read64((u32)list_ea + 8);
++            /* Empty lists can be all zero. Nonempty lists must fit the guest
++             * address space and the chain's maximum descriptor size. */
++            if (count && (!first || (first & 15) || stride > size_desc ||
++                (stride != 64 && (!stride || (stride & 127) || stride > 1024)) ||
++                first >= UINT64_C(0x100000000) ||
++                first + (u64)count * stride > UINT64_C(0x100000000))) {
++                fprintf(stderr, "[cellSpurs] chain 0x%08X: invalid JOBLIST count=%u stride=%u\n",
++                        jc_ea, count, stride);
++                return;
++            }
++            { static int logs;
++              if (count && logs++ < 8)
++                  fprintf(stderr, "[cellSpurs] JOBLIST chain=%08X count=%u stride=%u first=%08X\n",
++                          jc_ea, count, stride, (u32)first); }
++            for (u32 i = 0; i < count; ++i) {
++                if (jc_stopping(jc_ea)) return;
++                jc_run_one_job((u32)(first + (u64)i * stride), jobs++, stride);
++            }
++            if (count) idle = 0;
++            pc += 8; continue;
++        }
+         if (op == 7) {
+             if (ext == (7 | (15 << 3))) {                     /* END */
+                 printf("[cellSpurs] chain 0x%08X: END after %d job(s)\n", jc_ea, jobs);
+@@ -2673,7 +2706,7 @@
+             pc += 8; continue;
+         }
+         /* NOP(0) / SYNC+LWSYNC(2, one virtual SPU: nothing to wait for) /
+-         * FLUSH(5) / JOBLIST(6, nested arrays TODO) / SET_LABEL */
++         * FLUSH(5) / SET_LABEL */
+         pc += 8;
+     }
+     printf("[cellSpurs] chain 0x%08X: 4096 commands with no job run after %d "

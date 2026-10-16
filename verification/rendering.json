@@ -133,5 +133,52 @@
     "get_points_to_self_jump": true,
     "producer_output_correctness_verified": false,
     "gameplay_verified": false
+  },
+  "wkc1_command_writer_trace": {
+    "probe": "20261016-040951",
+    "matching_timeout_samples": 3,
+    "expected_label": 16715,
+    "observed_label": 16714,
+    "get_points_to_self_jump": true,
+    "last_observed_writer": {
+      "spu_image": 19,
+      "fingerprint": "687D4BB18564813A",
+      "pc_block": "00000B00",
+      "transfer_bytes": 704
+    },
+    "root_cause_verified": false,
+    "job_output_correctness_verified": false,
+    "coverage": "Lifted PPU stores/atomics and completed SPU DMA PUTs; host bulk copies and other write paths unobserved",
+    "stopped_after_repeated_stall": true,
+    "gameplay_verified": false
+  },
+  "wkc1_job_list_dispatch": {
+    "probe": "20261016-042417",
+    "list_job_count": 4,
+    "descriptor_bytes": 256,
+    "previously_unregistered_program": {
+      "fingerprint": "38DCC9863DD4E49F",
+      "binary_bytes": 67200,
+      "lifted_functions": 562,
+      "static_coverage_percent": 93.3,
+      "undecoded_words": 98
+    },
+    "following_probe": "20261016-043249",
+    "observed_dispatch_return_pairs": 4,
+    "observed_return_codes": [
+      0
+    ],
+    "registered_spu_images": 21,
+    "following_graphics_wait": {
+      "matching_samples": 3,
+      "expected_label": 13006,
+      "observed_label": 13005,
+      "get_points_to_self_jump": true,
+      "last_observed_writer_fingerprint": "687D4BB18564813A"
+    },
+    "job_output_correctness_verified": false,
+    "gameplay_verified": false,
+    "regression_test": "ordered 128/256-byte lists, guarded publication, empty lists, following single job, invalid descriptor sizes and addresses",
+    "previous_walker_fails_regression": true
   }
 }

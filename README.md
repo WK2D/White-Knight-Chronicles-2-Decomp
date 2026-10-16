@@ -32,8 +32,10 @@ background. LPCM startup logos and AC-3 title/attract movies play through the na
 movie pipeline. See the [newest-first gallery](docs/GALLERY.md).
 Controller input opens New Game and selects White Knight Chronicles I. Description
 and dialog text now render correctly. WKC1 loading now passes the guard-registration failure and reaches a further SPU
-job that now runs and returns. A subsequent graphics/FIFO stall remains; gameplay
-and save/load remain unverified.
+job that now runs and returns. Ordered job-list dispatch now reaches four further
+geometry jobs that previously were skipped. Their output and the subsequent
+graphics/FIFO stall still need investigation; gameplay and save/load remain
+unverified.
 
 [![Native WKC1 selection](verification/screenshots/2026-10-16-wkc1-selection.png)](docs/GALLERY.md)
 
@@ -66,8 +68,8 @@ coverage report distinguishes handler presence from verified implementation.
 - Disc metadata and executable identified: complete.
 - Retail SELF decrypted locally using RPCS3 CLI: complete.
 - Function/import/SPU inventory: initial pass complete (56,580 lifted PPU functions;
-  five embedded SPU ELFs, 12 executable-backed raw SPURS jobs and three observed
-  asset-backed jobs; 20 registered SPU images).
+  five embedded SPU ELFs, 12 executable-backed raw SPURS jobs and four observed
+  asset-backed jobs; 21 registered SPU images).
 - Native executable build: passes on Windows using the pinned SDK, Clang 23.1.3,
   local Windows SDK/MSVC headers and DirectX-Headers. `tools/build.ps1` reproduces
   the build from this workspace's prepared inputs; `-Regenerate` also runs the lift.

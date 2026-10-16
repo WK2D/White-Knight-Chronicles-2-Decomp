@@ -11,6 +11,7 @@
 !/main.cpp
 !/stubs.cpp
 !/thread_diagnostics.cpp
+!/graphics_diagnostics.cpp
 !/windows_guids.c
 !/lwcond.cpp
 !/lfqueue.cpp

@@ -46,12 +46,12 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies twelve numbered runtime patches idempotently
+SDAT archives. The build applies fourteen numbered runtime patches idempotently
 and runs seventeen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
-SPURS guard lifetime/notification behavior.
+SPURS guard lifetime/notification behavior and ordered job-list dispatch.
 
 `tools/prepare_ffmpeg.py` obtains FFmpeg 8.1 public headers from the official source
 archive, checks SHA-256 `b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a`,
@@ -178,3 +178,17 @@ A successful return alone does not validate the job's output.
 wait timeout. It records at most three expected/current completion-label samples
 and command words around GET/PUT in the private probe log. It does not advance
 the command queue or change completion values.
+
+With that observation enabled, `WKC2_FIFO_REGION=<hex-EA>:<hex-byte-length>`
+also retains the two most recent observed writers for each word in the selected
+command-buffer allocation. Patch 0013 supplies separate PPU-store and SPU-DMA
+observation hooks. Timeout reports identify the PPU function/thread or SPU
+image/PC that wrote the parked command and nearby words. Tracking is opt-in,
+uses host memory proportional to the selected region, and can affect timing.
+Host bulk copies and other unobserved write paths are outside its coverage.
+
+Patch 0014 executes `JOBLIST` chain commands, using the list's guest-endian count,
+descriptor size and array address. Every descriptor runs through the existing
+SPU job dispatcher before the walker advances. The SPURS check covers 128-byte
+and 256-byte lists, guarded publication, list order, a following single job,
+empty lists and invalid sizes/ranges. The previous walker fails the list test.

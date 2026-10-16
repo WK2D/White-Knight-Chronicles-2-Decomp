@@ -1,0 +1,41 @@
+diff --git a/runtime/ppu/ppu_loader.cpp b/runtime/ppu/ppu_loader.cpp
+--- a/runtime/ppu/ppu_loader.cpp
++++ b/runtime/ppu/ppu_loader.cpp
+@@ -1744,8 +1744,11 @@
+     g_ww_lo = ww & ~15u;
+     g_ww_hi = (ww & ~15u) + len;
+ }
++/* Optional observation only; installed before guest threads start. */
++extern "C" void (*g_ppu_store_trace_hook)(uint32_t, uint32_t, int, void*) = nullptr;
+ static inline void barrier_watch_hit(uint32_t a, uint32_t v, int width, void* ra)
+ {
++    if (g_ppu_store_trace_hook) g_ppu_store_trace_hook(a, v, width, ra);
+     /* PPU_WVAL=<hexvalue>: log every PPU store that WRITES this value, wherever
+      * it lands. PPU_WWATCH answers "who writes this address"; when a bad value is
+      * copied from node to node down a list, that only ever catches the copy.
+diff --git a/runtime/spu/spu_channels.c b/runtime/spu/spu_channels.c
+--- a/runtime/spu/spu_channels.c
++++ b/runtime/spu/spu_channels.c
+@@ -135,6 +135,8 @@
+  * stream is, so the only evidence is the DMA that writes it. NULL until
+  * installed, so a title with no SPU-built FIFO pays nothing. */
+ void (*g_spu_put_hook)(uint32_t ea, uint32_t size) = 0;
++/* Separate diagnostic observer; never replaces the GCM consumer's hook. */
++void (*g_spu_put_trace_hook)(uint32_t, uint32_t, int, uint32_t, const uint8_t*) = 0;
+ 
+ void spu_halt(spu_context* ctx)
+ {
+diff --git a/runtime/spu/spu_dma.h b/runtime/spu/spu_dma.h
+--- a/runtime/spu/spu_dma.h
++++ b/runtime/spu/spu_dma.h
+@@ -673,6 +673,10 @@
+          * find the pushbuffer; NULL for every title that does not. */
+         { extern void (*g_spu_put_hook)(uint32_t ea, uint32_t size);
+           if (g_spu_put_hook) g_spu_put_hook((uint32_t)ea, size); }
++        { extern void (*g_spu_put_trace_hook)(uint32_t, uint32_t, int, uint32_t, const uint8_t*);
++          if (g_spu_put_trace_hook)
++              g_spu_put_trace_hook((uint32_t)ea, size, spu->image_id,
++                                   (uint32_t)spu->pc, (const uint8_t*)ls_ptr); }
+         /* Bink sync-area watch (armed by the PPU barrier probe): log SPU PUTs
+          * that touch the per-SPU lane counters. */
+         { extern uint32_t g_barrier_sync_watch;

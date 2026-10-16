@@ -170,6 +170,7 @@ add_executable(${PROJECT_NAME}
     vdec.cpp
     adec.cpp
     thread_diagnostics.cpp
+    graphics_diagnostics.cpp
     ${PS3RECOMP_SCAFFOLD}
     ${HLE_NID_TABLE}
     ${RECOMP_SOURCES}
