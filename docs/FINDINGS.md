@@ -303,6 +303,22 @@ not verify full character rendering, completed character creation or gameplay.
 All twenty-two regression checks pass. The next rendering investigation must
 distinguish missing mesh geometry, depth-prepass agreement and shader output.
 
+Further paired readbacks show that the examined skin depth passes write depth
+and their following color passes change pixels in small head regions. Native
+fragment-buffer captures now confirm that constants for six examined clothing,
+hair and skin draws are bit-identical to the constants decoded from their
+captured programs. This checks those payloads, not every live shader binding.
+
+Complete converted-vertex capture covers 614 draw payloads and 57,630 vertices
+in one character-creation frame. All 19 paired skin meshes cover the head region.
+A separate D3D11 GPU replay compares every vertex in those pairs: all 3,339
+depth-pass and color-pass clip positions match. This does not validate live
+D3D12 bindings or establish whether torso and limb draws were issued, filtered
+or never produced. The next step is to trace their submission and vertex-data
+production. Full avatar rendering remains unverified; there is no new gallery
+milestone from these diagnostics. Patch 0023 retains complete vertices and
+actual fragment constant buffers for this investigation. All 22 checks pass.
+
 ## Update 1.01 and DLC integration
 
 Planned scope includes the USA 1.01 update and matching DLC. Local package

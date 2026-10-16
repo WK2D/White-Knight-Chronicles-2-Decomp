@@ -46,7 +46,7 @@ in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh d
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
-SDAT archives. The build applies twenty-two numbered runtime patches idempotently
+SDAT archives. The build applies twenty-three numbered runtime patches idempotently
 and runs twenty checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
@@ -268,3 +268,12 @@ handling makes the regression fail.
 Optional `RSX_INDEX_TRACE=N` captures up to 64 indexed strip/fan input packets in
 `RSX_CAP_DIR`. Each contains the original indices, converted vertex attributes
 and input-state description. These files include game data and remain private.
+
+Patch 0023 extends private geometry captures with each draw's actual fragment
+constant buffer (`op_NNN.fragment-constants.bin`) and a state description in
+`fragment-inputs.txt`. The current host buffer stride is 2,304 bytes, including
+unused capacity. Set `RSX_CAP_GEOMETRY_FULL=1` alongside `RSX_CAP_GEOMETRY=1` to
+retain every converted vertex in `op_NNN.vertices-full.bin`; the original
+16-vertex sample files remain available. This observes completed-frame inputs
+without changing shaders, render states or draw order. Complete vertex buffers
+and fragment constants contain game data and remain private.

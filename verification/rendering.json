@@ -506,5 +506,83 @@
     "seconds_limit": 600,
     "last_reported_guest_flips": 10771,
     "last_reported_presentation_calls": 10771
+  },
+  "wkc1_fragment_input_observation": {
+    "probe": "20261016-091133",
+    "sdk_patches": 23,
+    "regression_checks_passed": 22,
+    "capture_frame_counter": 17307,
+    "capture_operations": 617,
+    "fragment_constant_buffer_bytes": 2304,
+    "sampled_draws": [
+      {
+        "op": 164,
+        "constant_count": 31,
+        "constant_bytes_identical": true,
+        "buffer_bytes": 2304
+      },
+      {
+        "op": 166,
+        "constant_count": 10,
+        "constant_bytes_identical": true,
+        "buffer_bytes": 2304
+      },
+      {
+        "op": 168,
+        "constant_count": 6,
+        "constant_bytes_identical": true,
+        "buffer_bytes": 2304
+      },
+      {
+        "op": 170,
+        "constant_count": 6,
+        "constant_bytes_identical": true,
+        "buffer_bytes": 2304
+      },
+      {
+        "op": 192,
+        "constant_count": 6,
+        "constant_bytes_identical": true,
+        "buffer_bytes": 2304
+      },
+      {
+        "op": 204,
+        "constant_count": 6,
+        "constant_bytes_identical": true,
+        "buffer_bytes": 2304
+      }
+    ],
+    "render_state_overrides_enabled": false,
+    "complete_avatar_body_visible": false,
+    "gameplay_verified": false,
+    "save_load_verified": false,
+    "terminated_at_time_limit": true,
+    "seconds_limit": 600,
+    "last_reported_guest_flips": 17383,
+    "last_reported_presentation_calls": 17383
+  },
+  "wkc1_complete_geometry_observation": {
+    "probe": "20261016-092501",
+    "sdk_patches": 23,
+    "regression_checks_passed": 22,
+    "capture_frame_counter": 12317,
+    "capture_operations": 617,
+    "complete_draw_payloads": 614,
+    "converted_vertices": 57630,
+    "skin_draw_pairs": 19,
+    "paired_skin_vertices": 3339,
+    "all_replayed_skin_clip_positions_match": true,
+    "gpu_replay_scope": "Separate D3D11 stream-output execution of captured vertex programs, constants and complete paired skin vertices; not live D3D12 binding validation",
+    "paired_skin_draws_cover_head_region": true,
+    "torso_and_limb_submission_root_cause_verified": false,
+    "render_state_overrides_enabled": false,
+    "complete_avatar_body_visible": false,
+    "new_gallery_milestone": false,
+    "gameplay_verified": false,
+    "save_load_verified": false,
+    "terminated_at_time_limit": true,
+    "seconds_limit": 600,
+    "last_reported_guest_flips": 12676,
+    "last_reported_presentation_calls": 12676
   }
 }

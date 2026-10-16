@@ -1,0 +1,58 @@
+diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
+--- a/libs/video/rsx_d3d12_backend.c
++++ b/libs/video/rsx_d3d12_backend.c
+@@ -1217,6 +1217,46 @@
+  * Frame sync helpers
+  * -----------------------------------------------------------------------*/
+ 
++static void cap_fragment_inputs(const char* dir, u32 ndraws)
++{
++    if (!getenv("RSX_CAP_GEOMETRY") || !s_d3d.vp_fpcb_mapped) return;
++    char path[512];
++    u32 par = (u32)(s_d3d.vp_parity ^ 1);
++    snprintf(path, sizeof path, "%s/fragment-inputs.txt", dir);
++    FILE* manifest = fopen(path, "w");
++    if (manifest) fprintf(manifest, "Per-draw host b1 bytes=%u; native little-endian float32\n", VP_FPCB_STRIDE);
++    for (u32 d = 0; d < ndraws && d < MAX_DRAWS; ++d) {
++        const D3D12DrawRecord* r = &s_d3d.draws[d];
++        if (r->is_clear || !r->is_vp || r->cb_slot >= MAX_DRAWS) continue;
++        snprintf(path, sizeof path, "%s/op_%03u.fragment-constants.bin", dir, d);
++        FILE* f = fopen(path, "wb");
++        if (f) {
++            fwrite((const u8*)s_d3d.vp_fpcb_mapped +
++                ((u64)par * MAX_DRAWS + r->cb_slot) * VP_FPCB_STRIDE,
++                1, VP_FPCB_STRIDE, f);
++            fclose(f);
++        }
++        if (manifest) fprintf(manifest,
++            "op%03u fp=%08X exp32=%d cb_slot=%u alpha=%08X reference=%08X depth=%08X cull=%u\n",
++            d, r->fp_addr, r->fp_exp32, r->cb_slot, r->alpha_ctl, r->alpha_ref, r->depth_key, r->cull);
++        if (getenv("RSX_CAP_GEOMETRY_FULL") && s_d3d.vp_vb_mapped) {
++            const u32 stride = 16u * 4u * sizeof(float);
++            u64 bytes = (u64)r->vertex_count * stride;
++            if ((u64)r->vb_byte_offset + bytes <= (u64)MAX_VERTICES * stride) {
++                snprintf(path, sizeof path, "%s/op_%03u.vertices-full.bin", dir, d);
++                f = fopen(path, "wb");
++                if (f) {
++                    fwrite((const u8*)s_d3d.vp_vb_mapped +
++                        (u64)par * MAX_VERTICES * stride + r->vb_byte_offset,
++                        1, (size_t)bytes, f);
++                    fclose(f);
++                }
++            }
++        }
++    }
++    if (manifest) fclose(manifest);
++}
++
+ static void wait_for_gpu(void)
+ {
+     u32 fi = s_d3d.frame_index;
+@@ -1690,6 +1730,7 @@
+     /* Manifest: every op in submission order with full state. */
+     snprintf(path, sizeof path, "%s/manifest.txt", dir);
+     FILE* mf = fopen(path, "w");
++    cap_fragment_inputs(dir, ndraws);
+     if (mf) {
+         fprintf(mf, "frame_count=%llu draws=%u backbuffer=%ux%u\n",
+                 (unsigned long long)s_d3d.frame_count, ndraws, s_d3d.width, s_d3d.height);
