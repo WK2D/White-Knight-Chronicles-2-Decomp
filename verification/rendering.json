@@ -50,6 +50,7 @@
   ],
   "checks": {
     "passed": [
+      "wkc2_spurs_job",
       "wkc2_vdec_decode",
       "wkc2_vpost",
       "wkc2_callback_stack",
@@ -67,7 +68,9 @@
       "wkc2_ac3_stereo",
       "wkc2_ac3_surround"
     ],
-    "event_queue_recycles": 2000
+    "event_queue_recycles": 2000,
+    "spurs_guard_lifetimes": 100,
+    "spurs_simultaneous_guards": 128
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -99,5 +102,12 @@
     "presentation_calls": 14360,
     "terminated_at_time_limit": true,
     "note": "Readable New Game dialogs and WKC1 selection confirmed. Loading stalls after a job points to an empty SPU binary source; playable scenes and save/load unverified."
+  },
+  "previous_guard_probe": {
+    "name": "20261016-024524",
+    "guest_flips": 17042,
+    "presentation_calls": 17042,
+    "stopped_after_failure_observed": true,
+    "note": "WKC1 passes guard exhaustion and reaches an unregistered nonempty 11856-byte SPU job. Main loop later reports graphics error; playable scenes unverified."
   }
 }

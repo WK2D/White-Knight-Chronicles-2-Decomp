@@ -40,17 +40,18 @@ No executable, asset or generated game source is distributed here.
 ```
 
 `-Regenerate` analyzes and lifts the PPU plus embedded/executable-backed SPU jobs.
-Two additional asset-backed SPU jobs were captured during development; reproducing
+Three additional asset-backed SPU jobs were captured during development; reproducing
 the most advanced boot currently requires private captures and the import workflow
 in `tools/import_spu_misses.py`, followed by `build_spu_workloads.py`. A fresh disc-only
 build is therefore not yet a complete reproduction of the latest verified UI boot.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies eleven numbered runtime patches idempotently
-and runs fifteen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs seventeen checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
-conditions, memory containers, LFQueue and event queues.
+conditions, memory containers, LFQueue, event queues, RSX texture formats and
+SPURS guard lifetime/notification behavior.
 
 `tools/prepare_ffmpeg.py` obtains FFmpeg 8.1 public headers from the official source
 archive, checks SHA-256 `b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a`,

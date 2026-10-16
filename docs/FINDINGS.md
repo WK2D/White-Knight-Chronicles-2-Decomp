@@ -17,7 +17,7 @@ Keep full traces, generated game code, assets and local paths in the private wor
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and sixteen runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and seventeen runtime regression checks | Compilation alone does not verify gameplay |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -115,11 +115,21 @@ the actual texture and using the shared decoder plus the uploaded DXGI format fi
 the observed menus. The build now runs the SDK texture-layout tests as well.
 
 White Knight Chronicles I was selected and confirmed through the controller path.
-Loading then attempts to dispatch a 258,688-byte SPU image whose captured source
-is entirely zero (fingerprint B31290CE3464E183). This is not valid evidence of a new
-program. The importer rejects empty images; no translated zero/stop placeholder
-is registered. The job descriptor/source memory needs investigation. The loading stall does not establish character creation or
-playable scenes. Missing imports and savedata callback errors remain open.
+The previous loading attempt dispatched a 258,688-byte all-zero image because
+its guard had never registered: the fixed host table was full and an unknown
+guard incorrectly released the chain. The importer rejects that empty capture.
+The runtime now allocates guard entries, tracks the owning chain, synchronizes
+notifications/reset/waits and releases entries after joining. It does not dispatch
+past an unknown guard. A cleanup-only fix still hit the 32-guard cap, confirming
+that simultaneous capacity mattered as well as lifetime.
+
+The regression test covers 100 create/run/shutdown/join cycles, two-notification
+waits, reset, queued notifications, 128 simultaneous guards and invalid guards.
+The previous implementation fails this test. The native WKC1 attempt now registers
+the formerly missing guards and reaches a real 11,856-byte SPU program
+(fingerprint 6AEA19F8490A2656). Its private static lift finds 123 functions and
+98.2% code coverage, with seven undecoded words; execution correctness remains
+unproven. Playable scenes and save/load are still unverified.
 
 ## Still unverified
 

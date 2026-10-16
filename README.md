@@ -16,8 +16,8 @@ The title menu now renders with New Game, Continue and Options over an animated
 background. LPCM startup logos and AC-3 title/attract movies play through the native
 movie pipeline. See the [newest-first gallery](docs/GALLERY.md).
 Controller input opens New Game and selects White Knight Chronicles I. Description
-and dialog text now render correctly. Loading WKC1 reaches a job whose binary source is empty; gameplay and save/load
-remain unverified.
+and dialog text now render correctly. WKC1 loading now passes the guard-registration failure and reaches a further SPU
+job. Gameplay and save/load remain unverified.
 
 [![Native WKC1 selection](verification/screenshots/2026-10-16-wkc1-selection.png)](docs/GALLERY.md)
 
@@ -50,8 +50,8 @@ coverage report distinguishes handler presence from verified implementation.
 - Disc metadata and executable identified: complete.
 - Retail SELF decrypted locally using RPCS3 CLI: complete.
 - Function/import/SPU inventory: initial pass complete (56,580 lifted PPU functions;
-  five embedded SPU ELFs, 12 executable-backed raw SPURS jobs and two observed
-  asset-backed jobs; 19 registered SPU images).
+  five embedded SPU ELFs, 12 executable-backed raw SPURS jobs and three observed
+  asset-backed jobs; 20 registered SPU images).
 - Native executable build: passes on Windows using the pinned SDK, Clang 23.1.3,
   local Windows SDK/MSVC headers and DirectX-Headers. `tools/build.ps1` reproduces
   the build from this workspace's prepared inputs; `-Regenerate` also runs the lift.
@@ -160,7 +160,7 @@ progressive YUV conversion, cropping and bilinear resizing. The build enables th
 SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
-Sixteen checks pass. The title screen and its menu render natively; see the gallery.
+Seventeen checks pass. The title screen and its menu render natively; see the gallery.
 
 Packed A4R4G4B4 font textures were excluded by the D3D12 binding filter, leaving
 previous artwork selected for text draws. The backend now records the current
@@ -169,9 +169,13 @@ with the uploaded resource's format. New Game description and confirmation text
 are readable. The suite also runs the SDK's texture layout, packed-format and
 component-remap checks.
 
-White Knight Chronicles I is the starting point for gameplay validation. Selecting
-and confirming it reaches a job with an empty binary source during loading.
-The source/descriptor must be investigated before loading can be tested further.
+White Knight Chronicles I is the starting point for gameplay validation. The old
+32-entry guard table filled while the game created several guards per live chain.
+An unknown guard then let an unprepared job run. Guards now use allocated entries,
+notifications/reset/waits are synchronized, and joining releases their owning
+chain's entries. Unknown guards stop before dispatch. Regression checks cover
+100 chain lifetimes and 128 simultaneous guards. The native run passes that
+failure and captures a further 11,856-byte SPU program for static translation.
 Gameplay, save/load and missing imports remain open.
 
 Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a

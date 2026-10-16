@@ -1,8 +1,7 @@
 diff --git a/libs/spurs/cellSpurs.c b/libs/spurs/cellSpurs.c
-index 5e3b510..d01a57a 100644
 --- a/libs/spurs/cellSpurs.c
 +++ b/libs/spurs/cellSpurs.c
-@@ -2156,6 +2156,7 @@ static struct {
+@@ -2156,6 +2156,7 @@
      u16 max_grab;
      int run_count;
      volatile long running;   /* 1 while a host thread walks this chain */
@@ -10,7 +9,7 @@ index 5e3b510..d01a57a 100644
  } s_jobchains[MAX_JOBCHAINS];
  
  static void jc_dump_commands(const char* tag, u32 ea, int max_words)
-@@ -2217,6 +2218,9 @@ static s32 jc_register(u32 jc_ea, u32 entry_ea, u16 size_desc, u16 max_grab,
+@@ -2217,6 +2218,9 @@
  {
      for (int i = 0; i < MAX_JOBCHAINS; i++) {
          if (!s_jobchains[i].jc_ea || s_jobchains[i].jc_ea == jc_ea) {
@@ -20,7 +19,16 @@ index 5e3b510..d01a57a 100644
              s_jobchains[i].jc_ea     = jc_ea;
              s_jobchains[i].entry_ea  = entry_ea;
              s_jobchains[i].size_desc = size_desc;
-@@ -2338,7 +2342,11 @@ static void jc_run_one_job(u32 job_ea, int idx, u32 size_desc)
+@@ -2226,7 +2230,7 @@
+         }
+     }
+     printf("[cellSpurs] %s: registry full\n", who);
+-    return CELL_OK;
++    return CELL_SPURS_TASK_ERROR_AGAIN;
+ }
+ 
+ s32 cellSpursCreateJobChainWithAttribute(u64 spurs_ea, u64 jc_ea, u64 attr_ea)
+@@ -2338,7 +2342,11 @@
        }
        _n++; }
  
@@ -33,15 +41,161 @@ index 5e3b510..d01a57a 100644
          static int _b = 0;
          if (_b++ < 4)
              printf("[cellSpurs]   job[%d]: implausible binary (ea=0x%08X size=%u) -- skipped\n",
-@@ -2467,15 +2475,23 @@ s32 cellSpursJobGuardReset(u64 guard_ea)
+@@ -2378,21 +2386,23 @@
+  * what makes "run this job when I say so" mean anything.
+  * -----------------------------------------------------------------------*/
+ 
+-#define MAX_JOBGUARDS 32
+-static struct {
+-    u32 ea;          /* guest CellSpursJobGuard address (128-byte aligned) */
+-    u32 count;       /* notifications still outstanding                    */
+-    u32 reset;       /* value to restore when autoReset is set             */
+-    u32 pending;     /* notifications received, not yet consumed        */
+-    u32 auto_reset;
+-    int active;
+-} s_jobguards[MAX_JOBGUARDS];
+-
+-static int jg_find(u32 ea)
+-{
+-    for (int i = 0; i < MAX_JOBGUARDS; i++)
+-        if (s_jobguards[i].active && s_jobguards[i].ea == ea) return i;
+-    return -1;
++typedef struct JobGuard {
++    u32 ea;
++    u32 chain_ea;
++    u32 count, reset, pending, auto_reset;
++    struct JobGuard* next;
++} JobGuard;
++/* Guards are guest objects, not one-per-workload slots. A title can keep
++ * multiple guards per chain, so the host registry has no fixed global cap. */
++static JobGuard* s_jobguards;
++static SRWLOCK s_jobguard_lock = SRWLOCK_INIT;
++
++/* Caller holds s_jobguard_lock. */
++static JobGuard* jg_find(u32 ea)
++{
++    for (JobGuard* g = s_jobguards; g; g = g->next)
++        if (g->ea == ea) return g;
++    return NULL;
+ }
+ 
+ /* cellSpursJobGuardInitialize(CellSpursJobChain* jobChain,
+@@ -2404,26 +2414,32 @@
+ s32 cellSpursJobGuardInitialize(u64 jc_ea, u64 guard_ea, u32 notify_count,
+                                 u32 request_spu_count, u32 auto_reset)
+ {
+-    (void)jc_ea; (void)request_spu_count;
++    (void)request_spu_count;
+     u32 ea = (u32)guard_ea;
+-    if (!ea) return CELL_SPURS_TASK_ERROR_NULL_POINTER;
+-
+-    int i = jg_find(ea);
+-    if (i < 0)
+-        for (i = 0; i < MAX_JOBGUARDS; i++) if (!s_jobguards[i].active) break;
+-    if (i >= MAX_JOBGUARDS) return CELL_SPURS_TASK_ERROR_AGAIN;
+-
+-    s_jobguards[i].ea         = ea;
+-    s_jobguards[i].count      = notify_count;
+-    s_jobguards[i].reset      = notify_count;
+-    s_jobguards[i].pending    = 0;
+-    s_jobguards[i].auto_reset = auto_reset;
+-    s_jobguards[i].active     = 1;
++    if (!ea || !jc_ea) return CELL_SPURS_TASK_ERROR_NULL_POINTER;
++    AcquireSRWLockExclusive(&s_jobguard_lock);
++
++    JobGuard* g = jg_find(ea);
++    if (!g) {
++        g = (JobGuard*)calloc(1, sizeof *g);
++        if (!g) {
++            ReleaseSRWLockExclusive(&s_jobguard_lock);
++            return CELL_ENOMEM;
++        }
++        g->next = s_jobguards;
++        s_jobguards = g;
++    }
++    g->ea = ea;
++    g->chain_ea = (u32)jc_ea;
++    g->count = g->reset = notify_count;
++    g->pending = 0;
++    g->auto_reset = auto_reset;
+ 
+     /* Mirror the count into guest memory. The SPU side reads the guard on
+      * hardware; keeping the two consistent costs nothing and makes a guest-side
+      * peek meaningful. */
+     vm_write32(ea, notify_count);
++    ReleaseSRWLockExclusive(&s_jobguard_lock);
+ 
+     printf("[cellSpurs] JobGuardInitialize(guard=0x%08X chain=0x%08X notify=%u "
+            "autoReset=%u)\n", ea, (u32)jc_ea, notify_count, auto_reset);
+@@ -2434,8 +2450,10 @@
+ s32 cellSpursJobGuardNotify(u64 guard_ea)
+ {
+     u32 ea = (u32)guard_ea;
+-    int i = jg_find(ea);
+-    if (i < 0) {
++    AcquireSRWLockExclusive(&s_jobguard_lock);
++    JobGuard* g = jg_find(ea);
++    if (!g) {
++        ReleaseSRWLockExclusive(&s_jobguard_lock);
+         printf("[cellSpurs] JobGuardNotify(0x%08X) -- unknown guard\n", ea);
+         return CELL_SPURS_TASK_ERROR_INVAL;
+     }
+@@ -2444,15 +2462,16 @@
+      * OBSERVED zero, which threw away any notify that arrived while the job
+      * was still running -- the title notified 6 times and the chain completed
+      * 2 laps, so the thread waiting on the other 4 completions never woke. */
+-    s_jobguards[i].pending++;
+-    { u32 remaining = (s_jobguards[i].pending >= s_jobguards[i].reset)
+-                    ? 0u : s_jobguards[i].reset - s_jobguards[i].pending;
+-      s_jobguards[i].count = remaining;
++    g->pending++;
++    { u32 remaining = (g->pending >= g->reset)
++                    ? 0u : g->reset - g->pending;
++      g->count = remaining;
+       vm_write32(ea, remaining); }
+     { static int _n = 0;
+       if (_n++ < 8)
+           printf("[cellSpurs] JobGuardNotify(0x%08X) -> %u remaining\n",
+-                 ea, s_jobguards[i].count); }
++                 ea, g->count); }
++    ReleaseSRWLockExclusive(&s_jobguard_lock);
      return CELL_OK;
  }
  
+@@ -2460,39 +2479,58 @@
+ s32 cellSpursJobGuardReset(u64 guard_ea)
+ {
+     u32 ea = (u32)guard_ea;
+-    int i = jg_find(ea);
+-    if (i < 0) return CELL_SPURS_TASK_ERROR_INVAL;
+-    s_jobguards[i].count = s_jobguards[i].reset;
+-    vm_write32(ea, s_jobguards[i].count);
+-    return CELL_OK;
+-}
+-
 -/* Wait for a guard to be released. Returns 1 if it opened, 0 on timeout (the
 - * chain then gives up this pass rather than spinning the walker thread
 - * forever). An unknown guard opens immediately -- a chain guarded by something
 - * we never saw initialised must not deadlock the walker. */
 -static int jg_wait(u32 ea)
+-{
+-    int i = jg_find(ea);
+-    if (i < 0) return 1;
+-    for (int spin = 0; spin < 20000; spin++) {     /* ~20 s at 1 ms */
+-        if (s_jobguards[i].pending >= s_jobguards[i].reset) {
++    AcquireSRWLockExclusive(&s_jobguard_lock);
++    JobGuard* g = jg_find(ea);
++    if (!g) {
++        ReleaseSRWLockExclusive(&s_jobguard_lock);
++        return CELL_SPURS_TASK_ERROR_INVAL;
++    }
++    g->pending = 0;
++    g->count = g->reset;
++    vm_write32(ea, g->count);
++    ReleaseSRWLockExclusive(&s_jobguard_lock);
++    return CELL_OK;
++}
++
 +/* Guard waits last until a notification or explicit chain shutdown. A menu
 + * may leave its renderer idle indefinitely; elapsed wall time is not a reason
 + * to terminate a live SPURS chain. */
@@ -54,16 +208,34 @@ index 5e3b510..d01a57a 100644
 +}
 +
 +static int jg_wait(u32 ea, u32 jc_ea)
- {
-     int i = jg_find(ea);
-     if (i < 0) return 1;
--    for (int spin = 0; spin < 20000; spin++) {     /* ~20 s at 1 ms */
++{
 +    for (;;) {
 +        if (jc_stopping(jc_ea)) return 0;
-         if (s_jobguards[i].pending >= s_jobguards[i].reset) {
++        AcquireSRWLockExclusive(&s_jobguard_lock);
++        JobGuard* g = jg_find(ea);
++        if (!g || g->chain_ea != jc_ea) {
++            ReleaseSRWLockExclusive(&s_jobguard_lock);
++            fprintf(stderr, "[cellSpurs] chain 0x%08X: invalid guard 0x%08X; stopped before job\n", jc_ea, ea);
++            return 0;
++        }
++        if (g->pending >= g->reset) {
              /* Consume exactly one release worth of credits, so notifies that
               * arrived during the previous lap still count. */
-@@ -2491,8 +2507,6 @@ static int jg_wait(u32 ea)
+-            s_jobguards[i].pending -= s_jobguards[i].reset;
+-            if (!s_jobguards[i].auto_reset) s_jobguards[i].reset = 0;
+-            s_jobguards[i].count = s_jobguards[i].reset;
+-            vm_write32(ea, s_jobguards[i].count);
++            g->pending -= g->reset;
++            if (!g->auto_reset) g->reset = 0;
++            g->count = g->reset;
++            vm_write32(ea, g->count);
++            ReleaseSRWLockExclusive(&s_jobguard_lock);
+             return 1;
+         }
++        ReleaseSRWLockExclusive(&s_jobguard_lock);
+ #ifdef _WIN32
+         Sleep(1);
+ #else
          usleep(1000);
  #endif
      }
@@ -72,7 +244,7 @@ index 5e3b510..d01a57a 100644
  }
  
  /* Tell the application a lap of chain work is done.
-@@ -2510,6 +2524,7 @@ static int jg_wait(u32 ea)
+@@ -2510,6 +2548,7 @@
  #endif
  extern SPURS_JOB_TLS uint32_t g_spurs_job_mbox, g_spurs_job_mbox_intr, g_spurs_job_cmd;
  extern SPURS_JOB_TLS int g_spurs_job_mbox_valid;
@@ -80,7 +252,7 @@ index 5e3b510..d01a57a 100644
  
  /* SPURS_EVENT_D3=<n>: probe. The value a job query returns to the PPU is read
   * from the completion event's data3 field (the guest stores r7 at sp+0xB8 and
-@@ -2526,6 +2541,10 @@ static u64 spurs_event_data3_probe(void)
+@@ -2526,6 +2565,10 @@
  
  static void jc_signal_done(u32 jc_ea, int job_index)
  {
@@ -91,7 +263,7 @@ index 5e3b510..d01a57a 100644
      /* Carry the job's mailbox answer in the completion event. On hardware the
       * SPU's outbound/interrupt mailbox is what the SPURS event delivers; a
       * synthetic payload means the caller reads back zero for whatever it
-@@ -2592,6 +2611,7 @@ static void jc_execute(u32 entry_ea, u32 jc_ea, u32 size_desc)
+@@ -2592,6 +2635,7 @@
       * count that instead and reset it whenever real work happens. */
      int idle = 0;
      for (;; idle++) {
@@ -99,7 +271,7 @@ index 5e3b510..d01a57a 100644
          if (idle > 4096) break;
          u64 cmd = vm_read64(pc);
          u32 op  = (u32)(cmd & 7);
-@@ -2616,7 +2636,6 @@ static void jc_execute(u32 entry_ea, u32 jc_ea, u32 size_desc)
+@@ -2616,7 +2660,6 @@
          if (op == 7) {
              if (ext == (7 | (15 << 3))) {                     /* END */
                  printf("[cellSpurs] chain 0x%08X: END after %d job(s)\n", jc_ea, jobs);
@@ -107,7 +279,7 @@ index 5e3b510..d01a57a 100644
                  return;
              }
              if (ext == (7 | (14 << 3))) {                     /* RET */
-@@ -2630,7 +2649,7 @@ static void jc_execute(u32 entry_ea, u32 jc_ea, u32 size_desc)
+@@ -2630,7 +2673,7 @@
          }
          if (op == 7 && ext == (7 | (1 << 3))) {           /* GUARD */
              u32 g_ea = (u32)(cmd & ~127ull);
@@ -116,7 +288,7 @@ index 5e3b510..d01a57a 100644
              pc += 8; continue;
          }
          /* NOP(0) / SYNC+LWSYNC(2, one virtual SPU: nothing to wait for) /
-@@ -2654,10 +2673,9 @@ static DWORD WINAPI jc_thread(LPVOID p)
+@@ -2654,10 +2697,9 @@
        if (d && *d) Sleep((unsigned)atoi(d)); }
      jc_execute(s_jobchains[slot].entry_ea, s_jobchains[slot].jc_ea,
                 s_jobchains[slot].size_desc);
@@ -130,7 +302,7 @@ index 5e3b510..d01a57a 100644
      return 0;
  }
  
-@@ -2690,6 +2708,7 @@ static s32 jc_start(u64 jc_ea, const char* who)
+@@ -2690,6 +2732,7 @@
          if (s_off || !s_jobchains[i].entry_ea) return CELL_OK;
          /* Coalesce: a chain already being walked must not start twice. */
          if (_InterlockedCompareExchange(&s_jobchains[i].running, 1, 0) == 0) {
@@ -138,7 +310,7 @@ index 5e3b510..d01a57a 100644
              HANDLE th = CreateThread(NULL, 1u << 20, jc_thread, (LPVOID)(intptr_t)i, 0, NULL);
              if (th) CloseHandle(th);
              else s_jobchains[i].running = 0;
-@@ -2724,7 +2743,7 @@ s32 cellSpursShutdownJobChain(u64 jc_ea)
+@@ -2724,7 +2767,7 @@
      if (_n++ < 8) printf("[cellSpurs] ShutdownJobChain(jc=0x%08X)\n", (u32)jc_ea);
      for (int i = 0; i < MAX_JOBCHAINS; i++) {
          if (s_jobchains[i].jc_ea == (u32)jc_ea) {
@@ -147,7 +319,7 @@ index 5e3b510..d01a57a 100644
              return CELL_OK;
          }
      }
-@@ -2747,7 +2766,7 @@ s32 cellSpursJoinJobChain(u64 jc_ea)
+@@ -2747,13 +2790,27 @@
       * so that frame's data was never written at all. */
      for (int i = 0; i < MAX_JOBCHAINS; i++) {
          if (s_jobchains[i].jc_ea != (u32)jc_ea) continue;
@@ -156,6 +328,26 @@ index 5e3b510..d01a57a 100644
  #ifdef _WIN32
              Sleep(0);
  #else
+             usleep(0);
+ #endif
+         }
++        /* Joining removes the workload. Its guards cannot be consumed after
++         * the worker has exited, so retire both registries before reuse. */
++        AcquireSRWLockExclusive(&s_jobguard_lock);
++        JobGuard** link = &s_jobguards;
++        while (*link) {
++            JobGuard* g = *link;
++            if (g->chain_ea == (u32)jc_ea) {
++                *link = g->next;
++                free(g);
++            } else link = &g->next;
++        }
++        ReleaseSRWLockExclusive(&s_jobguard_lock);
++        memset(&s_jobchains[i], 0, sizeof s_jobchains[i]);
++        break;
+     }
+     return CELL_OK;
+ }
 diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
 index 9e58833..0dba900 100644
 --- a/runtime/spu/spurs_job.c

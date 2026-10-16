@@ -291,6 +291,15 @@ option(WKC2_BUILD_TESTS "Build port-specific regression tests" ON)
 if(WKC2_BUILD_TESTS)
     enable_testing()
     find_package(Threads REQUIRED)
+    if(WIN32)
+        add_executable(wkc2_spurs_job_test tests/spurs_job_test.c
+            "${PS3RECOMP_DIR}/libs/spurs/cellSpurs.c")
+        target_include_directories(wkc2_spurs_job_test PRIVATE
+            "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/spurs"
+            "${PS3RECOMP_DIR}/runtime/spu" "${PS3RECOMP_DIR}/runtime/ppu")
+        add_test(NAME wkc2_spurs_job COMMAND wkc2_spurs_job_test)
+        set_tests_properties(wkc2_spurs_job PROPERTIES TIMEOUT 20)
+    endif()
     add_executable(wkc2_texture_layout_test
         "${PS3RECOMP_DIR}/libs/video/tests/test_texture_layout.c"
         "${PS3RECOMP_DIR}/libs/video/rsx_texture_layout.c")
