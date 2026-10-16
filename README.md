@@ -26,7 +26,6 @@ EU-only entry; what it unlocks and whether it works in the USA build are unverif
 Japanese DLC files are also available for future research. Their package metadata
 targets BCJS30042; unique content and compatibility with the USA build remain
 unverified.
-Original packages, their contents and local source locations remain private.
 
 ## Progress gallery
 
