@@ -4,14 +4,32 @@
   "execution": "native Windows x86-64, D3D12",
   "captures": [
     {
-      "milestone": "language_selection",
-      "date": "2026-10-15",
-      "image": "screenshots/2026-10-15-language-selection.png",
+      "milestone": "first_decoded_logo_frame",
+      "date": "2026-10-16",
+      "image": "screenshots/2026-10-16-first-logo-frame.png",
       "width": 1280,
       "height": 720,
       "source_format": "D3D12 GPU readback BMP",
-      "source_sha256": "381311a2f00ece113356f64e7cdbe56a2a12dd2952bc8102489e04d1d2cfb7bb",
-      "png_sha256": "00c661ef8c3348ac316fb6f9747fac74623a321b13045cf27ed90576e8e1faa7",
+      "source_sha256": "ea80cb24db4a718aaa49d6d637afb3ddfc6e3abc77c14b9989246db762629c43",
+      "png_sha256": "04307a1fbe726226ee0cb6794bfc6377e3dae36f16266833fa912b39778e989b",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "continuous_playback_verified": false
+    },
+    {
+      "milestone": "autosave_notice",
+      "date": "2026-10-15",
+      "image": "screenshots/2026-10-15-autosave-notice.png",
+      "width": 1280,
+      "height": 720,
+      "source_format": "D3D12 GPU readback BMP",
+      "source_sha256": "6dc84c1909fe897f27945fcf55c193bc2e8b136950309d9cae7f1a97e977e1c3",
+      "png_sha256": "9c7126943c7f82ffaa8794b70aeed28aa9bf9f4202b527c123bf19c322918c0d",
       "pixels_match_source": true,
       "optional_png_metadata": false,
       "png_chunk_types": [
@@ -38,14 +56,14 @@
       ]
     },
     {
-      "milestone": "autosave_notice",
+      "milestone": "language_selection",
       "date": "2026-10-15",
-      "image": "screenshots/2026-10-15-autosave-notice.png",
+      "image": "screenshots/2026-10-15-language-selection.png",
       "width": 1280,
       "height": 720,
       "source_format": "D3D12 GPU readback BMP",
-      "source_sha256": "6dc84c1909fe897f27945fcf55c193bc2e8b136950309d9cae7f1a97e977e1c3",
-      "png_sha256": "9c7126943c7f82ffaa8794b70aeed28aa9bf9f4202b527c123bf19c322918c0d",
+      "source_sha256": "381311a2f00ece113356f64e7cdbe56a2a12dd2952bc8102489e04d1d2cfb7bb",
+      "png_sha256": "00c661ef8c3348ac316fb6f9747fac74623a321b13045cf27ed90576e8e1faa7",
       "pixels_match_source": true,
       "optional_png_metadata": false,
       "png_chunk_types": [
@@ -53,24 +71,6 @@
         "IEND",
         "IHDR"
       ]
-    },
-    {
-      "milestone": "first_decoded_logo_frame",
-      "date": "2026-10-16",
-      "image": "screenshots/2026-10-16-first-logo-frame.png",
-      "width": 1280,
-      "height": 720,
-      "source_format": "D3D12 GPU readback BMP",
-      "source_sha256": "ea80cb24db4a718aaa49d6d637afb3ddfc6e3abc77c14b9989246db762629c43",
-      "png_sha256": "04307a1fbe726226ee0cb6794bfc6377e3dae36f16266833fa912b39778e989b",
-      "pixels_match_source": true,
-      "optional_png_metadata": false,
-      "png_chunk_types": [
-        "IDAT",
-        "IEND",
-        "IHDR"
-      ],
-      "continuous_playback_verified": false
     }
   ]
 }

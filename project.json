@@ -12,7 +12,8 @@
   "progress_reporting": {
     "findings_log": "docs/FINDINGS.md",
     "screenshot_gallery": "docs/GALLERY.md",
-    "publish_verified_milestones": true
+    "publish_verified_milestones": true,
+    "gallery_order": "newest_first"
   },
   "native_data_installation_verified": true,
   "native_decoded_movie_frame_verified": true,
