@@ -468,6 +468,31 @@ pass. A native follow-up retains the shaded avatar, room and entered name.
 This does not establish that later scenes render correctly. The shared depth
 attachment and missing depth-texture sampling still need investigation.
 
+## Scene render targets and descriptor ranges
+
+A later WKC1 frame submits 22 offscreen colour targets, but the backend's
+16-entry table omits six post-processing targets. An unavailable target then
+falls back to the display buffer during replay. Patch 0032 raises the table
+to 32 entries and reports capacity failures. It also separates the shader
+descriptor ranges: texture uploads previously overlapped persistent-target
+descriptors and the first draw windows.
+
+The native follow-up verifies 22 submitted targets and 22 allocated targets,
+with none missing. Startup, WKC1 avatar/name retention and the opening movie
+still work. The paused background remains visually incorrect; restoring those
+targets alone does not solve the scene. The capture also distinguishes the
+1280x720 main zeta surface from a separate 2560x2560 depth-only shadow surface.
+The backend still shares one 2048x2048 depth attachment across them and does
+not sample the actual shadow depth texture. Those limitations need a separate
+rendering fix. No new visual gallery milestone is claimed.
+
+The Windows frame loop now waits on the existing FIFO kick event with a
+four-millisecond timeout. Guest fence polling already signals that event;
+the previous unconditional sleep left it unread. Presentation stays at guest
+flip boundaries. This run verifies continued native presentation, without
+establishing a frame-rate improvement. All 32 checks pass; the surface-clear
+GPU test also passes with optimizations and `NDEBUG` enabled.
+
 ## Character-name input
 
 Selecting Name reaches a keyboard stub that requires an initialization call

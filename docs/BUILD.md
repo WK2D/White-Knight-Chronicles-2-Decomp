@@ -361,6 +361,17 @@ colour-component masks remain unsupported and are reported instead of clearing
 unrequested components. Separate depth attachments, stencil write masks and
 depth-texture sampling remain outside this patch.
 
+Patch 0032 increases the offscreen colour-target table from 16 to 32 entries.
+A captured later WKC1 frame submits 22 distinct targets; six post-processing
+targets were absent from the host table. Capacity failures now emit a bounded
+diagnostic instead of silently returning an unavailable target.
+
+Shader descriptor ranges are also separated: atlas at 0, uploaded textures at
+1..96, persistent targets at 97..128, and per-draw texture windows from 129.
+The previous upload range overlapped both persistent-target descriptors and
+the first draw windows. Uploading a later texture could overwrite an earlier
+draw's descriptor before command submission.
+
 ## Guest frame presentation
 
 The runner sets `RSX_ACCUM_FRAME=1` before graphics initialization. Its existing
@@ -368,6 +379,11 @@ pending-FIFO-flip path presents complete batches; display-clear heuristics can
 otherwise retain a larger scene's threshold and stop presenting a subsequent
 small movie batch. This selects frame completion policy and leaves the guest's
 shaders, depth and culling state intact.
+
+On Windows the idle wait uses the SDK's existing FIFO kick event, signalled by
+guest fence polling, with the same four-millisecond timeout. This allows a kick
+to wake the consumer promptly while retaining presentation at guest flips. The
+POSIX path keeps its existing wait; macOS execution remains unverified.
 
 ## Native text entry
 

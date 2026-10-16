@@ -139,6 +139,9 @@ void     cellGcmTickVBlank(void);
 void     cellGcmTickFlip(void);
 int      cellGcm_take_flip_pending(void);
 void     cellGcm_rsx_process_fifo(void);      /* drain get -> put */
+#ifdef _WIN32
+void     cellGcm_fifo_kick_wait(unsigned ms); /* guest fence wake, bounded idle */
+#endif
 unsigned cellGcm_flip_request_count(void);
 extern ppu_context* volatile g_ppu_main_ctx;
 void wkc2_dump_threads(void);
@@ -401,7 +404,14 @@ static DWORD WINAPI frame_clock(LPVOID)
     const bool guest_present_only = getenv("WKC2_GUEST_PRESENT_ONLY") != nullptr;
 
     for (;;) {
+#ifdef _WIN32
+        /* Fence polling already signals the SDK's auto-reset kick event.
+         * Wait for it so each pass can resume immediately; a flat Sleep(4)
+         * leaves that event unread and adds latency to every fence wave. */
+        cellGcm_fifo_kick_wait(4);
+#else
         Sleep(4);
+#endif
         ULONGLONG now = GetTickCount64();
         if (report_progress && now >= next_report) {
             fprintf(stderr, "[verification] guest_flip_requests=%u guest_frames_presented=%u\n",

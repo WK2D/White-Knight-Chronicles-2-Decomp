@@ -1122,5 +1122,64 @@
     "partial_colour_component_clear_implemented": false,
     "interactive_3d_gameplay_verified": false,
     "save_load_verified": false
+  },
+  "scene_target_capacity": {
+    "port_checks_passed": 32,
+    "before_probe": "20261016-191109",
+    "before_capture_frame": 13143,
+    "before_distinct_targets": 22,
+    "before_allocated_targets": 16,
+    "before_missing_targets": [
+      "0E260000",
+      "0E350000",
+      "0E3F0000",
+      "0E490000",
+      "0E530000",
+      "0E6A0000"
+    ],
+    "current_target_capacity": 32,
+    "normal_probe": "20261016-200507",
+    "capture_frame": 11418,
+    "capture_operations": 241,
+    "distinct_targets": 22,
+    "allocated_targets": 22,
+    "missing_targets": [],
+    "descriptor_ranges": {
+      "atlas": [
+        0,
+        0
+      ],
+      "uploaded_textures": [
+        1,
+        96
+      ],
+      "persistent_targets": [
+        97,
+        128
+      ],
+      "draw_windows_begin": 129
+    },
+    "startup_avatar_name_and_movie_retained": true,
+    "paused_background_visually_correct": false,
+    "main_depth_surface_dimensions": [
+      1280,
+      720
+    ],
+    "shadow_depth_surface_dimensions": [
+      2560,
+      2560
+    ],
+    "host_shared_depth_dimensions": [
+      2048,
+      2048
+    ],
+    "shared_depth_attachment_still_used": true,
+    "windows_fifo_kick_wait_enabled": true,
+    "frame_rate_improvement_verified": false,
+    "render_state_overrides_enabled": false,
+    "debugger_writes": false,
+    "interactive_3d_gameplay_verified": false,
+    "save_load_verified": false,
+    "surface_clear_optimized_ndebug_gpu_check_passed": true
   }
 }

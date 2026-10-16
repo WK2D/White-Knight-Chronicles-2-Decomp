@@ -1,0 +1,37 @@
+diff --git a/libs/video/rsx_d3d12_backend.c b/libs/video/rsx_d3d12_backend.c
+--- a/libs/video/rsx_d3d12_backend.c
++++ b/libs/video/rsx_d3d12_backend.c
+@@ -154,10 +154,14 @@
+     D3D12_RESOURCE_STATES st;          /* tracked resource state */
+     int                   used;        /* referenced this frame */
+ } OffRT;
+-#define MAX_OFF_RTS  16  /* demosaic double-buffers its 6-surface pass chain */
+-#define RT_SRV_BASE  5   /* SRV heap slots 5..20 hold offscreen-RT SRVs */
+-/* Each draw binds a contiguous window covering every RSX texture unit. */
+-#define DRAW_SRV_BASE 32
++/* A captured WKC1 scene submits 22 distinct colour targets in one frame.
++ * Six of those were silently missing with the old 16-slot table. */
++#define MAX_OFF_RTS  32
++/* Descriptor ranges must be disjoint: atlas at 0, upload textures at
++ * 1..VP_TEX_SLOTS, persistent render targets next, then draw windows.
++ * Uploading texture slot 31 used to overwrite draw 0's first descriptor. */
++#define RT_SRV_BASE  (1 + VP_TEX_SLOTS)
++#define DRAW_SRV_BASE (RT_SRV_BASE + MAX_OFF_RTS)
+ #define SRV_HEAP_SIZE (DRAW_SRV_BASE + MAX_DRAWS * RSX_MAX_TEXTURES)
+ 
+ /* Per-frame VP texture slot: a guest texture uploaded for this frame's VP
+@@ -3581,7 +3585,13 @@
+         if (slot < 0) {   /* evict an entry not used this frame */
+             for (int i = 0; i < MAX_OFF_RTS; i++)
+                 if (!s_d3d.off_rt[i].used) { slot = i; break; }
+-            if (slot < 0) return -1;
++            if (slot < 0) {
++                static unsigned reports;
++                if (reports++ < 16) fprintf(stderr,
++                    "[RT] target capacity exceeded off=%08X size=%ux%u limit=%u\n",
++                    off,w,h,(unsigned)MAX_OFF_RTS);
++                return -1;
++            }
+             wait_for_gpu();   /* same hazard as above: the frame may still use it */
+             s_d3d.off_rt[slot].res->lpVtbl->Release(s_d3d.off_rt[slot].res);
+             s_d3d.off_rt[slot].res = NULL;

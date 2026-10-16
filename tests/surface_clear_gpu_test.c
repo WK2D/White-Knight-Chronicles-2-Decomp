@@ -1,5 +1,8 @@
 /* Synthetic surface contents only. Exercise the production D3D12 clear
  * operations on WARP, without a window or any game inputs. */
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <initguid.h>
