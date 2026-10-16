@@ -1,7 +1,7 @@
 {
   "title_id": "BLUS30784",
   "app_version": "01.00",
-  "execution": "native Windows x86-64 static recompilation; Vulkan primary, D3D12 optional fallback",
+  "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "verified": {
     "native_language_selection_rendered": true,
     "language_selection_controller_response": true,
@@ -23,7 +23,8 @@
     "avatar_material_and_face_shading": false,
     "avatar_material_and_face_shading_improved": true,
     "avatar_full_visual_fidelity": false,
-    "vulkan_avatar_colour_feedback": true
+    "vulkan_avatar_colour_feedback": true,
+    "interpreter_free_cpu_execution": false
   },
   "captures": [
     {
@@ -1258,5 +1259,20 @@
     "observed_finished_slots": 2,
     "observed_free_slots": 34,
     "later_loading_transition_fixed_verified": false
+  },
+  "cpu_execution": {
+    "mode": "Ahead-of-time PPU/SPU recompilation with PS3 compatibility runtime and observed SPU interpreter fallback",
+    "ppu_generated_functions_compiled": 56580,
+    "spu_image_job_inputs_compiled": 23,
+    "spu_interpreter_fallback_present": true,
+    "spu_interpreter_fallback_observed": true,
+    "observed_probe": "20261016-220818",
+    "observed_fallback_image_id": 17,
+    "fallback_share_of_execution_measured": false,
+    "interpreter_free_cpu_execution_verified": false,
+    "source_level_game_decompilation_completed": false,
+    "supported_modding_framework_implemented": false,
+    "generated_ppu_function_hook_demonstrated": true,
+    "remaining_requirement": "Replace observed interpreted SPU paths with validated static/native implementations and measure fallback coverage"
   }
 }

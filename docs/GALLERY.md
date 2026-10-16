@@ -4,6 +4,10 @@ Screenshots captured from native Windows x86-64 execution with D3D12 or Vulkan,
 using USA BLUS30784 v01.00. These are game-frame GPU readbacks, losslessly encoded
 as PNG. All optional metadata has been removed. Images contain the game frame only.
 
+These captures come from a host-compiled recompilation build with a PS3 runtime
+layer and observed SPU interpreter fallback. They do not establish
+interpreter-free execution; see [architecture](ARCHITECTURE.md).
+
 **Current status:** the native title screen renders with New Game, Continue,
 Options and an animated background. AC-3 and LPCM audio decode, and idle startup
 enters the attract movie. New Game descriptions and selection dialogs are now
@@ -23,7 +27,7 @@ The experimental Vulkan renderer now shows the WKC1 avatar and room without the
 red tint seen in its first build. A post-processing draw reads the colour target
 it is updating; preserving the preceding pixels in a separate GPU image restores
 the missing colour channels. The entered name is retained. This is live 3D
-rendering from statically recompiled C/C++ with the shared RSX draw engine.
+rendering from the hybrid C/C++ build with the shared RSX draw engine.
 The 1920×1080 display readback contains the game's 1280×720 scene. Full visual
 fidelity, interactive gameplay, save/load and macOS execution remain unverified.
 

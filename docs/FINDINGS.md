@@ -15,6 +15,17 @@ Maintain this log as research progresses. Publish checked code, concise findings
 and new verified screenshots together when a meaningful milestone is reached.
 Keep full traces, generated game code, assets and local paths in the private workspace.
 
+## CPU execution qualification
+
+The current build uses ahead-of-time PPU/SPU recompilation plus a PS3 runtime
+layer. An audit of the running build found actual SPU interpreter fallback use
+from the runtime-code microstep path in image 17. It is therefore a hybrid;
+neither complete static CPU coverage nor an interpreter-free port is verified.
+The fallback's share of execution has not been measured. See
+[architecture and modding scope](ARCHITECTURE.md) for the distinction from a
+source-level decompilation and the remaining work. Rendering milestones below
+do not establish interpreter-free execution.
+
 ## Verified
 
 | Result | Evidence | Limit |

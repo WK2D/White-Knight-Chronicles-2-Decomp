@@ -127,5 +127,20 @@
     "future_apple_silicon": "Metal shared RSX draw engine; untested",
     "optional_windows": "D3D12",
     "future_linux": "Vulkan; platform integration and execution untested"
+  },
+  "cpu_execution": {
+    "mode": "Ahead-of-time PPU/SPU recompilation with PS3 compatibility runtime and observed SPU interpreter fallback",
+    "ppu_generated_functions_compiled": 56580,
+    "spu_image_job_inputs_compiled": 23,
+    "spu_interpreter_fallback_present": true,
+    "spu_interpreter_fallback_observed": true,
+    "observed_probe": "20261016-220818",
+    "observed_fallback_image_id": 17,
+    "fallback_share_of_execution_measured": false,
+    "interpreter_free_cpu_execution_verified": false,
+    "source_level_game_decompilation_completed": false,
+    "supported_modding_framework_implemented": false,
+    "generated_ppu_function_hook_demonstrated": true,
+    "remaining_requirement": "Replace observed interpreted SPU paths with validated static/native implementations and measure fallback coverage"
   }
 }

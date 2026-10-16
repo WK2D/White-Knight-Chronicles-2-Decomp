@@ -1,5 +1,9 @@
 # Current Windows build workflow
 
+This builds the current hybrid recompilation/runtime project, including an
+observed SPU interpreter fallback. It does not establish fully static CPU
+coverage. See [architecture and modding scope](ARCHITECTURE.md).
+
 The source checkout and private working directory can be separate. Pass the
 private workspace with `-Workspace`; the build script gets project sources from
 its own location. Its default workspace layout is three parent directories above

@@ -1,7 +1,7 @@
 {
   "title_id": "BLUS30784",
   "app_version": "01.00",
-  "execution": "native Windows x86-64; renderer recorded per capture",
+  "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
       "milestone": "native_vulkan_avatar_colour_feedback",
@@ -347,5 +347,6 @@
       ],
       "renderer": "D3D12"
     }
-  ]
+  ],
+  "cpu_execution_qualification": "Current build includes observed SPU interpreter fallback; captures do not prove interpreter-free execution"
 }

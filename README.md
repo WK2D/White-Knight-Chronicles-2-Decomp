@@ -1,7 +1,13 @@
 # White Knight Chronicles II native-port research
 
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
-using static C/C++ recompilation, followed by Apple Silicon portability testing.
+using binary recompilation to C/C++ and a PS3 compatibility runtime, followed by
+Apple Silicon portability testing.
+
+**The current build is hybrid:** PPU and SPU code is compiled ahead of time, but
+an SPU interpreter fallback is also present and has executed in observed runs.
+This is not a complete source-level decompilation or a verified interpreter-free
+port. See [execution architecture and modding scope](docs/ARCHITECTURE.md).
 
 **This is not a playable port yet.** Analysis, compilation, boot, rendering and
 gameplay are distinct milestones. Passing an analysis or build step does not
@@ -53,8 +59,8 @@ Full visual fidelity, interactive gameplay and save/load remain unverified.
 
 Vulkan is the primary Windows renderer. It now renders the avatar and room
 without its initial red tint after correcting colour-target feedback. D3D12
-remains available as an optional comparison/fallback build. Both execute the
-recompiled C/C++ game code natively. Full-game rendering remains unverified.
+remains available as an optional comparison/fallback build. Both use the
+host-compiled hybrid build described above. Full-game rendering remains unverified.
 
 [![Native Vulkan WKC1 avatar and room](verification/screenshots/2026-10-16-native-vulkan-avatar-colours.png)](docs/GALLERY.md)
 
