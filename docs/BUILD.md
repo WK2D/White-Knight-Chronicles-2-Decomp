@@ -8,8 +8,8 @@ coverage. See [architecture and modding scope](ARCHITECTURE.md).
 live WKC1 town and responds to short analog movement, walking/facing changes,
 and camera rotation. Earlier town testing also verified pause/resume input.
 All 42 runtime checks pass. Town geometry and NPC materials still have visible
-faults; sustained traversal, combat and
-save/load remain unverified. See the [latest gallery entry](GALLERY.md).
+faults; sustained traversal, combat and save/load remain unverified. See the
+[latest gallery entry](GALLERY.md).
 
 The source checkout and private working directory can be separate. Pass the
 private workspace with `-Workspace`; the build script gets project sources from

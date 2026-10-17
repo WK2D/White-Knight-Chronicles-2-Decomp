@@ -2,8 +2,9 @@
 
 ## Windows follow-up
 
-The original review below describes `1865c88`. The current changes address
-findings 1–3: audio sequences can end and restart after a fatal decode error,
+The original review below describes `1865c88`. Findings 1–3 were addressed in
+[`e86ad08`](https://github.com/WK2D/White-Knight-Chronicles-2-Decomp/commit/e86ad0896059ba8d5fbcd2bcc2a701f3ed7d5852):
+audio sequences can end and restart after a fatal decode error,
 demux AU validation uses the actual aligned arena capacity, and the pad-file
 test uses `setenv` on POSIX systems. Windows audio recovery and demux boundary
 regressions fail against the old code and pass with the fixes. The POSIX branch

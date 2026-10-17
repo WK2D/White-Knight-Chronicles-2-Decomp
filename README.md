@@ -141,7 +141,11 @@ coverage report distinguishes handler presence from verified implementation.
 
 ## Current investigation
 
-The detailed investigation log, covering runtime fixes, SPU work, movie decoding and
-renderer changes in the order they were made, is in the
-[findings log](docs/FINDINGS.md#investigation-history). Diagnostic probe options are in
-[BUILD.md](docs/BUILD.md#diagnostic-probes).
+The next rendering work is to correct stretched town geometry and corrupt NPC
+surfaces, then verify sustained traversal, combat and save/load. The SPU census
+also identifies three static-entry candidates whose behavior still needs validation.
+
+See [the latest native findings](docs/FINDINGS.md#native-census-and-limited-town-controls)
+for the town-controls run and census, [the full findings log](docs/FINDINGS.md) for
+earlier investigations, and [diagnostic probes](docs/BUILD.md#diagnostic-probes)
+for reproduction options.
