@@ -4,11 +4,13 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Verified on 2026-10-17:** the full 51-patch Windows Vulkan build reaches the
+**Verified on 2026-10-17:** the full 52-patch Windows Vulkan build reaches the
 live WKC1 town and responds to short analog movement, walking/facing changes,
 and camera rotation. Earlier town testing also verified pause/resume input.
-The current build passes 48 runtime checks with 51 SDK patches. Town geometry and NPC materials
-still have visible faults; sustained traversal, combat and save/load remain unverified. See the
+The current build passes 50 runtime checks with 52 SDK patches. NPC surfaces
+improve in the latest town run, but stretched geometry remains and full material
+fidelity is unverified. Sustained traversal, combat and save/load remain
+unverified. See the
 [latest gallery entry](GALLERY.md).
 
 The source checkout and private working directory can be separate. Pass the
@@ -64,7 +66,7 @@ and save/load remain unverified, and rendering faults remain.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies the numbered runtime patches idempotently
-and runs 48 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs 50 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
@@ -75,13 +77,13 @@ The current suite also covers fragment-program cache identity, ordered surface
 clears, Windows PPU join lifetime and the shared draw engine's colour feedback.
 It also covers persistent DMA label polling, reuse of freed memory ranges and
 finite digital/analog input through the private controller probe file. The
-current build contains 51 numbered SDK patches. The newest published town-controls
-capture uses 42; the earlier town world-view capture used 39. Patch 0043 passed
+current build contains 52 numbered SDK patches. The newest published town-controls
+capture uses 52; the earlier town-controls capture used 42; the earlier town world-view capture used 39. Patch 0043 passed
 the earlier 43-check Windows suite and remains covered by the current suite;
 its town-rendering comparison is recorded separately.
 Patch 0045's three float-mode checks and patches 0046-0051's new and extended
-checks pass in the native Windows clang-cl build. The full 48-check suite
-passes with all 51 patches; Wine's MinGW TLS workaround is not needed here.
+checks pass in the native Windows clang-cl build. The current 50-check suite
+passes with all 52 patches; Wine's MinGW TLS workaround is not needed here.
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
@@ -390,11 +392,56 @@ The native town comparison with `RSX_ENGINE_ALL_SUBCHANNELS=1` still shows
 the same target faults. Neither route establishes a correction of the
 stretched strip or NPC surfaces. An empty private `GCM_SUBCH_GATE` file,
 created for ten seconds in town, confirms complete NV0039 transfer sequences
-on subchannel 1. Those copies remain unimplemented and their methods still
-reach 3D state. Adding the transfer handler and correct routing is the next
-graphics fix; its effect on these faults has not been verified. Both default
+on subchannel 1. This 51-patch trace established the missing-copy defect addressed by
+patch 0052 below. Both default
 float runs log inline writes, with no skipped-NV3089 or unhandled-2D messages.
 Absence of those messages does not prove complete copy support.
+
+Patch 0052 implements NV0039 byte copies. The runner defaults
+`GCM_SUBCH1_2D=1` because native WKC1 traces confirm the copy object on slot 1.
+The FIFO walker consumes those methods before either 3D renderer; the SDK's
+other users retain its default slot-1 3D behaviour. An explicit
+`GCM_SUBCH1_2D=0` restores that route for comparison.
+
+The handler supports LOCAL/MAIN source and destination mappings, report-record
+sources, signed and zero row pitches, byte strides 1/2/4, and overlapping
+regions through a complete source snapshot. MAIN I/O pages are translated
+individually. Zero rows or columns do nothing. Every row is checked before
+writes; invalid mappings, unsupported formats, notification requests and
+transfers over the 64 MiB staging limit produce explicit diagnostics.
+Notification completion is not implemented. Report sources expose the existing
+runtime's report records; this does not add GPU query accuracy.
+
+For the shared Vulkan renderer, copies store overlapping RGBA8 targets and
+pending resolves before reading or partially overwriting their bytes, upload
+changed targets, and invalidate same-frame texture hashes. Other colour-target
+layouts are rejected rather than copied from stale guest bytes; depth-target
+copies remain unverified. The D3D12
+renderer has not been validated for copies involving GPU-owned surfaces.
+
+`wkc2_nv0039_copy` exercises the production FIFO walker, the observed 12/16-byte
+transfer shapes, noncontiguous mappings, overlap, pitches, strides, bounds,
+reservation notifications and separation from both 3D renderers.
+`wkc2_nv0039_routing_3d` checks the SDK compatibility override. The extended
+`wkc2_draw_engine` verifies an unaligned partial-pixel update preserves adjacent
+GPU-owned bytes. All pass in the 50-check Windows Vulkan suite.
+
+Set `GCM_M2MF_VERIFY=1` before a private run to compare copied destination bytes
+against the staged source. `[NV0039] copies=...` reports the first eight copies
+and powers of two thereafter, so the last line is a lower bound rather than a
+final total. Rejections and verification mismatches have their own immediate,
+throttled diagnostics. Logs contain counts and reasons, not payload bytes.
+
+The native town recheck (`20261017-061720`) completes at least
+65,536 copies / 14,363,492 bytes with verification enabled, no mismatch
+or rejection diagnostics. Previously speckled NPC surfaces look coherent in the
+inspected town views, while the stretched geometry remains.
+See [the findings](FINDINGS.md#nv0039-memory-transfers).
+
+Method layout and transfer semantics were checked against the
+[envytools NV_M2MF register description](https://github.com/envytools/envytools/blob/master/rnndb/graph/nv_m2mf.xml)
+and [RPCS3's NV0039 handler](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/NV47/HW/nv0039.cpp).
+The C handler and synthetic tests were written independently.
 
 ## Movie decoding
 

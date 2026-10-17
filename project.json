@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Live WKC1 town with short movement, walking/facing changes and camera rotation verified",
+    "current_milestone": "Live WKC1 town with improved NPC surfaces after NV0039 transfers; short movement and camera response rechecked",
     "updated": "2026-10-17"
   },
   "native_data_installation_verified": true,
@@ -144,18 +144,18 @@
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
     "remaining_requirement": "Cover missing SPU entries and any runtime-generated code with validated static/native implementations, then measure fallback coverage across gameplay.",
-    "latest_census_probe": "20261017-052058"
+    "latest_census_probe": "20261017-061720"
   },
   "native_character_creation_completed_scope": "Default male avatar named and accepted through Quick Start; opening cutscenes advance to the town. Full visual fidelity and all customization options are not verified.",
   "native_wkc1_town_world_view_verified": true,
-  "native_wkc1_town_world_view_scope": "Live town with Leonard, NPC names, minimap and save crystal visible; stretched geometry and corrupt NPC surfaces remain.",
+  "native_wkc1_town_world_view_scope": "Live town with Leonard, NPC names, minimap and save crystal visible; NPC surface speckling improved after NV0039 support, while stretched geometry remains. Full material fidelity unverified.",
   "native_town_pause_resume_input_verified": true,
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 51,
-    "runtime_checks_passed": 48,
-    "town_native_run_sdk_patch_count": 51,
+    "sdk_patch_count": 52,
+    "runtime_checks_passed": 50,
+    "town_native_run_sdk_patch_count": 52,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
     "patch_0042_native_game_run_verified": true,
@@ -178,7 +178,12 @@
     "patch_0045_native_exact_run_verified": true,
     "patch_0045_native_float_comparison_complete": true,
     "patches_0046_0051_native_game_run_verified": true,
-    "patch_0051_native_all_subchannels_comparison_complete": true
+    "patch_0051_native_all_subchannels_comparison_complete": true,
+    "patch_0052_windows_regression_verified": true,
+    "patch_0052_native_game_run_verified": true,
+    "patch_0052_native_copy_verification_enabled": true,
+    "patch_0052_target_rendering_faults_corrected": false,
+    "patch_0052_native_npc_surface_improvement_observed": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -189,16 +194,23 @@
     "initial_entry_windows_match_baseline_input": true,
     "private_three_entry_candidate_compile_checked": true,
     "candidate_behavior_and_native_execution_verified": false,
-    "latest_native_probe": "20261017-052058",
+    "latest_native_probe": "20261017-061720",
     "recorded_entry_count": 6,
     "baseline_comparison_method": "64-byte FNV-1a entry fingerprints; not a whole-function comparison"
   },
   "native_movement_and_camera_control_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified.",
   "graphics_copy_research": {
     "nv0039_use_confirmed_in_native_town": true,
-    "nv0039_transfer_handler_implemented": false,
-    "nv0039_effect_on_stretched_geometry_and_npc_faults_verified": false,
-    "next_fix": "Implement NV0039 copies and route their methods away from NV4097 state",
-    "record": "verification/rendering.json"
-  }
+    "nv0039_transfer_handler_implemented": true,
+    "next_fix": "Investigate remaining stretched geometry, including SPU skinning output; full material fidelity remains unverified",
+    "record": "verification/rendering.json",
+    "nv0039_native_copies_verified": true,
+    "nv0039_scope": "Non-notifying byte transfers; signed/zero pitches, strides 1/2/4, overlap, MAIN mappings and shared-renderer RGBA8 coherence. Notification completion and other GPU layouts remain limited.",
+    "nv0039_record": "verification/rendering.json",
+    "nv0039_record_section": "nv0039_memory_transfers",
+    "nv0039_npc_surface_improvement_observed": true,
+    "nv0039_improvement_scope": "Previously speckled/mosaic NPC surfaces look coherent in the inspected starting-town readbacks after short movement and camera rotation. Qualitative comparison with earlier 42/51-patch captures, not proof of full material fidelity.",
+    "nv0039_stretched_geometry_fix_verified": false
+  },
+  "native_npc_surface_rendering_improved": true
 }

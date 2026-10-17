@@ -1,0 +1,279 @@
+Implement NV0039 byte transfers and route a configured subchannel 1 away
+from both 3D renderers. Synchronize overlapping shared-renderer RGBA8 surfaces.
+
+diff --git a/libs/video/cellGcmSys.c b/libs/video/cellGcmSys.c
+--- a/libs/video/cellGcmSys.c
++++ b/libs/video/cellGcmSys.c
+@@ -1240,8 +1240,150 @@
+                out_w, out_h, f, src, in_pitch, dst, dst_pitch, out_x, out_y); } }
+ }
+ 
++
++/* NV0039 memory-to-memory transfers. The FORMAT bytes are column increments,
++ * not pixel formats: one byte is copied at each increment. Row pitches are
++ * signed, and zero repeats the row. Keep these semantics separate from the
++ * NV3089 image sampler. No RSX instruction or game code is interpreted here. */
++static struct {
++    u32 src_dma, dst_dma, src, dst, src_pitch, dst_pitch, columns, rows, format;
++} s_nv0039;
++static u64 s_nv0039_copies, s_nv0039_bytes, s_nv0039_rejected, s_nv0039_verify_errors;
++
++static void nv0039_reject(const char* reason)
++{
++    if (++s_nv0039_rejected <= 8 || !(s_nv0039_rejected & (s_nv0039_rejected - 1)))
++        fprintf(stderr, "[NV0039] rejected=%llu reason=%s\n",
++                (unsigned long long)s_nv0039_rejected, reason);
++}
++
++static u32 nv0039_ea(u32 dma, u32 offset)
++{
++    /* Do not use the renderer's ambiguous LOCAL fallback for unmapped MAIN. */
++    if (dma == 0xFEED0001u) return gcm_io2ea(offset);
++    return s_config.localAddress + offset;
++}
++
++static int nv0039_span(u32 dma, int64_t offset, u64 bytes)
++{
++    const u64 limit = dma == 0x66626660u ? (u64)CELL_GCM_MAX_REPORT_COUNT * 16u
++                    : dma == 0xFEED0000u ? s_config.localSize : 0x100000000ull;
++    if (offset < 0 || (u64)offset >= limit || bytes > limit - (u64)offset) return 0;
++    if (dma == 0x66626660u) return 1;
++    extern u32 ppu_vm_size;
++    const u64 vm_limit = ppu_vm_size ? ppu_vm_size : 0x100000000ull;
++    if (dma == 0xFEED0000u && (u64)s_config.localAddress + (u64)offset + bytes > vm_limit) return 0;
++    const u64 end = (u64)offset + bytes;
++    for (u64 at = (u64)offset; at < end;) {
++        u64 chunk = 0x100000u - (at & 0xFFFFFu);
++        if (chunk > end - at) chunk = end - at;
++        const u32 ea = nv0039_ea(dma, (u32)at);
++        if (!ea || (u64)ea + chunk > vm_limit) return 0;
++        at += chunk;
++    }
++    return 1;
++}
++
++static u8 nv0039_read(u32 dma, u32 offset)
++{
++    if (dma != 0x66626660u) return vm_read8(nv0039_ea(dma, offset));
++    /* Host report records must be exposed as their big-endian guest bytes. */
++    const CellGcmReportData* r = &s_report_data[offset / 16u];
++    const u32 byte = offset % 16u;
++    if (byte < 8) return (u8)(r->timestamp >> (56u - byte * 8u));
++    return byte < 12 ? (u8)(r->value >> (24u - (byte - 8u) * 8u)) : 0;
++}
++
++static void nv0039_copy(u32 notify)
++{
++    const u32 columns=s_nv0039.columns, rows=s_nv0039.rows;
++    const u32 si=s_nv0039.format & 255u, di=(s_nv0039.format >> 8) & 255u;
++    const int64_t sp=(int32_t)s_nv0039.src_pitch, dp=(int32_t)s_nv0039.dst_pitch;
++    if (!columns || !rows) return;
++    /* Bound staging and work if a malformed FIFO is decoded as a copy. */
++    const u64 count=(u64)columns * rows;
++    if (count > 0x4000000ull) { nv0039_reject("transfer exceeds 64 MiB"); return; }
++    if ((si != 1 && si != 2 && si != 4) || (di != 1 && di != 2 && di != 4) ||
++        (s_nv0039.format & 0xFFFF0000u)) { nv0039_reject("unsupported byte stride"); return; }
++    if ((s_nv0039.src_dma != 0xFEED0000u && s_nv0039.src_dma != 0xFEED0001u && s_nv0039.src_dma != 0x66626660u) ||
++        (s_nv0039.dst_dma != 0xFEED0000u && s_nv0039.dst_dma != 0xFEED0001u)) {
++        nv0039_reject("unsupported DMA object"); return;
++    }
++    if (notify != 0) { nv0039_reject("notification mode not implemented"); return; }
++    const u64 sw=(u64)(columns-1)*si+1, dw=(u64)(columns-1)*di+1;
++    /* Validate every page of every row before any coherence operation or write.
++     * MAIN pages need not be contiguous in guest effective-address space. */
++    for (u32 y=0; y<rows; y++)
++        if (!nv0039_span(s_nv0039.src_dma, (int64_t)s_nv0039.src+sp*y, sw) ||
++            !nv0039_span(s_nv0039.dst_dma, (int64_t)s_nv0039.dst+dp*y, dw)) {
++            nv0039_reject("unmapped or overflowing range"); return;
++        }
++    u8* snapshot=(u8*)malloc((size_t)count);
++    if (!snapshot) { nv0039_reject("staging allocation failed"); return; }
++    const u32 sl=s_nv0039.src_dma == 0xFEED0001u ? RSX_LOCATION_MAIN : RSX_LOCATION_LOCAL;
++    const u32 dl=s_nv0039.dst_dma == 0xFEED0001u ? RSX_LOCATION_MAIN : RSX_LOCATION_LOCAL;
++    if (rsx_draw_engine_enabled()) {
++        for (u32 y=0; y<rows; y++) {
++            if ((s_nv0039.src_dma != 0x66626660u &&
++                 !rsx_draw_engine_guest_buffer_read(sl, (u32)((int64_t)s_nv0039.src+sp*y), (u32)sw)) ||
++                !rsx_draw_engine_guest_buffer_read(dl, (u32)((int64_t)s_nv0039.dst+dp*y), (u32)dw)) {
++                free(snapshot); nv0039_reject("unsupported GPU surface readback"); return;
++            }
++        }
++    }
++    /* Snapshot the whole source before any write, including overlapping rows. */
++    for (u32 y=0; y<rows; y++)
++        for (u32 x=0; x<columns; x++)
++            snapshot[(size_t)y*columns+x]=nv0039_read(s_nv0039.src_dma,
++                (u32)((int64_t)s_nv0039.src+sp*y+(u64)x*si));
++    static int verify=-1;
++    if (verify < 0) { const char* e=getenv("GCM_M2MF_VERIFY"); verify=e && atoi(e); }
++    for (u32 y=0; y<rows; y++) {
++        const u32 row=(u32)((int64_t)s_nv0039.dst+dp*y);
++        for (u32 x=0; x<columns; x++) {
++            const u32 ea=nv0039_ea(s_nv0039.dst_dma, row+x*di);
++            vm_write8(ea, snapshot[(size_t)y*columns+x]);
++            if (g_resv_store_active > 0) ppu_resv_break_store(ea);
++        }
++        if (verify)
++            for (u32 x=0; x<columns; x++)
++                if (vm_read8(nv0039_ea(s_nv0039.dst_dma, row+x*di)) != snapshot[(size_t)y*columns+x]) {
++                    ++s_nv0039_verify_errors;
++                    if (s_nv0039_verify_errors <= 8 || !(s_nv0039_verify_errors & (s_nv0039_verify_errors-1)))
++                        fprintf(stderr, "[NV0039] verification mismatch errors=%llu\n",
++                            (unsigned long long)s_nv0039_verify_errors);
++                }
++    }
++    if (rsx_draw_engine_enabled())
++        for (u32 y=0; y<rows; y++)
++            rsx_draw_engine_guest_buffer_wrote(dl, (u32)((int64_t)s_nv0039.dst+dp*y), (u32)dw);
++    free(snapshot);
++    s_nv0039_bytes += count;
++    ++s_nv0039_copies;
++    if (s_nv0039_copies <= 8 || !(s_nv0039_copies & (s_nv0039_copies-1)))
++        fprintf(stderr, "[NV0039] copies=%llu bytes=%llu columns=%u rows=%u verify=%d errors=%llu\n",
++            (unsigned long long)s_nv0039_copies, (unsigned long long)s_nv0039_bytes,
++            columns, rows, verify, (unsigned long long)s_nv0039_verify_errors);
++}
++
+ static void gcm_2d_method(u32 subch, u32 method, u32 data)
+ {
++    if (subch == 1) {
++        switch (method) {
++        case 0x0000: case 0x0180: return; /* object / notification DMA binding */
++        case 0x0184: s_nv0039.src_dma=data; return;
++        case 0x0188: s_nv0039.dst_dma=data; return;
++        case 0x030C: s_nv0039.src=data; return;
++        case 0x0310: s_nv0039.dst=data; return;
++        case 0x0314: s_nv0039.src_pitch=data; return;
++        case 0x0318: s_nv0039.dst_pitch=data; return;
++        case 0x031C: s_nv0039.columns=data; return;
++        case 0x0320: s_nv0039.rows=data; return;
++        case 0x0324: s_nv0039.format=data; return;
++        case 0x0328: nv0039_copy(data); return;
++        default: nv0039_reject("unknown subchannel-1 method"); return;
++        }
++    }
+     /* GCM2D_TRACE=1: histogram of (subchannel, method) actually seen. The
+      * subchannel a title binds each 2D object to is libgcm-version-specific and
+      * SET_OBJECT binds are not tracked, so state landing on an unexpected
+@@ -2088,12 +2230,11 @@
+                  * lists bind NV4097 elsewhere -- his rsx_live_draw.c masks the
+                  * subchannel out of the method for exactly this reason.
+                  *
+-                 * gcm_2d_method only ever handles subchannels 2..7 (NV3062,
+-                 * NV308A/NV309E, NV3089), so anything arriving on 1 was being
+-                 * dropped on the floor -- for this title that included
+-                 * SET_SHADER_PROGRAM, leaving one stale fragment program bound
+-                 * for every draw in the game. Treat the subchannels the 2D path
+-                 * does not claim as 3D. GCM_SUBCH1_2D=1 restores the old split.
++                 * Keep subchannel 1 as 3D by default for such SDK users.
++                 * A runner whose traces confirm NV0039 on slot 1 selects
++                 * GCM_SUBCH1_2D=1: its methods are consumed below before either
++                 * renderer sees them. Subchannels 2..7 carry the other 2D
++                 * objects (NV3062, NV308A/NV309E and NV3089).
+                  */
+                 static int s1_2d = -1;
+                 if (s1_2d < 0) { const char* e = getenv("GCM_SUBCH1_2D"); s1_2d = e ? atoi(e) : 0; }
+@@ -2119,6 +2260,13 @@
+                       if ((poll++ & 255u) == 0) { FILE* g = fopen(sg, "rb"); open_g = g != NULL; if (g) fclose(g); }
+                       if (open_g) printf("[subch] %u 0x%04X = 0x%08X%c", subch, m, vm_read32(dea), 10);
+                   } }
++                /* A configured NV0039 slot is consumed before either renderer
++                 * sees it. Its offsets/pitches overlap NV4097 blend state.
++                 * Other titles retain subchannel-1 3D routing by default. */
++                if (subch == 1 && s1_2d) {
++                    gcm_2d_method(subch, m, vm_read32(dea));
++                    continue;
++                }
+                 /* Mirror the whole method stream into the live NV4097->D3D12
+                  * engine (caner / canersaka). Inert unless RSX_LIVE_DRAW is set.
+                  * It wants the raw method with its subchannel bits -- it
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -1386,6 +1386,40 @@
+     s->guest_dirty = 0;
+     eng_textures_touch(s->location, s->offset, s->pitch * s->h);
+     return 1;
++}
++
++static int eng_buffer_overlaps(const eng_surface* s, u32 location, u32 offset, u32 bytes)
++{
++    return s->handle && s->location == location && bytes &&
++           (u64)offset < (u64)s->offset + (u64)s->pitch * s->h &&
++           (u64)offset + bytes > s->offset;
++}
++
++int rsx_draw_engine_guest_buffer_read(u32 location, u32 offset, u32 bytes)
++{
++    if (!g.ready || !bytes) return 1;
++    eng_resolves_sync(location, offset, bytes);
++    for (u32 i=0; i<g.n_surfaces; i++)
++        if (eng_buffer_overlaps(&g.surfaces[i], location, offset, bytes)) {
++            const eng_surface* s=&g.surfaces[i];
++            if (s->fmt != RSX_BE_FMT_R8G8B8A8 || s->pitch < s->w*4u ||
++                !g.be->readback || !g.be->color_target_write || !eng_surface_to_guest(i)) return 0;
++        }
++    return 1;
++}
++
++void rsx_draw_engine_guest_buffer_wrote(u32 location, u32 offset, u32 bytes)
++{
++    if (!g.ready || !bytes) return;
++    for (u32 i=0; i<g.n_surfaces; i++)
++        if (eng_buffer_overlaps(&g.surfaces[i], location, offset, bytes)) {
++            eng_surface* s=&g.surfaces[i];
++            if (s->fmt == RSX_BE_FMT_R8G8B8A8 && s->pitch >= s->w*4u) {
++                rsx_draw_engine_guest_wrote(location, s->offset, s->pitch, s->w, s->h);
++                s->guest_dirty=0;
++            }
++        }
++    eng_textures_rehash(location, offset, bytes);
+ }
+ 
+ static float* s_depth_rows;
+diff --git a/libs/video/rsx_draw_engine.h b/libs/video/rsx_draw_engine.h
+--- a/libs/video/rsx_draw_engine.h
++++ b/libs/video/rsx_draw_engine.h
+@@ -298,6 +298,13 @@
+  * memory first, so the transfer sees (or overwrites) the resolved pixels. */
+ void rsx_draw_engine_guest_access(u32 location, u32 offset, u32 bytes);
+ 
++/* Raw byte transfers (NV0039): before reading OR partially overwriting a
++ * range, store overlapping RGBA8 colour surfaces and pending resolves. Return
++ * 0 for a surface whose layout cannot be stored. After writing, update those
++ * surfaces and invalidate same-frame guest-texture hashes. */
++int rsx_draw_engine_guest_buffer_read(u32 location, u32 offset, u32 bytes);
++void rsx_draw_engine_guest_buffer_wrote(u32 location, u32 offset, u32 bytes);
++
+ /* --- test hooks ---------------------------------------------------------- */
+ 
+ /* Draws that ran the guest's OWN programs in the last presented frame. A draw
+diff --git a/libs/video/tests/test_rsx_draw_engine.c b/libs/video/tests/test_rsx_draw_engine.c
+--- a/libs/video/tests/test_rsx_draw_engine.c
++++ b/libs/video/tests/test_rsx_draw_engine.c
+@@ -1124,6 +1124,25 @@
+     CHECK(rd[0] == 0x44 && rd[1] == 0x11 && rd[2] == 0x22 && rd[3] == 0x33 &&
+           rd[4] == 0x44 && rd[7] == 0x33,
+           "the surface's R,G,B,A pixels land in guest memory as A8R8G8B8");
++    /* A byte copy can touch part of one pixel. Preserve GPU-owned bytes
++     * throughout the target before changing that byte, then upload it. */
++    draw_triangle();
++    u8* raw = vm_base + GUEST_LOCAL_EA + 0x40000u;
++    memset(raw, 0, 8);
++    CHECK(rsx_draw_engine_guest_buffer_read(RSX_LOCATION_LOCAL, 0x40001u, 1u),
++          "raw destination can be made coherent before a partial overwrite");
++    CHECK(raw[0] == 0x44 && raw[1] == 0x11 && raw[2] == 0x22 && raw[3] == 0x33 &&
++          raw[4] == 0x44 && raw[7] == 0x33,
++          "raw read preserves the other pixel bytes from the GPU");
++    raw[1] = 0xA5;
++    memset(&g_written, 0, sizeof g_written);
++    rsx_draw_engine_guest_buffer_wrote(RSX_LOCATION_LOCAL, 0x40001u, 1u);
++    CHECK(g_written.n == 1 && g_written.surface == surface &&
++          g_written.first[0] == 0xA5 && g_written.first[1] == 0x22 &&
++          g_written.first[2] == 0x33 && g_written.first[3] == 0x44,
++          "unaligned byte update reaches the GPU without replacing adjacent bytes");
++    rsx_draw_engine_guest_buffer_wrote(RSX_LOCATION_MAIN, 0x40001u, 1u);
++    CHECK(g_written.n == 1, "raw byte update keeps main and local memory separate");
+     engine_down();
+ }
+ 

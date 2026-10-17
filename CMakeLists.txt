@@ -511,6 +511,20 @@ if(WKC2_BUILD_TESTS)
     endif()
     add_test(NAME wkc2_nv3089_blit COMMAND wkc2_nv3089_blit_test)
     set_tests_properties(wkc2_nv3089_blit PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_nv0039_copy_test tests/nv0039_copy_test.c)
+    target_include_directories(wkc2_nv0039_copy_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_DIR}/runtime/ppu")
+    if(NOT WIN32)
+        target_sources(wkc2_nv0039_copy_test PRIVATE
+            "${PS3RECOMP_DIR}/runtime/platform/win32_compat.c")
+        target_link_libraries(wkc2_nv0039_copy_test PRIVATE Threads::Threads m)
+    endif()
+    add_test(NAME wkc2_nv0039_copy COMMAND wkc2_nv0039_copy_test)
+    set_tests_properties(wkc2_nv0039_copy PROPERTIES TIMEOUT 15
+        ENVIRONMENT "GCM_SUBCH1_2D=1;GCM_M2MF_VERIFY=1")
+    add_test(NAME wkc2_nv0039_routing_3d COMMAND wkc2_nv0039_copy_test 3d)
+    set_tests_properties(wkc2_nv0039_routing_3d PROPERTIES TIMEOUT 10
+        ENVIRONMENT "GCM_SUBCH1_2D=0")
     add_executable(wkc2_texture_layout_test
         "${PS3RECOMP_DIR}/libs/video/tests/test_texture_layout.c"
         "${PS3RECOMP_DIR}/libs/video/rsx_texture_layout.c")

@@ -21,6 +21,8 @@ void spu_lockline_lock(void) {}
 void spu_lockline_unlock(void) {}
 ps3_guest_caller_fn g_ps3_guest_caller;
 int rsx_draw_engine_enabled(void) { return 0; }
+int rsx_draw_engine_guest_buffer_read(u32 l, u32 o, u32 b) { (void)l; (void)o; (void)b; return 1; }
+void rsx_draw_engine_guest_buffer_wrote(u32 l, u32 o, u32 b) { (void)l; (void)o; (void)b; }
 void rsx_draw_engine_guest_read(u32 l, u32 o, u32 p, u32 w, u32 h) { (void)l; (void)o; (void)p; (void)w; (void)h; }
 void rsx_draw_engine_guest_wrote(u32 l, u32 o, u32 p, u32 w, u32 h) { (void)l; (void)o; (void)p; (void)w; (void)h; }
 void rsx_draw_engine_guest_access(u32 l, u32 o, u32 b) { (void)l; (void)o; (void)b; }

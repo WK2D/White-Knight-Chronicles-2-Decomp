@@ -14,8 +14,8 @@ recompiled; some remaining SPU code still uses an interpreter fallback. See
 [execution architecture and modding scope](docs/ARCHITECTURE.md).
 
 **Current milestone (2026-10-17): the native Vulkan build reaches the live WKC1
-town, with short movement, walking animation and camera rotation verified.**
-Town geometry and NPC materials still have visible faults. Sustained traversal,
+town, with improved NPC surfaces and short movement/camera response verified.**
+Stretched geometry remains; full material fidelity is unverified. Sustained traversal,
 combat and save/load remain unverified, so this is not a playable port yet.
 
 - [Build instructions](docs/BUILD.md)
@@ -25,19 +25,21 @@ combat and save/load remain unverified, so this is not a playable port yet.
 
 ## Progress
 
-[![Native WKC1 town after analog movement and camera rotation, with visible geometry faults](verification/screenshots/2026-10-17-native-wkc1-town-controls.png)](docs/GALLERY.md)
+[![Native WKC1 town with improved NPC surfaces after NV0039 support; stretched geometry remains](verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png)](docs/GALLERY.md)
 
-The latest image shows the live WKC1 town after short analog movement and
-camera rotation. Stretched geometry and corrupt NPC surfaces remain. Earlier
+The latest image shows improved NPC surfaces after adding NV0039 transfers
+and correcting their engine routing. Stretched geometry remains. Earlier
 captures are in the [gallery](docs/GALLERY.md).
 
-The latest runtime review fixes callback-stack placement, thread lifetime and
-graphics-copy handling bugs. Town comparisons still show the visible faults;
-tracing confirms unimplemented NV0039 memory copies as the next graphics task.
-See the [validation results](docs/FINDINGS.md#second-runtime-review).
+NV0039 memory copies now execute on the native build and pass destination-byte
+verification during the town run. Previously speckled NPC surfaces look coherent
+in the inspected views; the stretched strip remains. See the
+[implementation and validation results](docs/FINDINGS.md#nv0039-memory-transfers).
 
 Verified progress, with the latest milestone first:
 
+- improves previously speckled **NPC surfaces** in the starting town after NV0039
+  transfer support; stretched geometry and full visual fidelity remain unresolved;
 - reaches the **live WKC1 town** after avatar acceptance and opening cutscene
   skips, showing Leonard, NPCs, the minimap and a save crystal;
 - responds to short left-stick movement, facing changes and walking animation,
@@ -51,12 +53,12 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **48 Windows runtime regression checks** with **51 SDK patches** applied.
+- passes **50 Windows runtime regression checks** with **52 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
-respond to analog input in the starting town. Geometry and material faults
-remain; sustained traversal, combat and save/load are unverified. This is not
-yet a playable port.
+respond to analog input in the starting town. Stretched geometry remains and
+full material fidelity is unverified. Sustained traversal, combat and save/load
+remain unverified. This is not yet a playable port.
 
 Vulkan is the primary Windows renderer. It now renders the avatar and room
 without its initial red tint after correcting colour-target feedback. D3D12
@@ -135,9 +137,10 @@ coverage report distinguishes handler presence from verified implementation.
   regenerated PPU/SPU code. This checkpoint covers prerecorded movie playback;
   live town rendering and limited controls are verified separately below.
 - **WKC1 town world view and pause/resume:** observed on the native Vulkan build
-  after the opening cutscenes. Geometry and NPC materials remain visibly corrupt.
+  after the opening cutscenes. NPC surfaces improve with patch 0052; stretched
+  geometry remains.
 - **Initial town controls:** short analog movement, facing changes and camera
-  rotation first observed on the 42-patch build and rechecked with all 51 patches.
+  rotation first observed on the 42-patch build and rechecked with all 52 patches.
 - **Sustained traversal, combat and save/load verification:** pending.
 - **In-game keyboard with gamepad navigation, shared across Windows and macOS:**
   planned. The current Windows text-entry window is temporary.
@@ -146,13 +149,15 @@ coverage report distinguishes handler presence from verified implementation.
 
 ## Current investigation
 
-The next rendering work is to correct stretched town geometry and corrupt NPC
-surfaces, then verify sustained traversal, combat and save/load. The reviewed
-vertex-program co-issue fix passes its checks, but the town recheck still shows
-those faults. The SPU census also identifies three static-entry candidates whose
-behavior still needs validation.
+The next rendering work is to correct stretched town geometry and validate
+remaining material fidelity, then verify sustained traversal, combat and save/load.
+The vertex-program co-issue fix and NV0039 copies pass their checks, but the town
+recheck still shows stretched strips. NPC surface speckling improves with patch
+0052. SPU skinning output and texture/surface cache ownership remain candidates
+for investigation. The SPU census also identifies three static-entry candidates
+whose behavior still needs validation.
 
-See [the latest native findings](docs/FINDINGS.md#vertex-program-co-issue-review)
-for the town comparison and shader census, [the full findings log](docs/FINDINGS.md) for
+See [the latest native findings](docs/FINDINGS.md#nv0039-memory-transfers)
+for the copy validation and town comparison, [the full findings log](docs/FINDINGS.md) for
 earlier investigations, and [diagnostic probes](docs/BUILD.md#diagnostic-probes)
 for reproduction options.

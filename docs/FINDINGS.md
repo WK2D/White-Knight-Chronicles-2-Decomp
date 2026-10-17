@@ -2,10 +2,11 @@
 
 Updated 2026-10-17. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current milestone:** the full 51-patch native Windows Vulkan build reaches
+**Current milestone:** the full 52-patch native Windows Vulkan build reaches
 the live WKC1 town and responds to short analog movement, facing/walking changes,
 and camera rotation. Earlier town testing also verified pause/resume input.
-All 48 current runtime checks pass. Geometry and NPC material faults remain; sustained
+All 50 current runtime checks pass. NPC surfaces improve after NV0039 support;
+stretched geometry remains and full material fidelity is unverified; sustained
 traversal, combat and save/load are unverified.
 See [the latest recheck](#second-runtime-review) and [gallery](GALLERY.md).
 
@@ -764,10 +765,9 @@ A ten-second town trace using an empty private `GCM_SUBCH_GATE` file contains
 **33 complete NV0039 copy sequences** on subchannel 1: DMA bindings, source and
 destination offsets, pitches, byte and line counts, format, and copy triggers.
 This confirms actual memory-to-memory copy use, beyond the ambiguous presence
-of individual register addresses. The runtime has no NV0039 transfer handler
-and normally sends these methods into its 3D state. Implementing the copies
-and routing them to the correct engine is the next concrete graphics fix.
-Its effect on the visible faults remains unverified.
+of individual register addresses. That 51-patch runtime had no NV0039 transfer handler and sent these methods
+into its 3D state. The subsequent implementation and native validation are
+recorded below.
 
 The run logs contain six inline-write messages (the diagnostic's cap), no
 `[NV3089] SKIPPED` messages and no `[GCM2D-UNH]` messages. The latter absence
@@ -783,6 +783,48 @@ records and comparison-frame hashes are in
 [rendering.json](../verification/rendering.json). Their captures show no
 new correction of these faults, so the gallery retains its earlier town
 image rather than adding another equivalent milestone.
+
+## NV0039 memory transfers
+
+Patch 0052 implements the memory-to-memory copies confirmed by the earlier
+town trace, and the WKC runner now selects the observed NV0039 binding on
+subchannel 1. The walker consumes these methods before either 3D renderer.
+This prevents copy offsets, pitches and formats from overwriting unrelated
+NV4097 state. The SDK's default for other runners remains unchanged.
+
+The Windows Vulkan build passes all **50 project tests with 52 SDK patches**.
+The new FIFO regressions cover the observed 12/16-byte transfer shapes,
+overlap, zero/negative pitches, interleaved byte strides, noncontiguous MAIN
+mappings, invalid ranges, reservation notifications and the 3D compatibility
+override. The draw-engine regression also checks a partial-pixel byte write
+preserves adjacent GPU-owned bytes. The stack applies to a clean pinned SDK,
+upgrades prefix 51, and reapplies without changes.
+
+The native WKC1 recheck (`20261017-061720`) reaches town using the clean-generated
+input build, with the default SPU float mode and `GCM_M2MF_VERIFY=1`.
+The log confirms at least **65,536 completed copies / 14,363,492 bytes**,
+with no rejection or verification-mismatch diagnostics. These totals are
+lower bounds from the diagnostic's power-of-two checkpoints. A ten-second
+town gate contains **47 NV0039 triggers**. Short movement and camera
+response were rechecked, then the sole native process was stopped.
+
+**NPC surfaces improve, while the stretched strip at Leonard remains.**
+Previously speckled/mosaic NPC surfaces look coherent in the inspected town
+readbacks, including after short movement and camera rotation. This is a
+qualitative comparison with the earlier 42/51-patch captures; full material
+fidelity remains unverified. Patch 0052 combines copies and routing correction,
+so their individual visual effects have not been isolated. The new unchanged
+GPU readback is at the top of the [gallery](GALLERY.md). Aggregate results and
+the comparison-frame hash are in [rendering.json](../verification/rendering.json). The selected
+game-only readback is published; raw command values, game programs and logs
+remain private.
+
+Support covers non-notifying byte copies, signed/zero pitches, strides 1/2/4,
+overlap staging, report-record sources and shared-renderer RGBA8 coherence.
+Notification completion, other GPU layouts, transfers over 64 MiB and D3D12
+GPU-owned surface copies remain limited or unverified. The report path exposes
+the runtime's existing records without establishing accurate GPU queries.
+See [build and diagnostic details](BUILD.md#additional-runtime-fixes).
 
 ## Vertex-program co-issue review
 
@@ -999,7 +1041,7 @@ SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
 Twenty checks passed at this checkpoint. The title screen and its menu rendered
-natively; the current suite has 48 passing checks.
+natively; the current suite has 50 passing checks.
 
 Packed A4R4G4B4 font textures were excluded by the D3D12 binding filter, leaving
 previous artwork selected for text draws. The backend now records the current

@@ -4,6 +4,33 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_wkc1_nv0039_npc_surfaces",
+      "date": "2026-10-17",
+      "image": "screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "Vulkan shared RSX draw engine",
+      "source_format": "Vulkan GPU readback PPM",
+      "source_sha256": "86aa6671faa4f87d4ce99e22c7f48b64c0725e463c25f0eba25068cd788d17a7",
+      "png_sha256": "464f3653620028f0b5efd12a1846cc25841d640bb61630945274355c2ec9422c",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "native_probe": "20261017-061720",
+      "native_readback": "snap_1135.ppm",
+      "sdk_patch_count_in_captured_run": 52,
+      "limited_town_movement_and_camera_response_verified": true,
+      "npc_surface_rendering_improved": true,
+      "earlier_npc_mosaic_fault_visible_in_this_capture": false,
+      "full_npc_surface_fidelity_verified": false,
+      "visible_geometry_corruption": true,
+      "native_gameplay_verified": false
+    },
+    {
       "milestone": "native_wkc1_town_analog_input",
       "date": "2026-10-17",
       "image": "screenshots/2026-10-17-native-wkc1-town-controls.png",

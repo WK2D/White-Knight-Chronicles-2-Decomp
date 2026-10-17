@@ -11,12 +11,27 @@ interpreter-free execution; see [architecture](ARCHITECTURE.md).
 **Current status:** the native Windows Vulkan build reaches the WKC1
 town after avatar acceptance and opening cutscene skips. Short analog movement,
 facing changes, walking animation and camera rotation respond to input.
-Stretched geometry and corrupt NPC surfaces remain. Sustained traversal, combat,
+NPC surfaces improve after NV0039 support; stretched geometry remains and full
+material fidelity is unverified. Sustained traversal, combat,
 save/load and full audio fidelity remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-17 — NPC surfaces after NV0039 transfers
+
+The 52-patch native Vulkan build implements NV0039 byte copies and routes
+their methods away from 3D state. Previously speckled NPC surfaces look
+coherent in the inspected town views, including after short movement and
+camera rotation. The run verifies at least 65,536 copies without mismatch
+or rejection diagnostics. Full material fidelity remains unverified.
+
+**The stretched strips at Leonard are still present.** This capture records
+the NPC surface improvement, not complete rendering correctness or a playable
+port. Sustained traversal, combat and save/load remain unverified.
+
+![Native WKC1 town with improved NPC surfaces and remaining stretched geometry](../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png)
 
 ## 2026-10-17 — Town movement and camera response
 

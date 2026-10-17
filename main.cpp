@@ -579,6 +579,8 @@ int main(int argc, char** argv)
     // This title's image registry contains no YDKJ CRI media task.
 #ifdef _WIN32
     _putenv_s("SPU_CRI_IMAGE", "-1");
+    // Native FIFO traces confirm NV0039 memory copies on this title's slot 1.
+    if (!getenv("GCM_SUBCH1_2D")) _putenv_s("GCM_SUBCH1_2D", "1");
     // Present the completed batch at the guest's FIFO flip. The backend's
     // clear-based fallback can retain a large scene's draw-count threshold
     // across a transition and indefinitely withhold a smaller movie batch.
@@ -591,6 +593,7 @@ int main(int argc, char** argv)
 #endif
 #else
     setenv("SPU_CRI_IMAGE", "-1", 1);
+    setenv("GCM_SUBCH1_2D", "1", 0);
     setenv("RSX_ACCUM_FRAME", "1", 1);
 #endif
     if (argc < 2) {

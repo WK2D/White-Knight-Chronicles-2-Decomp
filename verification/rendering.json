@@ -4,17 +4,18 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-17",
-    "native_probe": "20261017-010907",
-    "sdk_patch_count": 42,
-    "summary": "Live WKC1 town with short movement, facing/walking animation, minimap position change and camera rotation verified",
-    "gallery_image": "screenshots/2026-10-17-native-wkc1-town-controls.png",
+    "native_probe": "20261017-061720",
+    "sdk_patch_count": 52,
+    "summary": "Live WKC1 town with improved NPC surfaces after NV0039 transfers; short movement and camera response rechecked",
+    "gallery_image": "screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png",
     "remaining_limits": [
-      "Visible stretched geometry and corrupt NPC surfaces",
+      "Visible stretched geometry at Leonard",
+      "Full material/rendering fidelity unverified",
       "Sustained traversal, combat and save/load unverified",
       "SPU interpreter fallback remains enabled"
     ],
-    "latest_recheck_probe": "20261017-052058",
-    "latest_recheck_sdk_patch_count": 51
+    "latest_recheck_probe": "20261017-061720",
+    "latest_recheck_sdk_patch_count": 52
   },
   "verified": {
     "native_language_selection_rendered": true,
@@ -46,7 +47,9 @@
     "movement_and_camera_control": true,
     "combat": false,
     "limited_town_movement_and_camera_response": true,
-    "movement_and_camera_control_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
+    "movement_and_camera_control_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified.",
+    "npc_surface_rendering_improved": true,
+    "npc_surface_full_fidelity": false
   },
   "captures": [
     {
@@ -111,6 +114,8 @@
       "wkc2_fp_identity",
       "wkc2_draw_engine",
       "wkc2_nv3089_blit",
+      "wkc2_nv0039_copy",
+      "wkc2_nv0039_routing_3d",
       "wkc2_texture_layout",
       "wkc2_vdec_decode",
       "wkc2_vdec_timing",
@@ -132,8 +137,8 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 51,
-    "current_passed_count": 48
+    "current_sdk_patch_count": 52,
+    "current_passed_count": 50
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -1386,7 +1391,7 @@
     "native_game_run_verified": true,
     "native_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
   },
-  "record_scope": "Current status is summarized in current_milestone and verified. Other named probes retain historical counts, failures and unverified fields. Latest town/float/subchannel comparisons are in second_runtime_review; vertex_program_coissue_review retains the earlier shader review and the gallery retains its original capture provenance.",
+  "record_scope": "Current status is summarized in current_milestone and verified. Other named probes retain historical counts, failures and unverified fields. nv0039_memory_transfers records patch 0052; second_runtime_review retains the four earlier 51-patch comparisons. The gallery retains its original capture provenance.",
   "host_runtime_review": {
     "audio_error_end_restart_regression_passed": true,
     "old_audio_implementation_fails_regression": true,
@@ -1951,5 +1956,132 @@
         "stopped_after_validation": true
       }
     ]
+  },
+  "nv0039_memory_transfers": {
+    "sdk_patch_count": 52,
+    "native_probe": "20261017-061720",
+    "windows_build": {
+      "renderer": "Vulkan",
+      "compiler": "clang-cl 23.1.3",
+      "configuration": "Debug",
+      "project_tests_passed": 50,
+      "test_elapsed_seconds": 22.31
+    },
+    "native_binary_sha256": "9c00018b06962045b9a88ae4c34a6716adb9a1403bde1d4b6dfbf71d5dba8c01",
+    "native_input_build": "Previously clean disc extraction and PPU/SPU regeneration, rebuilt with this runtime",
+    "handler_implemented": true,
+    "default_wkc_subchannel_1_binding": "NV0039",
+    "methods_consumed_before_both_3d_renderers": true,
+    "native_town_reached": true,
+    "short_movement_and_camera_response_rechecked": true,
+    "destination_byte_verification_enabled": true,
+    "completed_copies_logged_lower_bound": 65536,
+    "copied_bytes_logged_lower_bound": 14363492,
+    "rejection_diagnostics": [],
+    "verification_mismatch_messages": 0,
+    "logged_verification_errors": 0,
+    "counter_scope": "Copy/byte checkpoints are the first eight completions and powers of two thereafter; lower bounds, not final totals. First rejection or verification mismatch is reported immediately.",
+    "log_message_counts": {
+      "[NV3089] SKIPPED": 0,
+      "[GCM2D-UNH]": 0,
+      "[GCM2D] inline write": 6
+    },
+    "town_trace_gate_seconds": 10,
+    "town_trace_subchannel_method_counts": {
+      "1": 517,
+      "3": 955,
+      "5": 1361
+    },
+    "town_trace_subchannel_1_copy_range_methods": {
+      "0x0184": 47,
+      "0x0188": 47,
+      "0x030C": 47,
+      "0x0310": 94,
+      "0x0314": 47,
+      "0x0318": 47,
+      "0x031C": 47,
+      "0x0320": 47,
+      "0x0324": 47,
+      "0x0328": 47
+    },
+    "town_trace_nv0039_triggers": 47,
+    "spu_census": {
+      "rows": 6,
+      "completed_sessions": 1885,
+      "recorded_instructions": 8172,
+      "dropped_sessions": 0,
+      "sha256": "8ac86393d68f9b9c4cffd13cbc1aba60f5d2e40d906eb175b3914f3ce63c3f3a",
+      "entry_fingerprints": [
+        [
+          "interp",
+          "17",
+          "0x07D68",
+          "5EFC997629A14715"
+        ],
+        [
+          "interp",
+          "17",
+          "0x07E4C",
+          "B11C61F140A74B9C"
+        ],
+        [
+          "interp",
+          "17",
+          "0x07E88",
+          "8C000DFCAD9A5CD1"
+        ],
+        [
+          "microstep",
+          "17",
+          "0x07D60",
+          "BAD09E1CCC15986B"
+        ],
+        [
+          "microstep",
+          "17",
+          "0x07E38",
+          "8BE1F18B292D8F2D"
+        ],
+        [
+          "microstep",
+          "17",
+          "0x07E78",
+          "52A1C3E317021A9D"
+        ]
+      ]
+    },
+    "stretched_strip_present": true,
+    "npc_surface_rendering_improved": true,
+    "full_npc_surface_fidelity_verified": false,
+    "target_rendering_faults_corrected": false,
+    "comparison_frame": "snap_1135.ppm",
+    "comparison_frame_sha256": "86aa6671faa4f87d4ce99e22c7f48b64c0725e463c25f0eba25068cd788d17a7",
+    "baseline_gallery_image": "screenshots/2026-10-17-native-wkc1-town-controls.png",
+    "comparison_scope": "Qualitative native readbacks with finite controller inputs; no debugger state edits or pixel-identical replay.",
+    "supported_scope": [
+      "Non-notifying LOCAL/MAIN byte copies",
+      "Signed/zero row pitches and byte strides 1/2/4",
+      "Complete source snapshot for overlapping copies",
+      "Runtime report-record sources",
+      "Shared-renderer RGBA8 colour-target coherence and texture-cache invalidation"
+    ],
+    "remaining_limits": [
+      "Notification completion unsupported",
+      "64 MiB staging limit",
+      "GPU report-query accuracy not added",
+      "Other colour-target layouts rejected; depth-target copies unverified",
+      "D3D12 GPU-owned surface copies unverified",
+      "Linux and macOS not tested"
+    ],
+    "stopped_after_validation": true,
+    "new_gallery_capture_published": true,
+    "latest_run_frame": "snap_1195.ppm",
+    "latest_run_frame_sha256": "60a0c2d0cfc081f6b378eedf04c0f3e34b4e6daba77f1721a9f5b6cd411edf01",
+    "gallery_image": "screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png",
+    "npc_improvement_scope": "Previously speckled/mosaic NPC surfaces look coherent in the inspected starting-town readbacks after short movement and camera rotation. Qualitative comparison with earlier 42/51-patch captures, not proof of full material fidelity.",
+    "attribution_scope": "Patch 0052 adds both the byte transfers and routing correction; these were not isolated in separate native A/B runs.",
+    "prior_npc_mosaic_fault_visible_in_comparison_frame": false,
+    "raw_logs_and_game_programs_published": false,
+    "selected_comparison_readback_published": true
   }
 }

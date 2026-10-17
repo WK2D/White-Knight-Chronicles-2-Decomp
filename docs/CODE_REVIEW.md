@@ -10,8 +10,8 @@ again here are marked *reported*.
 
 The town captures that show stretched geometry and corrupt NPC surfaces are all
 from Vulkan runs. Of the fixes below, 0046, 0050 and 0051 could affect those
-faults. The Windows suite now passes and a native town run still shows both
-faults; see [the recorded findings](FINDINGS.md#second-runtime-review).
+faults. The 51-patch Windows suite passed and its native town run still showed
+both faults; see [the recorded findings](FINDINGS.md#second-runtime-review).
 
 ### Reviewed fixes
 
@@ -27,18 +27,23 @@ faults; see [the recorded findings](FINDINGS.md#second-runtime-review).
 Each patch is described at the end of
 [Additional runtime fixes](BUILD.md#additional-runtime-fixes) in BUILD.md.
 
-### Open findings
+### Findings and remaining work
 
 Rendering:
 
-1. **NV0039 copies are not implemented.** `cellGcmSys.c` treats subchannel 1
-   as NV4097 unless `GCM_SUBCH1_2D` is set, and has no NV0039 handler either
-   way. libgcm's memory-to-memory transfers use subchannel 1, so if the title
-   issues them, the copy never happens and its offset, pitch and format words
-   land on NV4097 state: blend and colour mask on both renderers.
-   A ten-second native town trace now confirms 33 complete NV0039 transfer
-   sequences on subchannel 1. The copy and engine-routing fix remains open;
-   its effect on the rendering faults is unverified.
+1. **NV0039 copies were missing; addressed by patch 0052.** The earlier
+   `cellGcmSys.c` treated subchannel 1 as NV4097 unless `GCM_SUBCH1_2D` was
+   set, and had no NV0039 handler either way. On that baseline, transfers on
+   this binding never copied their data, and their offset, pitch and format
+   words landed on NV4097 state: blend and colour mask on both renderers.
+   A ten-second native town trace confirmed 33 complete transfer sequences.
+   Patch 0052 adds byte copies and consumes their methods before both 3D
+   renderers, with the WKC runner selecting the verified slot-1 binding.
+   Its two new regression tests and extended draw-engine checks pass on
+   Windows. The native run verifies copied bytes with no mismatch or rejection
+   diagnostics. NPC surfaces improve in the inspected town views, while
+   stretched geometry remains. See the
+   [native results](FINDINGS.md#nv0039-memory-transfers).
 2. **Render targets are matched to textures by address alone**
    (`rsx_draw_engine.c` `sink_bind_textures`; the D3D12 backend is reported to
    do the same), and are never retired when guest memory is reused. A texture streamed to the
@@ -95,15 +100,15 @@ in `build.ps1` also hides warnings in the hand-written sources.
   built as `__thread`; clang-cl and MSVC honour the original.
 - `tools/check_public_tree.py` reports no findings.
 
-Windows validation on 2026-10-17: the Vulkan clang-cl build and all 48 project
-tests pass with the 51-patch stack. This includes both new tests, the extended
+Earlier Windows validation (51-patch baseline) on 2026-10-17: the Vulkan
+clang-cl build and all 48 project tests passed with the 51-patch stack. This includes both new tests, the extended
 checks above and all three SPU float modes. No MinGW TLS override was used.
 The separately regenerated disc-input build also compiles with all 51 patches.
 Native results are recorded in [FINDINGS.md](FINDINGS.md#second-runtime-review).
 All four requested configurations reach town: default float arithmetic with
 and without `RSX_ENGINE_ALL_SUBCHANNELS=1`, then SPU float audit and exact.
 The stretched strip and NPC surface faults remain in all four. Native traces
-confirm NV0039 transfers, which remain the next implementation task.
+confirmed the missing NV0039 transfers subsequently implemented in patch 0052.
 
 ### Native reproduction checks (completed above)
 
@@ -113,7 +118,7 @@ confirm NV0039 transfers, which remain the next implementation task.
    `[GCM2D] inline write`; these name the 2D engines the title uses.
 3. Create an empty private file, set `GCM_SUBCH_GATE` to its path, and stand in
    the town for a few seconds. `[subch] 1 0x0184`-`0x0328` lines mean NV0039
-   transfers (open finding 1).
+   transfers (finding 1, now addressed by patch 0052).
 4. Repeat with `RSX_ENGINE_ALL_SUBCHANNELS=1`. A change in the faults between
    the two runs means 2D-engine methods were reaching the draw state.
 5. Repeat with patch 0045's `SPU_FLOAT_MODE=audit` and `exact`; both native
