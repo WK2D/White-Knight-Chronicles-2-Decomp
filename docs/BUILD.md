@@ -13,6 +13,11 @@ Full material/rendering fidelity, sustained traversal, combat and save/load
 remain unverified. See the
 [latest gallery entry](GALLERY.md).
 
+The source stack now contains 65 SDK patches. Its Windows Vulkan build and all
+59 regression checks pass. Patch 0065's counter updates are verified in the
+visible title menu and initial character creator; rotation stutter remains
+unresolved. The verified 64-patch town results above retain their original scope.
+
 The source checkout and private working directory can be separate. Pass the
 private workspace with `-Workspace`; the build script gets project sources from
 its own location. Its default workspace layout is three parent directories above
@@ -79,14 +84,14 @@ It also covers persistent DMA label polling, reuse of freed memory ranges and
 finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts and host-thread recursion diagnostics. The current
-build contains 64 numbered SDK patches. The newest published town
+build contains 65 numbered SDK patches. The newest published town
 captures use 58; the NPC-surface checkpoint used 52 and the first town-controls
 capture used 42; the earlier town world-view capture used 39. Patch 0043 passed
 the earlier 43-check Windows suite and remains covered by the current suite;
 its town-rendering comparison is recorded separately.
 Patch 0045's three float-mode checks and patches 0046-0051's new and extended
-checks pass in the native Windows clang-cl build. The current 59-check suite
-passes with all 64 patches; Wine's MinGW TLS workaround is not needed here.
+checks pass in the native Windows clang-cl build. All 59 checks also pass with
+65 patches; Wine's MinGW TLS workaround is not needed here.
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
@@ -216,6 +221,35 @@ active. Earlier patch sections retain their historical check counts. The
 [town measurements](FINDINGS.md#town-performance-after-the-physics-fix) record
 the native 64-patch Release-CRT recheck and its limits. Tests and replay checks
 alone do not establish a frame-rate gain.
+
+## Vulkan window-title counter (patch 0065)
+
+Patch 0065 adds a live FPS and maximum interval readout to the existing Vulkan
+window title. The 65-patch Windows Vulkan build and all 59 existing checks pass.
+Counter updates are verified in the visible native title menu and initial
+character creator. It adds no new CTest entry.
+
+The counter accepts only `vkQueuePresentKHR` calls returning `VK_SUCCESS` or
+`VK_SUBOPTIMAL_KHR`, and uses monotonic elapsed time over approximately one-second
+windows. `FPS` is accepted queue presentations per elapsed second; `max` is the
+longest interval between accepted presentations in that window, in milliseconds.
+These are not counts of unique guest animation frames or exact display scanout.
+Average FPS can hide stutters, so inspect the maximum interval while rotating or
+moving. If rendering stalls, the displayed title can remain unchanged until
+rendering resumes. The base window title is retained, and counter state resets
+with the renderer lifecycle. No diagnostic environment switch is required.
+
+The normal Windows build passes all 59 checks in 22.17 seconds. The private
+optimized Release-CRT build passes the 54 non-media checks; its five media checks
+also pass when rerun with their required decoder-library environment. Upgrading
+a 64-patch SDK changes one file, and repeating all 65 patches makes no changes.
+
+The native counter check used a visible window, no sampling profiler and
+five-second GPU readbacks. The desktop shortcut also launches the same promoted
+binary. These observations verify the counter display and shortcut target;
+they are not a quantified character-creator benchmark or a rotation-smoothness
+fix. The exact scripted rotation gesture was not confidently verified, and the
+reported stutter remains unresolved.
 
 ## Windows renderer
 
@@ -1022,6 +1056,10 @@ Release-CRT build. `/arch:AVX2` permits hardware FMA for the SPU helpers' explic
 `fmaf` operations and requires a CPU with AVX2 and FMA support. Omit that option
 on older processors; their performance has not been measured.
 
+The Vulkan window title includes accepted-presentation FPS and the longest
+presentation interval without a diagnostic switch; see
+[counter scope](#vulkan-window-title-counter-patch-0065).
+
 Runtime switches, all off unless set:
 
 - `WKC2_SKIP_INTRO=1` skips the copyright and save notices and the publisher
@@ -1059,11 +1097,12 @@ presence switches set to `0` still emit diagnostics while preserving their norma
 `tools/probe.ps1 -ShowWindow` keeps the game window visible during a probe.
 Draw/shader captures, profiler files and logs stay in the private workspace.
 These options can change timing. With the physics fix included, two one-minute
-starting-town samples measured 8.1–8.3 fps at patch 0058 and 9.3–9.6 fps at
-patch 0059, using the optimized Debug-ABI build, sampling profiler and five-second
-readbacks. The immediate target is a steady 30 fps, followed by validated 60 fps
-support. Later 64-patch Release-CRT samples measure 12.5–13.1 fps; see the
-conversion/DMA section above. These limited measurements are not a performance guarantee; see
+hidden-window starting-town samples measured 8.1–8.3 fps at patch 0058 and
+9.3–9.6 fps at patch 0059, using the optimized Debug-ABI build, sampling profiler
+and five-second readbacks. The private benchmark launcher omitted `-ShowWindow`. The immediate target is a steady 30 fps, followed by validated 60 fps
+support. Later hidden-window 64-patch Release-CRT samples measure 12.5–13.1 fps;
+see the conversion/DMA section above. These are relative diagnostic benchmarks
+and do not establish visible gameplay FPS or character-rotation smoothness; see
 [conditions and records](FINDINGS.md#town-performance-after-the-physics-fix).
 
 ## Diagnostic probes

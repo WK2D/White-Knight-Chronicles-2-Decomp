@@ -18,8 +18,9 @@ See
 **Current milestone (2026-10-17): the native Vulkan build runs the missing
 secondary-bone physics job, removing the long stretched strips in the tested
 WKC1 town views. Short movement and camera rotation are rechecked.**
-The latest profiled starting-town samples measure 12.5–13.1 fps, compared with
-8.1–8.3 fps before the performance passes. A steady 30 fps is the next target,
+Hidden-window starting-town diagnostic benchmarks measure 12.5–13.1 fps,
+compared with 8.1–8.3 fps before the performance passes. These runs do not
+measure visible gameplay or character-rotation smoothness. A steady 30 fps is the next target,
 followed by
 validated 60 fps support; see [measurements and limits](docs/FINDINGS.md#town-performance-after-the-physics-fix).
 Full material and rendering fidelity remain unverified. Sustained traversal,
@@ -29,6 +30,12 @@ combat and save/load remain unverified, so this is not a playable port yet.
 - [Contribution workflow](docs/CONTRIBUTING.md)
 - [Findings log](docs/FINDINGS.md): verified results, open issues and next steps
 - [Progress gallery](docs/GALLERY.md): newest first
+
+The source stack now contains **65 SDK patches**. Patch 0065 adds an FPS and
+maximum presentation-interval readout to the Vulkan window title. The Windows
+build and all 59 regression checks pass. Counter updates are verified in the
+visible title menu and initial character creator. Rotation stutter remains
+unresolved; see [counter scope](docs/BUILD.md#vulkan-window-title-counter-patch-0065).
 
 ## Progress
 
@@ -56,9 +63,10 @@ Verified progress, with the latest milestone first:
 - filters unchanged FIFO producer writes, accelerates SPU byte counts and
   separates workers' recursion diagnostics (patches 0062–0064);
 - removes repeated SPU conversion-scale calls and shared MFC engine lookups
-  (patches 0060–0061); those starting-town samples measured 11.5–13.1 fps;
-- improves the measured starting-town view by about 15% by caching launch-time
-  diagnostic settings (patch 0059); this remains well below 30 fps;
+  (patches 0060–0061); their hidden-window town samples measured 11.5–13.1 fps;
+- improves the hidden-window starting-town diagnostic benchmark by about 15%
+  by caching launch-time diagnostic settings (patch 0059); visible gameplay
+  performance still needs measurement;
 - removes the long **stretched hair and clothing strips** in the tested town
   views by running the previously omitted SPURS queue physics job; all 128
   sampled geometry jobs now have normal referenced vertex bounds;
@@ -81,7 +89,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **59 Windows runtime regression checks** with **64 SDK patches** applied.
+- passes **59 Windows runtime regression checks** with **65 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are
@@ -182,8 +190,9 @@ Town performance is the immediate focus: a steady 30 fps first, followed by
 validated 60 fps support. The completed passes avoid repeated SPU conversion-scale
 CRT calls and replace the fixed MFC registry with independent context-owned
 DMA state. They also filter unchanged producer writes, accelerate byte counts
-and keep recursion history per host thread. The findings retain the
-measured frame counts and comparison limits.
+and keep recursion history per host thread. The window-title counter now shows
+average presentation rate and long intervals in the visible native window.
+Character-rotation stutter remains unresolved. The findings retain the measured frame counts and comparison limits.
 
 The long town strips came from secondary-bone physics jobs that the runtime
 never executed. Patch 0058 implements their queue/port calls and CRT handoff;

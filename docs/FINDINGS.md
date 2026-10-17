@@ -1,8 +1,8 @@
 # Findings
 
-Updated 2026-10-17. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
+Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current milestone:** the 64-patch native Windows Vulkan build runs the
+**Latest verified town milestone:** the 64-patch native Windows Vulkan build runs the
 missing secondary-bone physics job. The long stretched hair/clothing strips
 are gone in the inspected WKC1 town views, including after short movement and
 camera rotation. All 59 current runtime checks pass. Full material/rendering
@@ -10,9 +10,15 @@ fidelity, sustained traversal, combat and save/load remain unverified.
 See [the physics trace and native recheck](#secondary-bone-physics-and-town-stretching)
 and [gallery](GALLERY.md).
 
-The latest profiled starting-town samples measure 12.5–13.1 fps, compared with
-8.1–8.3 fps before the performance passes. A steady 30 fps is the immediate target,
+Hidden-window starting-town diagnostic benchmarks measure 12.5–13.1 fps,
+compared with 8.1–8.3 fps before the performance passes. These runs do not
+measure visible gameplay or character-rotation smoothness. A steady 30 fps is the immediate target,
 followed by validated 60 fps support. See [the comparison](#town-performance-after-the-physics-fix).
+
+The source stack contains 65 patches, with the Windows Vulkan build and all 59
+regression checks passing. Window-title counter updates are verified in the
+visible title menu and initial character creator; rotation stutter remains
+unresolved. Existing town measurements remain 64-patch records.
 
 ## Goal and reporting
 
@@ -1070,7 +1076,35 @@ first-stack-pointer heuristic is not a reliable full call stack.
 copyright and save notices and the publisher/middleware logos while keeping
 the system-setup steps; the title appears about 30 s after launch.
 
+## Window-title presentation timing
+
+Patch 0065 adds a live counter to the Vulkan window title so performance can be
+inspected during character rotation, alongside the visible response. The Windows
+Vulkan build and all 59 existing regressions pass. Counter updates are verified
+in the visible title menu and initial creator, including name entry and the Body
+tab. The check used no sampling profiler and retained five-second GPU readbacks.
+The desktop shortcut launches the same promoted binary. This verifies the title
+display and shortcut target, not a quantified character-creator benchmark.
+The exact scripted rotation gesture was not confidently verified; reported
+rotation stutter remains unresolved. No rotation-smoothness fix is claimed.
+
+The FPS value counts accepted Vulkan queue presentations over monotonic elapsed
+time, with an update after approximately one second. The maximum interval in
+milliseconds helps reveal long gaps that an average can hide. Neither value
+establishes unique guest animation frames or exact display scanout. A stalled
+renderer can leave the previous title visible until it resumes. See the
+[implementation scope](BUILD.md#vulkan-window-title-counter-patch-0065).
+
 ## Town performance after the physics fix
+
+**Measurement correction (2026-10-18):** all profiled town benchmarks below,
+from patches 0058 through 0064, ran with the native window hidden. The private
+launcher omitted `-ShowWindow`; the window's hidden state was confirmed through
+the Windows API. Their common condition permits the limited relative diagnostic
+comparisons recorded here, but these are not visible-gameplay FPS measurements.
+They do not establish character-creator or rotation smoothness. Short controls
+and GPU readbacks elsewhere are untimed input/visual checks. Visible interactive
+timing requires a separate run; no cause for the difference is established.
 
 Patch 0059 caches launch-time diagnostic settings in the renderer and SPU job
 dispatcher. Previously, disabled diagnostics repeatedly scanned the host process
@@ -1079,7 +1113,7 @@ were performed for each SPURS job. The new per-thread caches retain presence
 semantics, descriptor dump levels, selected fingerprint parsing and log budgets.
 They do not change guest work or disable physics.
 
-Two private native runs compare the same initial WKC1 town view after dismissing
+Two private hidden-window native runs compare the same initial WKC1 town view after dismissing
 the party and Travelogue dialogs. No movement or camera input was sent during
 the measured windows. NPCs continue moving, so this is a limited live-scene
 comparison rather than an identical-workload benchmark.
@@ -1093,7 +1127,8 @@ The combined averages are 8.22 and 9.45 fps, about a 15% improvement. Both build
 use `/O2 /Ob2 /arch:AVX2`, the Debug C runtime/ABI, Vulkan, logs sent to NUL,
 the Windows sampling profiler and five-second GPU readbacks. Frame counts are
 read independently from the host presentation counter. They are diagnostic
-measurements on one machine, not a clean profiler-off benchmark or evidence of
+hidden-window measurements on one machine, not visible gameplay, a clean
+profiler-off benchmark or evidence of
 a steady 30 fps. The immediate target is 30 fps, followed by validated 60 fps
 support. Aggregate counts and conditions are in
 [performance.json](../verification/performance.json); raw profiles, game captures
@@ -1142,8 +1177,8 @@ RI8 scale is a normal double. The extended arithmetic regression compares
 with zero differences from the previous host expressions. This preserves the
 existing host behavior; it does not establish complete SPU accuracy.
 
-Each build below has two one-minute starting-town samples with the same
-profiling/readback conditions as above and no movement or camera input:
+Each build below has two one-minute hidden-window starting-town samples with
+the same profiling/readback conditions as above and no movement or camera input:
 
 | Build | First 60-second window | Second 60-second window |
 | --- | --- | --- |
@@ -1178,11 +1213,11 @@ with six files changed and reapplies with no changes. A clean SDK checkout
 accepts all 61 patches (58 files updated).
 
 The native 61-patch Release-CRT run reaches the initial WKC1 town view.
-Its two one-minute windows average 12.29 fps combined. Short movement and
+Its two hidden-window one-minute samples average 12.29 fps combined. Short movement and
 camera rotation respond afterward, with the long hair/clothing strips absent
 in the inspected views. Full rendering/physics fidelity and sustained gameplay
 remain unverified. The sampler and five-second readbacks remain enabled; these
-are diagnostic samples, not a profiler-off gameplay benchmark.
+are hidden-window diagnostic samples, not a visible or profiler-off gameplay benchmark.
 
 ### Producer wakes and SPU helper overhead
 
@@ -1242,13 +1277,13 @@ Release-CRT builds, including the three producer-wake cases, four recursion
 guard cases and the `CNTB` regression.
 
 The native 64-patch Release-CRT build reaches the same initial town view.
-Two one-minute windows present 785 and 751 frames (13.08 and 12.52 fps),
+Two hidden-window one-minute samples present 785 and 751 frames (13.08 and 12.52 fps),
 averaging 12.80 fps combined. The counters report 0 unchanged
 overlaps suppressed and 940,821 successful changed-word signals.
 No unchanged overlaps were observed, so these samples do not support
 false-wake suppression as the cause of a timing difference.
-These are separate live NPC samples with the sampler, producer counters and
-five-second GPU readbacks enabled. The combined run does not isolate each
+These are separate hidden-window live NPC samples with the sampler, producer
+counters and five-second GPU readbacks enabled; they do not measure visible gameplay. The combined run does not isolate each
 patch's contribution. Short movement and camera rotation respond afterward;
 the long hair/clothing strips remain absent in inspected views. Full rendering
 fidelity, sustained gameplay and a steady 30 fps remain unverified.
@@ -1523,7 +1558,7 @@ animation program; eight dispatch/return pairs have been observed after lifting
 it. FIFO consumption continues through a later timeout. A subsequent vertex-shader
 cache fix revealed avatar-customization menus. At this checkpoint, the model
 was still missing. Later SPU arithmetic and renderer fixes restored the avatar.
-The current 64-patch build reaches town, with limited controls verified and
+The latest verified 64-patch town build reaches town, with limited controls verified and
 the long secondary-bone strips removed in inspected views. Full rendering
 fidelity, broader gameplay, save/load and imports needed on untested paths
 remain unverified.
@@ -1539,8 +1574,9 @@ corrections. Full material, lighting and physics fidelity still need wider
 validation. The remaining work includes:
 
 - Sustained traversal, combat, later scenes and verified save/load.
-- Better town performance: patch 0064 measures 12.5–13.1 fps in the profiled
-  starting view, below the immediate 30 fps target and later 60 fps goal.
+- Visible interactive performance: the hidden-window patch 0064 diagnostic
+  benchmark measures 12.5–13.1 fps and does not establish visible gameplay FPS.
+  The immediate 30 fps target and later 60 fps goal remain unverified.
 - All character-creation options and an in-game keyboard usable by gamepad.
 - Complete static SPU coverage, including the six observed image-17 fallback
   fingerprints; source-level reconstruction and a supported modding framework.

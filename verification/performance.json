@@ -2,10 +2,14 @@
   "title_id": "BLUS30784",
   "app_version": "01.00",
   "date": "2026-10-17",
-  "scene": "Initial WKC1 town view after dismissing the party and Travelogue dialogs",
+  "scene": "Hidden-window initial WKC1 town view after dismissing the party and Travelogue dialogs",
+  "measurement_scope_correction_date": "2026-10-18",
+  "measurement_scope": "Hidden-window diagnostic benchmarks; relative comparisons share this condition and do not establish visible gameplay FPS or character-rotation smoothness",
   "conditions": {
     "platform": "Windows x86-64",
     "renderer": "Vulkan",
+    "window_visible": false,
+    "visibility_evidence": "The private launcher omitted the public probe ShowWindow option; hidden window state was confirmed through Windows IsWindowVisible",
     "presented_surface_size": [
       1920,
       1080
@@ -261,6 +265,9 @@
     "60_fps_verified": false
   },
   "limits": [
+    "The native window was hidden in all recorded patch 0058-0064 profiled town benchmarks; these are not visible-gameplay FPS measurements.",
+    "No timed visible character-creator rotation comparison is established by these records.",
+    "Short input checks and inspected GPU readbacks are untimed visual/control observations.",
     "One machine and one starting-town view; live NPC workloads differ between windows.",
     "Profiler and readbacks affect timing. No profiler-off gameplay benchmark.",
     "A read-only guest-context census also ran during part of the first 59-patch sample.",
@@ -277,7 +284,7 @@
     "native_regression_assertions_active": true,
     "windows_checks_passed_each": 51,
     "public_build_workflow_changed": false,
-    "scope": "Isolated matching Release dependencies and host build, same generated game inputs and optimization flags; live NPC workload varies."
+    "scope": "Hidden-window diagnostic comparison with isolated matching Release dependencies and host build, same generated game inputs and optimization flags; live NPC workload varies. Visible gameplay FPS is unverified."
   },
   "patch_0059_validation": {
     "windows_runtime_checks_passed": 51,
@@ -294,7 +301,7 @@
       "base_published_sdk_patch_count": 61,
       "variant": "private-overlap-only-wake",
       "runtime_abi": "Release /MD",
-      "conditions": "Same starting-town scene and timing conditions as the published samples; live NPC workloads vary.",
+      "conditions": "Same hidden-window starting-town scene and timing conditions as the published samples; live NPC workloads vary. This is not a visible gameplay FPS measurement.",
       "samples": [
         {
           "probe": "20261017-231349",

@@ -61,8 +61,15 @@ changed commands from unchanged overlapping writes.
 with the scalar path retained elsewhere;
 [recursion diagnostics](../patches/0064-spu-depth-history-tls.patch) follow the
 executing host thread while the depth value remains in its SPU context.
+The [Vulkan window-title counter](BUILD.md#vulkan-window-title-counter-patch-0065)
+reports accepted queue-presentation rate and the maximum interval. It measures
+host presentation timing; unique guest animation frames and display scanout are
+not counted. Windows compilation and all 59 checks pass; counter updates are
+verified in the visible title menu and initial character creator. Reported
+rotation stutter remains unresolved.
 The [starting-town timing comparison](FINDINGS.md#town-performance-after-the-physics-fix)
-remains below the immediate 30 fps target; 60 fps support is a later validation goal.
+uses hidden-window diagnostic runs and does not establish visible gameplay FPS.
+The immediate 30 fps target and later 60 fps support remain unverified.
 
 Generated game sources and game inputs remain private. The public repository
 contains the build tools, project code, runtime patches and verification records.

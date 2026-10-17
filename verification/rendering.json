@@ -153,9 +153,10 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 64,
+    "current_sdk_patch_count": 65,
+    "last_verified_sdk_patch_count": 65,
     "current_passed_count": 59,
-    "record_scope": "Current Windows Vulkan suite at patch 0064: all 59 runtime checks pass in normal Debug and optimized Release-CRT builds. Earlier named records retain their original patch counts."
+    "record_scope": "The 65-patch Windows Vulkan build passes all 59 checks in the normal build. The private optimized Release-CRT build passes 54 non-media checks and all five media checks when rerun with their decoder-library environment. Earlier named records, including the 64-patch town run, retain their original counts."
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2204,6 +2205,39 @@
     "native_town_probe": "20261017-202420",
     "build_and_checks": "Normal and optimized Windows Vulkan builds succeed; 51 runtime checks pass. Earlier complete PPU regeneration is recorded separately in executable_spu_input_reproduction.",
     "full_game_coverage_verified": false
+  },
+  "window_title_presentation_counter": {
+    "date": "2026-10-18",
+    "sdk_patch_count": 65,
+    "renderer": "Vulkan",
+    "windows_build_verified": true,
+    "existing_59_windows_checks_verified": true,
+    "native_title_counter_verified": true,
+    "creator_rotation_rechecked": false,
+    "native_probe": "20261018-001428",
+    "native_binary_sha256": "6858552de8544af31b15a49030effd141649e9a9e9a3301ac86b203c165b072c",
+    "window_visible": true,
+    "window_visibility_verified_with_windows_api": true,
+    "sampling_profiler_enabled": false,
+    "gpu_readback_interval_seconds": 5,
+    "title_updates_observed_in": ["title menu", "initial character creator", "name entry", "Body tab"],
+    "desktop_shortcut_same_binary_verified": true,
+    "creator_fps_benchmark_verified": false,
+    "creator_rotation_smoothness_fixed": false,
+    "validation_scope": "Visible title updates and the desktop shortcut target are verified. No quantified creator benchmark or confidently verified scripted rotation gesture; reported rotation stutter remains unresolved.",
+    "normal_windows_check_count": 59,
+    "normal_windows_checks_elapsed_seconds": 22.17,
+    "optimized_release_nonmedia_check_count": 54,
+    "optimized_release_media_check_count": 5,
+    "optimized_release_media_environment_supplied_on_rerun": true,
+    "upgrade_from_patch_64_files_changed": 1,
+    "repeat_patch_application_changes": 0,
+    "fps_scope": "Calls to vkQueuePresentKHR accepted with VK_SUCCESS or VK_SUBOPTIMAL_KHR per monotonic elapsed second",
+    "maximum_interval_scope": "Maximum elapsed milliseconds between accepted queue presentations in the approximately one-second update window",
+    "unique_guest_animation_frames_counted": false,
+    "exact_display_scanout_counted": false,
+    "stalled_title_updates_on_rendering_resume": true,
+    "performance_improvement_claimed": false
   },
   "performance_record": "performance.json"
 }

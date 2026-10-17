@@ -14,8 +14,8 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Normal hair/clothing retained after limited town controls; latest profiled starting-town samples measure 12.5\u201313.1 fps after FIFO notification and SPU helper changes",
-    "updated": "2026-10-17"
+    "current_milestone": "Normal hair/clothing retained after limited town controls; hidden-window starting-town diagnostic samples measure 12.5\u201313.1 fps, with visible interactive performance unverified",
+    "updated": "2026-10-18"
   },
   "native_data_installation_verified": true,
   "native_decoded_movie_frame_verified": true,
@@ -153,7 +153,7 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 64,
+    "sdk_patch_count": 65,
     "runtime_checks_passed": 59,
     "town_native_run_sdk_patch_count": 64,
     "patches_0040_0041_native_game_run_verified": true,
@@ -211,7 +211,11 @@
     "patch_0064_native_game_run_verified": true,
     "patch_0062_changed_word_filter_regression_verified": true,
     "patch_0063_cntb_byte_equivalence_verified": true,
-    "patch_0064_host_thread_history_isolation_verified": true
+    "patch_0064_host_thread_history_isolation_verified": true,
+    "patch_0065_windows_build_verified": true,
+    "patch_0065_existing_windows_regressions_verified": true,
+    "patch_0065_native_title_counter_verified": true,
+    "patch_0065_creator_rotation_rechecked": false
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -255,6 +259,22 @@
     "full_game_physics_fidelity_verified": false,
     "findings": "docs/FINDINGS.md#secondary-bone-physics-and-town-stretching"
   },
+  "window_title_counter": {
+    "sdk_patch": 65,
+    "renderer": "Vulkan",
+    "scope": "Accepted Vulkan queue presentations per monotonic elapsed second and maximum interval between accepted presentations, updated approximately once per second",
+    "accepted_present_results": ["VK_SUCCESS", "VK_SUBOPTIMAL_KHR"],
+    "unique_guest_animation_frames_counted": false,
+    "exact_display_scanout_counted": false,
+    "stalled_title_updates_on_rendering_resume": true,
+    "windows_and_native_validation": "Windows build and all 59 regressions pass; counter updates verified in visible title menu and initial creator; rotation stutter unresolved",
+    "native_probe": "20261018-001428",
+    "native_window_visible": true,
+    "native_sampling_profiler_enabled": false,
+    "native_gpu_readback_interval_seconds": 5,
+    "desktop_shortcut_same_binary_verified": true,
+    "creator_rotation_smoothness_fixed": false
+  },
   "performance": {
     "record": "verification/performance.json",
     "immediate_target_fps": 30,
@@ -262,10 +282,12 @@
     "steady_30_fps_verified": false,
     "60_fps_verified": false,
     "latest_measured_sdk_patch_count": 64,
+    "diagnostic_window_visible": false,
+    "visible_gameplay_fps_verified": false,
     "latest_profiled_starting_town_fps_range": [
       12.5,
       13.1
     ],
-    "scope": "Two one-minute idle starting-town samples with physics enabled, optimized Release-CRT /MD, sampler, producer counters and five-second readbacks; not a profiler-off benchmark. Combined patches 0062\u20130064, no isolated per-patch FPS attribution."
+    "scope": "Two one-minute hidden-window idle starting-town diagnostic samples with physics enabled, optimized Release-CRT /MD, sampler, producer counters and five-second readbacks. These are not visible-gameplay FPS or a profiler-off benchmark. Combined patches 0062\u20130064, no isolated per-patch FPS attribution."
   }
 }

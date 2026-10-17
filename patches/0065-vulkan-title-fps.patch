@@ -1,0 +1,101 @@
+Show live Vulkan presentation FPS and the largest interval between accepted
+presentation-call completions in the SDL window title. Refresh after about
+one second using SDL's monotonic high-resolution clock. Count VK_SUCCESS and
+VK_SUBOPTIMAL_KHR, exclude failed/acquire-only/readback/guest-tick paths, and
+reset the window-owned counters when opening or dropping a window. Keep the
+existing title as a bounded base and add no worker threads or log files.
+
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -213,6 +213,10 @@
+     u32              max_dim;         /* maxImageDimension2D of the device  */
+     int              windowed;
+     SDL_Window*      window;
++    char             window_title[512]; /* immutable base for the FPS suffix */
++    Uint64           title_frequency, title_epoch, title_last;
++    Uint64           title_frames, title_max_interval;
++    int              title_started;
+     const char*      inst_exts[16];
+     u32              inst_ext_count;
+     VkSurfaceKHR     surface;
+@@ -1752,6 +1756,44 @@
+     return v && v[0] && v[0] != '0';
+ }
+ 
++/* These counters belong to the window, not a guest tick or a readback.
++ * WKC2 creates, presents and pumps this window on the same render thread.
++ * Count only accepted vkQueuePresentKHR completions; this measures host
++ * presentation-call pacing, not scanout timing or input/GPU latency. */
++static void vk_window_title_reset(void)
++{
++    s_vk.window_title[0] = '\0';
++    s_vk.title_frequency = s_vk.title_epoch = s_vk.title_last = 0;
++    s_vk.title_frames = s_vk.title_max_interval = 0;
++    s_vk.title_started = 0;
++}
++
++static void vk_window_title_presented(void)
++{
++    if (!s_vk.window || !s_vk.title_frequency) return;
++    const Uint64 now = SDL_GetPerformanceCounter();
++    if (!s_vk.title_started || now < s_vk.title_last) {
++        s_vk.title_epoch = s_vk.title_last = now;
++        s_vk.title_frames = s_vk.title_max_interval = 0;
++        s_vk.title_started = 1;
++        return;
++    }
++    const Uint64 interval = now - s_vk.title_last;
++    s_vk.title_last = now;
++    if (interval > s_vk.title_max_interval) s_vk.title_max_interval = interval;
++    ++s_vk.title_frames;
++    const Uint64 elapsed = now - s_vk.title_epoch;
++    if (elapsed >= s_vk.title_frequency) {
++        const double fps = (double)s_vk.title_frames * (double)s_vk.title_frequency / (double)elapsed;
++        const double worst_ms = 1000.0 * (double)s_vk.title_max_interval / (double)s_vk.title_frequency;
++        char title[sizeof s_vk.window_title + 96];
++        snprintf(title, sizeof title, "%s | FPS: %.1f | max: %.1f ms", s_vk.window_title, fps, worst_ms);
++        SDL_SetWindowTitle(s_vk.window, title);
++        s_vk.title_epoch = now;
++        s_vk.title_frames = s_vk.title_max_interval = 0;
++    }
++}
++
+ static void vk_window_drop(const char* why)
+ {
+     if (why) VK_LOG("window disabled, continuing headless: %s\n", why);
+@@ -1778,10 +1820,12 @@
+     s_vk.sem_acquire = VK_NULL_HANDLE;
+     s_vk.sc_count = 0;
+     s_vk.windowed = 0;
++    vk_window_title_reset();
+ }
+ 
+ static void vk_window_open(const char* title)
+ {
++    vk_window_title_reset();
+     if (!vk_env_on("PS3RECOMP_VK_WINDOW")) return;
+     if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
+         VK_LOG("window disabled, continuing headless: SDL video init failed: %s\n", SDL_GetError());
+@@ -1798,6 +1842,13 @@
+         snprintf(why, sizeof why, "SDL_CreateWindow failed: %s", SDL_GetError());
+         vk_window_drop(why);
+         return;
++    }
++    snprintf(s_vk.window_title, sizeof s_vk.window_title, "%s", title && title[0] ? title : "ps3recomp");
++    s_vk.title_frequency = SDL_GetPerformanceFrequency();
++    if (s_vk.title_frequency) {
++        char caption[sizeof s_vk.window_title + 96];
++        snprintf(caption, sizeof caption, "%s | FPS: -- | max: -- ms", s_vk.window_title);
++        SDL_SetWindowTitle(s_vk.window, caption);
+     }
+     unsigned n = 0;
+     if (!SDL_Vulkan_GetInstanceExtensions(s_vk.window, &n, NULL) || n == 0 || n > 16 ||
+@@ -2020,6 +2071,7 @@
+         .swapchainCount = 1, .pSwapchains = &s_vk.swapchain, .pImageIndices = &idx,
+     };
+     const VkResult r = pvkQueuePresentKHR(s_vk.queue, &pi);
++    if (r == VK_SUCCESS || r == VK_SUBOPTIMAL_KHR) vk_window_title_presented();
+     if (r == VK_ERROR_OUT_OF_DATE_KHR || r == VK_SUBOPTIMAL_KHR) vk_swapchain_lost();
+     else if (r != VK_SUCCESS) VK_LOG("vkQueuePresentKHR failed (VkResult %d)\n", (int)r);
+     return 0;
