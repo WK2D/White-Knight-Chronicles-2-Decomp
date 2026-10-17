@@ -1,0 +1,260 @@
+Cut per-job host overhead on SPURS job chains. Cache job-image
+fingerprints per (address, size) behind a 33-word sample check instead of
+hashing up to 67 KB per dispatch; build each job directly in its context's
+local store and retain a copy only after a title polls a chain handle;
+compute FI's power-of-two scale from exponent bits (bit-identical to the
+ldexpf form). Adds RSX_VK_PRESENT_MODE (mailbox/immediate) and an average
+present GPU wait to RSX_ENGINE_PRESENT_LOG.
+
+diff --git a/runtime/spu/spu_workload.c b/runtime/spu/spu_workload.c
+--- a/runtime/spu/spu_workload.c
++++ b/runtime/spu/spu_workload.c
+@@ -27,15 +27,59 @@
+ 
+ /* ---- fingerprint ------------------------------------------------------- */
+ 
+-uint64_t spu_workload_fingerprint(const void* data, size_t n)
+-{
+-    const uint8_t* p = (const uint8_t*)data;
++#ifdef _WIN32
++#  define SPU_FP_THREAD_LOCAL __declspec(thread)
++#else
++#  define SPU_FP_THREAD_LOCAL __thread
++#endif
++
++static uint64_t spu_workload_fingerprint_full(const uint8_t* p, size_t n)
++{
+     uint64_t h = 1469598103934665603ULL;          /* FNV offset basis */
+     for (size_t i = 0; i < n; i++) {
+         h ^= p[i];
+         h *= 1099511628211ULL;                     /* FNV prime */
+     }
+     return h;
++}
++
++/* A cheap summary of the bytes: 32 words spread over the image plus its last
++ * word and length. Only used to confirm a cached full fingerprint. */
++static uint64_t spu_workload_fingerprint_sample(const uint8_t* p, size_t n)
++{
++    uint64_t h = 1469598103934665603ULL ^ (uint64_t)n;
++    if (n >= 8) {
++        for (size_t k = 0; k < 32; k++) {
++            uint64_t w;
++            memcpy(&w, p + (n - 8) * k / 31, 8);
++            h = (h ^ w) * 1099511628211ULL;
++        }
++    } else {
++        for (size_t i = 0; i < n; i++) h = (h ^ p[i]) * 1099511628211ULL;
++    }
++    return h;
++}
++
++/* The full byte-wise hash of a 67 KB job binary costs ~0.1 ms, and job chains
++ * dispatch the same binaries thousands of times a second; in WKC1's town that
++ * made one chain thread spend about a third of its time hashing. Job images
++ * stay at fixed addresses, so remember the fingerprint per (address, size)
++ * and reuse it while a 33-word sample of the bytes is unchanged; a different
++ * image at the same address changes the sample and is hashed in full. One
++ * small cache per thread, so dispatching threads never contend. */
++uint64_t spu_workload_fingerprint(const void* data, size_t n)
++{
++    const uint8_t* p = (const uint8_t*)data;
++    if (n < 4096) return spu_workload_fingerprint_full(p, n);
++    static SPU_FP_THREAD_LOCAL struct { const void* data; size_t n; uint64_t sample, fp; } cache[32];
++    const size_t slot = ((uintptr_t)data >> 4) & 31u;
++    const uint64_t sample = spu_workload_fingerprint_sample(p, n);
++    if (cache[slot].data == data && cache[slot].n == n && cache[slot].sample == sample)
++        return cache[slot].fp;
++    const uint64_t fp = spu_workload_fingerprint_full(p, n);
++    cache[slot].data = data; cache[slot].n = n;
++    cache[slot].sample = sample; cache[slot].fp = fp;
++    return fp;
+ }
+ 
+ /* ---- registry ---------------------------------------------------------- */
+diff --git a/runtime/spu/spu_helpers.h b/runtime/spu/spu_helpers.h
+--- a/runtime/spu/spu_helpers.h
++++ b/runtime/spu/spu_helpers.h
+@@ -119,6 +119,17 @@
+ static inline u128 spu_sfx(u128 a, u128 b, u128 t) { u128 r; for(int i=0;i<4;i++) r._u32[i]=b._u32[i]+~a._u32[i]+(t._u32[i]&1u); return r; }
+ /* FI decodes the base and step fields produced by the hardware estimate
+  * instructions; its second operand is not an ordinary reciprocal float. */
++/* 2^e as a float, built from its bits while it is representable. Scaling an
++ * integer by it is one correctly rounded multiply -- the result ldexpf gives
++ * -- without ldexpf's library call, which FI made hot in WKC1's Edge jobs. */
++static inline float spu_pow2f(int e) {
++    uint32_t bits;
++    if (e >= -126 && e <= 127) bits = (uint32_t)(e + 127) << 23;
++    else if (e >= -149 && e < -126) bits = 1u << (e + 149);
++    else return ldexpf(1.0f, e);
++    float f; memcpy(&f, &bits, sizeof f);
++    return f;
++}
+ static inline u128 spu_fi(u128 a, u128 b) {
+     u128 r;
+     for (int i = 0; i < 4; i++) {
+@@ -128,9 +139,11 @@
+         uint32_t base_bits = rb & 0xFFFFFC00u;
+         float base; memcpy(&base, &base_bits, sizeof base);
+         uint32_t step_frac = rb & 0x3FFu;
+-        float step = ldexpf((float)step_frac, (int)exp - 127 - 13);
++        const int e = (int)exp - 127 - 13;
++        float step = (e >= -149 && e <= 127) ? (float)step_frac * spu_pow2f(e)
++                                             : ldexpf((float)step_frac, e);
+         if (base < 0.0f) step = -step;
+-        float y = ldexpf((float)(ra & 0x7FFFFu), -19);
++        float y = (float)(ra & 0x7FFFFu) * (1.0f / 524288.0f);   /* exact: 2^-19 */
+         r._f32[i] = base - step * y;
+     }
+     return r;
+diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
+--- a/runtime/spu/spurs_job.c
++++ b/runtime/spu/spurs_job.c
+@@ -124,10 +124,15 @@
+  * resolve a chain handle to it. */
+ static uint8_t  s_job_ls[SPU_LS_SIZE];
+ static int      s_job_ls_valid;
++/* Retaining a 256 KB copy after every job is the cost of this rare poll, so
++ * it starts once a title has polled a chain handle; titles that never do
++ * (WKC runs thousands of jobs a second) skip the copy. */
++static volatile int s_job_ls_wanted;
+ uint32_t        g_spurs_job_ls_handle;   /* set by the chain walker */
+ 
+ const uint8_t* spurs_job_ls_for_handle(uint32_t handle)
+ {
++    if (handle) s_job_ls_wanted = 1;
+     if (!s_job_ls_valid || !handle || handle != g_spurs_job_ls_handle) return 0;
+     return s_job_ls;
+ }
+@@ -177,8 +182,12 @@
+         return -1;
+     }
+ 
+-    uint8_t* ls = (uint8_t*)calloc(1, SPU_LS_SIZE);
+-    if (!ls) return -1;
++    /* The job is laid out directly in its context's (zeroed) local store:
++     * a separate 256 KB buffer copied in afterwards cost two full-store
++     * passes per job. */
++    spu_context ctx;
++    spu_context_init(&ctx, 0);
++    uint8_t* ls = ctx.ls;
+ 
+     /* ---- binary at LS 0 (PIC, so delta 0 keeps the lifted addresses) ---- */
+     memcpy(ls, vm_base + ea_bin, size_bin);
+@@ -340,15 +349,12 @@
+     }
+ 
+     /* ---- enter the job -------------------------------------------------- */
+-    spu_context ctx;
+-    spu_context_init(&ctx, 0);
+     ctx.image_id = image_id;
+     /* The HLE chain walker executes jobs serially on one virtual SPU.
+      * Expose its logical index through native kernel-library bindings;
+      * writing a kernel context at LS 0x1C0 would overwrite this job's code. */
+     ctx.spurs_job_mode = 1;
+     ctx.spurs_job_spu_num = 0;
+-    memcpy(ctx.ls, ls, SPU_LS_SIZE);
+     ctx.gpr[1]._u32[0] = (stack_top - 16u) & ~15u;   /* SPU stack grows down */
+     /* Link register: where the job returns when it is done. The job manager
+      * would pass an address inside itself; 0 makes the job re-enter its own
+@@ -380,8 +386,10 @@
+      * comment here claimed they carried the title's bus counts; they do not,
+      * and feeding them into the completion event turned 0x40000000 into a 1 GB
+      * allocation request. Kept because the printf service needs them. */
+-    memcpy(s_job_ls, ctx.ls, SPU_LS_SIZE);   /* keep the store readable */
+-    s_job_ls_valid = 1;
++    if (s_job_ls_wanted) {
++        memcpy(s_job_ls, ctx.ls, SPU_LS_SIZE);   /* keep the store readable */
++        s_job_ls_valid = 1;
++    }
+     if (g_spu_job_trace_hook) g_spu_job_trace_hook(&ctx,job_ea,dsz,1);
+ 
+     g_spurs_job_mbox      = spu_channel_has_data(&ctx.ch_out_mbox)
+@@ -430,7 +438,6 @@
+     }
+ 
+     spu_coh_unregister(&ctx);   /* stack local: out of the reserver set */
+-    free(ls);
+     return 0;
+ }
+ 
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -79,6 +79,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <time.h>
+ 
+ /* ---------------------------------------------------------------------------
+  * Run-time loaded entry points (Vulkan 1.0 core only)
+@@ -119,7 +120,8 @@
+  * headless run never depends on a driver that can present. */
+ #define VK_WSI_INSTANCE_FNS(X) \
+     X(vkDestroySurfaceKHR) X(vkGetPhysicalDeviceSurfaceSupportKHR) \
+-    X(vkGetPhysicalDeviceSurfaceCapabilitiesKHR) X(vkGetPhysicalDeviceSurfaceFormatsKHR)
++    X(vkGetPhysicalDeviceSurfaceCapabilitiesKHR) X(vkGetPhysicalDeviceSurfaceFormatsKHR) \
++    X(vkGetPhysicalDeviceSurfacePresentModesKHR)
+ #define VK_WSI_DEVICE_FNS(X) \
+     X(vkCreateSwapchainKHR) X(vkDestroySwapchainKHR) X(vkGetSwapchainImagesKHR) \
+     X(vkAcquireNextImageKHR) X(vkQueuePresentKHR)
+@@ -1818,6 +1820,21 @@
+     for (size_t k = 0; k < 4; k++)
+         if (caps.supportedCompositeAlpha & alphas[k]) { alpha = alphas[k]; break; }
+ 
++    /* RSX_VK_PRESENT_MODE=mailbox|immediate: present without waiting for the
++     * display's vertical blank, when the driver offers that mode. FIFO (wait
++     * for vblank) is the default and the one mode every driver has. */
++    VkPresentModeKHR mode = VK_PRESENT_MODE_FIFO_KHR;
++    {
++        const char* want = getenv("RSX_VK_PRESENT_MODE");
++        VkPresentModeKHR wanted = VK_PRESENT_MODE_FIFO_KHR;
++        if (want && !strcmp(want, "mailbox")) wanted = VK_PRESENT_MODE_MAILBOX_KHR;
++        else if (want && !strcmp(want, "immediate")) wanted = VK_PRESENT_MODE_IMMEDIATE_KHR;
++        VkPresentModeKHR modes[16];
++        u32 nm = 16;
++        if (wanted != VK_PRESENT_MODE_FIFO_KHR &&
++            pvkGetPhysicalDeviceSurfacePresentModesKHR(s_vk.phys, s_vk.surface, &nm, modes) >= 0)
++            for (u32 k = 0; k < nm; k++) if (modes[k] == wanted) mode = wanted;
++    }
+     VkSwapchainKHR old = s_vk.swapchain;
+     VkSwapchainCreateInfoKHR sci = {
+         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+@@ -1827,7 +1844,7 @@
+         .imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+         .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+         .preTransform = caps.currentTransform, .compositeAlpha = alpha,
+-        .presentMode = VK_PRESENT_MODE_FIFO_KHR,   /* the one mode every driver has */
++        .presentMode = mode,
+         .clipped = VK_TRUE, .oldSwapchain = old,
+     };
+     VkSwapchainKHR sc = VK_NULL_HANDLE;
+@@ -1925,7 +1942,26 @@
+         VK_LOG("vkQueueSubmit (window) failed\n");
+         return -1;
+     }
+-    pvkWaitForFences(s_vk.device, 1, &s_vk.fence, VK_TRUE, UINT64_MAX);
++    {
++        /* RSX_ENGINE_PRESENT_LOG: average wait for the frame's GPU work. */
++        static int timed = -1;
++        static double acc_ms; static u32 n;
++        if (timed < 0) timed = getenv("RSX_ENGINE_PRESENT_LOG") != NULL;
++        struct timespec t0, t1;
++        if (timed) timespec_get(&t0, TIME_UTC);
++        pvkWaitForFences(s_vk.device, 1, &s_vk.fence, VK_TRUE, UINT64_MAX);
++        if (timed) {
++            timespec_get(&t1, TIME_UTC);
++            acc_ms += (t1.tv_sec - t0.tv_sec) * 1000.0 + (t1.tv_nsec - t0.tv_nsec) / 1e6;
++            if (++n == 120) {
++                const char* path = getenv("RSX_ENGINE_FPS_FILE");
++                FILE* f = path ? fopen(path, "a") : NULL;
++                fprintf(f ? f : stderr, "present GPU wait %.2f ms/frame\n", acc_ms / n);
++                if (f) fclose(f);
++                acc_ms = 0; n = 0;
++            }
++        }
++    }
+ 
+     VkPresentInfoKHR pi = {
+         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,

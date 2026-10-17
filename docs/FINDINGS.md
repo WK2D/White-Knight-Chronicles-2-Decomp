@@ -945,6 +945,18 @@ next performance task. The game reaches 60 fps under emulation, so 60 fps is
 the eventual target. These are qualitative native measurements with the
 diagnostics shown, not a benchmark.
 
+In the town the renderer is not the limit: its thread is about a quarter
+busy and the present GPU wait is 4-6 ms. The busiest thread runs SPURS job
+chains, and the main game thread mostly waits on their results. Patch 0055
+removes per-job host overhead: the job-image fingerprint (up to 67 KB hashed
+per dispatch, a third of that thread's time) is cached per address behind a
+sampled check, each job is built directly in its context's local store, and
+FI no longer calls `ldexpf` (8 million lanes compared bit-identical in
+`wkc2_spu_fp`). The town still runs at about 7 fps: the game, its jobs and
+the renderer wait on one another, and the job chain runs jobs one at a time.
+`RSX_VK_PRESENT_MODE=mailbox` did not change the frame rate, so vertical
+blank is not the limit either.
+
 `WKC2_SKIP_INTRO=1` (port hook on the boot sequencer at 0x00325248) skips the
 copyright and save notices and the publisher/middleware logos while keeping
 the system-setup steps; the title appears about 30 s after launch.

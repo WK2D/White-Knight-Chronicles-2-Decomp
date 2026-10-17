@@ -137,7 +137,7 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 54,
+    "current_sdk_patch_count": 55,
     "current_passed_count": 50
   },
   "gallery": "gallery.json",
@@ -2098,6 +2098,7 @@
     "town_fps_optimized_build": 7,
     "town_draws_per_frame": "1400-1800",
     "max_threads_during_loading_after_fix": 80,
-    "measurement_scope": "Qualitative native runs with diagnostics enabled; not a benchmark."
+    "measurement_scope": "Qualitative native runs with diagnostics enabled; not a benchmark.",
+    "town_bottleneck": "SPU job chain and cross-thread waits, not the renderer (renderer thread ~25% busy, present GPU wait 4-6 ms)"
   }
 }
