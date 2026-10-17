@@ -137,7 +137,7 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 56,
+    "current_sdk_patch_count": 57,
     "current_passed_count": 50
   },
   "gallery": "gallery.json",

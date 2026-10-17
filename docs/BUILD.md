@@ -7,7 +7,7 @@ coverage. See [architecture and modding scope](ARCHITECTURE.md).
 **Verified on 2026-10-17:** the full 52-patch Windows Vulkan build reaches the
 live WKC1 town and responds to short analog movement, walking/facing changes,
 and camera rotation. Earlier town testing also verified pause/resume input.
-The current build passes 50 runtime checks with 56 SDK patches. NPC surfaces
+The current build passes 50 runtime checks with 57 SDK patches. NPC surfaces
 improve in the latest town run, but stretched geometry remains and full material
 fidelity is unverified. Sustained traversal, combat and save/load remain
 unverified. See the

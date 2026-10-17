@@ -1,0 +1,240 @@
+Stop the frame thread waiting on the GPU when a draw batch fills. A batch
+whose arenas or descriptor pool are full is submitted without a fence wait,
+and recording continues into a second command buffer, fence, arena set,
+descriptor pools and deferred-destroy list; that set is waited on only
+when it comes round again. Every other flush (readback, present, release)
+still waits, and drains the spare batch too. The descriptor pool holds
+8192 sets (was 1024) so a busy frame fits one batch. In WKC2's town this
+cut renderer blocking from about 31 ms to about 13 ms a frame.
+RSX_VK_FLUSH_FILE=<path> writes, every five seconds, flushes per frame and
+their time by source line (negative line = submitted without waiting).
+
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -555,20 +555,71 @@
+     for (u32 i = 0; i < s_defer_n; i++) vk_destroy_image(&s_defer[i]);
+     s_defer_n = 0;
+ }
+-static int vk_batch_flush(void)
+-{
+-    if (!s_batch.open) return 0;
++/* RSX_VK_FLUSH_FILE=<path>: every five seconds, how many batch flushes (each a
++ * submit plus a full fence wait) each source line caused per presented frame,
++ * and the time they took. Says which caller is stalling the frame thread. */
++static struct { int line; u32 n; double ms; } s_flush_site[32];
++static int s_flush_file = -1;
++static double vk_now_ms(void)
++{
++    struct timespec ts;
++    timespec_get(&ts, TIME_UTC);
++    return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
++}
++static void vk_flush_note(int line, double ms)
++{
++    for (int i = 0; i < 32; i++) {
++        if (s_flush_site[i].line == line || !s_flush_site[i].line) {
++            s_flush_site[i].line = line;
++            s_flush_site[i].n++;
++            s_flush_site[i].ms += ms;
++            return;
++        }
++    }
++}
++static void vk_flush_report(void)   /* once per presented frame */
++{
++    static FILE* f; static u32 frames; static double t0;
++    if (s_flush_file < 0) {
++        const char* e = getenv("RSX_VK_FLUSH_FILE");
++        f = e ? fopen(e, "w") : NULL;
++        s_flush_file = f != NULL;
++    }
++    if (!s_flush_file) return;
++    const double now = vk_now_ms();
++    if (!t0) t0 = now;
++    frames++;
++    if (now - t0 < 5000.0) return;
++    fprintf(f, "frames %u:", frames);
++    for (int i = 0; i < 32 && s_flush_site[i].line; i++)
++        fprintf(f, " L%d %.1fx %.2fms", s_flush_site[i].line,
++                (double)s_flush_site[i].n / frames, s_flush_site[i].ms / frames);
++    fputc('\n', f);
++    fflush(f);
++    memset(s_flush_site, 0, sizeof s_flush_site);
++    frames = 0;
++    t0 = now;
++}
++static void vk_slot_drain(void);
++static int vk_batch_flush_at(int line)
++{
++    if (!s_batch.open) { vk_slot_drain(); return 0; }
+     vk_batch_end_pass();
+     s_batch.open = 0;
++    const double t0 = s_flush_file ? vk_now_ms() : 0.0;
+     const int rc = vk_submit_and_wait();
+     vk_batch_retire();
++    vk_slot_drain();
++    if (s_flush_file) vk_flush_note(line, vk_now_ms() - t0);
+     return rc;
+ }
+-static int vk_begin(void)
+-{
+-    if (vk_batch_flush()) return -1;
++#define vk_batch_flush() vk_batch_flush_at(__LINE__)
++static int vk_begin_at(int line)
++{
++    if (vk_batch_flush_at(line)) return -1;
+     return vk_cmd_begin();
+ }
++#define vk_begin() vk_begin_at(__LINE__)
+ /* Records into the batch outside any render pass, for work whose result only the GPU reads later (uploads,
+  * clears, layout set-up, depth snapshots): no submission and no wait. Ended by the next flush. */
+ static int vk_batch_open(void)
+@@ -2119,8 +2170,10 @@
+ }
+ 
+ /* Per-batch arenas (see s_batch): vertices, indices and constants of the recorded draws, and their descriptor
+- * sets. Grown, after a flush, when one draw needs more than an arena holds. */
+-#define VK_EB_SETS 1024
++ * sets. Grown, after a flush, when one draw needs more than an arena holds. A full pool forces a flush and a
++ * fence wait in the middle of the frame: at 1024 sets WKC's town (about 2,400 draws) waited twice a frame,
++ * some 31 ms of a 130 ms frame, so the pool holds a whole busy frame. */
++#define VK_EB_SETS 8192
+ static struct {
+     vk_buffer        verts, idx, ubo, stage, zbuf;
+     VkDeviceSize     vpos, ipos, upos, spos, ubo_align;
+@@ -2133,6 +2186,97 @@
+ /* The readback staging buffer, kept and grown rather than allocated per readback: a title copying its picture to
+  * main memory reads 3.6 MB back every frame, and a fresh host allocation of that size each time is not free. */
+ static vk_buffer s_rb;
++
++/* A batch the GPU may still be running, with everything it reads.
++ *
++ * When an arena or the descriptor pool fills mid-frame, the batch used to be
++ * submitted and waited on before recording went on: in WKC's town that was a
++ * 30 ms fence wait per frame, during which the frame thread did nothing. Now
++ * the full batch is submitted without waiting and recording continues into a
++ * second set of command buffer, fence, arenas, pools and deferred-destroy
++ * list; that set is waited on only when it comes round again. Every other
++ * flush (readback, present, release) still waits, and waits for this one
++ * too, so nothing outside the batch path ever sees work in flight. */
++static struct {
++    VkCommandBuffer  cmd;
++    VkFence          fence;
++    vk_buffer        verts, idx, ubo, stage;
++    VkDeviceSize     vpos, ipos, upos, spos;
++    VkDescriptorPool pool, split_pool;
++    u32              nsets, nsplit;
++    vk_image         defer[VK_DEFER_MAX];
++    u32              defer_n;
++    int              pending;
++} s_spare;
++
++static void vk_slot_swap(void)
++{
++    VkCommandBuffer c = s_vk.cmd; s_vk.cmd = s_spare.cmd; s_spare.cmd = c;
++    VkFence f = s_vk.fence; s_vk.fence = s_spare.fence; s_spare.fence = f;
++    vk_buffer b;
++    b = s_eb.verts; s_eb.verts = s_spare.verts; s_spare.verts = b;
++    b = s_eb.idx;   s_eb.idx   = s_spare.idx;   s_spare.idx   = b;
++    b = s_eb.ubo;   s_eb.ubo   = s_spare.ubo;   s_spare.ubo   = b;
++    b = s_eb.stage; s_eb.stage = s_spare.stage; s_spare.stage = b;
++    VkDeviceSize d;
++    d = s_eb.vpos; s_eb.vpos = s_spare.vpos; s_spare.vpos = d;
++    d = s_eb.ipos; s_eb.ipos = s_spare.ipos; s_spare.ipos = d;
++    d = s_eb.upos; s_eb.upos = s_spare.upos; s_spare.upos = d;
++    d = s_eb.spos; s_eb.spos = s_spare.spos; s_spare.spos = d;
++    VkDescriptorPool dp;
++    dp = s_eb.pool;       s_eb.pool       = s_spare.pool;       s_spare.pool       = dp;
++    dp = s_eb.split_pool; s_eb.split_pool = s_spare.split_pool; s_spare.split_pool = dp;
++    u32 n;
++    n = s_eb.nsets;  s_eb.nsets  = s_spare.nsets;  s_spare.nsets  = n;
++    n = s_eb.nsplit; s_eb.nsplit = s_spare.nsplit; s_spare.nsplit = n;
++    const u32 m = s_defer_n > s_spare.defer_n ? s_defer_n : s_spare.defer_n;
++    for (u32 i = 0; i < m; i++) { vk_image t = s_defer[i]; s_defer[i] = s_spare.defer[i]; s_spare.defer[i] = t; }
++    n = s_defer_n; s_defer_n = s_spare.defer_n; s_spare.defer_n = n;
++}
++
++/* Waits for the spare batch, if one is in flight, and frees what it held. */
++static void vk_slot_drain(void)
++{
++    if (!s_spare.pending) return;
++    pvkWaitForFences(s_vk.device, 1, &s_spare.fence, VK_TRUE, UINT64_MAX);
++    s_spare.pending = 0;
++    vk_slot_swap();
++    vk_batch_retire();
++    vk_slot_swap();
++}
++
++/* Submits the open batch without waiting and continues in the other slot. */
++static int vk_batch_flush_async_at(int line)
++{
++    if (!s_batch.open) return 0;
++    if (!s_spare.fence) {
++        VkCommandBufferAllocateInfo cai = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
++                                            .commandPool = s_vk.pool,
++                                            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
++                                            .commandBufferCount = 1 };
++        VkFenceCreateInfo fci = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
++        if (pvkAllocateCommandBuffers(s_vk.device, &cai, &s_spare.cmd) != VK_SUCCESS ||
++            pvkCreateFence(s_vk.device, &fci, NULL, &s_spare.fence) != VK_SUCCESS) {
++            s_spare.fence = VK_NULL_HANDLE;
++            return vk_batch_flush_at(line);
++        }
++    }
++    vk_batch_end_pass();
++    s_batch.open = 0;
++    const double t0 = s_flush_file ? vk_now_ms() : 0.0;
++    VK_CHECK(pvkEndCommandBuffer(s_vk.cmd), "vkEndCommandBuffer");
++    VkSubmitInfo si = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
++                        .commandBufferCount = 1, .pCommandBuffers = &s_vk.cmd };
++    VK_CHECK(pvkResetFences(s_vk.device, 1, &s_vk.fence), "vkResetFences");
++    VK_CHECK(pvkQueueSubmit(s_vk.queue, 1, &si, s_vk.fence), "vkQueueSubmit");
++    if (s_spare.pending)
++        pvkWaitForFences(s_vk.device, 1, &s_spare.fence, VK_TRUE, UINT64_MAX);
++    vk_slot_swap();             /* recording goes on in the finished slot */
++    s_spare.pending = 1;
++    vk_batch_retire();
++    if (s_flush_file) vk_flush_note(-line, vk_now_ms() - t0);
++    return 0;
++}
+ 
+ static void vk_eng_batch_reset(void)
+ {
+@@ -2179,7 +2323,7 @@
+     if (!vk_eb_fits(&s_eb.verts, s_eb.vpos, vbytes, 16) ||
+         (ibytes && !vk_eb_fits(&s_eb.idx, s_eb.ipos, ibytes, 4)) ||
+         !vk_eb_fits(&s_eb.ubo, s_eb.upos, ubytes, s_eb.ubo_align) || !*pool || used >= VK_EB_SETS) {
+-        if (vk_batch_flush()) return -1;
++        if (vk_batch_flush_async_at(__LINE__)) return -1;
+         if (vk_ensure_buffer(&s_eb.verts, vbytes, 32u << 20, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) ||
+             vk_ensure_buffer(&s_eb.idx, ibytes ? ibytes : 4u, 8u << 20, VK_BUFFER_USAGE_INDEX_BUFFER_BIT) ||
+             vk_ensure_buffer(&s_eb.ubo, ubytes, 16u << 20, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT))
+@@ -2196,6 +2340,19 @@
+ static void vk_eb_shutdown(void)
+ {
+     vk_batch_flush();
++    if (s_spare.fence) {
++        vk_slot_swap();
++        vk_destroy_buffer(&s_eb.verts);
++        vk_destroy_buffer(&s_eb.idx);
++        vk_destroy_buffer(&s_eb.ubo);
++        vk_destroy_buffer(&s_eb.stage);
++        if (s_eb.pool)       pvkDestroyDescriptorPool(s_vk.device, s_eb.pool, NULL);
++        if (s_eb.split_pool) pvkDestroyDescriptorPool(s_vk.device, s_eb.split_pool, NULL);
++        s_eb.pool = s_eb.split_pool = VK_NULL_HANDLE;
++        vk_slot_swap();
++        pvkDestroyFence(s_vk.device, s_spare.fence, NULL);
++        memset(&s_spare, 0, sizeof s_spare);
++    }
+     vk_destroy_buffer(&s_eb.verts);
+     vk_destroy_buffer(&s_eb.idx);
+     vk_destroy_buffer(&s_eb.ubo);
+@@ -2480,6 +2637,7 @@
+  * when this one is dumped) for the debug hooks, and present the display image into the window. */
+ static void vk_eng_present(void* user, u32 surface)
+ {
++    vk_flush_report();
+     (void)user;
+     vk_eng_obj* o = vk_eng_get(surface, VK_ENG_COLOR);
+     if (!s_vk.device || vk_rec_begin()) return;

@@ -64,7 +64,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **50 Windows runtime regression checks** with **56 SDK patches** applied.
+- passes **50 Windows runtime regression checks** with **57 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. Stretched geometry remains and

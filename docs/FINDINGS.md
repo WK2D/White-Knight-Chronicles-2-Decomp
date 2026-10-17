@@ -969,6 +969,17 @@ both costs from the profile, but the town stayed at 7-8 fps. The Edge
 chain's thread now mostly waits: its jobs poll for output-ring space the GPU
 frees late, and the renderer thread waits on a fence after each batch flush.
 
+Patch 0057 removes the renderer's mid-frame waits. At about 2,400 draws a
+town frame overflowed the 1024-set descriptor pool and the draw arenas, and
+each overflow submitted the batch and waited for it: about 31 ms of a 130 ms
+frame. A full batch is now submitted without waiting while recording goes on
+in a second set of buffers, and the pool holds 8192 sets. Renderer blocking
+fell to about 13 ms a frame (the end-of-frame wait), but the town only rose to
+about 8 fps. No thread is saturated any more. The PPU, the job chains, the
+renderer and the GPU each wait on the next, and the debug C runtime's
+memcpy/memset is about a quarter of both the Edge chain and renderer threads.
+`RSX_VK_FLUSH_FILE=<path>` reports flushes per frame by source line.
+
 `WKC2_SKIP_INTRO=1` (port hook on the boot sequencer at 0x00325248) skips the
 copyright and save notices and the publisher/middleware logos while keeping
 the system-setup steps; the title appears about 30 s after launch.

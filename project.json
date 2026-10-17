@@ -153,7 +153,7 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 56,
+    "sdk_patch_count": 57,
     "runtime_checks_passed": 50,
     "town_native_run_sdk_patch_count": 52,
     "patches_0040_0041_native_game_run_verified": true,
@@ -189,7 +189,8 @@
     "patch_0054_loading_task_pileup_resolved": true,
     "town_frame_rate_target_met": false,
     "patch_0055_windows_regression_verified": true,
-    "patch_0056_windows_regression_verified": true
+    "patch_0056_windows_regression_verified": true,
+    "patch_0057_windows_regression_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
