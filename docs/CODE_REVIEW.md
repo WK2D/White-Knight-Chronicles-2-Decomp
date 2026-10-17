@@ -1,9 +1,19 @@
 # Code review suggestions
 
-Later tracing located the long town strips in omitted secondary-bone physics
-jobs. Patch 0058 restores their queue execution and CRT handoff; see the
+Updated 2026-10-17. The current Windows Vulkan build has 58 SDK patches and
+51 passing runtime checks. Later tracing located the long town strips in
+omitted secondary-bone physics jobs. Patch 0058 restores their queue execution
+and CRT handoff; see the
 [native recheck](FINDINGS.md#secondary-bone-physics-and-town-stretching).
-The dated reviews below retain their original validation scope.
+Patch 0052 improved the inspected NPC surfaces, and patch 0053 removed the
+observed cutscene red flashes. Full rendering fidelity and broader gameplay
+remain unverified.
+
+The reviews below retain their original baselines, check counts and validation
+scope. They are an audit history, not a list of changes still waiting to merge.
+Patches 0042–0051 are incorporated in the current stack. Dispositions below
+identify subsequent fixes; other findings remain open or have not been
+re-audited against all later changes.
 
 ## Second review
 
@@ -13,10 +23,11 @@ before, and the test and CMake wiring. Two further reviewer passes read the
 render patches 0031, 0035, 0036 and 0038. Their findings that were not traced
 again here are marked *reported*.
 
-The town captures that show stretched geometry and corrupt NPC surfaces are all
-from Vulkan runs. Of the fixes below, 0046, 0050 and 0051 could affect those
-faults. The 51-patch Windows suite passed and its native town run still showed
-both faults; see [the recorded findings](FINDINGS.md#second-runtime-review).
+The town captures examined in this review came from Vulkan runs. Patches 0046,
+0050 and 0051 were candidates for their stretched geometry and corrupt NPC
+surfaces. The 51-patch Windows suite passed, but its native town runs still
+showed both faults; see [the recorded findings](FINDINGS.md#second-runtime-review).
+That comparison predates the NV0039 and physics fixes summarized above.
 
 ### Reviewed fixes
 
@@ -29,8 +40,9 @@ both faults; see [the recorded findings](FINDINGS.md#second-runtime-review).
 | 0050 | NV3089 blits read the 12.4 `IMAGE_IN` point as 12.12, dropping source starts below 256 pixels, and skipped X8R8G8B8 sources. Both renderers use these copies. | `wkc2_nv3089_blit` |
 | 0051 | The shared draw engine stored 2D-object methods (NV3062, NV308A, NV3089) in NV4097 registers: a blit's `SET_OPERATION` and `IMAGE_OUT_POINT` became the following draws' alpha-test and blend enables. Vulkan only. | `wkc2_draw_engine` |
 
-Each patch is described at the end of
-[Additional runtime fixes](BUILD.md#additional-runtime-fixes) in BUILD.md.
+Each patch is described in
+[Earlier runtime fixes and validation history](BUILD.md#earlier-runtime-fixes-and-validation-history)
+in BUILD.md.
 
 ### Findings and remaining work
 
@@ -46,15 +58,21 @@ Rendering:
    renderers, with the WKC runner selecting the verified slot-1 binding.
    Its two new regression tests and extended draw-engine checks pass on
    Windows. The native run verifies copied bytes with no mismatch or rejection
-   diagnostics. NPC surfaces improve in the inspected town views, while
-   stretched geometry remains. See the
+   diagnostics. NPC surfaces improved in the inspected 52-patch town views,
+   while stretched geometry remained at that checkpoint. Patch 0058 later
+   removed the long strips in inspected views. See the
    [native results](FINDINGS.md#nv0039-memory-transfers).
 2. **Render targets are matched to textures by address alone**
    (`rsx_draw_engine.c` `sink_bind_textures`; the D3D12 backend is reported to
    do the same), and are never retired when guest memory is reused. A texture streamed to the
    address of an old target samples the stale target image. A DXT texture can
    never be a render target, so excluding compressed formats would be a safe
-   first step; detecting guest writes is the full fix.
+   first step; detecting guest writes is the full fix. **Partially addressed
+   later:** patch 0053 queues host-write ranges and reloads overlapping shared
+   renderer surfaces, including the video-conversion path responsible for red
+   movie frames. That targeted fix does not establish complete handling of
+   every guest write, format/layout change or D3D12 surface reuse. See
+   [the cutscene recheck](FINDINGS.md#cutscene-red-flash-and-frame-rate).
 3. Patch 0030's precision clamps use plain `clamp`, whose result for a NaN
    input is implementation-defined. RPCS3's `precision_clamp` maps NaN to 0
    first.
@@ -108,14 +126,16 @@ in `build.ps1` also hides warnings in the hand-written sources.
 Earlier Windows validation (51-patch baseline) on 2026-10-17: the Vulkan
 clang-cl build and all 48 project tests passed with the 51-patch stack. This includes both new tests, the extended
 checks above and all three SPU float modes. No MinGW TLS override was used.
-The separately regenerated disc-input build also compiles with all 51 patches.
+The separately regenerated disc-input build also compiled with all 51 patches.
 Native results are recorded in [FINDINGS.md](FINDINGS.md#second-runtime-review).
 All four requested configurations reach town: default float arithmetic with
 and without `RSX_ENGINE_ALL_SUBCHANNELS=1`, then SPU float audit and exact.
-The stretched strip and NPC surface faults remain in all four. Native traces
-confirmed the missing NV0039 transfers subsequently implemented in patch 0052.
+The stretched strip and NPC surface faults remained in all four runs. Native
+traces confirmed the missing NV0039 transfers subsequently implemented in patch
+0052; the separate strip fault was later traced to the missing physics job
+implemented in patch 0058.
 
-### Native reproduction checks (completed above)
+### Historical native reproduction checks (completed on the 51-patch baseline)
 
 1. Run the town with all 51 patches and compare against the existing town
    captures, including the strip at Leonard and the NPC surfaces.
@@ -131,7 +151,7 @@ confirmed the missing NV0039 transfers subsequently implemented in patch 0052.
 
 ## Windows follow-up
 
-The original review below describes `1865c88`. Findings 1–3 were addressed in
+The original review below describes `1865c88`. Its findings 1–3 were addressed in
 [`e86ad08`](https://github.com/WK2D/White-Knight-Chronicles-2-Decomp/commit/e86ad0896059ba8d5fbcd2bcc2a701f3ed7d5852):
 audio sequences can end and restart after a fatal decode error,
 demux AU validation uses the actual aligned arena capacity, and the pad-file
@@ -139,14 +159,15 @@ test uses `setenv` on POSIX systems. Windows audio recovery and demux boundary
 regressions fail against the old code and pass with the fixes. The POSIX branch
 has not been run on Linux or macOS here.
 
-Finding 4 is deferred until an independent pixel comparison establishes the
-required chroma placement. No chroma-siting change is included.
+Original finding 4 is deferred until an independent pixel comparison
+establishes the required chroma placement. No chroma-siting change is included.
 
 ## Original review
 
 Review of `main` at `1865c88`, covering the host runtime sources, the three
 newest SDK patches (0039 to 0041) and the publication checker. These are
-suggestions only. No runtime code was changed, because the affected paths need
+the original suggestions; their subsequent dispositions are recorded above.
+No runtime code was changed during that review, because the affected paths need
 the private generated sources and FFmpeg to test, and native behaviour can only
 be checked on the Windows build.
 
@@ -164,11 +185,15 @@ be checked on the Windows build.
   default, and malformed stick fields are rejected without clearing the
   request file.
 
-Not checked: Windows builds, game regeneration, native boot and rendering.
+Not checked during the original Linux review: Windows builds, game regeneration,
+native boot and rendering. Later Windows/native checks are recorded above and
+in [Findings](FINDINGS.md#secondary-bone-physics-and-town-stretching).
 
 ### Original findings
 
-Ordered by priority. None of them blocks current progress.
+Ordered by priority at that checkpoint. Original findings 1–3 are resolved;
+finding 4 remains deferred as described above. The following fault descriptions
+and proposed diffs are retained as the original review evidence.
 
 #### 1. Audio decoder cannot restart after an AC-3 decode failure
 

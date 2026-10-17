@@ -475,5 +475,5 @@
     }
   ],
   "cpu_execution_qualification": "Current build includes observed SPU interpreter fallback; captures do not prove interpreter-free execution",
-  "record_scope": "Newest captures first. Each capture records the state of its dated run; older limitations are historical. See rendering.json current_milestone and verified for current status."
+  "record_scope": "Newest milestones appear first. Each entry describes its own capture and patch level; old visible faults and unverified fields are historical, not the current project status. See rendering.json current_milestone and project.json for the current build."
 }

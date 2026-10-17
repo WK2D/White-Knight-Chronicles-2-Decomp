@@ -12,9 +12,9 @@ interpreter-free execution; see [architecture](ARCHITECTURE.md).
 town after avatar acceptance and opening cutscene skips. Short analog movement,
 facing changes, walking animation and camera rotation respond to input.
 Patch 0058 restores secondary-bone physics; the long hair/clothing strips are
-gone in the inspected town views. Full material and rendering fidelity remain
-unverified. Sustained traversal, combat,
-save/load and full audio fidelity remain unverified.
+gone in the inspected town views. Full material and rendering fidelity,
+sustained traversal, combat, save/load and full audio fidelity remain unverified.
+Linux and macOS execution have not been verified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
@@ -22,7 +22,7 @@ supersede earlier limitations when further testing establishes progress.
 
 ## 2026-10-17 — Town stretching fixed: secondary-bone physics
 
-The 58-patch native Vulkan build now executes the missing SPURS queue physics
+The 58-patch native Vulkan build executes the previously missing SPURS queue physics
 job, statically translated to C/C++. Leonard's hair and clothing remain on
 the model instead of stretching across the street. The long strips are absent
 in the inspected starting-town views, including after short movement and
@@ -46,9 +46,11 @@ coherent in the inspected town views, including after short movement and
 camera rotation. The run verifies at least 65,536 copies without mismatch
 or rejection diagnostics. Full material fidelity remains unverified.
 
-**The stretched strips at Leonard are still present.** This capture records
-the NPC surface improvement, not complete rendering correctness or a playable
-port. Sustained traversal, combat and save/load remain unverified.
+**The stretched strips at Leonard were still present at this checkpoint.**
+The newer physics milestone above removes them in the inspected town views.
+This capture records the earlier NPC surface improvement; it does not establish
+complete rendering correctness. Sustained traversal, combat and save/load
+remain unverified.
 
 ![Native WKC1 town with improved NPC surfaces and remaining stretched geometry](../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png)
 
@@ -59,7 +61,8 @@ movement and right-stick camera input. Successive GPU readbacks show walking,
 facing changes, a changed minimap position and a rotated view of the street.
 The SPU census was active throughout this run. This is limited starting-town
 input validation; sustained traversal, combat and save/load remain unverified.
-Stretched geometry and corrupt NPC surfaces are still visible.
+Stretched geometry and corrupt NPC surfaces were still visible at this checkpoint;
+the later fixes are recorded above.
 
 ![Native WKC1 town after analog movement and camera rotation](../verification/screenshots/2026-10-17-native-wkc1-town-controls.png)
 

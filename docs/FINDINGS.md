@@ -29,7 +29,9 @@ The current build uses ahead-of-time PPU/SPU recompilation plus a PS3 runtime
 layer. An audit of the running build found actual SPU interpreter fallback use
 from the runtime-code microstep path in image 17. It is therefore a hybrid;
 neither complete static CPU coverage nor an interpreter-free port is verified.
-The fallback's share of execution has not been measured. See
+The build compiles 56,580 generated PPU functions and 24 known SPU image/job
+inputs. The latest retained fallback census contains six image-17 entry
+fingerprints; its share of execution has not been measured. See
 [architecture and modding scope](ARCHITECTURE.md) for the distinction from a
 source-level decompilation and the remaining work. Rendering milestones below
 do not establish interpreter-free execution.
@@ -42,7 +44,7 @@ do not establish interpreter-free execution.
 | Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | This colour-fix capture covers character creation; later town validation is recorded below; full visual fidelity remains unverified |
 | WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
 | WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | The long strips are removed with patch 0058 ([secondary-bone physics](#secondary-bone-physics-and-town-stretching)); NPC surfaces improve with patch 0052 ([NV0039 transfers](#nv0039-memory-transfers)); full material fidelity unverified; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
-| Initial town movement and camera response work | Full 42-patch run; successive readbacks show walking/facing changes, changed minimap position and a rotated street view | Short starting-town probes only; sustained traversal, combat and save/load unverified |
+| Initial town movement and camera response work | First observed with 42 patches; rechecked with 58 patches after the physics fix, including walking/facing changes and camera rotation | Short starting-town probes only; sustained traversal, combat and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | This check covers startup input; limited town controls are verified above |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -58,15 +60,16 @@ do not establish interpreter-free execution.
 | Native LPCM sample conversion matches FFmpeg | All 336,480 stereo sample frames from the first logo match; [record](../verification/movie-demux.json) | Assembled elementary input; independent audio demux and final mix fidelity unverified |
 | Native title menu renders over an animated background | GPU readback shows New Game, Continue and Options; idle execution proceeds to the attract movie | Menu rendering checkpoint; menu input and limited town controls were verified later |
 | AC-3 samples match the reference through the guest API | Opening: 3,750 frames in stereo and 5.1; title: 938 frames in 5.1; two sequence passes each | Assembled elementary input; original-console mix fidelity unverified |
-| Guest flips continue during the later black screen | A 120-second probe observed 6,171 flips and 6,171 presentation calls | Counters do not establish visible rendering |
+| Guest flips continued during an early black-screen investigation | A 120-second probe observed 6,171 flips and 6,171 presentation calls | Historical diagnostic; counters alone did not establish visible rendering; later screenshots verify startup and town output |
 
 ## Implemented fixes
 
 The investigation sections record successive checkpoints, including failures
-later resolved. Test counts and limitations within those accounts describe
-that checkpoint, rather than the current build. The verified table above and
-[native census and limited town controls](#native-census-and-limited-town-controls)
-record the latest result.
+later resolved. Test counts, proposed next steps and limitations within those
+accounts describe that checkpoint. They are not the current task list. The
+verified table above and [secondary-bone physics recheck](#secondary-bone-physics-and-town-stretching)
+record the latest result; [Still unverified](#still-unverified) records the
+remaining validation work.
 
 - Correct lightweight-condition layout and wait/signal behavior.
 - Allocate and account for memory-container allocations instead of acknowledging
@@ -91,18 +94,33 @@ record the latest result.
   argument/field layout and progressive YUV420 crop, bilinear resize and RGBA output.
 - Enable real FFmpeg MPEG-2 decoding using pinned public headers and a separately
   supplied library. The optional decoder check reports a skip if no library loads.
+- Render the avatar under normal depth/culling, preserve frame presentation
+  through scene changes, and restore Vulkan colour-target feedback.
+- Implement the observed NV0039 transfers and isolate their methods from 3D
+  state; inspected town NPC surfaces improve with patch 0052.
+- Preserve depth-only targets and reload GPU surfaces after video conversion
+  writes; patch 0053 removes the observed cutscene red flashes.
+- Reduce SPURS dispatch/setup costs and avoid Vulkan mid-frame fence waits
+  with patches 0054–0057; town performance remains below the 60 fps target.
+- Execute the statically compiled secondary-bone physics job through its
+  SPURS queue/port imports; patch 0058 removes the long town strips in the
+  inspected views.
 
 Regression checks cover real video decoding, sparse video timestamps, LPCM sample
 conversion/concurrent queues, stereo/surround AC-3, Vpost conversion/windows, callback
-stacks, demux ABI/lifetimes, packet/access-unit parsing, PAMF reader ABI, lightweight conditions, memory containers, LFQueue and
-event-queue recycling. PAMF checks use synthetic video/audio descriptors,
+stacks, demux ABI/lifetimes, packet/access-unit parsing, PAMF reader ABI,
+lightweight conditions, memory containers, LFQueue, event-queue recycling,
+SPURS job chains/queues, SPU arithmetic, 2D transfers and shared rendering.
+PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
 
 ## Startup investigation
 
-Later startup frames are black. A captured late command batch contains a black
+Historical startup checkpoint, before movie/title rendering was restored.
+
+Later startup frames were black. A captured late command batch contains a black
 clear and the final composite, without title-scene draws. The update dispatcher
 continues executing its callbacks, so a global pause of the update loop does not
 explain this sample.
@@ -120,6 +138,10 @@ installation and all three matching archive hashes.
 No completion result or installation progress was fabricated.
 
 ## Startup and early WKC1 checkpoints
+
+Historical progression through patch 0028. The missing-model and loading
+failures below were resolved by later steps in this record; they do not
+describe the current town build.
 
 AC-3 decoding removes the audio-open failure after the startup logos. The file
 trace identifies the previously blocked clip as `title02.pam`, the animated title
@@ -407,6 +429,9 @@ does not verify full visual fidelity, completed character creation or gameplay.
 
 ## Avatar normals and fragment shading
 
+Historical checkpoint: patches 0029–0030, with 28 checks at that stage.
+Completed character creation and town entry were verified later.
+
 The next captured face draw exposes two separate shading faults. Type-6 CMP
 attributes fall through to float decoding in the old shared vertex fetcher.
 One normal consequently becomes a tiny float with zero Y/Z components. The
@@ -456,13 +481,16 @@ scripts, supplies all 24 image inputs. Their complete SHA-256 multiset matches
 the production inputs with no missing or additional images. Static lifting
 succeeds, and the current native build reaches town with the new physics job.
 Runtime captures are unnecessary for regenerating the known SPU input set.
-At that checkpoint, clean analysis, PPU/SPU regeneration and a full native build
-passed all 31 then-current checks. That executable reproduced the
+The earlier 23-image checkpoint's clean analysis, PPU/SPU regeneration and
+full native build passed all 31 then-current checks. That executable reproduced the
 title menu, WKC1 level-1 selection and shaded avatar scene, with name entry
-retained. Further scenes may expose additional jobs; gameplay and save/load
-remain unverified.
+retained. Patch 0058's 24-image build is verified through town and limited
+controls. Further scenes may expose additional jobs; sustained traversal,
+combat and save/load remain unverified.
 
 ## Guest flip presentation through scene changes
+
+Historical transition checkpoint; live town rendering was verified later.
 
 The post-avatar intro exposed a presentation stall. Guest flips kept advancing,
 while the backend's last completed frame and live-capture request stopped
@@ -485,6 +513,10 @@ gameplay and save/load remain unverified.
 
 ## Ordered surface clears
 
+Historical D3D12 checkpoint: patch 0031 and 32 checks. Vulkan is now the
+default renderer. These D3D12 limitations do not describe the shared Vulkan
+rendering path.
+
 The D3D12 clear callback discarded the guest mask, depth and stencil values.
 It recorded offscreen operations as colour clears and omitted display clears
 inside an accumulated frame. WKC1 avatar captures include RGBA+Z (`F1`),
@@ -499,6 +531,10 @@ This does not establish that later scenes render correctly. The shared depth
 attachment and missing depth-texture sampling still need investigation.
 
 ## Scene render targets and descriptor ranges
+
+Historical D3D12 checkpoint: patch 0032. The shared Vulkan renderer used by
+the current build has separate depth targets; see
+[shared rendering](#shared-renderer-and-colour-feedback).
 
 A later WKC1 frame submits 22 offscreen colour targets, but the backend's
 16-entry table omits six post-processing targets. An unavailable target then
@@ -525,6 +561,8 @@ GPU test also passes with optimizations and `NDEBUG` enabled.
 
 ## Scene draw-record capacity
 
+Historical D3D12 checkpoint: patch 0033 and 32 checks.
+
 A WKC1 transition exhausted the backend's 2048 deferred records. The audit
 continued receiving draw callbacks, including the final screen composite,
 after the record table was full. Vertex-upload space remained available.
@@ -536,6 +574,10 @@ This establishes that the later draw is retained, without establishing correct
 world rendering. Gameplay and save/load remain unverified.
 
 ## Character-name input
+
+Historical name-entry checkpoint: character creation was subsequently
+completed and town reached. The Windows editor remains temporary; an
+in-game keyboard usable entirely by gamepad is still planned.
 
 Selecting Name reaches a keyboard stub that requires an initialization call
 absent from WKC's imports. The stub also lacks completion events. The native
@@ -630,13 +672,17 @@ The [2026-10-16 town capture](GALLERY.md#2026-10-16--wkc1-town-world-view) is an
 unchanged world-frame readback, not prerecorded movie footage. No debugger writes or render-state overrides
 were used to produce it.
 
-This route still has conspicuous stretched geometry and corrupt NPC surfaces.
+That 39-patch route had conspicuous stretched geometry and corrupt NPC surfaces.
 Movement and camera control were not checked in that first town run; the later
-42-patch run verifies short town movement and camera rotation. Sustained traversal,
+42-patch run verified short town movement and camera rotation. Patches 0052
+and 0058 subsequently improved the NPC surfaces and removed the long strips
+in inspected views, respectively. Sustained traversal,
 combat and save/load remain unverified. Seeing a save crystal does not verify
 saving. No performance improvement or full-game compatibility is claimed.
 
 ## Reviewed allocator suggestion and probe input
+
+Historical checkpoint: 41 patches and 39 runtime checks.
 
 Patch 0040 incorporates the suggestion branch's freed-range allocator fix.
 The old allocator can report free memory but exhaust its virtual-address window
@@ -659,6 +705,10 @@ That initial town run used patch 0039. The later census run below includes the
 amended allocator and verifies the analog probe's town response.
 
 ## SPU fallback census and host-runtime review
+
+Historical integration checkpoint: 42 patches and 42 runtime checks. The
+six-fingerprint fallback remains enabled in the current build; this work
+added measurement and recovery fixes, not complete static coverage.
 
 The suggestion branch's census is incorporated as patch 0042, with Windows
 follow-up changes. Mixed-line-ending context was rebuilt against the pinned
@@ -686,11 +736,15 @@ independent pixel comparison. See [the review and disposition](CODE_REVIEW.md).
 
 ## Native census and limited town controls
 
+Historical 42-patch run. Its retained census is evidence for that route;
+later probes and the physics recheck are recorded below.
+
 The full 42-patch native Vulkan run reaches the WKC1 town after avatar acceptance
 and ordinary cutscene-skip inputs. Left-stick probes produce short movement,
 facing/walking changes and a changed minimap position; right-stick input rotates
-the camera. The [newest gallery entry](GALLERY.md) records this limited input
-milestone. Geometry and NPC surfaces remain visibly corrupt. Sustained traversal,
+the camera. The [town-controls gallery entry](GALLERY.md#2026-10-17--town-movement-and-camera-response)
+records this limited input milestone. Geometry and NPC surfaces were visibly
+corrupt in this 42-patch run; later fixes are recorded below. Sustained traversal,
 combat and save/load are unverified.
 
 The retained census contains **2,017 completed sessions and 8,744 recorded
@@ -727,6 +781,10 @@ line-ending settings without changing the resulting source after CRLF normalizat
 
 ## Second runtime review
 
+Historical 51-patch comparison, before NV0039 support and the physics fix.
+The unchanged target faults in these runs were subsequently improved by
+patch 0052 and removed in the inspected strip case by patch 0058.
+
 Reviewed source changes from `claude-suggestions` at `a54d99c` add patches
 0045-0051. Windows Vulkan builds with clang-cl and passes all **48 project
 checks**, including the new PPU-thread-lifetime and NV3089-copy tests, the
@@ -735,9 +793,9 @@ all three SPU float modes. No MinGW TLS workaround was needed. The separately
 regenerated disc-input build also compiles with this runtime.
 
 The default-float town run `20261017-040537` repeats short movement and camera
-rotation. Leonard's stretched strip and corrupt NPC surfaces remain in both
-the live opening scene and town. Applying these seven patches together has
-not corrected those faults in this run; this does not isolate each patch's
+rotation. Leonard's stretched strip and corrupt NPC surfaces remained in both
+the live opening scene and town. Applying these seven patches together did
+not correct those faults in that run; this does not isolate each patch's
 individual effect.
 
 Repeating the town route with `RSX_ENGINE_ALL_SUBCHANNELS=1` (probe
@@ -788,6 +846,10 @@ image rather than adding another equivalent milestone.
 
 ## NV0039 memory transfers
 
+Historical 52-patch milestone: NPC surfaces improved, but long strips were
+still present. The later [physics fix](#secondary-bone-physics-and-town-stretching)
+addresses those strips.
+
 Patch 0052 implements the memory-to-memory copies confirmed by the earlier
 town trace, and the WKC runner now selects the observed NV0039 binding on
 subchannel 1. The walker consumes these methods before either 3D renderer.
@@ -818,14 +880,15 @@ proof. A ten-second
 town gate contains **47 NV0039 triggers**. Short movement and camera
 response were rechecked, then the sole native process was stopped.
 
-**NPC surfaces improve, while the stretched strip at Leonard remains.**
+**At this 52-patch checkpoint, NPC surfaces improve while the stretched strip remains.**
 Previously speckled/mosaic NPC surfaces look coherent in the inspected town
 readbacks, including after short movement and camera rotation. This is a
 qualitative comparison with the earlier 42/51-patch captures; full material
 fidelity remains unverified. Patch 0052 combines copies and routing correction,
-so their individual visual effects have not been isolated. The new unchanged
-GPU readback is at the top of the [gallery](GALLERY.md). Aggregate results and
-the comparison-frame hash are in [rendering.json](../verification/rendering.json). The selected
+so their individual visual effects have not been isolated. The unchanged
+GPU readback is in the [NV0039 gallery entry](GALLERY.md#2026-10-17--npc-surfaces-after-nv0039-transfers).
+Aggregate results and the comparison-frame hash are in
+[rendering.json](../verification/rendering.json). The selected
 game-only readback is published; raw command values, game programs and logs
 remain private.
 
@@ -834,9 +897,14 @@ overlap staging, report-record sources and shared-renderer RGBA8 coherence.
 Notification completion, other GPU layouts, transfers over 64 MiB and D3D12
 GPU-owned surface copies remain limited or unverified. The report path exposes
 the runtime's existing records without establishing accurate GPU queries.
-See [build and diagnostic details](BUILD.md#additional-runtime-fixes).
+See [build and diagnostic details](BUILD.md#earlier-runtime-fixes-and-validation-history).
 
 ## Vertex-program co-issue review
+
+Historical 44-patch checkpoint, preceding the second runtime review above.
+Its shader tests passed, but these cases did not explain the long town strips;
+the later [physics trace](#secondary-bone-physics-and-town-stretching) located
+that fault before rendering.
 
 Patch 0043 incorporates the vertex-program translation fixes reviewed from
 `claude-suggestions` at `15fa006`. The instruction's scalar operand is captured
@@ -876,12 +944,12 @@ validate as Vulkan 1.0 SPIR-V with both translators. HLSL and SPIR-V differ for
 These are static counts across the captured startup-to-town route, not execution
 frequencies or proof about every shader in the game.
 
-The patch addresses genuine translation faults, but these cases do not explain
-the observed town corruption in the captured shaders. Further investigation
-should trace the image 19 geometry/skinning outputs and validate NPC vertex and
-texture data. Those remain hypotheses, not located faults. The existing gallery
-image remains representative; the comparison frame hash and aggregate results
-are retained in [rendering.json](../verification/rendering.json).
+The patch addresses genuine translation faults, but these cases did not explain
+the observed town corruption in the captured shaders. The resulting investigation
+followed image 19 geometry/skinning outputs back to the omitted secondary-bone
+physics job, fixed by patch 0058. Patch 0052 separately improved NPC surfaces.
+The comparison frame hash and aggregate results for this earlier run are retained
+in [rendering.json](../verification/rendering.json).
 
 The SPU census remains at the same six entry fingerprints, with 1,957 completed
 sessions and 8,484 recorded instructions in the retained snapshot. The original
@@ -889,6 +957,10 @@ census and its source-entry candidates remain recorded above; the fallback is
 still enabled. Full gameplay, combat and save/load remain unverified.
 
 ## Cutscene red flash and frame rate
+
+Patches 0053–0057, before the secondary-bone physics milestone. The frame-rate
+figures below describe those measured builds and scenes; they are not a new
+benchmark of the 58-patch physics build.
 
 The cutscene after avatar acceptance repeatedly flashed a red-tinted close-up
 of Leonard. An opt-in renderer trigger (`RSX_ENGINE_RED_TRIGGER`) captured the
@@ -940,15 +1012,16 @@ renderer's per-site GPU-sync timing located the main costs in the cutscene:
   threads (patch 0054). Capping running tasks at six and sleeping back-off
   were tried and rejected: both slowed or stalled progress.
 
-The town remains slow: about 7 fps with 1,400-1,800 draws per frame. The
+The initial town measurement was about 7 fps with 1,400-1,800 draws per frame. The
 renderer records a frame, submits it and waits for the GPU before the next
 one, and reads two depth targets back each frame; overlapping frames is the
-next performance task. The game reaches 60 fps under emulation, so 60 fps is
-the eventual target. These are qualitative native measurements with the
-diagnostics shown, not a benchmark.
+performance candidate considered at that checkpoint. Later profiling and
+patch 0057's mid-frame changes are recorded below. The eventual target is
+60 fps. These are qualitative native measurements with the diagnostics shown,
+not a reproducible benchmark.
 
-In the town the renderer is not the limit: its thread is about a quarter
-busy and the present GPU wait is 4-6 ms. The busiest thread runs SPURS job
+Subsequent town profiling showed the renderer was not the only limit: its
+thread was about a quarter busy and the present GPU wait was 4-6 ms. The busiest thread runs SPURS job
 chains, and the main game thread mostly waits on their results. Patch 0055
 removes per-job host overhead: the job-image fingerprint (up to 67 KB hashed
 per dispatch, a third of that thread's time) is cached per address behind a
@@ -1082,7 +1155,9 @@ are not published.
 ## Investigation history
 
 This narrative log was previously kept in the README. It records the order in
-which problems were found and fixed; the sections above hold the current detail.
+which problems were found and fixed; its counts and failure descriptions refer
+to those earlier checkpoints. The verified table and physics recheck above
+hold the current status.
 
 ### Progress summary
 
@@ -1104,10 +1179,12 @@ restores **face shading and textured clothing**. Native text entry and character
 conversion now retain the name through Quick Start to the **final avatar Review**.
 Avatar confirmation now enters the **WKC1 opening movie**; completing GPU batches
 at guest flip boundaries prevents presentation from stalling at that transition.
-A later Vulkan run now reaches the town and responds to pause/resume input,
-with geometry and NPC material faults. A later profiling run also verifies
-short town movement and camera response; sustained traversal, combat and
-save/load remain unverified.
+Later Vulkan runs reached the town, verified pause/resume and short movement
+and camera response, and exposed geometry and NPC material faults. NV0039
+support then improved the inspected NPC surfaces. Patch 0058 now executes the
+missing secondary-bone physics job, removing the long hair/clothing strips in
+the inspected town views, including after movement and camera rotation.
+Sustained traversal, combat and save/load remain unverified.
 
 Vulkan is the primary Windows renderer. It now renders the avatar and room
 without its initial red tint after correcting colour-target feedback. D3D12
@@ -1234,9 +1311,11 @@ kernel's original local-store address. Loading advances to another 16,912-byte
 animation program; eight dispatch/return pairs have been observed after lifting
 it. FIFO consumption continues through a later timeout. A subsequent vertex-shader
 cache fix revealed avatar-customization menus. At this checkpoint, the model
-was still missing. Later SPU arithmetic and renderer fixes restored the avatar,
-and the current build reaches the town with limited controls verified. Town
-rendering faults, broader gameplay, save/load and missing imports remain open.
+was still missing. Later SPU arithmetic and renderer fixes restored the avatar.
+The current 58-patch build reaches town, with limited controls verified and
+the long secondary-bone strips removed in inspected views. Full rendering
+fidelity, broader gameplay, save/load and imports needed on untested paths
+remain unverified.
 
 ## Still unverified
 
@@ -1244,11 +1323,23 @@ Open audio issue: audible distortion in character-creation music. Device buffer
 starvation, guest mixer scheduling and source decoding have not yet been
 distinguished. Decoder comparisons do not establish real-time mixer fidelity.
 
-Correct town rendering, sustained traversal, combat, save/load, macOS
-execution and online functionality.
-Fresh extraction and static generation supply the inputs used by the current
-runtime build through the town and limited controls. Sustained traversal and
-later gameplay remain unverified.
+The long-strip fix and NPC surface improvement establish specific rendering
+corrections. Full material, lighting and physics fidelity still need wider
+validation. The remaining work includes:
+
+- Sustained traversal, combat, later scenes and verified save/load.
+- Better town performance; the last measured pre-physics build was about 8 fps.
+- All character-creation options and an in-game keyboard usable by gamepad.
+- Complete static SPU coverage, including the six observed image-17 fallback
+  fingerprints; source-level reconstruction and a supported modding framework.
+- Linux and macOS Apple Silicon platform integration and native testing.
+- Update 1.01, regional DLC, translated Japanese-exclusive content and optional
+  Japanese voiceovers, including content and save compatibility.
+- Online functionality.
+
+Fresh extraction and static generation supply all 24 known SPU inputs and the
+PPU code used by the current town build. This does not establish complete job
+coverage across untested gameplay.
 
 See the [build limitations](BUILD.md) and [capture manifest](../verification/gallery.json)
 for reproduction requirements and screenshot provenance.

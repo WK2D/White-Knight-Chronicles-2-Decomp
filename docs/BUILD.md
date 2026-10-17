@@ -17,7 +17,7 @@ private workspace with `-Workspace`; the build script gets project sources from
 its own location. Its default workspace layout is three parent directories above
 the script and is intended for the original development layout.
 
-Required tools: PowerShell, Git, Python 3.11+, Clang/clang-cl, CMake, Ninja,
+Required tools: PowerShell, Git, Python 3.11+, Clang/clang-cl, CMake 3.20+, Ninja,
 MSVC Build Tools headers/libraries and the Windows 10 SDK. Install the Python
 dependencies listed by the pinned PS3Recomp SDK, plus PyCryptodome. Keep downloaded
 tools and dependency repositories in the private workspace.
@@ -75,8 +75,9 @@ state, packed vertex normals, fragment source precision and the keyboard ABI/lif
 The current suite also covers fragment-program cache identity, ordered surface
 clears, Windows PPU join lifetime and the shared draw engine's colour feedback.
 It also covers persistent DMA label polling, reuse of freed memory ranges and
-finite digital/analog input through the private controller probe file. The
-current build contains 58 numbered SDK patches. The newest published town
+finite digital/analog input through the private controller probe file, NV0039
+and NV3089 copies, and SPURS job-queue dispatch. The current build contains 58
+numbered SDK patches. The newest published town
 captures use 58; the NPC-surface checkpoint used 52 and the first town-controls
 capture used 42; the earlier town world-view capture used 39. Patch 0043 passed
 the earlier 43-check Windows suite and remains covered by the current suite;
@@ -170,7 +171,38 @@ The toolkit patches retain the SDK's MIT license; see the retained
 [Demon's Souls SDK fork](https://github.com/JonathanDC64/ps3recomp/blob/61909373a2cb59f8679d8b96382e2899d656e4d0/libs/video/rsx_d3d12_backend.c).
 These are implementation sources actually used by this port.
 
-## Additional runtime fixes
+## Renderer coherence and execution overhead (patches 0053–0057)
+
+Patch 0053 gives depth-only passes a scratch colour target that cannot alias a
+guest display buffer. It also queues host writes for the shared renderer, which
+reloads overlapping GPU surfaces before sampling them. Together these changes
+remove the red flashes in the inspected WKC1 cutscene. The draw-engine and Vpost
+regressions cover the two faults and the reported host-write range.
+
+Patch 0054 wakes job-guard waiters with a condition variable and yields when an
+SPU repeatedly reads an unchanged reservation line. The native loading route
+completes without the earlier pile-up of spinning task threads.
+
+Patches 0055 and 0056 reduce SPURS dispatch and setup overhead: sampled job-image
+fingerprint caching, direct local-store staging, a bit-equivalent `FI` scale,
+per-thread context reuse, selective clearing and selective launch checks. Set
+`SPURS_JOB_ZERO_LS=1` to restore full local-store clearing or
+`SPU_LAUNCH_CHECK_ALL=1` to run every launch check when comparing private traces.
+
+Patch 0057 lets a full Vulkan draw batch submit while recording continues in a
+second buffer set, and increases descriptor capacity. Readback, presentation and
+release paths still drain pending work. In the recorded pre-0058 town run this
+reduced renderer blocking from about 31 ms to 13 ms per frame, with town frame
+rate still about 8 fps. These are observations from that run, not a performance
+guarantee for the current physics-enabled build. See the
+[performance findings](FINDINGS.md#cutscene-red-flash-and-frame-rate).
+
+## Earlier runtime fixes and validation history
+
+The results below describe each patch's validation checkpoint. Reports of the
+stretched strip or speckled NPC surfaces are historical: patch 0052 improved the
+NPC surfaces, and patch 0058 removes the long secondary-bone strips in the
+currently inspected town views. Full rendering fidelity remains unverified.
 
 Patch 0034 keys the D3D12 fragment pipeline cache by instruction contents rather
 than the guest upload address, ignoring embedded constants and bytes after END.
@@ -201,8 +233,8 @@ zero or an absent value disables it, and a positive value requests a cutoff.
 Its counters are local to each host execution thread. A native run with this
 fix passes the earlier loading stall, reaches the next cutscene and enters
 the live WKC1 town. Short movement and camera response were verified later
-with all 42 patches. World geometry and NPC surfaces remain visibly corrupt;
-sustained traversal, combat and save/load are unverified.
+with all 42 patches. At that checkpoint, world geometry and NPC surfaces were
+visibly corrupt; sustained traversal, combat and save/load were unverified.
 
 Patch 0040 incorporates the allocator fix reviewed from the
 [suggestion branch](https://github.com/WK2D/White-Knight-Chronicles-2-Decomp/blob/6ca620d7f328996eeb4bf118652d78528d90107a/patches/0039-memory-range-reuse.patch).
@@ -270,8 +302,8 @@ vector-only program retains byte-identical shader text. The branch's Linux
 validation reports valid SPIR-V and no compile regressions across 1,500 random
 programs, including seven formerly failing programs that now compile.
 
-The native Vulkan town recheck still shows the stretched strip and corrupt
-NPC surfaces. Its 65 distinct captured vertex programs contain 330 co-issued
+The patch-0043 native Vulkan town recheck still showed the stretched strip and
+corrupt NPC surfaces. Its 65 distinct captured vertex programs contain 330 co-issued
 instructions, zero temp/address/condition hazards and no `LIT` instructions.
 Both old and new translations compile through the production Vulkan compiler
 and validate as SPIR-V. These results cover the captured route, not every game
@@ -295,7 +327,7 @@ fragment-program diagnostics. The raw vertex programs can be scanned with the
 same command above. `RSX_CAP_GEOMETRY` alone selects the older D3D12 capture path
 and does not collect these inputs from Vulkan. Dumped game programs stay private.
 
-Patch 0045 tests whether SPU floating-point differences cause the remaining
+Patch 0045 tested whether SPU floating-point differences caused the then-open
 geometry faults. Patch 0028 gave `FNMS` the SPU single-precision rules:
 truncation, denormal inputs read as zero, exponent 255 as a finite value, and
 saturation on overflow. `FA`, `FS`, `FM`, `FMA`, `FMS`, the four integer/float
@@ -310,17 +342,19 @@ to nearest, keeps denormals and treats exponent 255 as infinity or NaN.
 | `exact` | SPU rules for all thirteen instructions |
 
 Audit logs each count when it reaches a power of two, with one sample of the
-input and both results, and prints a summary at normal exit. A town run in
-`audit` mode shows whether these differences occur. A run in `exact` mode shows
-whether they cause the stretched geometry or the NPC surface faults.
+input and both results, and prints a summary at normal exit. `audit` retains
+host results while measuring differences; `exact` enables comparisons of their
+effect on native behavior. Neither mode corrected the target town faults in
+the recorded comparison below.
 
 The original bodies remain as `spu_*_host`; the helpers test one flag and call
 out-of-line code in `spu_float_mode.c` only when a mode is set. In a Linux
-benchmark of memory-fed transform-like chains, the default measured the same
-as before (3.6 ns per vector operation); exact and audit measured about 29 ns.
-The SPU sources are built without hardware FMA. With `-mfma` the unmodified
-helpers vectorize further (1.0 ns) and the default measured 2.8 ns, so revisit
-this dispatch if those flags are enabled.
+benchmark at the patch-0045 checkpoint, memory-fed transform-like chains used
+no hardware FMA. The default measured the same as before (3.6 ns per vector
+operation); exact and audit measured about 29 ns. With `-mfma`, the unmodified
+helpers measured 1.0 ns and the default-mode dispatch measured 2.8 ns. These
+Linux measurements do not establish the cost in the optimized Windows build,
+which now uses `/arch:AVX2`.
 
 Host `CFLTS`/`CFLTU` previously converted a NaN through an undefined cast. They
 now return `0x80000000` and `0`, the values x86 produced. Other default-mode
@@ -334,8 +368,8 @@ modes. The SDK's SPU helper and numeric tests give identical results in
 default and exact modes. The three float-mode checks also pass on Windows
 with clang-cl; Linux runs included AddressSanitizer and UBSan. Native audit
 and exact runs also reach the WKC1 town. Audit records both rounding and
-special differences; exact mode still shows Leonard's stretched strip and
-corrupt NPC surfaces. Host arithmetic remains the default. See the
+special differences; that exact-mode run still showed Leonard's stretched strip
+and corrupt NPC surfaces. Host arithmetic remains the default. See the
 [native results](FINDINGS.md#second-runtime-review) for scope and limits.
 
 Patch 0046 moves the guest stacks that host threads use to call guest code
@@ -347,7 +381,7 @@ these frames lay in the top half of video memory, and each callback overwrote
 whatever the title had placed below its slot's top: textures, vertex buffers
 or render targets. Slots now come from the PPU stack allocator at 0xD0000000,
 with the same guard page as thread stacks, and keep their memory for reuse.
-The 51-patch native town recheck still shows the stretched geometry and NPC
+The 51-patch native town recheck still showed the stretched geometry and NPC
 surface faults. This combined run does not isolate patch 0046's effect.
 `wkc2_callback_stack` checks that every slot and nested slice lies in the stack
 region with room for the callee's register saves, and fails against the
@@ -372,13 +406,15 @@ detaching a running thread, zeroed reuse and that stack region use stops
 growing. It fails against the earlier runtime. It passes on Linux under
 AddressSanitizer/UBSan and ThreadSanitizer, whose only reports are the test's
 own polling. The Windows path of this test and the existing `wkc2_ppu_join`
-pass under Wine with a MinGW build.
+passed under Wine with a MinGW build and now pass in the native Windows
+clang-cl suite.
 
 Patch 0048: `cellSpursJobGuardReset` restored the guard's current reset value,
 which a guard without autoReset sets to zero when it releases. Such a guard
 stayed open after a reset and ran its job again without a notify. Reset now
 restores the initial notify count, as lv2's does. `wkc2_spurs_job` adds a
-two-guard lap that fails against the earlier runtime; it passes under Wine.
+two-guard lap that fails against the earlier runtime; it passes under Wine and
+in the native Windows suite.
 
 Patch 0049: `SPU_CRI_IMAGE=-1`, which this runner sets, is also the image id
 of pure SPU interpretation (`RD_SPU_INTERP`). Interpreted SPU threads matched
@@ -413,9 +449,9 @@ received these methods. `wkc2_draw_engine` adds a check that a blit and an
 inline transfer between two draws leave blending and alpha test unchanged; it
 fails against the earlier runtime.
 
-The native town comparison with `RSX_ENGINE_ALL_SUBCHANNELS=1` still shows
-the same target faults. Neither route establishes a correction of the
-stretched strip or NPC surfaces. An empty private `GCM_SUBCH_GATE` file,
+The 51-patch native town comparison with `RSX_ENGINE_ALL_SUBCHANNELS=1` still
+showed the same target faults. Neither route corrected the stretched strip or
+NPC surfaces. An empty private `GCM_SUBCH_GATE` file,
 created for ten seconds in town, confirms complete NV0039 transfer sequences
 on subchannel 1. This 51-patch trace established the missing-copy defect addressed by
 patch 0052 below. Both default
@@ -450,7 +486,8 @@ unlogged transfers), noncontiguous mappings, overlap, pitches, strides, bounds,
 reservation notifications and separation from both 3D renderers.
 `wkc2_nv0039_routing_3d` checks the SDK compatibility override. The extended
 `wkc2_draw_engine` verifies an unaligned partial-pixel update preserves adjacent
-GPU-owned bytes. All pass in the 50-check Windows Vulkan suite.
+GPU-owned bytes. All passed in the 50-check checkpoint and remain covered by
+the current 51-check Windows Vulkan suite.
 
 Set `GCM_M2MF_VERIFY=1` before a private run to compare copied destination bytes
 against the staged source. This re-read confirms the writes landed at the
@@ -463,7 +500,7 @@ throttled diagnostics. Logs contain counts and reasons, not payload bytes.
 The native town recheck (`20261017-061720`) completes at least
 65,536 copies / 14,363,492 bytes with verification enabled, no mismatch
 or rejection diagnostics. Previously speckled NPC surfaces look coherent in the
-inspected town views, while the stretched geometry remains.
+inspected town views, while the stretched geometry remained at that checkpoint.
 See [the findings](FINDINGS.md#nv0039-memory-transfers).
 
 Method layout and transfer semantics were checked against the
@@ -514,9 +551,10 @@ The test exports elementary video/audio plus video-unit sizes to the private pre
 The verifier decodes those video units and compares every frame against FFmpeg's
 independent MPEG demux/decode of the original movie. It also decodes exported AC-3
 when present. Records contain hashes and counts, never game bytes or host paths.
-The checked samples are in `verification/movie-demux.json`. Real decoded video now
-also reaches the native renderer, but these checks do not establish continuous
-in-game playback or correct audio.
+The checked samples are in `verification/movie-demux.json`. Native runs separately
+verify continuous playback of startup logos, the title background and observed
+attract-movie playback. The offline checks do not establish complete movie
+coverage or the game's final audio mix.
 
 `vpost.cpp` implements the four imported video-postprocessor APIs with guest field
 layouts and real progressive YUV420 processing. Tested paths include legal-range
@@ -838,31 +876,60 @@ guest protocol on Windows and macOS. That interface remains planned work.
 
 ## Playing and performance options
 
-`tools/build.ps1` produces the Debug build used by the regression suite. For
-play, configure a second build directory with compiler optimization. The
-prepared glslang and SDL2 libraries use the debug C runtime, so keep `/MDd`
-and raise only the optimization level:
+`tools/build.ps1` produces the Debug build used by the regression suite. The
+inspected recent town runs use a separate optimized build. After the standard
+build has prepared dependencies and regenerated the current game inputs,
+configure it as follows in PowerShell, replacing the two placeholder paths:
 
-```
-cmake -S <checkout> -B <workspace>/work/build/wkc2-release -G Ninja ^
-  -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_C_FLAGS_DEBUG=/MDd /O2 /Ob2" ^
-  "-DCMAKE_CXX_FLAGS_DEBUG=/MDd /O2 /Ob2" "-DCMAKE_C_FLAGS=/w /arch:AVX2" ^
-  "-DCMAKE_CXX_FLAGS=/w /arch:AVX2" <the remaining options build.ps1 passes>
+```powershell
+$workspace = (Resolve-Path '<private-workspace>').Path
+$checkout = (Resolve-Path '<checkout>').Path
+. "$checkout/tools/windows-env.ps1" -Workspace $workspace
+. "$checkout/tools/media-env.ps1" -Workspace $workspace
+$optimized = Join-Path $workspace 'work/build/wkc2-optimized'
+cmake -S $checkout -B $optimized -G Ninja `
+  -DCMAKE_BUILD_TYPE=Debug `
+  -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl `
+  '-DCMAKE_C_FLAGS_DEBUG=/MDd /O2 /Ob2' `
+  '-DCMAKE_CXX_FLAGS_DEBUG=/MDd /O2 /Ob2' `
+  '-DCMAKE_C_FLAGS=/w /arch:AVX2' '-DCMAKE_CXX_FLAGS=/w /arch:AVX2' `
+  "-DPS3RECOMP_DIR=$workspace/work/deps/ps3recomp" `
+  "-DRECOMP_DIR=$workspace/work/wkc2-generated/ppu" `
+  "-DSPU_DIR=$workspace/work/wkc2-generated/spu" `
+  "-DDIRECTX_HEADERS_DIR=$workspace/work/deps/DirectX-Headers" `
+  "-DPython3_EXECUTABLE=$workspace/work/venv/Scripts/python.exe" `
+  -DPORT_ENABLE_SPU=ON -DWKC2_BUILD_TESTS=ON `
+  -DPS3RECOMP_FFMPEG_RUNTIME=ON `
+  "-DPS3RECOMP_FFMPEG_INCLUDE_DIR=$workspace/work/deps/ffmpeg-8.1" `
+  -DPS3RECOMP_RSX_VULKAN=ON `
+  "-DCMAKE_PREFIX_PATH=$workspace/work/deps/vulkan-prefix" `
+  "-DPS3RECOMP_VULKAN_INCLUDE_DIR=$workspace/work/deps/Vulkan-Headers/include"
+if ($LASTEXITCODE) { throw 'Optimized configuration failed' }
+cmake --build $optimized -j 4
+if ($LASTEXITCODE) { throw 'Optimized compilation failed' }
+ctest --test-dir $optimized -R wkc2_ --output-on-failure
+if ($LASTEXITCODE) { throw 'Optimized regression checks failed' }
+& "$checkout/tools/probe.ps1" -Workspace $workspace -Renderer Vulkan `
+  -Executable "$optimized/WKC2Native.exe" -Seconds 900 -ShowWindow
 ```
 
-`/arch:AVX2` lets SPU multiply-adds use the FMA instruction instead of the C
-runtime's software `fmaf`; it requires an AVX2-capable CPU (Intel Haswell or
-AMD Excavator and later).
+This retains the Debug C runtime and C++ ABI (`/MDd`) used by the prepared
+glslang and SDL2 libraries while enabling compiler optimization. It is not a
+Release-CRT build. `/arch:AVX2` permits hardware FMA for the SPU helpers' explicit
+`fmaf` operations and requires a CPU with AVX2 and FMA support. Omit that option
+on older processors; their performance has not been measured.
 
 Runtime switches, all off unless set:
 
 - `WKC2_SKIP_INTRO=1` skips the copyright and save notices and the publisher
   and middleware logos. The boot sequencer's system-setup steps still run.
 - `WKC2_DISCARD_LOGS=1` sends stdout/stderr to NUL. Per-line diagnostic writes
-  cost the main game thread about a third of a cutscene frame.
+  accounted for about a third of the main thread's time in the recorded
+  cutscene profile. Leave logs enabled for diagnostic runs.
 - `WKC2_SAMPLE_PROFILE=<file>` rewrites `<file>` every ten seconds with each
   thread's CPU share and its most-sampled module offsets; link with `/MAP` to
-  resolve them.
+  resolve them. This Windows profiler briefly suspends threads to sample them
+  and changes timing.
 - `RSX_ENGINE_PRESENT_LOG=1` reports presents of surfaces nothing drew since
   their last present, plus frame rate and per-site GPU synchronisation cost
   every five seconds; `RSX_ENGINE_FPS_FILE=<file>` also writes the frame rate
@@ -872,8 +939,16 @@ Runtime switches, all off unless set:
   `RSX_ENGINE_RED_TRIGGER=<dir>` keeps a per-frame draw log and saves it with
   the presented image when a sampled patch is strongly red.
   `RSX_ENGINE_WATCH_TARGET=<hex offset>` prints draws into one colour target.
+- `RSX_VK_FLUSH_FILE=<file>` writes Vulkan flush counts and timing by source
+  line every five seconds; negative lines identify submissions without a wait.
+- `RSX_VK_PRESENT_MODE=mailbox` or `immediate` requests that Vulkan present
+  mode when the driver supports it; otherwise the backend retains FIFO.
 
 `tools/probe.ps1 -ShowWindow` keeps the game window visible during a probe.
+Draw/shader captures, profiler files and logs stay in the private workspace.
+These options can change timing; the observed roughly 25–31 fps in heavier
+cutscene shots and roughly 8 fps in the pre-0058 town run are not a measured
+performance guarantee for a new machine or the current physics-enabled build.
 
 ## Diagnostic probes
 
@@ -881,9 +956,11 @@ Run `tools/probe.ps1 -Seconds 15` for a bounded diagnostic attempt. Logs and a
 result JSON go into `work/probes/`; unrecognized SPU jobs go into the private
 analysis directory. Probes record the last observed guest flip and presented-frame
 counts every five seconds; these counters alone do not verify visible content.
-`-CaptureFrames` saves four backend BMP readbacks by default in a private probe
-subdirectory. `-CaptureFrameCount`, `-CaptureEvery` and `-CaptureSkip` select a
-longer sampling interval; probes accept durations up to 3600 seconds, with each
+For D3D12, `-CaptureFrames` saves four backend BMP readbacks by default in a
+private probe subdirectory. `-CaptureFrameCount`, `-CaptureEvery` and `-CaptureSkip` select a
+longer sampling interval. Vulkan rejects `-CaptureFrames`; set
+`RSX_ENGINE_SNAP_DIR` and `RSX_ENGINE_SNAP_EVERY_S` for its PPM readbacks instead.
+Probes accept durations up to 3600 seconds, with each
 host wait bounded to five seconds. `PAD_SCRIPT` can supply timed controller pulses
 through the SDK's controller path; the probe records that script in its result.
 Capture suppresses the runner's pre-flip placeholder presents, changing

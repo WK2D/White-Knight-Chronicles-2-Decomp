@@ -9,8 +9,10 @@ game calls, such as threads, files, graphics and movie playback.
 Static recompilation is one kind of binary recompilation. Emulators such as
 RPCS3 instead translate or interpret the game's code while it runs.
 
-All 56,580 main-CPU (PPU) functions and all 24 known SPU programs are statically
-recompiled; some remaining SPU code still uses an interpreter fallback. See
+The current build compiles 56,580 main-CPU (PPU) functions and 24 known SPU
+image/job inputs to native code. Some remaining SPU paths still reach an
+interpreter fallback, so these counts do not establish complete static coverage.
+See
 [execution architecture and modding scope](docs/ARCHITECTURE.md).
 
 **Current milestone (2026-10-17): the native Vulkan build runs the missing
@@ -39,8 +41,9 @@ cover the frame-rate work.
 
 NV0039 memory copies now execute on the native build. During the town run, a
 diagnostic re-read of each destination reported no mismatches; this confirms
-the writes landed, not that the copy semantics are fully correct. Previously speckled NPC surfaces look coherent
-in the inspected views. The remaining long strips were traced to omitted
+the writes landed, not that the copy semantics are fully correct. Previously
+speckled NPC surfaces look coherent in the inspected views. The remaining
+long strips were traced to omitted
 physics work and corrected by patch 0058. See the
 [implementation and validation results](docs/FINDINGS.md#nv0039-memory-transfers).
 

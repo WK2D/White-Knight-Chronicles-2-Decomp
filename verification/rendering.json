@@ -34,7 +34,7 @@
     "avatar_customization_ui": true,
     "avatar_model_rendering": true,
     "avatar_body_geometry": true,
-    "avatar_material_and_face_shading": false,
+    "avatar_material_and_face_shading": true,
     "avatar_material_and_face_shading_improved": true,
     "avatar_full_visual_fidelity": false,
     "vulkan_avatar_colour_feedback": true,
@@ -48,36 +48,44 @@
     "limited_town_movement_and_camera_response": true,
     "movement_and_camera_control_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified.",
     "npc_surface_rendering_improved": true,
-    "npc_surface_full_fidelity": false
+    "npc_surface_full_fidelity": false,
+    "avatar_material_and_face_shading_scope": "Face shading and textured clothing are visible on the inspected default male avatar; full material fidelity remains unverified.",
+    "secondary_bone_town_strips_removed_in_inspected_views": true,
+    "physics_full_fidelity": false
   },
   "captures": [
     {
-      "file": "language-selection.bmp",
+      "file": "screenshots/2026-10-15-language-selection.png",
       "private_source_probe": "20261015-231841.frames/frame_001.bmp",
-      "sha256": "381311a2f00ece113356f64e7cdbe56a2a12dd2952bc8102489e04d1d2cfb7bb",
-      "method": "unmodified D3D12 GPU readback; visually inspected"
+      "sha256": "00c661ef8c3348ac316fb6f9747fac74623a321b13045cf27ed90576e8e1faa7",
+      "method": "Visually inspected D3D12 GPU readback, published as a lossless PNG with optional metadata removed; source BMP remains private.",
+      "source_bmp_sha256": "381311a2f00ece113356f64e7cdbe56a2a12dd2952bc8102489e04d1d2cfb7bb"
     },
     {
-      "file": "startup-warning.bmp",
+      "file": "screenshots/2026-10-15-startup-warning.png",
       "private_source_probe": "20261015-232002.frames/frame_011.bmp",
-      "sha256": "e1f6f5bcae0086ee3c88fa55c9175afa0eb17a1242bc5de7e5138a57083e0a1f",
-      "method": "unmodified D3D12 GPU readback; visually inspected"
+      "sha256": "e08a070d5a515ac92ea23b6bd234877920c03634cc731c631ed8dd1a32b88646",
+      "method": "Visually inspected D3D12 GPU readback, published as a lossless PNG with optional metadata removed; source BMP remains private.",
+      "source_bmp_sha256": "e1f6f5bcae0086ee3c88fa55c9175afa0eb17a1242bc5de7e5138a57083e0a1f"
     },
     {
-      "file": "first-logo-frame.bmp",
+      "file": "screenshots/2026-10-16-first-logo-frame.png",
       "private_source_probe": "20261016-005717.frames/frame_007.bmp",
-      "sha256": "ea80cb24db4a718aaa49d6d637afb3ddfc6e3abc77c14b9989246db762629c43",
-      "method": "unmodified D3D12 GPU readback; visually inspected"
+      "sha256": "04307a1fbe726226ee0cb6794bfc6377e3dae36f16266833fa912b39778e989b",
+      "method": "Visually inspected D3D12 GPU readback, published as a lossless PNG with optional metadata removed; source BMP remains private.",
+      "source_bmp_sha256": "ea80cb24db4a718aaa49d6d637afb3ddfc6e3abc77c14b9989246db762629c43"
     },
     {
-      "file": "readable-new-game.bmp",
-      "sha256": "a3b3fc17d1862a327ef9515bf4a7a384b7b8ae013b6c25f1771e546f2facf5a1",
-      "method": "unmodified D3D12 GPU readback; visually inspected"
+      "file": "screenshots/2026-10-16-readable-new-game.png",
+      "sha256": "8bae4c3210170ee28e29bbc7119364689edc4457232365f40d553122a06b3c55",
+      "method": "Visually inspected D3D12 GPU readback, published as a lossless PNG with optional metadata removed; source BMP remains private.",
+      "source_bmp_sha256": "a3b3fc17d1862a327ef9515bf4a7a384b7b8ae013b6c25f1771e546f2facf5a1"
     },
     {
-      "file": "wkc1-selection.bmp",
-      "sha256": "0f9d3939d686674ae878bf1e8b58c6ee56adb7751d28e3ce8e93cd909d55c603",
-      "method": "unmodified D3D12 GPU readback; visually inspected"
+      "file": "screenshots/2026-10-16-wkc1-selection.png",
+      "sha256": "57088f733ee95c95ee62a8386d757eb203f8099d07467c41b70660f15bc310b7",
+      "method": "Visually inspected D3D12 GPU readback, published as a lossless PNG with optional metadata removed; source BMP remains private.",
+      "source_bmp_sha256": "0f9d3939d686674ae878bf1e8b58c6ee56adb7751d28e3ce8e93cd909d55c603"
     }
   ],
   "checks": {
@@ -94,6 +102,7 @@
       "wkc2_vertex_fetch",
       "wkc2_spu_fp",
       "wkc2_spurs_abi",
+      "wkc2_spurs_job_queue",
       "wkc2_spu_interp_profile",
       "wkc2_spu_interp_profile_off",
       "wkc2_spu_float_host",
@@ -136,8 +145,9 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 57,
-    "current_passed_count": 50
+    "current_sdk_patch_count": 58,
+    "current_passed_count": 51,
+    "record_scope": "Current Windows Vulkan suite at patch 0058; the full 51-check run passed, followed by a passing queue regression after the null-address review fix."
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -1135,7 +1145,8 @@
     "callback_audit_calls": 589,
     "callback_audit_omitted": 0,
     "gameplay_verified": false,
-    "save_load_verified": false
+    "save_load_verified": false,
+    "record_scope": "Historical 23-input clean extraction, full PPU/SPU regeneration and 31-check boot comparison. See current_spu_input_reproduction for the 24-input set used by patch 0058."
   },
   "guest_flip_presentation": {
     "port_checks_passed": 31,
@@ -1323,7 +1334,7 @@
   "cpu_execution": {
     "mode": "Ahead-of-time PPU/SPU recompilation with PS3 compatibility runtime and observed SPU interpreter fallback",
     "ppu_generated_functions_compiled": 56580,
-    "spu_image_job_inputs_compiled": 23,
+    "spu_image_job_inputs_compiled": 24,
     "spu_interpreter_fallback_present": true,
     "spu_interpreter_fallback_observed": true,
     "observed_probe": "20261016-220818",
@@ -1334,7 +1345,7 @@
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
     "remaining_requirement": "Cover missing SPU entries and any runtime-generated code with validated static/native implementations, then measure fallback coverage across gameplay.",
-    "latest_census_probe": "20261017-021013"
+    "latest_census_probe": "20261017-061720"
   },
   "wkc1_town_world_view": {
     "probe": "20261016-233313",
@@ -1390,7 +1401,7 @@
     "native_game_run_verified": true,
     "native_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
   },
-  "record_scope": "Current status is summarized in current_milestone and verified. Other named probes retain historical counts, failures and unverified fields. nv0039_memory_transfers records patch 0052; second_runtime_review retains the four earlier 51-patch comparisons. The gallery retains its original capture provenance.",
+  "record_scope": "Current status is summarized in current_milestone, verified, checks, cpu_execution and current_spu_input_reproduction. Other named probes retain their historical counts, failures and validation limits. nv0039_memory_transfers records patch 0052; secondary_bone_physics records the patch 0058 town fix. Gallery entries retain their original capture provenance.",
   "host_runtime_review": {
     "audio_error_end_restart_regression_passed": true,
     "old_audio_implementation_fails_regression": true,
@@ -1487,7 +1498,8 @@
       "behavior_comparison_verified": false,
       "native_execution_verified": false,
       "integrated_into_current_build": false
-    }
+    },
+    "record_scope": "Historical 42-patch census. The later 52-patch census in nv0039_memory_transfers records the same six entry fingerprints; cpu_execution names the latest recorded census. No new census was recorded for the 58-patch physics run."
   },
   "vertex_program_coissue_review": {
     "suggestion_commit": "15fa006861d18c3eebf1afbf2fac8904ef6d81c1",
@@ -2098,7 +2110,8 @@
     "town_draws_per_frame": "1400-1800",
     "max_threads_during_loading_after_fix": 80,
     "measurement_scope": "Qualitative native runs with diagnostics enabled; not a benchmark.",
-    "town_bottleneck": "SPU job chain and cross-thread waits, not the renderer (renderer thread ~25% busy, present GPU wait 4-6 ms)"
+    "town_bottleneck": "SPU job chain and cross-thread waits, not the renderer (renderer thread ~25% busy, present GPU wait 4-6 ms)",
+    "record_scope": "Historical measurements before patch 0058. The cited bottleneck describes that profile; frame rate and bottleneck have not been remeasured with the physics job enabled."
   },
   "secondary_bone_physics": {
     "date": "2026-10-17",
@@ -2142,5 +2155,46 @@
     "sustained_traversal_combat_save_load_verified": false,
     "raw_captures_or_generated_game_code_published": false,
     "stopped_after_validation": true
+  },
+  "current_spu_input_reproduction": {
+    "date": "2026-10-17",
+    "sdk_patch_count": 58,
+    "images": 24,
+    "embedded_elfs": 5,
+    "raw_jobs": 19,
+    "elf_sha256": "333400e0b0915e3008a22f29daf95ed2c9b03f3c2a2787cf5705222d73a5ceeb",
+    "all_image_bytes_match_production_inputs": true,
+    "image_sha256": [
+      "0555c9f490fa14359f6f1b9ec6f7345e0e75e39a87f05f62de33149a838097de",
+      "06cd74eb732fe6f2488073b55689a29bd91a49faa366a7f436174e2e4a52cbdc",
+      "1289dc1436a485dfb8005e07bc81fda6fa3d0a89cd0383723e458a2e70972ecb",
+      "1a81d3934492ee34decb7ade894c5dd9261b5dd7ffa1e4496467dee33fd3ac95",
+      "1d12bc5045a5b225e881f27fcf81681ec4c64d2f518caa969ab591371634b649",
+      "2a7f2d82a4e290fb13c84a542d1c50b886e06a4ae2b34ceaf01f1aac31d3925e",
+      "2ba62ad6d1ad6f122929b65c6f13cebea2e2dc73742db6bb793b0ca23dd239bc",
+      "6095fd0b148edddbd6af473e988e35e05dc457934826a3d0eb2021f7e9f2affa",
+      "634909202f7e92cfd39c1e80150987dc627593d698c648c4e0d34e639bba96b8",
+      "687b19feb895ff3f12698887dcddbddf2f850cf871f2e18b23b482055b892b03",
+      "7cbe5701c8fa619cc2ffc499897ee34c588c8055a2a61565a0abd384e4b1a940",
+      "83b0bc054de1b6ecba6f7dfa763ea2f2bcf2535183c567607bedbeeeb037ed9a",
+      "8befddccd9abf9f4ed7c017941d9e0e6e0e9cd7605c6d4f5d6fda9c73bf0e523",
+      "8e22b497d7c99ad56f1c36aa03b8bf5498f004ecde144154c0c39c5089f8aabf",
+      "8ed1a8037eadc3e5628ac47ae0cc383fa860bc9e5f037aee152a5ba5b9b6b62a",
+      "94c0466b9a2750e431de67143e3aabdbb65e39c8ebd38be7bbff97348279387c",
+      "9e8d5bbd15b6cc8191dc85790d94f99a5eedc36619599ba3c0f2b8a185cc13b3",
+      "bb7f4622928993ae98b0f24ecb365173dc61a667936a1f4fede00b67c1da62d0",
+      "d6ee2bee3744d5d925313e0d0c3012f74427e5d72bde93fd1b966a4be990251c",
+      "dccd359688d94c13abf924a580d827d2ce8577cbaed11c634a2889d145970e97",
+      "dda5f84f406f48c103c7295833948ae5ceef46caddecc099711a91f4351b2b04",
+      "e144641f58cd16854f504fc7362adaaf51aa9236cf2a73990cabd505e842f55e",
+      "e35c4f01ee691cb585987595edb49b44e85ab7822ebf0244b09dec4f852cdbdc",
+      "f8b541031501c13bcf329f8d8c073d9c9258959ed7c0a3b2eced4114cfdc6752"
+    ],
+    "runtime_captures_required_for_known_images": false,
+    "new_physics_job_raw_bytes": 21408,
+    "new_physics_job_image_id": 24,
+    "native_town_probe": "20261017-202420",
+    "build_and_checks": "Normal and optimized Windows Vulkan builds succeed; 51 runtime checks pass. Earlier complete PPU regeneration is recorded separately in executable_spu_input_reproduction.",
+    "full_game_coverage_verified": false
   }
 }

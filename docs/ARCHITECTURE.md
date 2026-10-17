@@ -17,9 +17,16 @@ interpreter-free port or a recovered, readable version of the original source.
   compiled and linked into the host program; the loader dispatches their function
   pointers. The current generation registers 56,580 PPU functions.
 - The SPU build extracts and lifts 24 image/job inputs, compiles their generated
-  C, and registers compiled entries by image fingerprint.
+  C, and registers compiled entries by image fingerprint. These include the
+  secondary-bone physics job added for the town stretching fix.
+- Firmware SPURS job-queue/port calls now execute registered jobs and pass the
+  control block required by the job's C runtime startup. The current implementation
+  runs jobs synchronously in submission order within each queue. This restores
+  the physics output used by Leonard's hair and clothing in the inspected WKC1
+  town views; it does not establish full-game scheduling or physics fidelity.
 - The SDK also contains an SPU interpreter and a runtime-code microstep path.
-  An observed native run reached the interpreter from the microstep path in image 17.
+  Native census runs record six fallback entry fingerprints in image 17,
+  including calls from the microstep path.
   This is observed execution, not merely an unused interpreter in the source tree.
   Registering all 24 inputs does not prove every executed instruction was lifted.
   The proportion of execution using this fallback has not been measured.
@@ -37,6 +44,9 @@ Implementation points are the pinned SDK's
 [PPU loader/dispatch](https://github.com/sp00nznet/ps3recomp/blob/a2c20108af45174dbb7d3e2f87f6acaaef09c6b4/runtime/ppu/ppu_loader.cpp),
 [SPU interpreter interface](https://github.com/sp00nznet/ps3recomp/blob/a2c20108af45174dbb7d3e2f87f6acaaef09c6b4/runtime/spu/spu_interp.h)
 and this project's [generated-code hook tool](../tools/apply_port_hooks.py).
+The pinned SDK is built with the project's [runtime patches](BUILD.md),
+including [SPURS queue/port execution](../patches/0058-spurs-job-queue-secondary-bones.patch)
+and [fallback profiling](../patches/0042-spu-interp-profile.patch).
 
 Generated game sources and game inputs remain private. The public repository
 contains the build tools, project code, runtime patches and verification records.
@@ -64,10 +74,16 @@ that a supported WKC modding framework currently exists.
 The intended interpreter-free path requires covering missing SPU entries and
 any runtime-generated code with validated static or specific native implementations.
 The first census finds six entry fingerprints in image 17 matching the
-corresponding windows in the extracted SPU image. These are candidates for improving static
-entry discovery. The three primary entry hints produce a Windows-compilable
+corresponding 64-byte windows in the extracted SPU image. That match is not a
+whole-function comparison. These are candidates for improving static entry
+discovery. The three primary entry hints produce a Windows-compilable
 private lift; its behavior and native execution have not been verified.
 Disabling the interpreter before validating replacements would break execution.
 
 Validation must measure fallback use along tested routes. Boot, rendering or
 gameplay milestones must not be presented as proof of fully static CPU coverage.
+The census counts completed fallback sessions rather than all executed
+instructions, so it cannot establish a fallback percentage. An empty table alone
+would not prove interpreter-free execution. See the
+[census findings](FINDINGS.md#spu-fallback-census-and-host-runtime-review)
+for the measured route and limits.

@@ -1,31 +1,21 @@
 /*
- * ps3recomp game project -- entry point template.
+ * White Knight Chronicles II native-port runner.
  *
  * This is the runner. It boots a lifted title through the toolkit's PPU
  * scaffold: allocate the flat guest VM, load the PPU ELF named on the command
  * line, register the lifted function table and the HLE NID handlers, start a
  * frame clock, and dispatch the entry OPD.
  *
- * The scaffold does the work; nothing below reimplements it. ppu_load_elf,
+ * The shared scaffold provides ppu_load_elf,
  * ppu_recomp_register, ppu_hle_init, ppu_sysprx_register, ppu_fs_register,
- * lv2_init_syscalls and ppu_run all come from the toolkit, compiled into this
+ * lv2_init_syscalls and ppu_run, compiled into this
  * project from PS3RECOMP_DIR (see CMakeLists.txt). What is left here is the
- * part a port owns: which backend to present through, how the frame clock is
- * paced, and whatever diagnostics the title turns out to need.
+ * title-specific integration: backend selection, frame pacing, startup and
+ * installation hooks, system-service registration and optional diagnostics.
  *
- * runtime/ppu/tests/boot_main.cpp in the toolkit is the same boot in its
- * fully-instrumented form -- crash filter, hang watchdog, guest-PC sampling
- * profiler. Read it when a boot goes wrong; copy from it what the title
- * needs. It is deliberately not what a fresh project starts with.
- *
- * The one part that IS duplicated from it is the frame clock below, because a
- * port is expected to change its pacing and a shared one would be the wrong
- * shape for that. It was copied faithfully, comments and all. If a pacing bug
- * is fixed in one of the two, look at the other.
- *
- * This builds on Windows, macOS and Linux. CI builds and runs it against the
- * boot smoke title on the last two, and compile-checks it against clang-cl on
- * the first (tools/check_ppu_scaffold.py).
+ * Windows x86-64 builds and limited WKC1 town execution are verified.
+ * Linux and macOS integration and execution remain unverified; this port
+ * does not currently have a CI workflow.
  */
 
 /* The lifter's generated header, which declares ppu_context and the function
@@ -328,9 +318,9 @@ void wkc2_shutdown_dmux(void);
 /* ---------------------------------------------------------------------------
  * RSX present backend
  * -----------------------------------------------------------------------*/
-/* D3D12 (or the optional Vulkan engine) on Windows, Metal on Apple, and the
- * null backend's headless software path elsewhere. The selected backend
- * exposes the same three entry points, so the frame clock is backend-agnostic. */
+/* Vulkan is the default Windows backend; D3D12 is optional. The Apple Metal
+ * and other-platform null-backend branches are unverified in this port.
+ * Each backend exposes the same entry points to the frame clock. */
 #if defined(_WIN32) && defined(PS3RECOMP_RSX_VULKAN)
 extern "C" int  rsx_vulkan_backend_init(uint32_t w, uint32_t h, const char* title);
 extern "C" void rsx_vulkan_backend_present(void);

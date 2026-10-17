@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(WKC2Native
     VERSION 0.1.0
     LANGUAGES C CXX
-    DESCRIPTION "Recompiled PS3 game project (ps3recomp)"
+    DESCRIPTION "White Knight Chronicles II native C/C++ recompilation research"
 )
 
 # ---------------------------------------------------------------------------
@@ -28,10 +28,10 @@ endif()
 #
 #   cmake -B build -G Ninja \
 #         -DPS3RECOMP_DIR=/path/to/ps3recomp \
-#         -DRECOMP_DIR=/path/to/my_game/recompiled
+#         -DRECOMP_DIR=/path/to/wkc2-generated/ppu
 #
 if(NOT DEFINED PS3RECOMP_DIR)
-    # Default: this project is still sitting inside ps3recomp/templates/project/
+    # Legacy template fallback. tools/build.ps1 passes the pinned SDK path.
     get_filename_component(PS3RECOMP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../" ABSOLUTE)
 endif()
 get_filename_component(PS3RECOMP_DIR "${PS3RECOMP_DIR}" ABSOLUTE)
