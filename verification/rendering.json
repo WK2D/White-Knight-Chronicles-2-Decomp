@@ -12,7 +12,9 @@
       "Visible stretched geometry and corrupt NPC surfaces",
       "Sustained traversal, combat and save/load unverified",
       "SPU interpreter fallback remains enabled"
-    ]
+    ],
+    "latest_recheck_probe": "20261017-021013",
+    "latest_recheck_sdk_patch_count": 44
   },
   "verified": {
     "native_language_selection_rendered": true,
@@ -102,6 +104,7 @@
       "wkc2_depth_state",
       "wkc2_surface_clear_gpu",
       "wkc2_vp_cache",
+      "wkc2_vp_coissue",
       "wkc2_fp_identity",
       "wkc2_draw_engine",
       "wkc2_texture_layout",
@@ -124,8 +127,8 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 42,
-    "current_passed_count": 42
+    "current_sdk_patch_count": 44,
+    "current_passed_count": 43
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -1322,7 +1325,7 @@
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
     "remaining_requirement": "Cover missing SPU entries and any runtime-generated code with validated static/native implementations, then measure fallback coverage across gameplay.",
-    "latest_census_probe": "20261017-010907"
+    "latest_census_probe": "20261017-021013"
   },
   "wkc1_town_world_view": {
     "probe": "20261016-233313",
@@ -1378,7 +1381,7 @@
     "native_game_run_verified": true,
     "native_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
   },
-  "record_scope": "Current status is summarized in current_milestone and verified. Other named probes retain historical counts, failures and unverified fields. Latest town-controls evidence is in spu_fallback_census and the newest gallery capture.",
+  "record_scope": "Current status is summarized in current_milestone and verified. Other named probes retain historical counts, failures and unverified fields. Latest town-controls recheck and shader scan are in vertex_program_coissue_review; the gallery retains its original capture provenance.",
   "host_runtime_review": {
     "audio_error_end_restart_regression_passed": true,
     "old_audio_implementation_fails_regression": true,
@@ -1475,6 +1478,105 @@
       "behavior_comparison_verified": false,
       "native_execution_verified": false,
       "integrated_into_current_build": false
+    }
+  },
+  "vertex_program_coissue_review": {
+    "suggestion_commit": "15fa006861d18c3eebf1afbf2fac8904ef6d81c1",
+    "patch": "0043-vp-coissue-operands.patch",
+    "optional_capture_patch": "0044-shared-vertex-program-dump.patch",
+    "windows_build_and_all_43_checks_passed": true,
+    "coissue_old_implementation_fails_regression": true,
+    "lit_old_buffer_size_fails_independent_regression": true,
+    "synthetic_hardware_vertex_shader_comparison": {
+      "temp": {
+        "old": [
+          0.125,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "fixed": [
+          0.25,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "address": {
+        "old": [
+          0.0625,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "fixed": [
+          0.125,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "single": {
+        "old": [
+          4.0,
+          2.0,
+          3.0,
+          1.0
+        ],
+        "fixed": [
+          4.0,
+          2.0,
+          3.0,
+          1.0
+        ]
+      }
+    },
+    "single_unit_synthetic_shader_text_unchanged": true,
+    "coissued_condition_predicate_hazard_fixed": false,
+    "native_probe": "20261017-021013",
+    "native_town_comparison_complete": true,
+    "stretched_geometry_fix_verified": false,
+    "npc_surface_fix_verified": false,
+    "raw_program_bytes_published": false,
+    "native_game_run_verified": true,
+    "limited_town_movement_and_camera_response_rechecked": true,
+    "sdk_patch_count": 44,
+    "static_capture_scan": {
+      "totals": {
+        "programs": 65,
+        "instructions": 3927,
+        "coissued": 330,
+        "temp": 0,
+        "address": 0,
+        "condition": 0
+      },
+      "affected_programs": {}
+    },
+    "unique_captured_program_sha256_count": 65,
+    "capture_scope": "Distinct vertex programs dumped during startup, WKC1 avatar creation, cutscenes and starting-town controls; static instruction counts, not execution frequencies",
+    "windows_production_spirv_comparison": {
+      "programs": 65,
+      "old_compile_failures": 0,
+      "new_compile_failures": 0,
+      "changed_hlsl_programs": 36,
+      "changed_or_failed_spirv_programs": 36,
+      "lit_instructions": 0,
+      "every_successful_spirv_validated_for_vulkan_1_0": true,
+      "scope": "Standalone production HLSL-to-SPIR-V compilation of captured programs; not a whole-game equivalence proof"
+    },
+    "private_comparison_frame": "snap_1308.ppm",
+    "private_comparison_frame_sha256": "b8163a189aeb801da5f878c16daeee2e5c4e2f32909ea409359a927f21e7f8a2",
+    "baseline_gallery_image": "screenshots/2026-10-17-native-wkc1-town-controls.png",
+    "observed_result": "Long stretched strip at Leonard and visibly corrupt NPC surfaces remain in the town and a live cutscene; no correction of those faults observed",
+    "run_stopped_after_validation": true,
+    "spu_census_snapshot": {
+      "rows": 6,
+      "completed_sessions": 1957,
+      "recorded_instructions": 8484,
+      "dropped_sessions": 0,
+      "sha256": "9d6def26378c459288776fbceb77e5d86e6a30d49222337e7a36d3fc4a9cf8e5",
+      "entry_fingerprints_match_previous_census": true,
+      "fallback_disabled": false
     }
   }
 }

@@ -4,11 +4,11 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Verified on 2026-10-17:** the full 42-patch Windows Vulkan build reaches the
+**Verified on 2026-10-17:** the full 44-patch Windows Vulkan build reaches the
 live WKC1 town and responds to short analog movement, walking/facing changes,
 and camera rotation. Earlier town testing also verified pause/resume input.
-All 42 runtime checks pass. Town geometry and NPC materials still have visible
-faults; sustained traversal, combat and save/load remain unverified. See the
+The current build passes 43 runtime checks. Town geometry and NPC materials
+still have visible faults; sustained traversal, combat and save/load remain unverified. See the
 [latest gallery entry](GALLERY.md).
 
 The source checkout and private working directory can be separate. Pass the
@@ -64,7 +64,7 @@ and save/load remain unverified, and rendering faults remain.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies the numbered runtime patches idempotently
-and runs 42 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs 43 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
@@ -75,8 +75,9 @@ The current suite also covers fragment-program cache identity, ordered surface
 clears, Windows PPU join lifetime and the shared draw engine's colour feedback.
 It also covers persistent DMA label polling, reuse of freed memory ranges and
 finite digital/analog input through the private controller probe file. The
-current build contains 42 numbered SDK patches. The newest town-controls capture
-uses all 42; the earlier town world-view capture used patches 0001–0039.
+current build contains 44 numbered SDK patches. The newest published town-controls
+capture uses 42; the earlier town world-view capture used 39. Patch 0043 and all
+43 runtime checks pass on Windows; its effect on town rendering is checked separately.
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
@@ -216,6 +217,52 @@ Unfinished or nonlocally exited sessions and updates since the latest snapshot
 can be absent after a forced stop. The 4096-row table reports dropped sessions.
 Lifted instructions are not counted, so it does not measure fallback's share
 of all execution. An empty table alone must not trigger removal of the fallback.
+
+Patch 0043 corrects two vertex-program translation faults that can misplace
+vertices. An NV40 vertex-program instruction issues a vector and a scalar
+operation together, and both read their operands before either writes. The
+translator emitted them in sequence, so a vector write to the scalar operand's
+temp register, or an `ARL` to the address register indexing it, reached the
+scalar operation early. Skinning and other indexed-constant shaders use this
+pattern. The scalar operand is now read first. This operand-order change leaves
+single-unit instruction text unchanged. Separately, `LIT` repeats its operand four times,
+and an indexed, absolute, negated constant exceeded the 256-byte expression
+buffer. `snprintf` truncated the expression, so the shader failed to compile.
+The buffer now matches the vector unit's.
+
+The regression decodes hand-encoded programs and checks temp and
+address-register ordering, the full `LIT` expression and unchanged single-unit
+output. Windows negative controls fail independently for the co-issue fault and
+the smaller `LIT` buffer; the corrected test passes. Synthetic hardware vertex
+shader tests also produce the expected temp/address values with the fix, and a
+vector-only program retains byte-identical shader text. The branch's Linux
+validation reports valid SPIR-V and no compile regressions across 1,500 random
+programs, including seven formerly failing programs that now compile.
+
+The native Vulkan town recheck still shows the stretched strip and corrupt
+NPC surfaces. Its 65 distinct captured vertex programs contain 330 co-issued
+instructions, zero temp/address/condition hazards and no `LIT` instructions.
+Both old and new translations compile through the production Vulkan compiler
+and validate as SPIR-V. These results cover the captured route, not every game
+shader. To scan private vertex-program captures without printing game bytes:
+
+```text
+python tools/scan_vp_coissue.py <capture-directory>
+```
+
+It reports temp and address-register hazards, which patch 0043 corrects. It
+also counts co-issued condition-register updates that predicate the scalar
+write, which this patch leaves unchanged. Counts identify potential dependencies
+in captured code, rather than proving those instructions executed. Missing,
+empty or malformed captures cause an error. Repeated program names in different
+frame directories retain separate report entries.
+
+Patch 0044 extends the shared renderer's existing private shader dump:
+set `RSX_ENGINE_SHADER_DUMP=<existing-private-directory>` before launching Vulkan
+to save `vs_<fingerprint>.bin` alongside each newly created pipeline's HLSL and
+fragment-program diagnostics. The raw vertex programs can be scanned with the
+same command above. `RSX_CAP_GEOMETRY` alone selects the older D3D12 capture path
+and does not collect these inputs from Vulkan. Dumped game programs stay private.
 
 ## Movie decoding
 

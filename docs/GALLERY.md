@@ -8,7 +8,7 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-**Current status:** the full 42-patch Windows Vulkan build reaches the WKC1
+**Current status:** the native Windows Vulkan build reaches the WKC1
 town after avatar acceptance and opening cutscene skips. Short analog movement,
 facing changes, walking animation and camera rotation respond to input.
 Stretched geometry and corrupt NPC surfaces remain. Sustained traversal, combat,

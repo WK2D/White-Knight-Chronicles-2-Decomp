@@ -451,6 +451,12 @@ if(WKC2_BUILD_TESTS)
         "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
     add_test(NAME wkc2_vp_cache COMMAND wkc2_vp_cache_test)
     set_tests_properties(wkc2_vp_cache PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_vp_coissue_test tests/vp_coissue_test.c
+        "${PS3RECOMP_DIR}/libs/video/rsx_vp_decompiler.c")
+    target_include_directories(wkc2_vp_coissue_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
+    add_test(NAME wkc2_vp_coissue COMMAND wkc2_vp_coissue_test)
+    set_tests_properties(wkc2_vp_coissue PROPERTIES TIMEOUT 10)
     add_executable(wkc2_fp_identity_test tests/fp_identity_test.c
         "${PS3RECOMP_DIR}/libs/video/rsx_fp_decompiler.c")
     target_include_directories(wkc2_fp_identity_test PRIVATE

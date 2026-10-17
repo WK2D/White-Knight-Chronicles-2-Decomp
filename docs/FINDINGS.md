@@ -2,12 +2,12 @@
 
 Updated 2026-10-17. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current milestone:** the full 42-patch native Windows Vulkan build reaches
+**Current milestone:** the full 44-patch native Windows Vulkan build reaches
 the live WKC1 town and responds to short analog movement, facing/walking changes,
 and camera rotation. Earlier town testing also verified pause/resume input.
-All 42 runtime checks pass. Geometry and NPC material faults remain; sustained
+All 43 current runtime checks pass. Geometry and NPC material faults remain; sustained
 traversal, combat and save/load are unverified.
-See [the latest run](#native-census-and-limited-town-controls) and [gallery](GALLERY.md).
+See [the latest recheck](#vertex-program-co-issue-review) and [gallery](GALLERY.md).
 
 ## Goal and reporting
 
@@ -37,7 +37,7 @@ do not establish interpreter-free execution.
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and 42 runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and 43 runtime regression checks | Compilation alone does not verify gameplay |
 | Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | This colour-fix capture covers character creation; later town validation is recorded below; full visual fidelity remains unverified |
 | WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
 | WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | Stretched geometry and corrupt NPC surfaces remain; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
@@ -721,6 +721,58 @@ did not establish an allocator regression. All 42 patches, including reuse,
 are present in the town run. Their in-game reuse behavior was not separately
 measured. The patch stack also reconstructs consistently under both Git
 line-ending settings without changing the resulting source after CRLF normalization.
+
+## Vertex-program co-issue review
+
+Patch 0043 incorporates the vertex-program translation fixes reviewed from
+`claude-suggestions` at `15fa006`. The instruction's scalar operand is captured
+before the vector unit can overwrite its source temp or indexed-constant address.
+The [XF ISA description](https://envytools.readthedocs.io/en/latest/hw/graph/xf/isa.html)
+records source reads before the vector/scalar operations and result writes.
+The scalar expression buffer also grows to avoid truncating long `LIT`
+expressions; `snprintf` prevented a memory overwrite but emitted incomplete HLSL.
+
+The full Windows workflow passes 43 checks with 44 SDK patches applied.
+Independent negative controls fail for the old operand ordering and for the
+smaller `LIT` buffer. Synthetic hardware vertex-shader checks produce the
+expected values: the temp case changes from 0.125 to 0.25, and the indexed-address
+case from 0.0625 to 0.125. A vector-only shader remains byte-identical. These
+checks validate the specific translation cases. The native comparison below
+checks their effect on the town faults.
+
+Patch 0044 adds raw vertex-program words to the shared renderer's optional
+private shader dump. The older `RSX_CAP_GEOMETRY` path covers D3D12, so enabling
+it alone would not collect the Vulkan run's inputs. The scanner rejects empty
+or malformed captures, preserves repeated filenames in separate frame folders,
+and reports relative names. Co-issued condition-code predicate hazards remain
+unfixed and are counted separately. Raw game programs and generated shaders
+remain private; only checked aggregate results are published.
+
+The 44-patch native Vulkan recheck reaches the town and repeats short movement,
+facing/walking changes and camera rotation. Readbacks compared with the existing
+[town-controls capture](GALLERY.md#2026-10-17--town-movement-and-camera-response)
+still show the long stretched strip at Leonard and corrupt NPC surfaces. A live
+cutscene also shows torn meshes. No correction of these faults was observed.
+
+The captured route contains **65 distinct vertex programs, 3,927 encoded
+instructions and 330 co-issued instructions**, with **zero temp, address or
+condition hazards** and **no `LIT` instructions**. All 65 programs compile and
+validate as Vulkan 1.0 SPIR-V with both translators. HLSL and SPIR-V differ for
+36 programs; successful compilation does not prove behavioral equivalence.
+These are static counts across the captured startup-to-town route, not execution
+frequencies or proof about every shader in the game.
+
+The patch addresses genuine translation faults, but these cases do not explain
+the observed town corruption in the captured shaders. Further investigation
+should trace the image 19 geometry/skinning outputs and validate NPC vertex and
+texture data. Those remain hypotheses, not located faults. The existing gallery
+image remains representative; the comparison frame hash and aggregate results
+are retained in [rendering.json](../verification/rendering.json).
+
+The SPU census remains at the same six entry fingerprints, with 1,957 completed
+sessions and 8,484 recorded instructions in the retained snapshot. The original
+census and its source-entry candidates remain recorded above; the fallback is
+still enabled. Full gameplay, combat and save/load remain unverified.
 
 ## Update 1.01 and DLC integration
 

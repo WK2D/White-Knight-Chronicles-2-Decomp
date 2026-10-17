@@ -46,7 +46,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **42 Windows runtime regression checks** with **42 SDK patches** applied.
+- passes **43 Windows runtime regression checks** with **44 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. Geometry and material faults
@@ -132,7 +132,7 @@ coverage report distinguishes handler presence from verified implementation.
 - **WKC1 town world view and pause/resume:** observed on the native Vulkan build
   after the opening cutscenes. Geometry and NPC materials remain visibly corrupt.
 - **Initial town controls:** short analog movement, facing changes and camera
-  rotation observed on the full 42-patch build.
+  rotation first observed on the 42-patch build and rechecked with all 44 patches.
 - **Sustained traversal, combat and save/load verification:** pending.
 - **In-game keyboard with gamepad navigation, shared across Windows and macOS:**
   planned. The current Windows text-entry window is temporary.
@@ -142,10 +142,12 @@ coverage report distinguishes handler presence from verified implementation.
 ## Current investigation
 
 The next rendering work is to correct stretched town geometry and corrupt NPC
-surfaces, then verify sustained traversal, combat and save/load. The SPU census
-also identifies three static-entry candidates whose behavior still needs validation.
+surfaces, then verify sustained traversal, combat and save/load. The reviewed
+vertex-program co-issue fix passes its checks, but the town recheck still shows
+those faults. The SPU census also identifies three static-entry candidates whose
+behavior still needs validation.
 
-See [the latest native findings](docs/FINDINGS.md#native-census-and-limited-town-controls)
-for the town-controls run and census, [the full findings log](docs/FINDINGS.md) for
+See [the latest native findings](docs/FINDINGS.md#vertex-program-co-issue-review)
+for the town comparison and shader census, [the full findings log](docs/FINDINGS.md) for
 earlier investigations, and [diagnostic probes](docs/BUILD.md#diagnostic-probes)
 for reproduction options.

@@ -1,0 +1,75 @@
+Read co-issued scalar vertex-program operands before vector writes,
+and size scalar expressions for LIT on indexed constants.
+
+diff --git a/libs/video/rsx_vp_decompiler.c b/libs/video/rsx_vp_decompiler.c
+--- a/libs/video/rsx_vp_decompiler.c
++++ b/libs/video/rsx_vp_decompiler.c
+@@ -400,6 +400,22 @@ static int rsx_vp_decompile_impl(
+         const int cc_update = ((d0 >> 14) & 1) && ((d0 >> 29) & 1);
+         if (cc.test) n_cond_skipped++;
+ 
++        /* The vector and scalar units issue together and read their operands
++         * before either writes. Emitted in sequence, a vector write to the
++         * scalar operand's temp, or an ARL to the address register indexing
++         * it, would reach the scalar unit early. Take the scalar operand
++         * first; instructions using one unit are emitted as before. */
++        const int vec_on = (vmx|vmy|vmz|vmw) && vec_op != 0x00;
++        const int sca_on = (smx|smy|smz|smw) && sca_op != 0x00 && !vp_is_flow(sca_op);
++        const int coissue = vec_on && sca_on;
++        const char* S = C;
++        if (coissue) {
++            char line[160];
++            snprintf(line, sizeof line, "    { float4 _sc = (float4)(%s);\n", C);
++            emit(&b, line);
++            S = "_sc";
++        }
++
+         /* ---- vector ALU ---- */
+         if ((vmx|vmy|vmz|vmw) && vec_op != 0x00) {
+             char rhs[512];
+@@ -508,23 +524,25 @@ static int rsx_vp_decompile_impl(
+         }
+         /* ---- scalar ALU (reads SRC2) ---- */
+         if ((smx|smy|smz|smw) && sca_op != 0x00) {
+-            char rhs[256];
++            /* LIT repeats its operand four times; an indexed, abs and
++             * negated constant overflowed 256 bytes and cut the shader off. */
++            char rhs[512];
+             switch (sca_op) {
+-            case 0x01: snprintf(rhs,sizeof rhs,"%s",C); break;                /* MOV */
+-            case 0x02: snprintf(rhs,sizeof rhs,"(1.0/(%s).x)",C); break;      /* RCP */
+-            case 0x03: snprintf(rhs,sizeof rhs,"clamp(1.0/(%s).x, 5.42101e-20, 1.884467e19)",C); break; /* RCC */
+-            case 0x04: snprintf(rhs,sizeof rhs,"rsqrt(max(abs((%s).x), 1e-10))",C); break; /* RSQ */
+-            case 0x05: snprintf(rhs,sizeof rhs,"exp2((%s).x)",C); break;      /* EXP */
+-            case 0x06: snprintf(rhs,sizeof rhs,"log2(max(abs((%s).x), 1e-10))",C); break; /* LOG */
+-            case 0x0D: snprintf(rhs,sizeof rhs,"log2(max(abs((%s).x), 1e-10))",C); break; /* LG2 */
+-            case 0x0E: snprintf(rhs,sizeof rhs,"exp2((%s).x)",C); break;      /* EX2 */
+-            case 0x0F: snprintf(rhs,sizeof rhs,"sin((%s).x)",C); break;       /* SIN */
+-            case 0x10: snprintf(rhs,sizeof rhs,"cos((%s).x)",C); break;       /* COS */
++            case 0x01: snprintf(rhs,sizeof rhs,"%s",S); break;                /* MOV */
++            case 0x02: snprintf(rhs,sizeof rhs,"(1.0/(%s).x)",S); break;      /* RCP */
++            case 0x03: snprintf(rhs,sizeof rhs,"clamp(1.0/(%s).x, 5.42101e-20, 1.884467e19)",S); break; /* RCC */
++            case 0x04: snprintf(rhs,sizeof rhs,"rsqrt(max(abs((%s).x), 1e-10))",S); break; /* RSQ */
++            case 0x05: snprintf(rhs,sizeof rhs,"exp2((%s).x)",S); break;      /* EXP */
++            case 0x06: snprintf(rhs,sizeof rhs,"log2(max(abs((%s).x), 1e-10))",S); break; /* LOG */
++            case 0x0D: snprintf(rhs,sizeof rhs,"log2(max(abs((%s).x), 1e-10))",S); break; /* LG2 */
++            case 0x0E: snprintf(rhs,sizeof rhs,"exp2((%s).x)",S); break;      /* EX2 */
++            case 0x0F: snprintf(rhs,sizeof rhs,"sin((%s).x)",S); break;       /* SIN */
++            case 0x10: snprintf(rhs,sizeof rhs,"cos((%s).x)",S); break;       /* COS */
+             case 0x07: /* LIT: (1, max(s.x,0), s.x>0 ? 2^(s.w*log2(max(s.y,eps))) : 0, 1) */
+                 snprintf(rhs,sizeof rhs,
+                     "float4(1.0, max((%s).x, 0.0), ((%s).x > 0.0) ? "
+                     "exp2(clamp((%s).w, -127.996, 127.996) * log2(max((%s).y, 1e-10))) : 0.0, 1.0)",
+-                    C, C, C, C);
++                    S, S, S, S);
+                 break;
+             default:
+                 n_flow_skipped++;
+@@ -547,6 +565,7 @@ static int rsx_vp_decompile_impl(
+                 emit(&b, "    }\n");
+             }
+         }
++        if (coissue) emit(&b, "    }\n");
+ 
+         if (has_flow && flow_term[0]) {
+             emit(&b, flow_term);

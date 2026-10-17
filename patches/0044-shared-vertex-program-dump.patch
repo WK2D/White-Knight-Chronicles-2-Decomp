@@ -1,0 +1,32 @@
+Dump the shared renderer's vertex-program words alongside optional private shader diagnostics.
+
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -1766,8 +1766,9 @@
+     /* RSX_ENGINE_SHADER_DUMP=<existing dir>: each new pipeline's two programs
+      * as <dir>/pipe<handle>.vs.hlsl and .ps.hlsl, the handle being the one
+      * RSX_ENGINE_PASS_DUMP's index names, and a guest fragment program's own
+-     * ucode as .fp.bin with its address in .fp.txt. A failed pipeline is
+-     * pipe0. */
++     * ucode as .fp.bin with its address in .fp.txt. Vertex-program words are
++     * also saved as vs_<fingerprint>.bin for offline instruction analysis.
++     * A failed pipeline is pipe0. */
+     {
+         const char* dir = getenv("RSX_ENGINE_SHADER_DUMP");
+         if (dir && *dir) {
+@@ -1777,6 +1778,14 @@
+             if ((f = fopen(path, "w"))) { fputs(s_vs_hlsl, f); fclose(f); }
+             snprintf(path, sizeof path, "%s/pipe%u.ps.hlsl", dir, handle);
+             if ((f = fopen(path, "w"))) { fputs(s_ps_hlsl, f); fclose(f); }
++            if (!fixed && vp_uc && vp_instrs) {
++                snprintf(path, sizeof path, "%s/vs_%016llX.bin", dir,
++                         (unsigned long long)g.vpm.hash);
++                if ((f = fopen(path, "wb"))) {
++                    fwrite(vp_uc, 16u, vp_instrs, f);
++                    fclose(f);
++                }
++            }
+             if (!fixed && fp_uc && fp_size) {
+                 u32 fp_loc = 0;
+                 const u32 fp_off = rsx_dsp_fragment_program(&g.rsx, &fp_loc);
