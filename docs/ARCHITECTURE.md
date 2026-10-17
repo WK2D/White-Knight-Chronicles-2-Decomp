@@ -16,12 +16,12 @@ interpreter-free port or a recovered, readable version of the original source.
 - The PPU lifter generates C++ functions from the executable. These sources are
   compiled and linked into the host program; the loader dispatches their function
   pointers. The current generation registers 56,580 PPU functions.
-- The SPU build extracts and lifts 23 image/job inputs, compiles their generated
+- The SPU build extracts and lifts 24 image/job inputs, compiles their generated
   C, and registers compiled entries by image fingerprint.
 - The SDK also contains an SPU interpreter and a runtime-code microstep path.
   An observed native run reached the interpreter from the microstep path in image 17.
   This is observed execution, not merely an unused interpreter in the source tree.
-  Registering all 23 inputs does not prove every executed instruction was lifted.
+  Registering all 24 inputs does not prove every executed instruction was lifted.
   The proportion of execution using this fallback has not been measured.
 - The runtime retains guest memory/register conventions and reimplements PS3
   system interfaces, including threads, files and media services. This is a

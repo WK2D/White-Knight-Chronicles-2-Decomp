@@ -4,13 +4,12 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Verified on 2026-10-17:** the full 52-patch Windows Vulkan build reaches the
-live WKC1 town and responds to short analog movement, walking/facing changes,
-and camera rotation. Earlier town testing also verified pause/resume input.
-The current build passes 50 runtime checks with 57 SDK patches. NPC surfaces
-improve in the latest town run, but stretched geometry remains and full material
-fidelity is unverified. Sustained traversal, combat and save/load remain
-unverified. See the
+**Verified on 2026-10-17:** the 58-patch Windows Vulkan build reaches the live
+WKC1 town with the long stretched hair/clothing strips removed in the inspected
+views. Short movement and camera rotation are rechecked. Earlier town testing
+also verified pause/resume input. All 51 current runtime checks pass.
+Full material/rendering fidelity, sustained traversal, combat and save/load
+remain unverified. See the
 [latest gallery entry](GALLERY.md).
 
 The source checkout and private working directory can be separate. Pass the
@@ -52,11 +51,11 @@ No executable, asset or generated game source is distributed here.
 ./tools/probe.ps1 -Workspace <private-workspace> -Seconds 15
 ```
 
-`-Regenerate` analyzes and lifts the PPU plus five embedded SPU ELFs and 18 raw
+`-Regenerate` analyzes and lifts the PPU plus five embedded SPU ELFs and 19 raw
 SPURS jobs. `tools/extract_raw_jobs.py` checks the pinned executable's SHA-256
 before extracting those jobs. Six jobs initially found through runtime captures
 were subsequently located byte-for-byte in that executable. A clean extraction
-and static lift now reproduces all 23 registered image inputs without captures.
+and static lift now reproduces all 24 registered image inputs without captures.
 A clean PPU/SPU regeneration and full native build have also been verified.
 The regenerated inputs have been built with the current runtime and verified
 through the title menu, WKC1 selection, avatar acceptance and live town. Short
@@ -66,7 +65,7 @@ and save/load remain unverified, and rendering faults remain.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies the numbered runtime patches idempotently
-and runs 50 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs 51 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
@@ -77,16 +76,42 @@ The current suite also covers fragment-program cache identity, ordered surface
 clears, Windows PPU join lifetime and the shared draw engine's colour feedback.
 It also covers persistent DMA label polling, reuse of freed memory ranges and
 finite digital/analog input through the private controller probe file. The
-current build contains 52 numbered SDK patches. The newest published town-controls
-capture uses 52; the earlier town-controls capture used 42; the earlier town world-view capture used 39. Patch 0043 passed
+current build contains 58 numbered SDK patches. The newest published town
+captures use 58; the NPC-surface checkpoint used 52 and the first town-controls
+capture used 42; the earlier town world-view capture used 39. Patch 0043 passed
 the earlier 43-check Windows suite and remains covered by the current suite;
 its town-rendering comparison is recorded separately.
 Patch 0045's three float-mode checks and patches 0046-0051's new and extended
-checks pass in the native Windows clang-cl build. The current 50-check suite
-passes with all 52 patches; Wine's MinGW TLS workaround is not needed here.
+checks pass in the native Windows clang-cl build. The current 51-check suite
+passes with all 58 patches; Wine's MinGW TLS workaround is not needed here.
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
+
+## SPURS job-queue physics (patch 0058)
+
+The physics update submits jobs through `_cellSpursJobQueuePortCopyPushBody`.
+Its queue creation, submission and synchronization imports were unresolved,
+so the runtime returned success without executing this work. Patch 0058 adds
+guest-address queue/port records, owned descriptor copies and ordered native
+SPU dispatch. Execution is synchronous per queue. Missing images and reported
+staging failures persist through synchronization and error queries.
+
+The job CRT also requires a manager pointer in the low 28 bits of context
+word `+0x14`. The runner now supplies a separate, initialized control block
+alongside the context. This implements the observed handoff; it does not
+recover the complete original job-manager structure.
+
+The newly observed 21,408-byte physics job is extracted from the pinned
+executable and statically translated with the other inputs. Its filename
+sorts after the previous jobs, preserving their diagnostic image IDs.
+
+`wkc2_spurs_job_queue` tests real submission-side dispatch, descriptor ownership
+and reuse, output visibility, bounds and persistent errors with synthetic data.
+The extended `wkc2_spurs_abi` uses the real staging code to test manager-block
+initialization on repeated jobs and descriptor sizes 64, 128, 256 and 1024.
+All 51 Windows Vulkan checks pass with 58 patches. Native town validation is
+recorded in the [findings](FINDINGS.md#secondary-bone-physics-and-town-stretching).
 
 ## Windows renderer
 

@@ -11,13 +11,32 @@ interpreter-free execution; see [architecture](ARCHITECTURE.md).
 **Current status:** the native Windows Vulkan build reaches the WKC1
 town after avatar acceptance and opening cutscene skips. Short analog movement,
 facing changes, walking animation and camera rotation respond to input.
-NPC surfaces improve after NV0039 support; stretched geometry remains and full
-material fidelity is unverified. Sustained traversal, combat,
+Patch 0058 restores secondary-bone physics; the long hair/clothing strips are
+gone in the inspected town views. Full material and rendering fidelity remain
+unverified. Sustained traversal, combat,
 save/load and full audio fidelity remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-17 — Town stretching fixed: secondary-bone physics
+
+The 58-patch native Vulkan build now executes the missing SPURS queue physics
+job, statically translated to C/C++. Leonard's hair and clothing remain on
+the model instead of stretching across the street. The long strips are absent
+in the inspected starting-town views, including after short movement and
+camera rotation. All 51 Windows runtime checks pass.
+
+Private replay of 128 captured geometry jobs finds normal referenced vertex
+bounds throughout; 21 of 128 samples before the fix had extreme offsets.
+See the [trace and limits](FINDINGS.md#secondary-bone-physics-and-town-stretching).
+Full rendering fidelity, sustained traversal, combat and save/load remain
+unverified.
+
+![Native WKC1 town after restoring secondary-bone physics](../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png)
+
+![Native WKC1 town after movement and camera rotation, without the long strips](../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics-camera.png)
 
 ## 2026-10-17 — NPC surfaces after NV0039 transfers
 

@@ -1,0 +1,441 @@
+Execute the firmware SPURS job-queue port path used for secondary-bone
+physics. The previously unresolved create, port-copy-push and sync imports
+returned success without running the queued jobs, leaving identity output
+matrices for the subsequent world-to-model transform. Queue/port records own
+copied guest descriptors and dispatch registered jobs in submission order;
+missing images and staging failures remain visible through error/sync/join.
+Use firmware job error codes and four-byte guest error-cause pointers.
+
+Provide the per-job manager control block required by the queue job CRT,
+rather than only the JobContext2 argument used by the existing chain path.
+Preserve negative staging results
+through the fingerprint dispatcher. The legacy compact queue API remains a
+separate compatibility shim.
+
+diff --git a/libs/spurs/cellSpursJq.c b/libs/spurs/cellSpursJq.c
+--- a/libs/spurs/cellSpursJq.c
++++ b/libs/spurs/cellSpursJq.c
+@@ -2,15 +2,23 @@
+  * ps3recomp - cellSpursJq HLE implementation
+  *
+  * SPURS Job Queue — manages job submission and tracking.
+- * Jobs are accepted and immediately marked as complete (no SPU execution).
+- * This satisfies games that check for job completion but don't depend
+- * on SPU side effects.
++ * The compact legacy management API retains its synthetic completion shim.
++ * The firmware queue/port ABI below owns descriptors, executes registered
++ * SPU jobs and preserves dispatch/staging failures.
+  */
+ 
+ #include "cellSpursJq.h"
+ #include "../../runtime/ppu/ppu_memory.h"   /* GUEST_PTR, vm_write*: guest EA -> host pointer */
+ #include <stdio.h>
+ #include <string.h>
++#include <stdatomic.h>
++#ifdef _WIN32
++#include <windows.h>
++#else
++#include <sched.h>
++#endif
++
++static s32 jq_abi_attr_reset(u64 attr_ea);
+ 
+ /* Internal state */
+ 
+@@ -66,6 +74,8 @@
+ 
+ s32 cellSpursJobQueueAttributeInitialize(CellSpursJobQueueAttribute* attr)
+ {
++    s32 abi_result = jq_abi_attr_reset((u64)(uintptr_t)attr);
++    if (abi_result != CELL_OK) return abi_result;
+     attr = GUEST_PTR(attr, CellSpursJobQueueAttribute*);
+     if (!attr) return (s32)CELL_SPURS_JQ_ERROR_INVALID_ARGUMENT;
+ 
+@@ -271,3 +281,262 @@
+     (void)jq;
+     return CELL_OK;
+ }
++
++
++/* Real queue/port ABI. The old synthetic queue API above never dispatched its
++ * jobs. Titles importing _cellSpursJobQueuePortCopyPushBody need the same job
++ * CRT/context staging as a job chain, with owned guest descriptor storage.
++ * Execution is synchronous and serialized per queue; Sync therefore observes
++ * all earlier output writes. No queue is declared complete on a missing image
++ * or failed staging. Different queues can execute on different threads. */
++#define JQ_ABI_MAX_PORTS 64
++#define JQ_ABI_MAX_ATTRIBUTES 32
++
++typedef struct {
++    u32 ea, max_descriptor;
++    u32 halt_on_error;
++} JqAbiAttribute;
++typedef struct {
++    u32 ea, max_descriptor, halt_on_error;
++    u32 shutdown, cause;
++    s32 error;
++    atomic_flag busy;
++} JqAbiQueue;
++typedef struct {
++    u32 ea, queue_ea, buffer_ea, descriptor_size, count, next;
++} JqAbiPort;
++static JqAbiAttribute s_abi_attrs[JQ_ABI_MAX_ATTRIBUTES];
++static JqAbiQueue s_abi_queues[CELL_SPURS_JQ_MAX_QUEUES];
++static JqAbiPort s_abi_ports[JQ_ABI_MAX_PORTS];
++static atomic_flag s_abi_lock = ATOMIC_FLAG_INIT;
++
++static void jq_abi_yield(void)
++{
++#ifdef _WIN32
++    SwitchToThread();
++#else
++    sched_yield();
++#endif
++}
++static void jq_abi_lock(void)
++{
++    while (atomic_flag_test_and_set_explicit(&s_abi_lock, memory_order_acquire))
++        jq_abi_yield();
++}
++static void jq_abi_unlock(void)
++{
++    atomic_flag_clear_explicit(&s_abi_lock, memory_order_release);
++}
++static int jq_abi_range(u64 ea, u64 size, u32 alignment)
++{
++    return ea && ea <= UINT32_MAX && !(ea & (alignment - 1u)) &&
++           size && size <= UINT64_C(0x100000000) - ea;
++}
++static int jq_abi_descriptor_size(u32 size)
++{
++    return size == 64 || (size >= 128 && size <= 1024 && !(size & 127u));
++}
++static JqAbiAttribute* jq_abi_attr(u32 ea)
++{
++    if (!ea) return NULL;
++    for (u32 i=0; i<JQ_ABI_MAX_ATTRIBUTES; ++i)
++        if (s_abi_attrs[i].ea == ea) return &s_abi_attrs[i];
++    return NULL;
++}
++static JqAbiQueue* jq_abi_queue(u32 ea)
++{
++    if (!ea) return NULL;
++    for (u32 i=0; i<CELL_SPURS_JQ_MAX_QUEUES; ++i)
++        if (s_abi_queues[i].ea == ea) return &s_abi_queues[i];
++    return NULL;
++}
++static JqAbiPort* jq_abi_port(u32 ea)
++{
++    if (!ea) return NULL;
++    for (u32 i=0; i<JQ_ABI_MAX_PORTS; ++i)
++        if (s_abi_ports[i].ea == ea) return &s_abi_ports[i];
++    return NULL;
++}
++static s32 jq_abi_attr_reset(u64 attr_ea)
++{
++    if (!jq_abi_range(attr_ea, sizeof(CellSpursJobQueueAttribute), 8))
++        return (s32)CELL_SPURS_JOB_ERROR_INVAL;
++    jq_abi_lock();
++    JqAbiAttribute* a=jq_abi_attr((u32)attr_ea);
++    if (!a) for (u32 i=0; i<JQ_ABI_MAX_ATTRIBUTES; ++i)
++        if (!s_abi_attrs[i].ea) { a=&s_abi_attrs[i]; break; }
++    if (a) { a->ea=(u32)attr_ea; a->max_descriptor=256; a->halt_on_error=1; }
++    jq_abi_unlock();
++    return a ? CELL_OK : (s32)CELL_SPURS_JOB_ERROR_NOMEM;
++}
++s32 cellSpursJobQueueAttributeSetMaxSizeJobDescriptor(u64 attr_ea, u32 size)
++{
++    if (attr_ea > UINT32_MAX || !jq_abi_descriptor_size(size))
++        return (s32)CELL_SPURS_JOB_ERROR_INVAL;
++    jq_abi_lock();
++    JqAbiAttribute* a=jq_abi_attr((u32)attr_ea);
++    if (a) a->max_descriptor=size;
++    jq_abi_unlock();
++    return a ? CELL_OK : (s32)CELL_SPURS_JOB_ERROR_STAT;
++}
++s32 cellSpursJobQueueAttributeSetGrabParameters(u64 attr_ea, u32 maxGrab, u32 maxJob)
++{
++    if (attr_ea > UINT32_MAX || !maxGrab || !maxJob)
++        return (s32)CELL_SPURS_JOB_ERROR_INVAL;
++    jq_abi_lock(); JqAbiAttribute* a=jq_abi_attr((u32)attr_ea); jq_abi_unlock();
++    return a ? CELL_OK : (s32)CELL_SPURS_JOB_ERROR_STAT;
++}
++static s32 jq_abi_attr_flag(u64 attr_ea, u32 enabled, int halt)
++{
++    if (attr_ea > UINT32_MAX || enabled > 1)
++        return (s32)CELL_SPURS_JOB_ERROR_INVAL;
++    jq_abi_lock(); JqAbiAttribute* a=jq_abi_attr((u32)attr_ea);
++    if (a && halt) a->halt_on_error=enabled;
++    jq_abi_unlock();
++    return a ? CELL_OK : (s32)CELL_SPURS_JOB_ERROR_STAT;
++}
++s32 cellSpursJobQueueAttributeSetSubmitWithEntryLock(u64 ea,u32 v) { return jq_abi_attr_flag(ea,v,0); }
++s32 cellSpursJobQueueAttributeSetDoBusyWaiting(u64 ea,u32 v) { return jq_abi_attr_flag(ea,v,0); }
++s32 cellSpursJobQueueAttributeSetIsHaltOnError(u64 ea,u32 v) { return jq_abi_attr_flag(ea,v,1); }
++s32 cellSpursJobQueueAttributeSetIsJobTypeMemoryCheck(u64 ea,u32 v) { return jq_abi_attr_flag(ea,v,0); }
++
++s32 _cellSpursCreateJobQueue(u32 jmRevision, u32 sdkRevision, u64 spurs_ea,
++                    u64 queue_ea, u64 attr_ea, u64 name_ea, u64 buffer_ea, u32 depth)
++{
++    (void)sdkRevision; (void)name_ea;
++    if (jmRevision != 2 || !jq_abi_range(spurs_ea,128,128) ||
++        !jq_abi_range(queue_ea,128,128) || attr_ea > UINT32_MAX ||
++        !depth || depth > 65536 || !jq_abi_range(buffer_ea,(u64)depth*8,128))
++        return (s32)CELL_SPURS_JOB_ERROR_INVAL;
++    jq_abi_lock();
++    JqAbiAttribute* a=jq_abi_attr((u32)attr_ea);
++    JqAbiQueue* q=jq_abi_queue((u32)queue_ea);
++    if (!a || q) { jq_abi_unlock(); return (s32)(q ? CELL_SPURS_JOB_ERROR_STAT : CELL_SPURS_JOB_ERROR_STAT); }
++    for (u32 i=0; i<CELL_SPURS_JQ_MAX_QUEUES; ++i)
++        if (!s_abi_queues[i].ea) { q=&s_abi_queues[i]; break; }
++    if (q) {
++        q->ea=(u32)queue_ea; q->max_descriptor=a->max_descriptor;
++        q->halt_on_error=a->halt_on_error; q->shutdown=0; q->error=0; q->cause=0;
++        atomic_flag_clear_explicit(&q->busy,memory_order_relaxed);
++    }
++    jq_abi_unlock();
++    if (q) fprintf(stderr,"[cellSpursJq] create queue=0x%08X maxDescriptor=%u\n",(u32)queue_ea,q->max_descriptor);
++    return q ? CELL_OK : (s32)CELL_SPURS_JOB_ERROR_NOMEM;
++}
++s32 cellSpursJobQueuePortInitializeWithDescriptorBuffer(u64 port_ea, u64 queue_ea,
++                              u64 buffer_ea, u32 size, u32 count, u32 thread_safe)
++{
++    if (!jq_abi_range(port_ea,128,128) || queue_ea > UINT32_MAX ||
++        !jq_abi_descriptor_size(size) || !count || count > 65536 || thread_safe > 1 ||
++        !jq_abi_range(buffer_ea,(u64)size*count,128))
++        return (s32)CELL_SPURS_JOB_ERROR_INVAL;
++    jq_abi_lock();
++    JqAbiQueue* q=jq_abi_queue((u32)queue_ea);
++    JqAbiPort* p=jq_abi_port((u32)port_ea);
++    if (!q || q->shutdown || size > q->max_descriptor || p) {
++        jq_abi_unlock(); return (s32)(p ? CELL_SPURS_JOB_ERROR_STAT : CELL_SPURS_JOB_ERROR_INVAL);
++    }
++    for (u32 i=0; i<JQ_ABI_MAX_PORTS; ++i)
++        if (!s_abi_ports[i].ea) { p=&s_abi_ports[i]; break; }
++    if (p) { p->ea=(u32)port_ea; p->queue_ea=(u32)queue_ea; p->buffer_ea=(u32)buffer_ea;
++             p->descriptor_size=size; p->count=count; p->next=0; }
++    jq_abi_unlock();
++    return p ? CELL_OK : (s32)CELL_SPURS_JOB_ERROR_NOMEM;
++}
++/* Return with registry and per-queue execution locks held. Nothing can retire
++ * or reconfigure the selected queue/port before the caller drops both. */
++static JqAbiQueue* jq_abi_acquire(u64 ea, int is_port, int blocking, JqAbiPort** port)
++{
++    if (!ea || ea > UINT32_MAX) return NULL;
++    for (;;) {
++        jq_abi_lock();
++        JqAbiPort* p=is_port ? jq_abi_port((u32)ea) : NULL;
++        JqAbiQueue* q=(!is_port || p) ? jq_abi_queue(is_port ? p->queue_ea : (u32)ea) : NULL;
++        if (!q) { jq_abi_unlock(); return NULL; }
++        if (!atomic_flag_test_and_set_explicit(&q->busy,memory_order_acquire)) {
++            if (port) *port=p;
++            return q;
++        }
++        jq_abi_unlock();
++        if (!blocking) return NULL;
++        jq_abi_yield();
++    }
++}
++static void jq_abi_release(JqAbiQueue* q)
++{
++    atomic_flag_clear_explicit(&q->busy,memory_order_release);
++}
++extern int spu_workload_dispatch_job(const uint8_t*,uint32_t,uint32_t,uint32_t);
++s32 _cellSpursJobQueuePortCopyPushBody(u64 port_ea, u64 descriptor_ea,
++                                      u32 size, u32 flag0, u32 flag1)
++{
++    if (!jq_abi_descriptor_size(size) || !jq_abi_range(descriptor_ea,size,16) ||
++        flag0 > 1 || flag1 > 1)
++        return (s32)CELL_SPURS_JOB_ERROR_INVAL;
++    /* Both observed flags are booleans, never guest output pointers. Their
++     * asynchronous scheduling variants are not inferred here: this path runs
++     * each copied descriptor to completion in submission order. */
++    JqAbiPort* p=NULL;
++    JqAbiQueue* q=jq_abi_acquire(port_ea,1,1,&p);
++    if (!q) return (s32)CELL_SPURS_JOB_ERROR_STAT;
++    if (q->shutdown || (q->error && q->halt_on_error) || size > p->descriptor_size) {
++        s32 rc=q->error ? q->error : (s32)CELL_SPURS_JOB_ERROR_INVAL;
++        jq_abi_unlock(); jq_abi_release(q); return rc;
++    }
++    const u32 owned=p->buffer_ea+p->next*p->descriptor_size;
++    p->next=(p->next+1)%p->count;
++    jq_abi_unlock();
++    memmove(vm_base+owned,vm_base+(u32)descriptor_ea,size);
++    /* CellSpursJobHeader: binaryEA BE64+0, sizeBinary BE16+8 (16B units).
++     * Only bit0 is the documented CACHE_INHIBIT flag in the staging path. */
++    u64 binary=vm_read64(owned)&~UINT64_C(1);
++    u32 binary_size=(u32)vm_read16(owned+8)<<4;
++    int dispatched=0;
++    if (binary_size && binary_size <= 0x40000 && jq_abi_range(binary,binary_size,16))
++        dispatched=spu_workload_dispatch_job(vm_base+(u32)binary,binary_size,owned,size);
++    if (dispatched <= 0) {
++        q->error=(s32)CELL_SPURS_JOB_ERROR_ABORT; q->cause=owned;
++        fprintf(stderr,"[cellSpursJq] job failed queue=0x%08X descriptor=0x%08X dispatch=%d\n",q->ea,owned,dispatched);
++    }
++    const s32 result=dispatched > 0 ? CELL_OK : q->error;
++    jq_abi_release(q); return result;
++}
++s32 cellSpursJobQueuePortSync(u64 port_ea)
++{
++    JqAbiQueue* q=jq_abi_acquire(port_ea,1,1,NULL);
++    if (!q) return (s32)CELL_SPURS_JOB_ERROR_STAT;
++    s32 result=q->error; jq_abi_unlock(); jq_abi_release(q); return result;
++}
++s32 cellSpursJobQueuePortFinalize(u64 port_ea)
++{
++    JqAbiPort* p=NULL; JqAbiQueue* q=jq_abi_acquire(port_ea,1,1,&p);
++    if (!q) return (s32)CELL_SPURS_JOB_ERROR_STAT;
++    p->ea=0; s32 result=q->error; jq_abi_unlock(); jq_abi_release(q); return result;
++}
++s32 cellSpursJobQueueGetError(u64 queue_ea, u64 error_out_ea, u64 cause_out_ea)
++{
++    if (!jq_abi_range(error_out_ea,4,4) || !jq_abi_range(cause_out_ea,4,4))
++        return (s32)CELL_SPURS_JOB_ERROR_INVAL;
++    JqAbiQueue* q=jq_abi_acquire(queue_ea,0,1,NULL);
++    if (!q) return (s32)CELL_SPURS_JOB_ERROR_STAT;
++    vm_write32((u32)error_out_ea,(u32)q->error);
++    vm_write32((u32)cause_out_ea,q->cause);
++    jq_abi_unlock(); jq_abi_release(q); return CELL_OK;
++}
++s32 cellSpursShutdownJobQueue(u64 queue_ea)
++{
++    JqAbiQueue* q=jq_abi_acquire(queue_ea,0,1,NULL);
++    if (!q) return (s32)CELL_SPURS_JOB_ERROR_STAT;
++    q->shutdown=1; jq_abi_unlock(); jq_abi_release(q); return CELL_OK;
++}
++s32 cellSpursJoinJobQueue(u64 queue_ea, u64 exit_code_out_ea)
++{
++    if (!jq_abi_range(exit_code_out_ea,4,4)) return (s32)CELL_SPURS_JOB_ERROR_INVAL;
++    JqAbiQueue* q=jq_abi_acquire(queue_ea,0,1,NULL);
++    if (!q) return (s32)CELL_SPURS_JOB_ERROR_STAT;
++    if (!q->shutdown) { jq_abi_unlock(); jq_abi_release(q); return (s32)CELL_SPURS_JOB_ERROR_BUSY; }
++    vm_write32((u32)exit_code_out_ea,(u32)q->error);
++    for (u32 i=0; i<JQ_ABI_MAX_PORTS; ++i)
++        if (s_abi_ports[i].queue_ea == (u32)queue_ea) s_abi_ports[i].ea=0;
++    q->ea=0; jq_abi_release(q); jq_abi_unlock(); return CELL_OK;
++}
+diff --git a/libs/spurs/cellSpursJq.h b/libs/spurs/cellSpursJq.h
+--- a/libs/spurs/cellSpursJq.h
++++ b/libs/spurs/cellSpursJq.h
+@@ -3,7 +3,8 @@
+  *
+  * SPURS Job Queue — advanced SPU job dispatch built on cellSpurs.
+  * Provides job queue creation, enqueue, dequeue, and synchronization.
+- * Stub — management APIs work, no actual SPU execution.
++ * Firmware queue/port imports dispatch registered SPU jobs. The compact
++ * legacy queue API below remains a separate management shim.
+  */
+ 
+ #ifndef PS3RECOMP_CELL_SPURS_JQ_H
+@@ -27,6 +28,16 @@
+ #define CELL_SPURS_JQ_ERROR_QUEUE_EMPTY         0x80410A08
+ #define CELL_SPURS_JQ_ERROR_AGAIN               0x80410A09
+ #define CELL_SPURS_JQ_ERROR_ABORT               0x80410A0A
++
++/* Firmware CellSpursJob error values used by the real guest ABI below. The
++ * older synthetic JQ aliases above are retained for its legacy entry points. */
++#define CELL_SPURS_JOB_ERROR_INVAL         0x80410A02u
++#define CELL_SPURS_JOB_ERROR_NOMEM         0x80410A04u
++#define CELL_SPURS_JOB_ERROR_BUSY          0x80410A0Au
++#define CELL_SPURS_JOB_ERROR_STAT          0x80410A0Fu
++#define CELL_SPURS_JOB_ERROR_ALIGN         0x80410A10u
++#define CELL_SPURS_JOB_ERROR_NULL_POINTER  0x80410A11u
++#define CELL_SPURS_JOB_ERROR_ABORT         0x80410A1Cu
+ 
+ /* Job types */
+ #define CELL_SPURS_JQ_JOB_TYPE_DEFAULT  0
+@@ -107,6 +118,29 @@
+ s32 cellSpursJobQueueGetCount(CellSpursJobQueue* jq, u32* count);
+ s32 cellSpursJobQueueSemaphoreTryAcquire(CellSpursJobQueue* jq);
+ 
++/* Guest ABI used by Sony's queue/port imports. These opaque objects are keyed
++ * by their guest addresses; the compact legacy structs above are not their
++ * binary layout. CopyPush owns a descriptor until execution has finished. */
++s32 _cellSpursCreateJobQueue(u32 jmRevision, u32 sdkRevision, u64 spurs_ea,
++                             u64 queue_ea, u64 attr_ea, u64 name_ea,
++                             u64 command_buffer_ea, u32 depth);
++s32 cellSpursJobQueueAttributeSetMaxSizeJobDescriptor(u64 attr_ea, u32 size);
++s32 cellSpursJobQueueAttributeSetGrabParameters(u64 attr_ea, u32 maxGrab, u32 maxJob);
++s32 cellSpursJobQueueAttributeSetSubmitWithEntryLock(u64 attr_ea, u32 enabled);
++s32 cellSpursJobQueueAttributeSetDoBusyWaiting(u64 attr_ea, u32 enabled);
++s32 cellSpursJobQueueAttributeSetIsHaltOnError(u64 attr_ea, u32 enabled);
++s32 cellSpursJobQueueAttributeSetIsJobTypeMemoryCheck(u64 attr_ea, u32 enabled);
++s32 cellSpursJobQueuePortInitializeWithDescriptorBuffer(u64 port_ea, u64 queue_ea,
++                    u64 buffer_ea, u32 size_descriptor, u32 count, u32 thread_safe);
++s32 _cellSpursJobQueuePortCopyPushBody(u64 port_ea, u64 descriptor_ea,
++                                     u32 size, u32 flag0, u32 flag1);
++s32 cellSpursJobQueuePortSync(u64 port_ea);
++s32 cellSpursJobQueuePortFinalize(u64 port_ea);
++s32 cellSpursJobQueueGetError(u64 queue_ea, u64 error_out_ea, u64 cause_out_ea);
++s32 cellSpursShutdownJobQueue(u64 queue_ea);
++s32 cellSpursJoinJobQueue(u64 queue_ea, u64 exit_code_out_ea);
++
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/runtime/spu/spu_workload.c b/runtime/spu/spu_workload.c
+--- a/runtime/spu/spu_workload.c
++++ b/runtime/spu/spu_workload.c
+@@ -912,7 +912,8 @@
+         fprintf(stderr, "[spurs-job] job 0x%08X RETURNED rc=%d\n", job_ea, rc);
+         fflush(stderr);
+     }
+-    return 1;
++    /* A matching image is not a completed job when staging failed. */
++    return rc < 0 ? rc : 1;
+ }
+ 
+ /* ---- SPURS task signal channel (real WAIT_SIGNAL semantics) --------------
+diff --git a/runtime/spu/spu_workload.h b/runtime/spu/spu_workload.h
+--- a/runtime/spu/spu_workload.h
++++ b/runtime/spu/spu_workload.h
+@@ -92,7 +92,8 @@
+  * is not persistent (it runs to completion and returns to the manager), and a
+  * chain's jobs are ordered by its own NEXT/CALL/RET commands, so the jobchain
+  * thread is the right place to run them. Returns 1 if a lifted image matched
+- * and ran, 0 if none is registered for this binary. */
++ * and ran, 0 if none is registered for this binary, or a negative staging
++ * error from spu_run_spurs_job. */
+ int spu_workload_dispatch_job(const uint8_t* image, uint32_t image_size,
+                               uint32_t job_ea, uint32_t job_desc_size);
+ 
+diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
+--- a/runtime/spu/spurs_job.c
++++ b/runtime/spu/spurs_job.c
+@@ -102,7 +102,7 @@
+ enum {
+     JC_IO_BUFFER          = 0x00,
+     JC_CACHE_BUFFER       = 0x04,   /* void *cacheBuffer[4] */
+-    JC_SIZE_JOB_DESC      = 0x14,   /* sizeJobDescriptor:4 + pad:28 */
++    JC_SIZE_JOB_DESC      = 0x14,   /* descriptor size:4 + manager LS pointer:28 */
+     JC_NUM_IO_BUFFER      = 0x18,
+     JC_NUM_CACHE_BUFFER   = 0x1A,
+     JC_O_BUFFER           = 0x1C,
+@@ -311,6 +311,7 @@
+     if (ctx_ == t_job_ctx) t_job_dirty_hi = p;  /* this job's regions end here */
+     uint32_t desc_ls = SPU_LS_SIZE - 0x400;     /* descriptors are <= 1024 B */
+     uint32_t ctx_ls  = desc_ls - 0x40;          /* CellSpursJobContext2, 48 B */
++    uint32_t manager_ls = ctx_ls + JC_SIZE;    /* native manager control, 16 B */
+     uint32_t dsz     = job_desc_size ? job_desc_size : 256u;
+     if (dsz > 0x400) dsz = 0x400;
+     if (p > ctx_ls)
+@@ -321,10 +322,15 @@
+     ls32(ls, ctx_ls + JC_IO_BUFFER, io_ls);
+     for (int i = 0; i < 4; i++)
+         ls32(ls, ctx_ls + JC_CACHE_BUFFER + (uint32_t)i * 4u, cache_ls[i]);
+-    /* sizeJobDescriptor:4 is the first bitfield of a big-endian u32, so it
+-     * occupies the TOP 4 bits. 0 means 64 bytes, otherwise n*128. */
++    /* The CRT also consumes the low 28 bits as a manager-control LS pointer,
++     * and reads its word at +4 while initializing tracing. Keep a distinct,
++     * defined control block outside job memory; tracing is disabled (zero).
++     * Reinitialize it even when this thread reuses a dirty local store. */
++    memset(ls + manager_ls, 0, 16);
++    /* Descriptor size occupies the top four bits: 0 means 64 bytes, otherwise
++     * n*128. The low bits retain the manager pointer for the job CRT. */
+     ls32(ls, ctx_ls + JC_SIZE_JOB_DESC,
+-         (dsz == 64 ? 0u : (dsz / 128u) & 0xFu) << 28);
++         ((dsz == 64 ? 0u : (dsz / 128u) & 0xFu) << 28) | manager_ls);
+     ls16(ls, ctx_ls + JC_NUM_IO_BUFFER,    (uint16_t)n_dma);
+     ls16(ls, ctx_ls + JC_NUM_CACHE_BUFFER, (uint16_t)n_cache);
+     ls32(ls, ctx_ls + JC_O_BUFFER, out_ls);

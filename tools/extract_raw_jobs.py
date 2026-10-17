@@ -30,6 +30,7 @@ for address, size in [
     (0x01262f80, 43600), (0x0126da00, 20752), (0x01272b80, 53024),
     (0x0127fb00, 16912), (0x01283d80, 67200), (0x01294400, 54544),
     (0x012a1980, 1968), (0x012a2180, 18784), (0x012a6b00, 11856),
+    (0x0118fa00, 21408),
 ]:
     for segment in elf.program_headers:
         if segment.p_type == 1 and segment.p_vaddr <= address and address+size <= segment.p_vaddr+segment.p_filesz:
@@ -37,6 +38,9 @@ for address, size in [
             raw = data[offset:offset+size]
             break
     else: raise ValueError(f'Job {address:x} lies outside file-backed segments')
-    out = a.images/f'zz_raw_job_{address:08X}.elf'
+    # Append queue jobs after the existing images in the registry's filename
+    # sort, keeping diagnostic image IDs stable as the observed set grows.
+    prefix = 'zzz_queue_job' if address == 0x0118fa00 else 'zz_raw_job'
+    out = a.images/f'{prefix}_{address:08X}.elf'
     out.write_bytes(wrap(raw, base=0, entry=0))
     print(f'{out.name}: {size} raw bytes')

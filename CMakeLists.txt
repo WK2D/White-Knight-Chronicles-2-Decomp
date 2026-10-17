@@ -101,6 +101,8 @@ if(EXISTS "${RECOMP_DIR}/ppu_hle_nids.cpp")
     message(STATUS "HLE NID table:   ${HLE_NID_TABLE}")
 else()
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    file(GLOB_RECURSE HLE_MODULE_SOURCES CONFIGURE_DEPENDS
+        "${PS3RECOMP_DIR}/libs/*.c")
     set(HLE_NID_TABLE "${CMAKE_CURRENT_BINARY_DIR}/ppu_hle_nids.cpp")
     add_custom_command(
         OUTPUT "${HLE_NID_TABLE}"
@@ -109,6 +111,7 @@ else()
                 --out "${HLE_NID_TABLE}" --all
         DEPENDS "${PS3RECOMP_DIR}/tools/gen_hle_nids.py"
                 "${PS3RECOMP_DIR}/tools/nid_database.py"
+                ${HLE_MODULE_SOURCES}
         COMMENT "Generating the HLE NID -> handler table")
     message(STATUS "HLE NID table:   generated (every module)")
 endif()
@@ -370,6 +373,13 @@ if(WKC2_BUILD_TESTS)
         "${SPURS_ABI_FIXTURE}" "${PS3RECOMP_DIR}/runtime/spu")
     add_test(NAME wkc2_spurs_abi COMMAND wkc2_spurs_abi_test)
     set_tests_properties(wkc2_spurs_abi PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_spurs_job_queue_test tests/spurs_job_queue_test.c
+        "${PS3RECOMP_DIR}/libs/spurs/cellSpursJq.c")
+    target_include_directories(wkc2_spurs_job_queue_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/spurs"
+        "${PS3RECOMP_DIR}/runtime/ppu")
+    add_test(NAME wkc2_spurs_job_queue COMMAND wkc2_spurs_job_queue_test)
+    set_tests_properties(wkc2_spurs_job_queue PROPERTIES TIMEOUT 10)
     add_executable(wkc2_spu_interp_profile_test tests/spu_interp_profile_test.c
         "${PS3RECOMP_DIR}/runtime/spu/spu_interp.c" "${PS3RECOMP_DIR}/runtime/spu/spu_interp_profile.c"
         "${PS3RECOMP_DIR}/runtime/spu/spu_float_mode.c")

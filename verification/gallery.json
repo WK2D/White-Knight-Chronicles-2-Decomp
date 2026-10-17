@@ -4,6 +4,58 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_wkc1_secondary_bone_physics",
+      "date": "2026-10-17",
+      "image": "screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "Vulkan shared RSX draw engine",
+      "source_format": "Vulkan GPU readback PPM",
+      "source_sha256": "d47367e8f7d18b836c44774437383887f77f069028065bf24d96c1d79d8b5b82",
+      "png_sha256": "6cb6ed67c4f50ca21df15f01a60beb5127758d216fc447ce0402ea4dbda22976",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "native_probe": "20261017-202420",
+      "native_readback": "snap_0839.ppm",
+      "sdk_patch_count_in_captured_run": 58,
+      "spu_image_inputs": 24,
+      "limited_town_movement_and_camera_response_verified": true,
+      "previous_long_stretched_strips_visible": false,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false
+    },
+    {
+      "milestone": "native_wkc1_secondary_bone_physics",
+      "date": "2026-10-17",
+      "image": "screenshots/2026-10-17-native-wkc1-secondary-bone-physics-camera.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "Vulkan shared RSX draw engine",
+      "source_format": "Vulkan GPU readback PPM",
+      "source_sha256": "5eb85fce41170d5290036cb11a67f57972b916f6b4835a38d9f8ea7005377a17",
+      "png_sha256": "3f4a09c25563f9b567c5c2fcd240592af8d41f300be7a6f914e5e3355d94420b",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "native_probe": "20261017-202420",
+      "native_readback": "snap_0954.ppm",
+      "sdk_patch_count_in_captured_run": 58,
+      "spu_image_inputs": 24,
+      "limited_town_movement_and_camera_response_verified": true,
+      "previous_long_stretched_strips_visible": false,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false
+    },
+    {
       "milestone": "native_wkc1_nv0039_npc_surfaces",
       "date": "2026-10-17",
       "image": "screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png",

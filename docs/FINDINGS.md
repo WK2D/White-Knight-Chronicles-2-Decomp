@@ -2,13 +2,13 @@
 
 Updated 2026-10-17. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current milestone:** the full 52-patch native Windows Vulkan build reaches
-the live WKC1 town and responds to short analog movement, facing/walking changes,
-and camera rotation. Earlier town testing also verified pause/resume input.
-All 50 current runtime checks pass. NPC surfaces improve after NV0039 support;
-stretched geometry remains and full material fidelity is unverified; sustained
-traversal, combat and save/load are unverified.
-See [the latest recheck](#second-runtime-review) and [gallery](GALLERY.md).
+**Current milestone:** the 58-patch native Windows Vulkan build runs the
+missing secondary-bone physics job. The long stretched hair/clothing strips
+are gone in the inspected WKC1 town views, including after short movement and
+camera rotation. All 51 current runtime checks pass. Full material/rendering
+fidelity, sustained traversal, combat and save/load remain unverified.
+See [the physics trace and native recheck](#secondary-bone-physics-and-town-stretching)
+and [gallery](GALLERY.md).
 
 ## Goal and reporting
 
@@ -38,10 +38,10 @@ do not establish interpreter-free execution.
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and 43 runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and 51 runtime regression checks | Compilation alone does not verify gameplay |
 | Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | This colour-fix capture covers character creation; later town validation is recorded below; full visual fidelity remains unverified |
 | WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
-| WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | Stretched geometry remains; NPC surfaces improve with patch 0052 ([NV0039 transfers](#nv0039-memory-transfers)), full material fidelity unverified; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
+| WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | The long strips are removed with patch 0058 ([secondary-bone physics](#secondary-bone-physics-and-town-stretching)); NPC surfaces improve with patch 0052 ([NV0039 transfers](#nv0039-memory-transfers)); full material fidelity unverified; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
 | Initial town movement and camera response work | Full 42-patch run; successive readbacks show walking/facing changes, changed minimap position and a rotated street view | Short starting-town probes only; sustained traversal, combat and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | This check covers startup input; limited town controls are verified above |
@@ -447,15 +447,17 @@ unverified.
 Six jobs initially discovered through runtime captures were described as
 asset-backed. Direct binary comparison corrects that attribution: every byte
 of all six appears in a file-backed segment of the pinned baseline executable.
-The extraction table now includes all 18 observed raw jobs, alongside the five
-embedded SPU ELFs. The newly observed 18,784-byte job is included as well.
+The extraction table now includes 19 observed raw jobs, alongside the five
+embedded SPU ELFs. Patch 0058 adds the 21,408-byte secondary-bone physics job
+to the previous 23-image set.
 
 A clean directory, populated only from that executable by the public extraction
-scripts, contains 23 images. Their complete SHA-256 multiset matches the prepared
-registry inputs exactly, with no missing or additional images. Static lifting
-of all 23 fresh inputs succeeds. Runtime captures are therefore unnecessary for
-regenerating the known SPU input set. A clean analysis, PPU/SPU regeneration and
-full native build now also pass all 31 checks. That executable reproduces the
+scripts, supplies all 24 image inputs. Their complete SHA-256 multiset matches
+the production inputs with no missing or additional images. Static lifting
+succeeds, and the current native build reaches town with the new physics job.
+Runtime captures are unnecessary for regenerating the known SPU input set.
+At that checkpoint, clean analysis, PPU/SPU regeneration and a full native build
+passed all 31 then-current checks. That executable reproduced the
 title menu, WKC1 level-1 selection and shaded avatar scene, with name entry
 retained. Further scenes may expose additional jobs; gameplay and save/load
 remain unverified.
@@ -984,6 +986,68 @@ memcpy/memset is about a quarter of both the Edge chain and renderer threads.
 copyright and save notices and the publisher/middleware logos while keeping
 the system-setup steps; the title appears about 30 s after launch.
 
+## Secondary-bone physics and town stretching
+
+Tracing the stretched vertices back through skinning located the bad values
+before rendering. The SPU geometry job correctly skins the supplied vertices;
+its input bone palette already contains large translations. The PPU palette
+builder also matches an independent matrix multiplication of its inputs.
+
+A consistent guest-memory snapshot and private replay of the secondary-bone
+update isolate the source: the physics getter returns identity matrices for
+enabled bones. Converting these from world space to model space introduces
+the inverse character position, stretching the affected vertices across town.
+The matrix operations themselves are consistent with their inputs.
+
+The physics update submits a 21,408-byte SPU job through
+`_cellSpursJobQueuePortCopyPushBody` (NID `46C3FB5A`). That import, queue
+creation and synchronization were unresolved. The runtime returned success
+without running the physics job, leaving its initialized output matrices in
+place. Patch 0058 adds the missing queue/port path and a defined CRT manager
+handoff; the raw job is now extracted from the baseline executable and
+statically compiled as image 24, retaining the earlier image IDs.
+
+Running the captured physics job through the native runner returns to the job
+manager with result zero. The affected getter outputs change from identity
+to world transforms, and the subsequent model-space conversion returns to
+normal bone offsets. This private replay establishes the missing operation's
+effect on sampled bones; native town verification is recorded separately.
+
+The native 58-patch Vulkan run (`20261017-202420`) reaches the same WKC1
+starting-town view with the long strips removed. Hair and coat stay attached
+to Leonard after short analog movement and camera rotation. Two inspected
+GPU readbacks are published at the top of the [gallery](GALLERY.md).
+
+Private replay of 128 captured image-19 geometry jobs completes successfully.
+Using the actual index buffers to exclude padding, none has a referenced
+position component above 100 model-space units; the maximum is 17.19.
+The preceding 128-job town sample had 21 jobs above that diagnostic threshold,
+with a maximum of 1644.82. These are samples from separate animated moments,
+not identical-input or whole-game comparisons. Full physics and rendering
+fidelity, sustained traversal, combat and save/load remain unverified.
+
+The full Windows Vulkan build passes all 51 runtime checks with 58 patches.
+The new queue regression tests descriptor ownership, ordered execution, output
+visibility, bounds and persistent missing-image/staging errors. The existing
+SPURS ABI fixture now verifies initialized manager storage across repeated
+jobs and multiple descriptor sizes. Patch application from the 57-patch
+prefix updates five SDK files; reapplication changes none.
+
+These inferred roles are retained for future source reconstruction. The
+addresses apply to the pinned USA 01.00 executable; names describe observed
+behavior and are not recovered original symbols.
+
+| Address | Observed role | Evidence |
+| --- | --- | --- |
+| PPU `0015D9EC` | Apply secondary-bone physics results to the posed skeleton | Consistent snapshot replay through getter, coordinate conversion and final pose writes |
+| PPU `0019F2C4` | Fetch a mapped physics bone's world matrix | Copies the selected matrix and returns its availability |
+| PPU `00A7B0EC` | Build skinning palettes from posed bones and inverse bind matrices | Independent multiplication matches sampled outputs |
+| PPU `00B0FA18` | Copy pose data | Source and destination tracing; ordinary vector-copy loop |
+| SPU image 19 | Geometry decoding and skinning | Decoded inputs are normal; skinning consumes the already bad palette |
+| SPU image 24 | Secondary-bone physics job | Queue caller, descriptor staging and observed matrix output writes |
+
+Generated game code, memory snapshots and raw captures remain private.
+
 ## Update 1.01 and DLC integration
 
 Planned scope includes the USA 1.01 update and matching DLC. Local package
@@ -1147,7 +1211,7 @@ SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
 Twenty checks passed at this checkpoint. The title screen and its menu rendered
-natively; the current suite has 50 passing checks.
+natively; the current suite has 51 passing checks.
 
 Packed A4R4G4B4 font textures were excluded by the D3D12 binding filter, leaving
 previous artwork selected for text draws. The backend now records the current

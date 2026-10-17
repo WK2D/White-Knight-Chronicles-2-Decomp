@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Live WKC1 town with improved NPC surfaces after NV0039 transfers; short movement and camera response rechecked",
+    "current_milestone": "Secondary-bone physics restores normal hair/clothing geometry in the inspected WKC1 town views; short movement and camera response rechecked",
     "updated": "2026-10-17"
   },
   "native_data_installation_verified": true,
@@ -133,7 +133,7 @@
   "cpu_execution": {
     "mode": "Ahead-of-time PPU/SPU recompilation with PS3 compatibility runtime and observed SPU interpreter fallback",
     "ppu_generated_functions_compiled": 56580,
-    "spu_image_job_inputs_compiled": 23,
+    "spu_image_job_inputs_compiled": 24,
     "spu_interpreter_fallback_present": true,
     "spu_interpreter_fallback_observed": true,
     "observed_probe": "20261016-220818",
@@ -148,14 +148,14 @@
   },
   "native_character_creation_completed_scope": "Default male avatar named and accepted through Quick Start; opening cutscenes advance to the town. Full visual fidelity and all customization options are not verified.",
   "native_wkc1_town_world_view_verified": true,
-  "native_wkc1_town_world_view_scope": "Live town with Leonard, NPC names, minimap and save crystal visible; NPC surface speckling improved after NV0039 support, while stretched geometry remains. Full material fidelity unverified.",
+  "native_wkc1_town_world_view_scope": "Live town with Leonard, NPC names, minimap and save crystal; NPC surface speckling improved after NV0039 support. Patch 0058 removes the long hair/clothing strips in inspected views, including after short movement and camera rotation. Full rendering fidelity remains unverified.",
   "native_town_pause_resume_input_verified": true,
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 57,
-    "runtime_checks_passed": 50,
-    "town_native_run_sdk_patch_count": 52,
+    "sdk_patch_count": 58,
+    "runtime_checks_passed": 51,
+    "town_native_run_sdk_patch_count": 58,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
     "patch_0042_native_game_run_verified": true,
@@ -190,7 +190,10 @@
     "town_frame_rate_target_met": false,
     "patch_0055_windows_regression_verified": true,
     "patch_0056_windows_regression_verified": true,
-    "patch_0057_windows_regression_verified": true
+    "patch_0057_windows_regression_verified": true,
+    "patch_0058_windows_regression_verified": true,
+    "patch_0058_native_game_run_verified": true,
+    "patch_0058_town_stretched_strips_removed_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -209,7 +212,7 @@
   "graphics_copy_research": {
     "nv0039_use_confirmed_in_native_town": true,
     "nv0039_transfer_handler_implemented": true,
-    "next_fix": "Investigate remaining stretched geometry, including SPU skinning output; full material fidelity remains unverified",
+    "next_fix": "Validate remaining material/rendering fidelity and broader gameplay; the long secondary-bone strips are removed in the inspected town views",
     "record": "verification/rendering.json",
     "nv0039_native_copies_verified": true,
     "nv0039_scope": "Non-notifying byte transfers; signed/zero pitches, strides 1/2/4, overlap, MAIN mappings and shared-renderer RGBA8 coherence. Notification completion and other GPU layouts remain limited.",
@@ -219,5 +222,19 @@
     "nv0039_improvement_scope": "Previously speckled/mosaic NPC surfaces look coherent in the inspected starting-town readbacks after short movement and camera rotation. Qualitative comparison with earlier 42/51-patch captures, not proof of full material fidelity.",
     "nv0039_stretched_geometry_fix_verified": false
   },
-  "native_npc_surface_rendering_improved": true
+  "native_npc_surface_rendering_improved": true,
+  "secondary_bone_physics": {
+    "queue_port_import": "46C3FB5A",
+    "statically_compiled_image_id": 24,
+    "raw_job_bytes": 21408,
+    "native_town_probe": "20261017-202420",
+    "queue_execution": "synchronous per queue",
+    "known_long_strips_removed_in_inspected_views": true,
+    "captured_geometry_jobs_before": 128,
+    "captured_geometry_jobs_after": 128,
+    "jobs_with_referenced_positions_over_100_before": 21,
+    "jobs_with_referenced_positions_over_100_after": 0,
+    "full_game_physics_fidelity_verified": false,
+    "findings": "docs/FINDINGS.md#secondary-bone-physics-and-town-stretching"
+  }
 }

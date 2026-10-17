@@ -1,5 +1,10 @@
 # Code review suggestions
 
+Later tracing located the long town strips in omitted secondary-bone physics
+jobs. Patch 0058 restores their queue execution and CRT handoff; see the
+[native recheck](FINDINGS.md#secondary-bone-physics-and-town-stretching).
+The dated reviews below retain their original validation scope.
+
 ## Second review
 
 Review of `main` at `b66c2aa` plus patch 0045, on the `claude-suggestions`

@@ -10,12 +10,13 @@ void abi_fixture_spu_func_00000040(spu_context*);
 int spu_run_spurs_job(void (*)(spu_context*),int,uint32_t,uint32_t);
 static uint32_t queries;
 static unsigned observed_before,observed_after;
+static uint32_t expected_descriptor_size;
 extern void (*g_spu_job_trace_hook)(const spu_context*,uint32_t,uint32_t,int);
 static void observe_job(const spu_context* ctx,uint32_t job,uint32_t size,int after) {
- assert(job==0x1000 && size==256 && ctx->image_id==9);
+ assert(job==0x1000 && size==expected_descriptor_size && ctx->image_id==9);
  assert(ctx->spurs_job_mode==1);
- if(after) { assert(queries==1 && ctx->gpr[3]._u32[0]==0);++observed_after; }
- else { assert(queries==0 && ctx->gpr[3]._u32[0]!=0);++observed_before; }
+ if(after) { assert(queries==observed_before && ctx->gpr[3]._u32[0]==0);++observed_after; }
+ else { assert(queries==observed_before && ctx->gpr[3]._u32[0]!=0);++observed_before; }
 }
 
 static void put32(uint8_t* p,uint32_t value) {
@@ -25,10 +26,22 @@ static void put32(uint8_t* p,uint32_t value) {
 static void job_entry(spu_context* ctx) {
  assert(ctx->spurs_job_mode==1);
  assert(ctx->spurs_job_spu_num==0);
+ // The queue CRT requires a manager pointer in the descriptor-size word.
+ const uint32_t context=ctx->gpr[3]._u32[0];
+ const uint32_t descriptor=ctx->gpr[4]._u32[0];
+ const uint32_t packed=spu_ls_read32(ctx,context+0x14);
+ const uint32_t manager=packed&0x0FFFFFFFu;
+ assert((packed>>28)==(expected_descriptor_size==64 ? 0u : expected_descriptor_size/128));
+ assert(manager!=0 && !(manager&15u));
+ assert(manager>=context+0x30 && manager+16<=descriptor && manager+16<=SPU_LS_SIZE);
+ // This remains defined after an earlier job dirties its reused control block.
+ for(uint32_t i=0;i<16;++i) assert(ctx->ls[manager+i]==0);
+ assert(spu_ls_read32(ctx,manager+4)==0);
  uint8_t saved[512];memcpy(saved,ctx->ls,sizeof saved);
  abi_fixture_spu_func_00000000(ctx);
  assert(ctx->gpr[3]._u32[0]==0);
  assert(memcmp(saved,ctx->ls,sizeof saved)==0);
+ memset(ctx->ls+manager,0xA5,16);
  ++queries;
 }
 int main(void) {
@@ -41,8 +54,12 @@ int main(void) {
  put32(vm_base+0x1004,0x2000);  // BE64 binary EA, high word zero.
  put32(vm_base+0x1008,0x00200000); // Binary length = 32 quadwords.
  g_spu_job_trace_hook=observe_job;
- assert(spu_run_spurs_job(job_entry,9,0x1000,256)==0);assert(queries==1);
- assert(observed_before==1 && observed_after==1);
+ const uint32_t descriptor_sizes[]={256,64,128,1024};
+ for(uint32_t i=0;i<sizeof descriptor_sizes/sizeof *descriptor_sizes;++i) {
+  expected_descriptor_size=descriptor_sizes[i];
+  assert(spu_run_spurs_job(job_entry,9,0x1000,expected_descriptor_size)==0);
+  assert(queries==i+1 && observed_before==i+1 && observed_after==i+1);
+ }
  g_spu_job_trace_hook=NULL;
  assert(*(vm_base+0x21C8)==0xDE);
 
@@ -58,7 +75,7 @@ int main(void) {
  assert(spu_ls_read32(ctx,0x1C8)==2);
  // A similar routine rotating by four bytes is not misidentified as GetSpuId.
  abi_fixture_spu_func_00000040(ctx);assert(ctx->gpr[3]._u32[0]==0x22222222);
- free(ctx);free(vm_base);puts("SPURS kernel-ID ABI and code preservation passed");
+ free(ctx);free(vm_base);puts("SPURS job manager context, kernel-ID ABI and code preservation passed");
  return 0;
 }
 

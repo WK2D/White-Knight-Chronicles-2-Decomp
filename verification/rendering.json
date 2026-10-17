@@ -4,18 +4,17 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-17",
-    "native_probe": "20261017-061720",
-    "sdk_patch_count": 52,
-    "summary": "Live WKC1 town with improved NPC surfaces after NV0039 transfers; short movement and camera response rechecked",
-    "gallery_image": "screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png",
+    "native_probe": "20261017-202420",
+    "sdk_patch_count": 58,
+    "summary": "Secondary-bone physics removes the long stretched hair/clothing strips in inspected WKC1 town views; short movement and camera response rechecked",
+    "gallery_image": "screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png",
     "remaining_limits": [
-      "Visible stretched geometry at Leonard",
-      "Full material/rendering fidelity unverified",
+      "Full material/rendering and physics fidelity unverified",
       "Sustained traversal, combat and save/load unverified",
       "SPU interpreter fallback remains enabled"
     ],
-    "latest_recheck_probe": "20261017-061720",
-    "latest_recheck_sdk_patch_count": 52
+    "latest_recheck_probe": "20261017-202420",
+    "latest_recheck_sdk_patch_count": 58
   },
   "verified": {
     "native_language_selection_rendered": true,
@@ -2100,5 +2099,48 @@
     "max_threads_during_loading_after_fix": 80,
     "measurement_scope": "Qualitative native runs with diagnostics enabled; not a benchmark.",
     "town_bottleneck": "SPU job chain and cross-thread waits, not the renderer (renderer thread ~25% busy, present GPU wait 4-6 ms)"
+  },
+  "secondary_bone_physics": {
+    "date": "2026-10-17",
+    "sdk_patch_count": 58,
+    "windows_runtime_checks_passed": 51,
+    "additional_null_registry_regression_passed": true,
+    "queue_port_import_nid": "46C3FB5A",
+    "previous_behavior": "Unresolved queue/port imports returned success without running physics jobs; initialized identity bone matrices became inverse-world offsets during pose conversion",
+    "implemented": [
+      "Guest-address queue and port records",
+      "Owned guest descriptor copies",
+      "Synchronous ordered native SPU job dispatch per queue",
+      "Persistent missing-image and staging errors",
+      "Defined per-job CRT manager-control handoff",
+      "Static extraction and translation of the 21408-byte physics job"
+    ],
+    "spu_image_id": 24,
+    "existing_spu_image_ids_preserved": true,
+    "native_probe": "20261017-202420",
+    "native_town_long_strips_removed_in_inspected_views": true,
+    "short_movement_and_camera_rechecked": true,
+    "geometry_replay": {
+      "before_probe": "20261017-193506",
+      "after_probe": "20261017-202420",
+      "jobs_per_sample": 128,
+      "after_jobs_completed": 128,
+      "vertex_selection": "Referenced vertices from each job index buffer; excludes padding",
+      "diagnostic_threshold_model_space_units": 100,
+      "jobs_over_threshold_before": 21,
+      "jobs_over_threshold_after": 0,
+      "maximum_absolute_referenced_position_component_before": 1644.8157958984375,
+      "maximum_absolute_referenced_position_component_after": 17.184471130371094,
+      "scope": "Separate sampled animated town moments; not identical inputs or whole-game proof"
+    },
+    "gallery_images": [
+      "screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png",
+      "screenshots/2026-10-17-native-wkc1-secondary-bone-physics-camera.png"
+    ],
+    "full_physics_fidelity_verified": false,
+    "full_rendering_fidelity_verified": false,
+    "sustained_traversal_combat_save_load_verified": false,
+    "raw_captures_or_generated_game_code_published": false,
+    "stopped_after_validation": true
   }
 }

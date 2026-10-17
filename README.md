@@ -9,14 +9,14 @@ game calls, such as threads, files, graphics and movie playback.
 Static recompilation is one kind of binary recompilation. Emulators such as
 RPCS3 instead translate or interpret the game's code while it runs.
 
-All 56,580 main-CPU (PPU) functions and all 23 known SPU programs are statically
+All 56,580 main-CPU (PPU) functions and all 24 known SPU programs are statically
 recompiled; some remaining SPU code still uses an interpreter fallback. See
 [execution architecture and modding scope](docs/ARCHITECTURE.md).
 
-**Current milestone (2026-10-17): the native Vulkan build reaches the live WKC1
-town; the post-avatar cutscene no longer flashes red, and an optimized build runs
-cutscenes at about 25-31 fps (town about 7 fps).**
-Stretched geometry remains; full material fidelity is unverified. Sustained traversal,
+**Current milestone (2026-10-17): the native Vulkan build runs the missing
+secondary-bone physics job, removing the long stretched strips in the tested
+WKC1 town views. Short movement and camera rotation are rechecked.**
+Full material and rendering fidelity remain unverified. Sustained traversal,
 combat and save/load remain unverified, so this is not a playable port yet.
 
 - [Build instructions](docs/BUILD.md)
@@ -26,11 +26,11 @@ combat and save/load remain unverified, so this is not a playable port yet.
 
 ## Progress
 
-[![Native WKC1 town with improved NPC surfaces after NV0039 support; stretched geometry remains](verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png)](docs/GALLERY.md)
+[![Native WKC1 town after restoring secondary-bone physics; the long strips are gone](verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png)](docs/GALLERY.md)
 
-The latest image shows improved NPC surfaces after adding NV0039 transfers
-and correcting their engine routing. Stretched geometry remains. Earlier
-captures are in the [gallery](docs/GALLERY.md).
+The latest image shows Leonard with his hair and clothing attached to the
+model, after restoring native execution of the secondary-bone physics job.
+Earlier captures and a rotated view are in the [gallery](docs/GALLERY.md).
 
 The cutscene's red flashes came from a depth-only pass replacing display
 buffer 0 and from movie frames sampled through a stale GPU copy; see
@@ -40,17 +40,21 @@ cover the frame-rate work.
 NV0039 memory copies now execute on the native build. During the town run, a
 diagnostic re-read of each destination reported no mismatches; this confirms
 the writes landed, not that the copy semantics are fully correct. Previously speckled NPC surfaces look coherent
-in the inspected views; the stretched strip remains. See the
+in the inspected views. The remaining long strips were traced to omitted
+physics work and corrected by patch 0058. See the
 [implementation and validation results](docs/FINDINGS.md#nv0039-memory-transfers).
 
 Verified progress, with the latest milestone first:
 
+- removes the long **stretched hair and clothing strips** in the tested town
+  views by running the previously omitted SPURS queue physics job; all 128
+  sampled geometry jobs now have normal referenced vertex bounds;
 - removes the **red flashes** in the post-avatar cutscene (two shared-renderer
-  faults) and raises cutscene frame rate from about 11 to 25-31 fps in an
-  optimized build; the town still runs at about 7 fps;
+  faults); earlier optimized measurements improved cutscenes from about 11 to
+  25-31 fps, with the town at about 7 fps;
 - boots **straight to the title** with the optional `WKC2_SKIP_INTRO` switch;
 - improves previously speckled **NPC surfaces** in the starting town after NV0039
-  transfer support; stretched geometry and full visual fidelity remain unresolved;
+  transfer support; full visual fidelity remains unverified;
 - reaches the **live WKC1 town** after avatar acceptance and opening cutscene
   skips, showing Leonard, NPCs, the minimap and a save crystal;
 - responds to short left-stick movement, facing changes and walking animation,
@@ -64,12 +68,13 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **50 Windows runtime regression checks** with **57 SDK patches** applied.
+- passes **51 Windows runtime regression checks** with **58 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
-respond to analog input in the starting town. Stretched geometry remains and
-full material fidelity is unverified. Sustained traversal, combat and save/load
-remain unverified. This is not yet a playable port.
+respond to analog input in the starting town. The long stretched strips are
+removed in the inspected views; full material fidelity is unverified.
+Sustained traversal, combat and save/load remain unverified. This is not yet
+a playable port.
 
 Vulkan is the primary Windows renderer. It now renders the avatar and room
 without its initial red tint after correcting colour-target feedback. D3D12
@@ -126,8 +131,8 @@ coverage report distinguishes handler presence from verified implementation.
 - **Disc metadata and executable identified:** complete.
 - **Retail SELF decrypted locally using RPCS3 CLI:** complete.
 - **Function/import/SPU inventory:** initial pass complete. 56,580 lifted PPU functions;
-  five embedded SPU ELFs and 18 executable-backed raw SPURS jobs; 23 registered SPU
-  images. Clean extraction and static lifting reproduce all 23 image inputs from the
+  five embedded SPU ELFs and 19 executable-backed raw SPURS jobs; 24 registered SPU
+  images. Clean extraction and static lifting reproduce all 24 image inputs from the
   baseline executable without runtime captures.
 - **Native executable build:** passes on Windows using the pinned SDK, Clang 23.1.3,
   local Windows SDK/MSVC headers and DirectX-Headers. `tools/build.ps1` reproduces the
@@ -148,10 +153,10 @@ coverage report distinguishes handler presence from verified implementation.
   regenerated PPU/SPU code. This checkpoint covers prerecorded movie playback;
   live town rendering and limited controls are verified separately below.
 - **WKC1 town world view and pause/resume:** observed on the native Vulkan build
-  after the opening cutscenes. NPC surfaces improve with patch 0052; stretched
-  geometry remains.
+  after the opening cutscenes. NPC surfaces improve with patch 0052; patch 0058
+  removes the long strips in the inspected views.
 - **Initial town controls:** short analog movement, facing changes and camera
-  rotation first observed on the 42-patch build and rechecked with all 52 patches.
+  rotation first observed on the 42-patch build and rechecked with all 58 patches.
 - **Sustained traversal, combat and save/load verification:** pending.
 - **In-game keyboard with gamepad navigation, shared across Windows and macOS:**
   planned. The current Windows text-entry window is temporary.
@@ -160,15 +165,15 @@ coverage report distinguishes handler presence from verified implementation.
 
 ## Current investigation
 
-The next rendering work is to correct stretched town geometry and validate
-remaining material fidelity, then verify sustained traversal, combat and save/load.
-The vertex-program co-issue fix and NV0039 copies pass their checks, but the town
-recheck still shows stretched strips. NPC surface speckling improves with patch
-0052. SPU skinning output and texture/surface cache ownership remain candidates
-for investigation. The SPU census also identifies three static-entry candidates
-whose behavior still needs validation.
+The long town strips came from secondary-bone physics jobs that the runtime
+never executed. Patch 0058 implements their queue/port calls and CRT handoff;
+the newly extracted job is compiled to native C/C++. The town recheck shows
+normal hair and clothing after short movement and camera rotation.
+Remaining work includes material fidelity, sustained traversal, combat and
+save/load. The SPU census also identifies static-entry candidates whose
+behavior still needs validation.
 
-See [the latest native findings](docs/FINDINGS.md#nv0039-memory-transfers)
-for the copy validation and town comparison, [the full findings log](docs/FINDINGS.md) for
+See [the latest native findings](docs/FINDINGS.md#secondary-bone-physics-and-town-stretching)
+for the physics trace and town comparison, [the full findings log](docs/FINDINGS.md) for
 earlier investigations, and [diagnostic probes](docs/BUILD.md#diagnostic-probes)
 for reproduction options.
