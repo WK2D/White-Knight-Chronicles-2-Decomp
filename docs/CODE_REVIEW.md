@@ -1,6 +1,6 @@
 # Code review suggestions
 
-Updated 2026-10-17. The current Windows Vulkan build has 59 SDK patches and
+Updated 2026-10-17. The current Windows Vulkan build has 61 SDK patches and
 51 passing runtime checks. Later tracing located the long town strips in
 omitted secondary-bone physics jobs. Patch 0058 restores their queue execution
 and CRT handoff; see the
@@ -11,7 +11,11 @@ remain unverified.
 
 Patch 0059 caches launch-time diagnostics and passes the same 51 Windows checks;
 the [town comparison](FINDINGS.md#town-performance-after-the-physics-fix) records
-its modest frame-rate improvement. It does not change the review dispositions below.
+its modest frame-rate improvement. Patches 0060–0061 remove repeated SPU
+conversion-scale calls and give each SPU context independent MFC state. The
+extended arithmetic and DMA regressions pass in the same 51-check Windows suite;
+the findings record the later town samples. These changes do not change the
+review dispositions below.
 
 The reviews below retain their original baselines, check counts and validation
 scope. They are an audit history, not a list of changes still waiting to merge.

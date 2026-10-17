@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Secondary-bone physics restores normal hair/clothing geometry in the inspected WKC1 town views; short movement and camera response rechecked",
+    "current_milestone": "Secondary-bone physics preserves normal town hair/clothing; latest profiled starting-town samples measure 11.5\u201313.1 fps after SPU conversion and MFC ownership fixes",
     "updated": "2026-10-17"
   },
   "native_data_installation_verified": true,
@@ -153,9 +153,9 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 59,
+    "sdk_patch_count": 61,
     "runtime_checks_passed": 51,
-    "town_native_run_sdk_patch_count": 59,
+    "town_native_run_sdk_patch_count": 61,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
     "patch_0042_native_game_run_verified": true,
@@ -196,7 +196,13 @@
     "patch_0058_town_stretched_strips_removed_verified": true,
     "patch_0059_windows_regression_verified": true,
     "patch_0059_native_game_run_verified": true,
-    "patch_0059_presence_switch_process_fixtures_verified": true
+    "patch_0059_presence_switch_process_fixtures_verified": true,
+    "patch_0060_windows_regression_verified": true,
+    "patch_0060_native_game_run_verified": true,
+    "patch_0061_windows_regression_verified": true,
+    "patch_0061_native_game_run_verified": true,
+    "patch_0060_conversion_all_immediates_host_equivalence_verified": true,
+    "patch_0061_mfc_context_isolation_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -246,11 +252,11 @@
     "later_target_fps": 60,
     "steady_30_fps_verified": false,
     "60_fps_verified": false,
-    "latest_measured_sdk_patch_count": 59,
+    "latest_measured_sdk_patch_count": 61,
     "latest_profiled_starting_town_fps_range": [
-      9.3,
-      9.6
+      11.5,
+      13.1
     ],
-    "scope": "Two one-minute idle starting-town samples with physics enabled, an optimized Debug-ABI build, sampler and five-second GPU readbacks; not a profiler-off benchmark."
+    "scope": "Two one-minute idle starting-town samples with physics enabled, an optimized Release-CRT /MD build, sampler and five-second GPU readbacks; not a profiler-off benchmark. Debug/Release CRT comparison at patch 0060 showed no meaningful town gain."
   }
 }

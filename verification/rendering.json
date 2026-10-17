@@ -13,8 +13,8 @@
       "Sustained traversal, combat and save/load unverified",
       "SPU interpreter fallback remains enabled"
     ],
-    "latest_recheck_probe": "20261017-212432",
-    "latest_recheck_sdk_patch_count": 59
+    "latest_recheck_probe": "20261017-224857",
+    "latest_recheck_sdk_patch_count": 61
   },
   "verified": {
     "native_language_selection_rendered": true,
@@ -145,9 +145,9 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 59,
+    "current_sdk_patch_count": 61,
     "current_passed_count": 51,
-    "record_scope": "Current Windows Vulkan suite at patch 0059: all 51 runtime checks pass. Earlier named records retain their original patch counts."
+    "record_scope": "Current Windows Vulkan suite at patch 0061: all 51 runtime checks pass in normal Debug and optimized Release-CRT builds. Earlier named records retain their original patch counts."
   },
   "gallery": "gallery.json",
   "historical_probe": {

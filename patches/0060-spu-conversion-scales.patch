@@ -1,0 +1,43 @@
+Build exact power-of-two scales for SPU integer/float conversions from
+normal-double exponent bits. Every valid RI8 conversion scale is normal;
+constant immediates can fold without calling exp2 or ldexp. Preserve the
+original double arithmetic, saturation and NaN handling, and retain exp2
+for exponents outside the normal-double range.
+
+diff --git a/runtime/spu/spu_helpers.h b/runtime/spu/spu_helpers.h
+--- a/runtime/spu/spu_helpers.h
++++ b/runtime/spu/spu_helpers.h
+@@ -321,16 +321,29 @@
+ static inline u128 spu_fa(u128 a, u128 b) { return g_spu_float_mode ? spu_fa_mode(&a,&b) : spu_fa_host(a,b); }
+ static inline u128 spu_fs(u128 a, u128 b) { return g_spu_float_mode ? spu_fs_mode(&a,&b) : spu_fs_host(a,b); }
+ 
++/* Every RI8 conversion scale is a normal double: float-to-int exponents
++ * range from -82 to 173, int-to-float from -155 to 100. Construct the exact
++ * power of two so constant immediates fold without an exp2/ldexp call. Keep
++ * the library fallback for callers outside the normal-double range. */
++static inline double spu_pow2d(int e) {
++    if (e >= -1022 && e <= 1023) {
++        uint64_t bits = (uint64_t)(e + 1023) << 52;
++        double f; memcpy(&f, &bits, sizeof f);
++        return f;
++    }
++    return exp2((double)e);
++}
++
+ /* RI8 scale: float-to-int uses 2^(173-i8), int-to-float 2^(i8-155).
+  * The canonical immediates 173 and 155 are identity conversions. */
+ /* A host NaN keeps the value x86 conversion gave it, without the undefined cast. */
+-static inline u128 spu_cflts_host(u128 a, int i8){ u128 r; double f=exp2((double)(173-i8));
++static inline u128 spu_cflts_host(u128 a, int i8){ u128 r; double f=spu_pow2d(173-i8);
+     for(int i=0;i<4;i++){ double v=(double)a._f32[i]*f; if(v!=v)v=-2147483648.0; if(v>2147483647.0)v=2147483647.0; if(v<-2147483648.0)v=-2147483648.0; r._s32[i]=(int32_t)v; } return r; }
+-static inline u128 spu_cfltu_host(u128 a, int i8){ u128 r; double f=exp2((double)(173-i8));
++static inline u128 spu_cfltu_host(u128 a, int i8){ u128 r; double f=spu_pow2d(173-i8);
+     for(int i=0;i<4;i++){ double v=(double)a._f32[i]*f; if(v!=v)v=0; if(v<0)v=0; if(v>4294967295.0)v=4294967295.0; r._u32[i]=(uint32_t)v; } return r; }
+-static inline u128 spu_csflt_host(u128 a, int i8){ u128 r; double f=exp2((double)(i8-155));
++static inline u128 spu_csflt_host(u128 a, int i8){ u128 r; double f=spu_pow2d(i8-155);
+     for(int i=0;i<4;i++) r._f32[i]=(float)((double)a._s32[i]*f); return r; }
+-static inline u128 spu_cuflt_host(u128 a, int i8){ u128 r; double f=exp2((double)(i8-155));
++static inline u128 spu_cuflt_host(u128 a, int i8){ u128 r; double f=spu_pow2d(i8-155);
+     for(int i=0;i<4;i++) r._f32[i]=(float)((double)a._u32[i]*f); return r; }
+ static inline u128 spu_fm_host(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._f32[i]=a._f32[i]*b._f32[i]; return r; }
+ static inline u128 spu_fma_host(u128 a, u128 b, u128 c)  { u128 r; for(int i=0;i<4;i++) r._f32[i]=fmaf(a._f32[i], b._f32[i], c._f32[i]); return r; }

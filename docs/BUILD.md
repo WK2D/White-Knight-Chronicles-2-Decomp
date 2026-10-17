@@ -4,7 +4,7 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Verified on 2026-10-17:** the 59-patch Windows Vulkan build reaches the live
+**Verified on 2026-10-17:** the 61-patch Windows Vulkan build reaches the live
 WKC1 town with the long stretched hair/clothing strips removed in the inspected
 views. Short movement and camera rotation are rechecked. Earlier town testing
 also verified pause/resume input. All 51 current runtime checks pass.
@@ -76,7 +76,7 @@ The current suite also covers fragment-program cache identity, ordered surface
 clears, Windows PPU join lifetime and the shared draw engine's colour feedback.
 It also covers persistent DMA label polling, reuse of freed memory ranges and
 finite digital/analog input through the private controller probe file, NV0039
-and NV3089 copies, and SPURS job-queue dispatch. The current build contains 58
+and NV3089 copies, and SPURS job-queue dispatch. The current build contains 61
 numbered SDK patches. The newest published town
 captures use 58; the NPC-surface checkpoint used 52 and the first town-controls
 capture used 42; the earlier town world-view capture used 39. Patch 0043 passed
@@ -84,7 +84,7 @@ the earlier 43-check Windows suite and remains covered by the current suite;
 its town-rendering comparison is recorded separately.
 Patch 0045's three float-mode checks and patches 0046-0051's new and extended
 checks pass in the native Windows clang-cl build. The current 51-check suite
-passes with all 58 patches; Wine's MinGW TLS workaround is not needed here.
+passes with all 61 patches; Wine's MinGW TLS workaround is not needed here.
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
@@ -111,8 +111,37 @@ sorts after the previous jobs, preserving their diagnostic image IDs.
 and reuse, output visibility, bounds and persistent errors with synthetic data.
 The extended `wkc2_spurs_abi` uses the real staging code to test manager-block
 initialization on repeated jobs and descriptor sizes 64, 128, 256 and 1024.
-All 51 Windows Vulkan checks pass with 58 patches. Native town validation is
+At that checkpoint, all 51 Windows Vulkan checks passed with 58 patches. Native town validation is
 recorded in the [findings](FINDINGS.md#secondary-bone-physics-and-town-stretching).
+
+## SPU conversion scales and DMA ownership (patches 0060–0061)
+
+Patch 0060 constructs exact power-of-two conversion scales directly from
+binary64 exponent bits. All 256 valid RI8 immediates produce normal doubles,
+so compiled constant conversions can avoid `exp2`/`ldexp` calls. Arithmetic,
+saturation and NaN handling retain the previous host behavior. The extended
+`wkc2_spu_fp` compares 4,308,992 lane results against the previous CRT-based
+expressions, covering every immediate, boundaries and randomized operands.
+This equivalence check does not establish complete architectural SPU accuracy.
+
+Patch 0061 gives each SPU context its own MFC queue and tag state. The old
+eight-slot registry retained stopped contexts and handed later contexts one
+shared engine, acquiring a global lock on each lookup miss. The new state
+has the context's lifetime and is cleared by both full initialization and
+the SPURS job prefix reset. Channel execution on one context still requires
+one owner; sequential handoff between host threads preserves its state.
+All SPU translation units must be rebuilt because the host context layout changes.
+
+The extended `wkc2_spu_dma_poll` checks twelve contexts, independent stalled
+DMA lists, same-address reuse, repeated release and sequential host-thread
+handoff. The same isolation regression fails against patch 0060. A separate
+concurrent SDK fixture passes 1,193 checks across twelve contexts and 32 rounds.
+All 51 Windows Vulkan checks pass with 61 patches in both the normal Debug build
+and the private optimized Release-CRT build, with native regression assertions active.
+All 61 patches also apply to a clean SDK checkout (58 files updated).
+The 59→60 and 60→61 upgrades and repeat application are verified.
+See the [town measurements](FINDINGS.md#town-performance-after-the-physics-fix)
+for the native validation scope.
 
 ## Windows renderer
 
@@ -959,7 +988,8 @@ These options can change timing. With the physics fix included, two one-minute
 starting-town samples measured 8.1–8.3 fps at patch 0058 and 9.3–9.6 fps at
 patch 0059, using the optimized Debug-ABI build, sampling profiler and five-second
 readbacks. The immediate target is a steady 30 fps, followed by validated 60 fps
-support. These limited measurements are not a performance guarantee; see
+support. Later 61-patch Release-CRT samples measure 11.5–13.1 fps; see the
+conversion/DMA section above. These limited measurements are not a performance guarantee; see
 [conditions and records](FINDINGS.md#town-performance-after-the-physics-fix).
 
 ## Diagnostic probes

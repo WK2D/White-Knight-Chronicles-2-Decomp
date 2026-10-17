@@ -18,8 +18,9 @@ See
 **Current milestone (2026-10-17): the native Vulkan build runs the missing
 secondary-bone physics job, removing the long stretched strips in the tested
 WKC1 town views. Short movement and camera rotation are rechecked.**
-The first performance pass raises the profiled starting-town view from
-8.1–8.3 to 9.3–9.6 fps. A steady 30 fps is the next target, followed by
+The latest profiled starting-town samples measure 11.5–13.1 fps, compared with
+8.1–8.3 fps before the performance passes. A steady 30 fps is the next target,
+followed by
 validated 60 fps support; see [measurements and limits](docs/FINDINGS.md#town-performance-after-the-physics-fix).
 Full material and rendering fidelity remain unverified. Sustained traversal,
 combat and save/load remain unverified, so this is not a playable port yet.
@@ -52,6 +53,8 @@ physics work and corrected by patch 0058. See the
 
 Verified progress, with the latest milestone first:
 
+- removes repeated SPU conversion-scale calls and shared MFC engine lookups
+  (patches 0060–0061); the latest profiled starting-town samples measure 11.5–13.1 fps;
 - improves the measured starting-town view by about 15% by caching launch-time
   diagnostic settings (patch 0059); this remains well below 30 fps;
 - removes the long **stretched hair and clothing strips** in the tested town
@@ -76,7 +79,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **51 Windows runtime regression checks** with **59 SDK patches** applied.
+- passes **51 Windows runtime regression checks** with **61 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are
@@ -164,7 +167,7 @@ coverage report distinguishes handler presence from verified implementation.
   after the opening cutscenes. NPC surfaces improve with patch 0052; patch 0058
   removes the long strips in the inspected views.
 - **Initial town controls:** short analog movement, facing changes and camera
-  rotation first observed on the 42-patch build and rechecked with all 58 patches.
+  rotation first observed on the 42-patch build and rechecked with all 61 patches.
 - **Sustained traversal, combat and save/load verification:** pending.
 - **In-game keyboard with gamepad navigation, shared across Windows and macOS:**
   planned. The current Windows text-entry window is temporary.
@@ -172,6 +175,11 @@ coverage report distinguishes handler presence from verified implementation.
 - **GeoNet compatibility:** separate later research; not established.
 
 ## Current investigation
+
+Town performance is the immediate focus: a steady 30 fps first, followed by
+validated 60 fps support. The latest pass avoids repeated SPU conversion-scale
+CRT calls and replaces the fixed MFC registry with independent context-owned
+DMA state. The findings retain the measured frame counts and comparison limits.
 
 The long town strips came from secondary-bone physics jobs that the runtime
 never executed. Patch 0058 implements their queue/port calls and CRT handoff;
@@ -181,7 +189,7 @@ Remaining work includes material fidelity, sustained traversal, combat and
 save/load. The SPU census also identifies static-entry candidates whose
 behavior still needs validation.
 
-See [the latest native findings](docs/FINDINGS.md#secondary-bone-physics-and-town-stretching)
-for the physics trace and town comparison, [the full findings log](docs/FINDINGS.md) for
-earlier investigations, and [diagnostic probes](docs/BUILD.md#diagnostic-probes)
-for reproduction options.
+See [the latest performance findings](docs/FINDINGS.md#town-performance-after-the-physics-fix)
+and [the physics trace](docs/FINDINGS.md#secondary-bone-physics-and-town-stretching).
+The [full findings log](docs/FINDINGS.md) retains earlier investigations;
+[diagnostic probes](docs/BUILD.md#diagnostic-probes) describe reproduction options.

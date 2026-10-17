@@ -50,6 +50,11 @@ and [fallback profiling](../patches/0042-spu-interp-profile.patch).
 
 The [launch-time diagnostic caches](../patches/0059-cache-launch-diagnostics.patch)
 reduce host overhead while retaining the same guest jobs and rendering work.
+[Conversion scales](../patches/0060-spu-conversion-scales.patch) now avoid repeated
+CRT calls, and [context-owned MFC state](../patches/0061-context-owned-mfc.patch)
+keeps DMA queues and completion tags independent across logical SPU contexts.
+This removes the fixed registry and shared overflow engine; it does not change
+the one-owner execution requirement for each context.
 The [starting-town timing comparison](FINDINGS.md#town-performance-after-the-physics-fix)
 remains below the immediate 30 fps target; 60 fps support is a later validation goal.
 

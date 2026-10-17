@@ -2,7 +2,7 @@
 
 Updated 2026-10-17. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current milestone:** the 59-patch native Windows Vulkan build runs the
+**Current milestone:** the 61-patch native Windows Vulkan build runs the
 missing secondary-bone physics job. The long stretched hair/clothing strips
 are gone in the inspected WKC1 town views, including after short movement and
 camera rotation. All 51 current runtime checks pass. Full material/rendering
@@ -10,8 +10,8 @@ fidelity, sustained traversal, combat and save/load remain unverified.
 See [the physics trace and native recheck](#secondary-bone-physics-and-town-stretching)
 and [gallery](GALLERY.md).
 
-The first performance pass after that fix raises the profiled starting-town
-view from 8.1–8.3 to 9.3–9.6 fps. A steady 30 fps is the immediate target,
+The latest profiled starting-town samples measure 11.5–13.1 fps, compared with
+8.1–8.3 fps before the performance passes. A steady 30 fps is the immediate target,
 followed by validated 60 fps support. See [the comparison](#town-performance-after-the-physics-fix).
 
 ## Goal and reporting
@@ -110,6 +110,10 @@ remaining validation work.
 - Execute the statically compiled secondary-bone physics job through its
   SPURS queue/port imports; patch 0058 removes the long town strips in the
   inspected views.
+
+Patches 0059–0061 cache launch diagnostics, avoid repeated SPU conversion-scale
+CRT calls and keep each logical SPU context's DMA engine independent. The
+[town measurements](#town-performance-after-the-physics-fix) record their scope.
 
 Regression checks cover real video decoding, sparse video timestamps, LPCM sample
 conversion/concurrent queues, stereo/surround AC-3, Vpost conversion/windows, callback
@@ -1127,6 +1131,59 @@ reaches town, responds to short movement and camera input, and retains normal
 hair/clothing geometry in inspected views. Sustained traversal, combat, save/load
 and full rendering fidelity remain unverified.
 
+### Conversion scales and MFC ownership
+
+The next profile/disassembly check found CRT power-of-two calls in compiled
+SPU integer-to-float conversions, including a constant `CSFLT` scale of
+`2^-12`. Patch 0060 builds these exact binary64 scales from exponent bits,
+retaining the previous arithmetic, saturation and NaN handling. Every valid
+RI8 scale is a normal double. The extended arithmetic regression compares
+4,308,992 lane results across all 256 immediates, edge cases and random inputs
+with zero differences from the previous host expressions. This preserves the
+existing host behavior; it does not establish complete SPU accuracy.
+
+Each build below has two one-minute starting-town samples with the same
+profiling/readback conditions as above and no movement or camera input:
+
+| Build | First 60-second window | Second 60-second window |
+| --- | --- | --- |
+| 60 patches, optimized Debug CRT (`/MDd`) | 601 frames / 10.02 fps | 595 frames / 9.92 fps |
+| 60 patches, isolated Release CRT (`/MD`) | 605 frames / 10.08 fps | 584 frames / 9.73 fps |
+| 61 patches, context-owned MFC (`/MD`) | 786 frames / 13.10 fps | 689 frames / 11.48 fps |
+
+The 60-patch Debug-CRT average is 9.97 fps, about 5% above the previous 59-patch
+samples. Live NPC work varies, so this is a limited diagnostic comparison.
+Rebuilding matching dependencies and the host runtime for Release CRT gives
+9.91 fps and shows no meaningful town gain. Both builds use `/O2 /Ob2 /arch:AVX2`;
+all 51 Windows checks pass and native regression assertions remain active.
+The public build workflow retains its existing Debug CRT configuration.
+
+The next bottleneck was repeated MFC engine lookup misses. Read-only inspection
+of the 60-patch town process found all eight registry slots occupied by earlier
+contexts, while subsequent jobs used a shared fallback engine. Each miss took
+the global claim lock; unrelated contexts could also share DMA queues and tag
+completion state. Patch 0061 embeds that state in each SPU context, removing
+the fixed logical-context limit and global lookup. The engine survives a
+sequential host-thread handoff and resets with its context, including the
+selective SPURS job reset. One context still requires one executing owner.
+
+The extended DMA regression isolates stalled lists across twelve contexts,
+resumes real transfers, reuses the same context address and hands a context
+to another host thread. The isolation assertion fails against patch 0060
+and passes with 0061. A separate twelve-context concurrent SDK fixture passes
+1,193 checks over 32 rounds. All 51 Windows Vulkan checks pass in normal Debug
+and optimized Release-CRT builds. The host context layout changes, requiring
+every SPU translation unit to be rebuilt. The patch stack upgrades from 60
+with six files changed and reapplies with no changes. A clean SDK checkout
+accepts all 61 patches (58 files updated).
+
+The native 61-patch Release-CRT run reaches the initial WKC1 town view.
+Its two one-minute windows average 12.29 fps combined. Short movement and
+camera rotation respond afterward, with the long hair/clothing strips absent
+in the inspected views. Full rendering/physics fidelity and sustained gameplay
+remain unverified. The sampler and five-second readbacks remain enabled; these
+are diagnostic samples, not a profiler-off gameplay benchmark.
+
 ## Secondary-bone physics and town stretching
 
 Tracing the stretched vertices back through skinning located the bad values
@@ -1380,7 +1437,7 @@ animation program; eight dispatch/return pairs have been observed after lifting
 it. FIFO consumption continues through a later timeout. A subsequent vertex-shader
 cache fix revealed avatar-customization menus. At this checkpoint, the model
 was still missing. Later SPU arithmetic and renderer fixes restored the avatar.
-The current 59-patch build reaches town, with limited controls verified and
+The current 61-patch build reaches town, with limited controls verified and
 the long secondary-bone strips removed in inspected views. Full rendering
 fidelity, broader gameplay, save/load and imports needed on untested paths
 remain unverified.
@@ -1396,7 +1453,7 @@ corrections. Full material, lighting and physics fidelity still need wider
 validation. The remaining work includes:
 
 - Sustained traversal, combat, later scenes and verified save/load.
-- Better town performance: patch 0059 measures 9.3–9.6 fps in the profiled
+- Better town performance: patch 0061 measures 11.5–13.1 fps in the profiled
   starting view, below the immediate 30 fps target and later 60 fps goal.
 - All character-creation options and an in-game keyboard usable by gamepad.
 - Complete static SPU coverage, including the six observed image-17 fallback
