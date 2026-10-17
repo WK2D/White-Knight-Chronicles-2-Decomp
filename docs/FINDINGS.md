@@ -2,15 +2,15 @@
 
 Updated 2026-10-17. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current milestone:** the 61-patch native Windows Vulkan build runs the
+**Current milestone:** the 64-patch native Windows Vulkan build runs the
 missing secondary-bone physics job. The long stretched hair/clothing strips
 are gone in the inspected WKC1 town views, including after short movement and
-camera rotation. All 51 current runtime checks pass. Full material/rendering
+camera rotation. All 59 current runtime checks pass. Full material/rendering
 fidelity, sustained traversal, combat and save/load remain unverified.
 See [the physics trace and native recheck](#secondary-bone-physics-and-town-stretching)
 and [gallery](GALLERY.md).
 
-The latest profiled starting-town samples measure 11.5–13.1 fps, compared with
+The latest profiled starting-town samples measure 12.5–13.1 fps, compared with
 8.1–8.3 fps before the performance passes. A steady 30 fps is the immediate target,
 followed by validated 60 fps support. See [the comparison](#town-performance-after-the-physics-fix).
 
@@ -44,7 +44,7 @@ do not establish interpreter-free execution.
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and 51 runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and 59 runtime regression checks | Compilation alone does not verify gameplay |
 | Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | This colour-fix capture covers character creation; later town validation is recorded below; full visual fidelity remains unverified |
 | WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
 | WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | The long strips are removed with patch 0058 ([secondary-bone physics](#secondary-bone-physics-and-town-stretching)); NPC surfaces improve with patch 0052 ([NV0039 transfers](#nv0039-memory-transfers)); full material fidelity unverified; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
@@ -1184,6 +1184,92 @@ in the inspected views. Full rendering/physics fidelity and sustained gameplay
 remain unverified. The sampler and five-second readbacks remain enabled; these
 are diagnostic samples, not a profiler-off gameplay benchmark.
 
+### Producer wakes and SPU helper overhead
+
+The next experiment wakes the renderer when completed mapped SPU DMA overlaps
+the exact self-JUMP command on which the FIFO walker is parked. It preserves
+the four-millisecond bounded idle wait, guest clocks, command consumption and
+completion labels. The initial, unfiltered 62-patch candidate produced about
+600 overlap signals per presented town frame. Its two one-minute windows
+presented 791 and 705 frames, averaging 12.47 fps combined, versus 12.29 fps
+for patch 0061. With moving NPCs and these profiling conditions, this does not
+establish a convincing improvement.
+
+An overlapping copy can leave the self-JUMP unchanged, so overlap alone is
+insufficient evidence that the walker can advance. The final patch 0062
+publishes the parked address and expected command together in one atomic
+descriptor and signals only when a completed overlapping PUT sees a changed
+word. Registration rereads the command, and both sides retain the memory
+ordering needed to avoid a missed producer update. The notification precedes
+the existing block-coalescing early return. Optional aggregate counters record
+registrations, changed-word signals, immediate retries and unchanged overlaps;
+unset profiling leaves them zero. Guest command reads retain the runtime's
+existing VM concurrency model. Atomic SPU commits and PPU writers outside this
+ordinary DMA hook retain the bounded-timeout fallback.
+
+The synthetic production-FIFO regression checks unchanged copies staying
+quiet, actual replacement copies waking the walker, coalesced transfers,
+updates before registration and between registration and reread, disabled
+kicks and unset profiling. GET and the completion label advance only when the
+walker consumes the replacement commands. Removing only the changed-word
+filter makes the unchanged-copy assertion fail. The unfiltered native samples
+above do not validate the filtered version's performance.
+
+Patch 0063 replaces `CNTB`'s per-byte scalar population-count loop with SSE2
+integer operations on supported x86 hosts, retaining the scalar fallback
+elsewhere. An independent fixed-eight-bit reference checks 1,114,112 byte
+results with no differences, including every byte value at every position and
+deterministic random vectors. Both baseline SSE2 and AVX2 builds pass. Eight
+private image-19 partial job replays produce 176 byte-identical pairs of
+local-store and register snapshots. Instrumenting one replay confirms that
+the helper actually executes 33 times. These replays stop before GPU output
+allocation; they verify the sampled intermediate results, not a complete job
+pipeline or a native frame-rate gain.
+
+Patch 0064 moves the host-recursion guard's depth-limit cache, recent-site
+history and report budget into host-thread-local storage. This removes shared
+diagnostic writes from each guard call and keeps concurrent workers' histories
+separate. The default limit of 2000, environment parsing and every threshold
+halt remain unchanged; reports are now limited once per executing host thread.
+The history follows that host thread when it runs different contexts, while
+the checked `host_depth` remains context state. A deterministic two-worker
+regression checks separate histories, just-below-limit execution, repeated
+halts at the limit, and default, hexadecimal, zero and invalid settings. The
+unmodified guard fails the mixed-history assertion.
+
+All 59 Windows Vulkan regressions pass in normal Debug and optimized
+Release-CRT builds, including the three producer-wake cases, four recursion
+guard cases and the `CNTB` regression.
+
+The native 64-patch Release-CRT build reaches the same initial town view.
+Two one-minute windows present 785 and 751 frames (13.08 and 12.52 fps),
+averaging 12.80 fps combined. The counters report 0 unchanged
+overlaps suppressed and 940,821 successful changed-word signals.
+No unchanged overlaps were observed, so these samples do not support
+false-wake suppression as the cause of a timing difference.
+These are separate live NPC samples with the sampler, producer counters and
+five-second GPU readbacks enabled. The combined run does not isolate each
+patch's contribution. Short movement and camera rotation respond afterward;
+the long hair/clothing strips remain absent in inspected views. Full rendering
+fidelity, sustained gameplay and a steady 30 fps remain unverified.
+
+### Next CPU target from the full sampler data
+
+The short profiler report retains only forty instruction addresses per thread.
+Reading the sampler's full current-window maps through a private read-only tool
+reveals dispersed costs that this ranking hides. Actual executable instruction
+pointers are grouped by their PDB symbols; guessed callers from DLL stack scans
+are excluded. Two short town snapshots put image 19's skinning routine at
+`0xCE08` at about 20–24% of one critical worker's executable samples. This is
+neither a share of whole-frame time nor a whole-process CPU percentage.
+
+Its generated body contains frequent register-state moves, stack spills and
+byte shuffles alongside the matrix arithmetic. The next investigation is
+register lifetimes and selecting arithmetic mode outside the inner work,
+while retaining the existing exact/audit paths. A replacement for this body
+has not been implemented or validated. Raw maps, generated source, process
+identifiers and local paths remain private.
+
 ## Secondary-bone physics and town stretching
 
 Tracing the stretched vertices back through skinning located the bad values
@@ -1413,7 +1499,7 @@ SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
 Twenty checks passed at this checkpoint. The title screen and its menu rendered
-natively; the current suite has 51 passing checks.
+natively; the current suite has 59 passing checks.
 
 Packed A4R4G4B4 font textures were excluded by the D3D12 binding filter, leaving
 previous artwork selected for text draws. The backend now records the current
@@ -1437,7 +1523,7 @@ animation program; eight dispatch/return pairs have been observed after lifting
 it. FIFO consumption continues through a later timeout. A subsequent vertex-shader
 cache fix revealed avatar-customization menus. At this checkpoint, the model
 was still missing. Later SPU arithmetic and renderer fixes restored the avatar.
-The current 61-patch build reaches town, with limited controls verified and
+The current 64-patch build reaches town, with limited controls verified and
 the long secondary-bone strips removed in inspected views. Full rendering
 fidelity, broader gameplay, save/load and imports needed on untested paths
 remain unverified.
@@ -1453,7 +1539,7 @@ corrections. Full material, lighting and physics fidelity still need wider
 validation. The remaining work includes:
 
 - Sustained traversal, combat, later scenes and verified save/load.
-- Better town performance: patch 0061 measures 11.5–13.1 fps in the profiled
+- Better town performance: patch 0064 measures 12.5–13.1 fps in the profiled
   starting view, below the immediate 30 fps target and later 60 fps goal.
 - All character-creation options and an in-game keyboard usable by gamepad.
 - Complete static SPU coverage, including the six observed image-17 fallback

@@ -1,0 +1,40 @@
+Keep the hot SPU host-recursion diagnostic history and settings per host
+thread. Preserve depth limit, environment parsing and every halt; emit
+at most one diagnostic report per executing host thread.
+
+diff --git a/runtime/spu/spu_drain.c b/runtime/spu/spu_drain.c
+--- a/runtime/spu/spu_drain.c
++++ b/runtime/spu/spu_drain.c
+@@ -340,24 +340,26 @@
+ /* See the declaration in spu_context.h. */
+ void spu_depth_guard(spu_context* ctx)
+ {
+-    static uint32_t s_max = 0;
++    static SPU_THREAD_LOCAL uint32_t s_max = 0;
+     if (!s_max) {
+         const char* e = getenv("SPU_HOST_DEPTH_MAX");
+         s_max = e ? (uint32_t)strtoul(e, 0, 0) : 2000u;
+     }
+ 
+-    /* Ring of recent drain sites. When the depth trips, the useful question is
++    /* Host recursion and its diagnostic history belong to this executing
++     * thread. Reused contexts do not share a live host stack across workers.
++     * Ring of recent drain sites. When the depth trips, the useful question is
+      * not "where are we" but "what cycle got us here" -- one pc names a point,
+      * a ring names the loop. */
+     enum { RING = 24 };
+-    static uint32_t s_ring[RING];
+-    static uint32_t s_n;
++    static SPU_THREAD_LOCAL uint32_t s_ring[RING];
++    static SPU_THREAD_LOCAL uint32_t s_n;
+     s_ring[s_n % RING] = ((uint32_t)ctx->pc & SPU_LS_MASK);
+     s_n++;
+ 
+     if (ctx->host_depth < s_max) return;
+-    static int s_reported = 0;
+-    if (s_reported < 1) {   /* one report: five SPU threads all trip together */
++    static SPU_THREAD_LOCAL int s_reported = 0;
++    if (s_reported < 1) {   /* one report per executing host thread */
+         s_reported++;
+         fprintf(stderr, "[spu-depth] img=%d pc=0x%05X lr=0x%05X host_depth=%u"
+                         " -- lifted call recursion, halting the SPU\n",

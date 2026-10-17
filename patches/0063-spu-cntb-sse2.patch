@@ -1,0 +1,26 @@
+diff --git a/runtime/spu/spu_helpers.h b/runtime/spu/spu_helpers.h
+--- a/runtime/spu/spu_helpers.h
++++ b/runtime/spu/spu_helpers.h
+@@ -165,7 +165,21 @@
+ 
+ /* ---- count leading zeros / population count per byte ---- */
+ static inline u128 spu_clz(u128 a)  { u128 r; for(int i=0;i<4;i++) r._u32[i]=(uint32_t)spu_clz32(a._u32[i]); return r; }
+-static inline u128 spu_cntb(u128 a) { u128 r; for(int i=0;i<16;i++){ uint8_t v=a._u8[i],c=0; while(v){c+=v&1;v>>=1;} r._u8[i]=c; } return r; }
++#if defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
++#include <emmintrin.h>
++#endif
++static inline u128 spu_cntb(u128 a) {
++#if defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
++ __m128i v;memcpy(&v,&a,16);
++ const __m128i m55=_mm_set1_epi8(0x55),m33=_mm_set1_epi8(0x33),m0f=_mm_set1_epi8(0x0f);
++ v=_mm_sub_epi8(v,_mm_and_si128(_mm_srli_epi16(v,1),m55));
++ v=_mm_add_epi8(_mm_and_si128(v,m33),_mm_and_si128(_mm_srli_epi16(v,2),m33));
++ v=_mm_and_si128(_mm_add_epi8(v,_mm_srli_epi16(v,4)),m0f);
++ u128 r;memcpy(&r,&v,16);return r;
++#else
++ u128 r; for(int i=0;i<16;i++){ uint8_t v=a._u8[i],c=0; while(v){c+=v&1;v>>=1;} r._u8[i]=c; } return r;
++#endif
++}
+ 
+ /* ---- compares: all-ones / all-zeros per lane ---- */
+ static inline u128 spu_ceq(u128 a, u128 b)  { u128 r; for(int i=0;i<4;i++) r._u32[i]=(a._u32[i]==b._u32[i])?0xFFFFFFFFu:0; return r; }

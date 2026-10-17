@@ -1,7 +1,7 @@
 # Code review suggestions
 
-Updated 2026-10-17. The current Windows Vulkan build has 61 SDK patches and
-51 passing runtime checks. Later tracing located the long town strips in
+Updated 2026-10-17. The current Windows Vulkan build has 64 SDK patches and
+59 passing runtime checks. Later tracing located the long town strips in
 omitted secondary-bone physics jobs. Patch 0058 restores their queue execution
 and CRT handoff; see the
 [native recheck](FINDINGS.md#secondary-bone-physics-and-town-stretching).
@@ -16,6 +16,11 @@ conversion-scale calls and give each SPU context independent MFC state. The
 extended arithmetic and DMA regressions pass in the same 51-check Windows suite;
 the findings record the later town samples. These changes do not change the
 review dispositions below.
+
+Patches 0062–0064 add filtered FIFO producer notifications, SSE2 byte population
+counts and host-thread-local recursion diagnostics. Eight new regressions pass
+in normal Debug and optimized Release-CRT Windows builds; native timing and
+validation limits are in the findings.
 
 The reviews below retain their original baselines, check counts and validation
 scope. They are an audit history, not a list of changes still waiting to merge.

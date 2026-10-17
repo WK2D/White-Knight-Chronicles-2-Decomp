@@ -4,10 +4,11 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Verified on 2026-10-17:** the 61-patch Windows Vulkan build reaches the live
+**Verified on 2026-10-17:** the 64-patch Windows Vulkan build reaches the live
 WKC1 town with the long stretched hair/clothing strips removed in the inspected
 views. Short movement and camera rotation are rechecked. Earlier town testing
-also verified pause/resume input. All 51 current runtime checks pass.
+also verified pause/resume input. All 59 current runtime checks pass with
+64 SDK patches in normal Debug and private optimized Release-CRT builds.
 Full material/rendering fidelity, sustained traversal, combat and save/load
 remain unverified. See the
 [latest gallery entry](GALLERY.md).
@@ -65,7 +66,7 @@ and save/load remain unverified, and rendering faults remain.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies the numbered runtime patches idempotently
-and runs 51 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs 59 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
@@ -76,15 +77,16 @@ The current suite also covers fragment-program cache identity, ordered surface
 clears, Windows PPU join lifetime and the shared draw engine's colour feedback.
 It also covers persistent DMA label polling, reuse of freed memory ranges and
 finite digital/analog input through the private controller probe file, NV0039
-and NV3089 copies, and SPURS job-queue dispatch. The current build contains 61
-numbered SDK patches. The newest published town
+and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
+per-byte population counts and host-thread recursion diagnostics. The current
+build contains 64 numbered SDK patches. The newest published town
 captures use 58; the NPC-surface checkpoint used 52 and the first town-controls
 capture used 42; the earlier town world-view capture used 39. Patch 0043 passed
 the earlier 43-check Windows suite and remains covered by the current suite;
 its town-rendering comparison is recorded separately.
 Patch 0045's three float-mode checks and patches 0046-0051's new and extended
-checks pass in the native Windows clang-cl build. The current 51-check suite
-passes with all 61 patches; Wine's MinGW TLS workaround is not needed here.
+checks pass in the native Windows clang-cl build. The current 59-check suite
+passes with all 64 patches; Wine's MinGW TLS workaround is not needed here.
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
@@ -136,12 +138,84 @@ The extended `wkc2_spu_dma_poll` checks twelve contexts, independent stalled
 DMA lists, same-address reuse, repeated release and sequential host-thread
 handoff. The same isolation regression fails against patch 0060. A separate
 concurrent SDK fixture passes 1,193 checks across twelve contexts and 32 rounds.
-All 51 Windows Vulkan checks pass with 61 patches in both the normal Debug build
-and the private optimized Release-CRT build, with native regression assertions active.
+At that checkpoint, all 51 Windows Vulkan checks passed with 61 patches in both
+the normal Debug build and the private optimized Release-CRT build, with native
+regression assertions active.
 All 61 patches also apply to a clean SDK checkout (58 files updated).
 The 59→60 and 60→61 upgrades and repeat application are verified.
 See the [town measurements](FINDINGS.md#town-performance-after-the-physics-fix)
 for the native validation scope.
+
+## FIFO producer wake and SPU execution helpers (patches 0062–0064)
+
+Patch 0062 wakes the existing FIFO event when a completed, mapped ordinary SPU
+DMA PUT changes the exact self-JUMP word at which the renderer is parked. The
+parked address and expected command are published together in one 64-bit atomic
+descriptor. The walker arms that descriptor and rereads the command; if it has
+already changed, the walker retries immediately. Sequentially consistent
+publication and the producer's full StoreLoad fence close the write-before-arm
+race within the runtime's existing guest-memory concurrency model. They do not
+make all concurrent guest memory accesses ISO C data-race-free.
+
+Notification runs after the DMA copy and reservation notifications, before the
+pushbuffer coalescing path can return. An overlapping copy that leaves the
+expected command unchanged does not signal. Nonoverlapping or unmapped PUTs
+also stay quiet. The event is initialized once and remains an auto-reset event;
+`GCM_FIFO_KICK=0` retains the bounded sleep fallback. The existing four-millisecond
+idle timeout, guest clocks, FIFO consumption and completion labels are unchanged.
+Atomic SPU commits and PPU stores still rely on the existing timeout. The current
+Windows runner uses this event; its non-Windows branch still uses `Sleep(4)`, so
+this change does not establish a Linux/macOS wake-latency improvement.
+
+`GCM_PRODUCER_PROFILE` enables four host-only aggregate counters:
+`g_gcm_producer_park_count`, `g_gcm_producer_overlap_wake_count`,
+`g_gcm_producer_unchanged_overlap_count` and `g_gcm_producer_retry_count`.
+Set the switch before launch. Unset profiling leaves the counters zero and emits
+no per-event log. The wake count records successful `SetEvent` calls for changed
+words; it is not a count of distinct consumed event wakes. The full memory fence
+still runs for mapped PUTs with profiling off, so its cost belongs in any timing
+comparison.
+
+Patch 0063 computes `CNTB`, the SPU population count for each byte, with SSE2
+masks, shifts and byte arithmetic on supported x86 hosts. Masks remove bits
+shifted across byte boundaries; each result remains the count of the same input
+byte, so no guest byte-order remapping is needed. Other targets retain the
+previous scalar implementation. It adds no SSSE3, POPCNT or AVX2 requirement.
+The regression compares 1,114,112 byte results against an independent fixed
+8-bit reference, including all 256 byte values at every position with randomized
+neighbors. Separate baseline-SSE2 and AVX2 fixtures pass. Private replay of eight
+image-19 geometry jobs produces 176 byte-identical local-store/register output
+pairs through the inspected partial pipeline; this is not complete job or native
+rendering validation.
+
+Patch 0064 makes the depth-limit cache, recent-site ring and report budget local
+to the executing host thread. `host_depth` remains in the SPU context. The default
+limit of 2000, base-zero `SPU_HOST_DEPTH_MAX` parsing and halt at equality or above
+are unchanged. Explicit zero and invalid settings retain the original zero-limit
+behavior and repeated lookup. Set the limit before starting workers. Reporting
+is bounded to one report per host thread; suppression never suppresses a halt.
+The last 24 diagnostic sites follow that host thread across reused jobs/contexts,
+rather than mixing concurrent workers' history. This does not repair the
+underlying guest call recursion.
+
+The eight added checks are:
+
+- `wkc2_gcm_producer_wake`, `wkc2_gcm_producer_wake_disabled` and
+  `wkc2_gcm_producer_wake_profile_off`: production FIFO handoffs, initialization,
+  unchanged and changed partial/coalesced overlaps, writes before registration
+  and between arm/reread, reset/termination and launch switches.
+- `wkc2_spu_cntb`: independent per-byte population-count equivalence.
+- `wkc2_spu_depth_guard`, `wkc2_spu_depth_guard_configured`,
+  `wkc2_spu_depth_guard_zero` and `wkc2_spu_depth_guard_invalid`: the extracted
+  production guard, two interleaved workers, threshold decisions, repeated real
+  halts and separate bounded histories for default/hexadecimal/zero/invalid limits.
+
+All 59 Windows Vulkan checks pass with 64 patches in both the normal Debug build
+and the private optimized Release-CRT build, with native regression assertions
+active. Earlier patch sections retain their historical check counts. The
+[town measurements](FINDINGS.md#town-performance-after-the-physics-fix) record
+the native 64-patch Release-CRT recheck and its limits. Tests and replay checks
+alone do not establish a frame-rate gain.
 
 ## Windows renderer
 
@@ -516,7 +590,7 @@ reservation notifications and separation from both 3D renderers.
 `wkc2_nv0039_routing_3d` checks the SDK compatibility override. The extended
 `wkc2_draw_engine` verifies an unaligned partial-pixel update preserves adjacent
 GPU-owned bytes. All passed in the 50-check checkpoint and remain covered by
-the current 51-check Windows Vulkan suite.
+the current 59-check Windows Vulkan suite.
 
 Set `GCM_M2MF_VERIFY=1` before a private run to compare copied destination bytes
 against the staged source. This re-read confirms the writes landed at the
@@ -979,8 +1053,8 @@ Patch 0059 caches seven launch-time diagnostic settings per host thread:
 `SPU_ARGWATCH`. Set them before launch; changing them in a running process
 does not refresh a thread's cache. Presence-based switches still enable with
 an empty value or `0`; descriptor levels and fingerprint parsing are retained.
-All 51 Windows checks pass. Existing fixtures also verify six presence switches
-set to `0` still emit diagnostics while preserving their normal output.
+At patch 0059, all 51 Windows checks passed. Existing fixtures also verify six
+presence switches set to `0` still emit diagnostics while preserving their normal output.
 
 `tools/probe.ps1 -ShowWindow` keeps the game window visible during a probe.
 Draw/shader captures, profiler files and logs stay in the private workspace.
@@ -988,7 +1062,7 @@ These options can change timing. With the physics fix included, two one-minute
 starting-town samples measured 8.1–8.3 fps at patch 0058 and 9.3–9.6 fps at
 patch 0059, using the optimized Debug-ABI build, sampling profiler and five-second
 readbacks. The immediate target is a steady 30 fps, followed by validated 60 fps
-support. Later 61-patch Release-CRT samples measure 11.5–13.1 fps; see the
+support. Later 64-patch Release-CRT samples measure 12.5–13.1 fps; see the
 conversion/DMA section above. These limited measurements are not a performance guarantee; see
 [conditions and records](FINDINGS.md#town-performance-after-the-physics-fix).
 

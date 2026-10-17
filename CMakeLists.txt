@@ -362,6 +362,41 @@ if(WKC2_BUILD_TESTS)
         "${CMAKE_BINARY_DIR}/spu-fp-fixture" "${PS3RECOMP_DIR}/runtime/spu")
     add_test(NAME wkc2_spu_fp COMMAND wkc2_spu_fp_test)
     set_tests_properties(wkc2_spu_fp PROPERTIES TIMEOUT 10)
+    # Compile the SDK's exact guard body, with isolated diagnostic/halt capture.
+    set(SPU_DEPTH_FIXTURE "${CMAKE_BINARY_DIR}/spu-depth-fixture/spu_depth_guard_fixture.inc")
+    add_custom_command(OUTPUT "${SPU_DEPTH_FIXTURE}"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spu_depth_fixture.py"
+            "${PS3RECOMP_DIR}" "${SPU_DEPTH_FIXTURE}"
+        DEPENDS tools/prepare_spu_depth_fixture.py "${PS3RECOMP_DIR}/runtime/spu/spu_drain.c")
+    add_executable(wkc2_spu_depth_guard_test tests/spu_depth_guard_test.c "${SPU_DEPTH_FIXTURE}")
+    target_include_directories(wkc2_spu_depth_guard_test PRIVATE
+        "${CMAKE_BINARY_DIR}/spu-depth-fixture" "${PS3RECOMP_DIR}/runtime/spu"
+        "${PS3RECOMP_DIR}/runtime/platform")
+    if(NOT WIN32)
+        target_sources(wkc2_spu_depth_guard_test PRIVATE
+            "${PS3RECOMP_DIR}/runtime/platform/win32_compat.c")
+        target_link_libraries(wkc2_spu_depth_guard_test PRIVATE Threads::Threads m)
+    endif()
+    add_test(NAME wkc2_spu_depth_guard
+        COMMAND "${CMAKE_COMMAND}" -E env --unset=SPU_HOST_DEPTH_MAX
+            $<TARGET_FILE:wkc2_spu_depth_guard_test> 2000)
+    add_test(NAME wkc2_spu_depth_guard_configured COMMAND wkc2_spu_depth_guard_test 4)
+    set_tests_properties(wkc2_spu_depth_guard_configured PROPERTIES
+        ENVIRONMENT "SPU_HOST_DEPTH_MAX=0x4")
+    add_test(NAME wkc2_spu_depth_guard_zero COMMAND wkc2_spu_depth_guard_test 0)
+    set_tests_properties(wkc2_spu_depth_guard_zero PROPERTIES
+        ENVIRONMENT "SPU_HOST_DEPTH_MAX=0")
+    add_test(NAME wkc2_spu_depth_guard_invalid COMMAND wkc2_spu_depth_guard_test 0)
+    set_tests_properties(wkc2_spu_depth_guard_invalid PROPERTIES
+        ENVIRONMENT "SPU_HOST_DEPTH_MAX=invalid")
+    set_tests_properties(wkc2_spu_depth_guard wkc2_spu_depth_guard_configured
+        wkc2_spu_depth_guard_zero wkc2_spu_depth_guard_invalid PROPERTIES TIMEOUT 15)
+
+    add_executable(wkc2_spu_cntb_test tests/spu_cntb_test.c)
+    target_include_directories(wkc2_spu_cntb_test PRIVATE "${PS3RECOMP_DIR}/runtime/spu")
+    add_test(NAME wkc2_spu_cntb COMMAND wkc2_spu_cntb_test)
+    set_tests_properties(wkc2_spu_cntb PROPERTIES TIMEOUT 10)
+
     set(SPURS_ABI_FIXTURE "${CMAKE_BINARY_DIR}/spurs-abi-fixture")
     add_custom_command(OUTPUT "${SPURS_ABI_FIXTURE}/fixture.c" "${SPURS_ABI_FIXTURE}/fixture.h"
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spurs_abi_fixture.py"
@@ -521,6 +556,29 @@ if(WKC2_BUILD_TESTS)
     endif()
     add_test(NAME wkc2_nv3089_blit COMMAND wkc2_nv3089_blit_test)
     set_tests_properties(wkc2_nv3089_blit PROPERTIES TIMEOUT 10)
+    # Synthetic producer handoffs through the actual SDK FIFO walker.
+    add_executable(wkc2_gcm_producer_wake_test tests/gcm_producer_wake_test.c)
+    if(MSVC)
+        target_compile_options(wkc2_gcm_producer_wake_test PRIVATE /experimental:c11atomics)
+    endif()
+    target_include_directories(wkc2_gcm_producer_wake_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_DIR}/runtime/ppu")
+    if(NOT WIN32)
+        target_sources(wkc2_gcm_producer_wake_test PRIVATE
+            "${PS3RECOMP_DIR}/runtime/platform/win32_compat.c")
+        target_link_libraries(wkc2_gcm_producer_wake_test PRIVATE Threads::Threads m)
+    endif()
+    add_test(NAME wkc2_gcm_producer_wake COMMAND wkc2_gcm_producer_wake_test)
+    set_tests_properties(wkc2_gcm_producer_wake PROPERTIES TIMEOUT 15
+        ENVIRONMENT "GCM_FIFO_KICK=1;GCM_PRODUCER_PROFILE=1")
+    add_test(NAME wkc2_gcm_producer_wake_disabled COMMAND wkc2_gcm_producer_wake_test disabled)
+    set_tests_properties(wkc2_gcm_producer_wake_disabled PROPERTIES TIMEOUT 15
+        ENVIRONMENT "GCM_FIFO_KICK=0;GCM_PRODUCER_PROFILE=1")
+    add_test(NAME wkc2_gcm_producer_wake_profile_off
+        COMMAND "${CMAKE_COMMAND}" -E env --unset=GCM_PRODUCER_PROFILE
+            GCM_FIFO_KICK=1 $<TARGET_FILE:wkc2_gcm_producer_wake_test>)
+    set_tests_properties(wkc2_gcm_producer_wake_profile_off PROPERTIES TIMEOUT 15)
+
     add_executable(wkc2_nv0039_copy_test tests/nv0039_copy_test.c)
     target_include_directories(wkc2_nv0039_copy_test PRIVATE
         "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_DIR}/runtime/ppu")

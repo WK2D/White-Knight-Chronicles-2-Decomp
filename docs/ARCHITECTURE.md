@@ -55,6 +55,12 @@ CRT calls, and [context-owned MFC state](../patches/0061-context-owned-mfc.patch
 keeps DMA queues and completion tags independent across logical SPU contexts.
 This removes the fixed registry and shared overflow engine; it does not change
 the one-owner execution requirement for each context.
+[Producer notifications](../patches/0062-gcm-producer-wake.patch) now distinguish
+changed commands from unchanged overlapping writes.
+[Byte counts](../patches/0063-spu-cntb-sse2.patch) use SSE2 on supported x86 hosts,
+with the scalar path retained elsewhere;
+[recursion diagnostics](../patches/0064-spu-depth-history-tls.patch) follow the
+executing host thread while the depth value remains in its SPU context.
 The [starting-town timing comparison](FINDINGS.md#town-performance-after-the-physics-fix)
 remains below the immediate 30 fps target; 60 fps support is a later validation goal.
 

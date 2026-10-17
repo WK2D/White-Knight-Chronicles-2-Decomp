@@ -19,7 +19,8 @@
     "movement_or_camera_input_during_samples": false,
     "moving_NPCs": true,
     "frame_counter": "Independent read-only samples of ppu_boot_frames_presented backing counter",
-    "fifo_kick_wait_ms": 4
+    "fifo_kick_wait_ms": 4,
+    "producer_profile_switch": "Enabled for the private overlap-only wake experiment and patch 0064; unavailable in earlier builds."
   },
   "samples": [
     {
@@ -131,6 +132,46 @@
       "average_fps": 11.483302,
       "reference_publications": 0,
       "private_counter_record_sha256": "c6981f9a9bb06296182b3e75a94ef1d02fac5139548bcf00cb9cf49ac63ccb29"
+    },
+    {
+      "sdk_patch_count": 64,
+      "runtime_abi": "Release /MD",
+      "producer_profile_enabled": true,
+      "probe": "20261017-233136",
+      "sample": 1,
+      "seconds": 60.000414,
+      "presented_frames": 785,
+      "average_fps": 13.083243,
+      "reference_publications": 0,
+      "private_counter_record_sha256": "1d5da1f282a6ac9782b65f3171b5ac89a5e5b970a591e1d93fe1ed1c42fba51b",
+      "producer_parks": 467808,
+      "producer_parks_per_frame": 595.933758,
+      "producer_overlap_signals": 460398,
+      "producer_overlap_signals_per_frame": 586.494268,
+      "producer_unchanged_overlaps": 0,
+      "producer_unchanged_overlaps_per_frame": 0.0,
+      "producer_immediate_retries": 3791,
+      "producer_immediate_retries_per_frame": 4.829299
+    },
+    {
+      "sdk_patch_count": 64,
+      "runtime_abi": "Release /MD",
+      "producer_profile_enabled": true,
+      "probe": "20261017-233136",
+      "sample": 2,
+      "seconds": 60.000304,
+      "presented_frames": 751,
+      "average_fps": 12.516603,
+      "reference_publications": 0,
+      "private_counter_record_sha256": "52f804f158c4039368c67b27c2ea48579f8bff7410a9062b50b2fbbcd62248c5",
+      "producer_parks": 487618,
+      "producer_parks_per_frame": 649.291611,
+      "producer_overlap_signals": 480423,
+      "producer_overlap_signals_per_frame": 639.711052,
+      "producer_unchanged_overlaps": 0,
+      "producer_unchanged_overlaps_per_frame": 0.0,
+      "producer_immediate_retries": 3568,
+      "producer_immediate_retries_per_frame": 4.750999
     }
   ],
   "combined": {
@@ -161,28 +202,43 @@
       "seconds": 120.000451,
       "presented_frames": 1475,
       "average_fps": 12.29162
+    },
+    "64-MD": {
+      "runtime_abi": "Release /MD",
+      "seconds": 120.000718,
+      "presented_frames": 1536,
+      "average_fps": 12.799923,
+      "producer_parks": 955426,
+      "producer_parks_per_frame": 622.022135,
+      "producer_overlap_signals": 940821,
+      "producer_overlap_signals_per_frame": 612.513672,
+      "producer_unchanged_overlaps": 0,
+      "producer_unchanged_overlaps_per_frame": 0.0,
+      "producer_immediate_retries": 7359,
+      "producer_immediate_retries_per_frame": 4.791016
     }
   },
   "approximate_improvement_percent": 14.89,
   "validation": {
-    "patch_count": 61,
-    "windows_runtime_checks_passed": 51,
+    "patch_count": 64,
+    "windows_runtime_checks_passed": 59,
     "normal_debug_and_optimized_release_crt_suites_passed": true,
     "native_regression_assertions_active": true,
     "clean_sdk_apply_files_changed": 58,
-    "upgrade_from_60_files_changed": 6,
+    "upgrade_from_61_files_changed": 3,
     "repeat_apply_files_changed": 0,
-    "conversion_lane_comparisons": 4308992,
-    "all_256_conversion_immediates_checked": true,
-    "mfc_context_isolation_negative_control_failed_on_60": true,
-    "mfc_concurrent_sdk_fixture_checks_passed": 1193,
+    "new_checks": 8,
+    "cntb_byte_comparisons": 1114112,
+    "image19_partial_replay_identical_output_pairs": 176,
+    "word_filter_negative_control_failed": true,
+    "depth_history_negative_control_failed": true,
     "native_reaches_town": true,
     "short_movement_and_camera_rechecked": true,
     "long_strips_absent_in_inspected_views": true,
     "private_reviewed_view_sha256": {
-      "town61-start": "ced27199296299852354d7d23bd94fd661b1ee40dfe166bc5f8b6c7421f3ed5a",
-      "town61-moved": "e9f5894093dfc6c821613a9255130f1f25d2f949f450c4637ee501b7a41cc11c",
-      "town61-camera": "9f937ded6d2121efc5076784658f0f50baff4de9048f69ae0d99cb805da238dc"
+      "town64-start": "bda4f9e005d2e2119ff722100b72be0209ac531688e6ccde558888649eda38ed",
+      "town64-moved": "fbf2270dc63471c4c06186c3c103a73948eb9e9ab0ca2a463150d6d21297f11f",
+      "town64-camera": "58979ae421dd2f2e0ef8b745248d1ee1760d598a3ff454b01314149162b49080"
     }
   },
   "rejected_experiments": [
@@ -232,5 +288,87 @@
     "short_movement_and_camera_rechecked": true,
     "long_strips_absent_in_inspected_views": true,
     "six_presence_switch_fixtures_with_value_0_passed": true
-  }
+  },
+  "private_experiments": [
+    {
+      "base_published_sdk_patch_count": 61,
+      "variant": "private-overlap-only-wake",
+      "runtime_abi": "Release /MD",
+      "conditions": "Same starting-town scene and timing conditions as the published samples; live NPC workloads vary.",
+      "samples": [
+        {
+          "probe": "20261017-231349",
+          "sample": 1,
+          "runtime_abi": "Release /MD",
+          "seconds": 60.000437,
+          "presented_frames": 791,
+          "average_fps": 13.183237,
+          "reference_publications": 0,
+          "private_counter_record_sha256": "5937c09150e60688ee081a3bada8c50b4d0246cfd3765d5e845c5f27693da6a2",
+          "producer_parks": 433911,
+          "producer_parks_per_frame": 548.560051,
+          "producer_overlap_signals": 427392,
+          "producer_overlap_signals_per_frame": 540.318584,
+          "producer_immediate_retries": 2880,
+          "producer_immediate_retries_per_frame": 3.640961
+        },
+        {
+          "probe": "20261017-231349",
+          "sample": 2,
+          "runtime_abi": "Release /MD",
+          "seconds": 60.000511,
+          "presented_frames": 705,
+          "average_fps": 11.7499,
+          "reference_publications": 0,
+          "private_counter_record_sha256": "9d2dde845687f8c43372494ed673ee45708cdf91340e20566fd31fbdc7f51d97",
+          "producer_parks": 485104,
+          "producer_parks_per_frame": 688.09078,
+          "producer_overlap_signals": 478330,
+          "producer_overlap_signals_per_frame": 678.48227,
+          "producer_immediate_retries": 3139,
+          "producer_immediate_retries_per_frame": 4.452482
+        }
+      ],
+      "combined": {
+        "seconds": 120.000948,
+        "presented_frames": 1496,
+        "reference_publications": 0,
+        "producer_parks": 919015,
+        "producer_overlap_signals": 905722,
+        "producer_immediate_retries": 6019,
+        "average_fps": 12.466568,
+        "producer_parks_per_frame": 614.31484,
+        "producer_overlap_signals_per_frame": 605.429144,
+        "producer_immediate_retries_per_frame": 4.023396
+      },
+      "comparison_published_61_average_fps": 12.29162,
+      "meaningful_town_gain_observed": false,
+      "unfiltered_code_kept": false,
+      "signal_interpretation": "Producer overlap signals count PUT ranges covering the armed word; they do not establish that the word changed or that the renderer consumed new commands.",
+      "conclusion": "The combined 12.47 FPS does not show a convincing gain over the published patch-61 average of 12.29 FPS within live NPC workload variability. The unfiltered overlap-only implementation was not kept.",
+      "revision_scope": "This private experiment is not the filtered producer-wake revision later prepared as patch 0062; no native result for that revision is recorded here."
+    }
+  ],
+  "patch_0061_validation": {
+    "patch_count": 61,
+    "windows_runtime_checks_passed": 51,
+    "normal_debug_and_optimized_release_crt_suites_passed": true,
+    "native_regression_assertions_active": true,
+    "clean_sdk_apply_files_changed": 58,
+    "upgrade_from_60_files_changed": 6,
+    "repeat_apply_files_changed": 0,
+    "conversion_lane_comparisons": 4308992,
+    "all_256_conversion_immediates_checked": true,
+    "mfc_context_isolation_negative_control_failed_on_60": true,
+    "mfc_concurrent_sdk_fixture_checks_passed": 1193,
+    "native_reaches_town": true,
+    "short_movement_and_camera_rechecked": true,
+    "long_strips_absent_in_inspected_views": true,
+    "private_reviewed_view_sha256": {
+      "town61-start": "ced27199296299852354d7d23bd94fd661b1ee40dfe166bc5f8b6c7421f3ed5a",
+      "town61-moved": "e9f5894093dfc6c821613a9255130f1f25d2f949f450c4637ee501b7a41cc11c",
+      "town61-camera": "9f937ded6d2121efc5076784658f0f50baff4de9048f69ae0d99cb805da238dc"
+    }
+  },
+  "producer_signal_interpretation": "For patch 0064, overlap signals count successful SetEvent calls only after observing a changed parked word; they do not count distinct consumed wakes. Unchanged overlaps are counted separately."
 }

@@ -1,0 +1,190 @@
+Wake the FIFO consumer when completed mapped SPU DMA changes its registered
+producer-park command. Publish address and expected word atomically, retain
+the arm/reread handshake and bounded timeout, and ignore unchanged copies.
+
+diff --git a/libs/video/cellGcmSys.c b/libs/video/cellGcmSys.c
+--- a/libs/video/cellGcmSys.c
++++ b/libs/video/cellGcmSys.c
+@@ -25,6 +25,7 @@
+ #include <string.h>
+ #include <stdlib.h>
+ #include <stdint.h>
++#include <stdatomic.h>
+ 
+ #ifdef _WIN32
+ #include <windows.h>
+@@ -68,6 +69,23 @@
+ /* ---------------------------------------------------------------------------
+  * Internal state
+  * -----------------------------------------------------------------------*/
++
++/* A completed SPU PUT can resume an exact self-JUMP producer wait. The
++ * sequentially consistent arm followed by a command reread closes the race
++ * where the producer writes between the walker's first read and registration.
++ * Zero means the renderer is not waiting on a producer word. */
++/* Publish address and expected word together: a producer must never pair
++ * an old address with a different park's expected command. */
++static atomic_ullong s_gcm_producer_park_descriptor;
++/* Optional host-only aggregate observations, enabled by GCM_PRODUCER_PROFILE.
++ * These contain no command bytes or guest addresses and perform no logging. */
++atomic_ullong g_gcm_producer_park_count;
++atomic_ullong g_gcm_producer_overlap_wake_count;
++atomic_ullong g_gcm_producer_unchanged_overlap_count;
++atomic_ullong g_gcm_producer_retry_count;
++static int s_gcm_producer_profile;
++static int gcm_producer_arm(u32 ea, u32 word);
++static void gcm_producer_put_completed(u32 ea, u32 size);
+ 
+ static int  s_gcm_initialized = 0;
+ static u32  s_flip_mode   = CELL_GCM_DISPLAY_VSYNC;
+@@ -1598,6 +1616,7 @@
+ 
+ void gcm_forget_spu_blocks(void)
+ {
++    atomic_store(&s_gcm_producer_park_descriptor, 0);
+     memset(s_spu_blk, 0, sizeof s_spu_blk);
+     s_spu_blk_w = 0;
+ }
+@@ -1608,6 +1627,11 @@
+     u32 room = 0;
+     u32 io = gcm_ea2io_range(ea, &room);
+     if (io == 0xFFFFFFFFu || size > room) return;   /* not in RSX-visible memory */
++
++    /* The DMA bytes and coherence notifications are committed before this
++     * hook runs. Check before coalescing, whose early return must not swallow
++     * a producer wake. Unmapped and nonoverlapping writes do not signal. */
++    gcm_producer_put_completed(ea, size);
+ 
+     /* Coalesce with the previous block when an SPU emits one buffer in several
+      * transfers -- otherwise only the last fragment is remembered and the
+@@ -1777,11 +1801,71 @@
+  * 16 ms tick per fence was ~0.75 s/frame (the 2 FPS intro). The walker (and
+  * the D3D12 backend it feeds) stays on the present thread -- running it from
+  * the polling game thread killed the process silently. */
+-static HANDLE s_gcm_kick_ev = NULL;
++static _Atomic(HANDLE) s_gcm_kick_ev;
++static INIT_ONCE s_gcm_kick_once = INIT_ONCE_STATIC_INIT;
++static BOOL WINAPI gcm_kick_init(PINIT_ONCE once, PVOID parameter, PVOID* context)
++{
++    (void)once; (void)parameter; (void)context;
++    const char* e = getenv("GCM_FIFO_KICK");
++    s_gcm_producer_profile = getenv("GCM_PRODUCER_PROFILE") != NULL;
++    if (e && *e == '0') return TRUE;  /* preserve the bounded-sleep opt-out */
++    HANDLE event = CreateEventA(NULL, FALSE, FALSE, NULL);
++    if (!event) return FALSE;        /* failure remains a timed wait */
++    atomic_store(&s_gcm_kick_ev, event);
++    return TRUE;
++}
+ void* cellGcm_fifo_kick_event(void)
+ {
+-    if (!s_gcm_kick_ev) s_gcm_kick_ev = CreateEventA(NULL, FALSE, FALSE, NULL);
+-    return (void*)s_gcm_kick_ev;
++    if (!InitOnceExecuteOnce(&s_gcm_kick_once, gcm_kick_init, NULL, NULL))
++        return NULL;
++    return (void*)atomic_load(&s_gcm_kick_ev);
++}
++
++static int gcm_producer_arm(u32 ea, u32 word)
++{
++    /* Event creation/configuration completes before the parked EA is visible
++     * to a producer. The atomic arm includes a StoreLoad barrier. */
++    if (!cellGcm_fifo_kick_event()) return 1;
++    atomic_store(&s_gcm_producer_park_descriptor, ((u64)word << 32) | ea);
++    if (s_gcm_producer_profile)
++        atomic_fetch_add(&g_gcm_producer_park_count, 1);
++#ifdef GCM_PRODUCER_TEST_AFTER_ARM
++    GCM_PRODUCER_TEST_AFTER_ARM(ea);
++#endif
++    if (vm_read32(ea) != word) {
++        atomic_store(&s_gcm_producer_park_descriptor, 0);
++        if (s_gcm_producer_profile)
++            atomic_fetch_add(&g_gcm_producer_retry_count, 1);
++        return 0;
++    }
++    return 1;
++}
++
++static void gcm_producer_put_completed(u32 ea, u32 size)
++{
++    /* Pair the walker's arm/reread with StoreLoad ordering on this side too:
++     * the DMA copy must be visible before a producer can observe no waiter.
++     * A sequentially consistent load alone does not provide that barrier. */
++    atomic_thread_fence(memory_order_seq_cst);
++    const u64 descriptor = atomic_load(&s_gcm_producer_park_descriptor);
++    const u32 parked = (u32)descriptor;
++    const u32 expected = (u32)(descriptor >> 32);
++    /* Geometry jobs may copy the unchanged park command repeatedly while
++     * filling later segments. Only a changed word can let the walker resume.
++     * Reading after the descriptor also pairs with its release publication. */
++    if (parked && (u64)ea < (u64)parked + 4u &&
++                  (u64)ea + size > (u64)parked) {
++        if (vm_read32(parked) == expected) {
++            if (s_gcm_producer_profile)
++                atomic_fetch_add(&g_gcm_producer_unchanged_overlap_count, 1);
++            return;
++        }
++        HANDLE event = atomic_load(&s_gcm_kick_ev);
++        if (event && SetEvent(event)) {
++            if (s_gcm_producer_profile)
++                atomic_fetch_add(&g_gcm_producer_overlap_wake_count, 1);
++        }
++    }
+ }
+ 
+ /* The present thread's idle wait. It used to be a flat Sleep(4), which meant
+@@ -1791,9 +1875,7 @@
+  * someone does. */
+ void cellGcm_fifo_kick_wait(unsigned ms)
+ {
+-    static int on = -1;
+-    if (on < 0) { const char* e = getenv("GCM_FIFO_KICK"); on = (e && *e == '0') ? 0 : 1; }
+-    HANDLE ev = on ? (HANDLE)cellGcm_fifo_kick_event() : NULL;
++    HANDLE ev = (HANDLE)cellGcm_fifo_kick_event();
+     if (ev) WaitForSingleObject(ev, ms);
+     else    Sleep(ms);
+ }
+@@ -1825,8 +1907,10 @@
+         dry = (s_ref_qhead == s_ref_qtail);
+     }
+     ReleaseSRWLockExclusive(&s_ref_pub_lock);
+-    if (dry && s_gcm_kick_ev)
+-        SetEvent(s_gcm_kick_ev);       /* dry: ask the present thread to walk */
++    if (dry) {
++        HANDLE event = atomic_load(&s_gcm_kick_ev);
++        if (event) SetEvent(event);    /* dry: ask the present thread to walk */
++    }
+ }
+ 
+ void cellGcm_rsx_process_fifo(void)
+@@ -1866,6 +1950,7 @@
+ 
+ static void gcm_rsx_process_fifo_unlocked(void)
+ {
++    atomic_store(&s_gcm_producer_park_descriptor, 0);
+     { static unsigned _n = 0; static unsigned long long _t0 = 0;
+       extern unsigned long long ps3_ms_now(void);
+       _n++;
+@@ -2091,6 +2176,7 @@
+                    * work. A self-jump still waits for its producer to patch it;
+                    * jumping to PUT discards that work and its completion labels.
+                    * WKC2 uses this while its SPU renderer fills command segments. */
++                  if (!gcm_producer_arm(ea, w)) continue;
+                   why = "producer-park";
+                   break;
+               }
+@@ -3546,6 +3632,7 @@
+ {
+     printf("[cellGcmSys] Terminate\n");
+ 
++    atomic_store(&s_gcm_producer_park_descriptor, 0);
+     s_gcm_initialized = 0;
+     s_flip_mode   = CELL_GCM_DISPLAY_VSYNC;
+     s_flip_status = CELL_GCM_FLIP_STATUS_DONE;
+@@ -3926,6 +4013,7 @@
+  * from a stale offset through whatever the driver has since overwritten. */
+ void cellGcm_syscall_set_fifo(u32 put, u32 get)
+ {
++    atomic_store(&s_gcm_producer_park_descriptor, 0);
+     vm_write32(GCM_CONTROL_GUEST_ADDR + 0, put);
+     vm_write32(GCM_CONTROL_GUEST_ADDR + 4, get);
+     s_fifo_getoff  = get;
