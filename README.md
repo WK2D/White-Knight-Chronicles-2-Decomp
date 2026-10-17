@@ -24,11 +24,11 @@ establish that the game works.
 
 ## Progress
 
-[![Native Vulkan WKC1 town with visible geometry faults](verification/screenshots/2026-10-16-native-wkc1-town.png)](docs/GALLERY.md)
+[![Native WKC1 town after analog movement and camera rotation, with visible geometry faults](verification/screenshots/2026-10-17-native-wkc1-town-controls.png)](docs/GALLERY.md)
 
-The latest image shows the live WKC1 town after the opening cutscenes, with
-Leonard, NPCs, the minimap and a save crystal visible. Stretched geometry and
-corrupt NPC surfaces remain. Earlier captures are in the [gallery](docs/GALLERY.md).
+The latest image shows the live WKC1 town after short analog movement and
+camera rotation. Stretched geometry and corrupt NPC surfaces remain. Earlier
+captures are in the [gallery](docs/GALLERY.md).
 
 So far the native build:
 
@@ -45,8 +45,10 @@ So far the native build:
 - advances through the opening cutscenes to the **live WKC1 town**, with NPCs,
   the minimap and a save crystal visible, and responds to pause/resume input.
 
-Town rendering still has obvious geometry and material faults. Movement, camera
-control, combat and save/load remain unverified; this is not yet a playable port.
+Short movement, facing changes, walking animation and camera rotation now
+respond to analog input in the starting town. Geometry and material faults
+remain; sustained traversal, combat and save/load are unverified. This is not
+yet a playable port.
 
 Vulkan is the primary Windows renderer. It now renders the avatar and room
 without its initial red tint after correcting colour-target feedback. D3D12
@@ -125,7 +127,9 @@ coverage report distinguishes handler presence from verified implementation.
   regenerated PPU/SPU code. This does not establish interactive 3D gameplay.
 - **WKC1 town world view and pause/resume:** observed on the native Vulkan build
   after the opening cutscenes. Geometry and NPC materials remain visibly corrupt.
-- **Movement, camera control, combat and save/load verification:** pending.
+- **Initial town controls:** short analog movement, facing changes and camera
+  rotation observed on the full 42-patch build.
+- **Sustained traversal, combat and save/load verification:** pending.
 - **In-game keyboard with gamepad navigation, shared across Windows and macOS:**
   planned. The current Windows text-entry window is temporary.
 - **Apple Silicon build and testing:** pending.

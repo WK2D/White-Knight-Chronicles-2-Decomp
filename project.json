@@ -141,18 +141,36 @@
     "source_level_game_decompilation_completed": false,
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
-    "remaining_requirement": "Replace observed interpreted SPU paths with validated static/native implementations and measure fallback coverage"
+    "remaining_requirement": "Cover missing SPU entries and any runtime-generated code with validated static/native implementations, then measure fallback coverage across gameplay."
   },
   "native_character_creation_completed_scope": "Default male avatar named and accepted through Quick Start; opening cutscenes advance to the town. Full visual fidelity and all customization options are not verified.",
   "native_wkc1_town_world_view_verified": true,
   "native_wkc1_town_world_view_scope": "Live town with Leonard, NPC names, minimap and save crystal visible; stretched geometry and corrupt NPC surfaces remain.",
   "native_town_pause_resume_input_verified": true,
-  "native_movement_and_camera_control_verified": false,
+  "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 41,
-    "runtime_checks_passed": 39,
-    "town_native_run_sdk_patch_count": 39,
-    "patches_0040_0041_native_game_run_verified": false
-  }
+    "sdk_patch_count": 42,
+    "runtime_checks_passed": 42,
+    "town_native_run_sdk_patch_count": 42,
+    "patches_0040_0041_native_game_run_verified": true,
+    "patch_0042_windows_regression_verified": true,
+    "patch_0042_native_game_run_verified": true,
+    "patch_0042_actual_microstep_dispatch_regression_verified": true,
+    "previous_town_capture_sdk_patch_count": 39
+  },
+  "spu_fallback_census": {
+    "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
+    "mode": "opt_in_completed_sessions",
+    "counts_lifted_instructions": false,
+    "empty_table_proves_interpreter_free_execution": false,
+    "fallback_disabled": false,
+    "initial_entry_windows_match_baseline_input": true,
+    "private_three_entry_candidate_compile_checked": true,
+    "candidate_behavior_and_native_execution_verified": false,
+    "latest_native_probe": "20261017-010907",
+    "recorded_entry_count": 6,
+    "baseline_comparison_method": "64-byte FNV-1a entry fingerprints; not a whole-function comparison"
+  },
+  "native_movement_and_camera_control_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
 }

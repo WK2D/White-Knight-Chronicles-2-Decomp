@@ -312,8 +312,8 @@ option(WKC2_BUILD_TESTS "Build port-specific regression tests" ON)
 if(WKC2_BUILD_TESTS)
     enable_testing()
     # Exercise the linked channel implementation without loading game files.
-    target_sources(${PROJECT_NAME} PRIVATE tests/spu_title_test.cpp tests/spu_dma_poll_test.c tests/pad_file_test.c)
-    set_source_files_properties(tests/spu_title_test.cpp tests/spu_dma_poll_test.c tests/pad_file_test.c PROPERTIES
+    target_sources(${PROJECT_NAME} PRIVATE tests/spu_title_test.cpp tests/spu_dma_poll_test.c tests/pad_file_test.c tests/spu_microstep_profile_test.c)
+    set_source_files_properties(tests/spu_title_test.cpp tests/spu_dma_poll_test.c tests/pad_file_test.c tests/spu_microstep_profile_test.c PROPERTIES
         INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/runtime/spu")
     set_source_files_properties(tests/pad_file_test.c PROPERTIES
         INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/runtime/spu;${PS3RECOMP_DIR}/libs/input")
@@ -370,6 +370,27 @@ if(WKC2_BUILD_TESTS)
         "${SPURS_ABI_FIXTURE}" "${PS3RECOMP_DIR}/runtime/spu")
     add_test(NAME wkc2_spurs_abi COMMAND wkc2_spurs_abi_test)
     set_tests_properties(wkc2_spurs_abi PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_spu_interp_profile_test tests/spu_interp_profile_test.c
+        "${PS3RECOMP_DIR}/runtime/spu/spu_interp.c" "${PS3RECOMP_DIR}/runtime/spu/spu_interp_profile.c")
+    target_include_directories(wkc2_spu_interp_profile_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/spu")
+    target_link_libraries(wkc2_spu_interp_profile_test PRIVATE Threads::Threads)
+    if(NOT WIN32)
+        target_link_libraries(wkc2_spu_interp_profile_test PRIVATE m)
+    endif()
+    set(SPU_INTERP_PROFILE_FIXTURE "${CMAKE_BINARY_DIR}/spu-interp-profile.tsv")
+    add_test(NAME wkc2_spu_interp_profile
+        COMMAND wkc2_spu_interp_profile_test "${SPU_INTERP_PROFILE_FIXTURE}" 1)
+    set_tests_properties(wkc2_spu_interp_profile PROPERTIES
+        ENVIRONMENT "SPU_INTERP_PROFILE=${SPU_INTERP_PROFILE_FIXTURE}" TIMEOUT 10)
+    add_test(NAME wkc2_spu_interp_profile_off
+        COMMAND ${CMAKE_COMMAND} -E env --unset=SPU_INTERP_PROFILE
+            $<TARGET_FILE:wkc2_spu_interp_profile_test> "${SPU_INTERP_PROFILE_FIXTURE}.off" 0)
+    set_tests_properties(wkc2_spu_interp_profile_off PROPERTIES TIMEOUT 10)
+    add_test(NAME wkc2_spu_microstep_profile COMMAND ${PROJECT_NAME}
+        --test-spu-microstep-profile "${CMAKE_BINARY_DIR}/spu-microstep-profile.tsv")
+    set_tests_properties(wkc2_spu_microstep_profile PROPERTIES
+        ENVIRONMENT "SPU_INTERP_PROFILE=${CMAKE_BINARY_DIR}/spu-microstep-profile.tsv" TIMEOUT 10)
     if(WIN32)
         add_executable(wkc2_ppu_join_test tests/ppu_join_test.c
             "${PS3RECOMP_DIR}/runtime/syscalls/sys_ppu_thread.c")

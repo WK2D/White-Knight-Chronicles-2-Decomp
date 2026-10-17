@@ -29,8 +29,10 @@
     "wkc1_town_world_view": true,
     "town_pause_resume_input": true,
     "world_full_visual_fidelity": false,
-    "movement_and_camera_control": false,
-    "combat": false
+    "movement_and_camera_control": true,
+    "combat": false,
+    "limited_town_movement_and_camera_response": true,
+    "movement_and_camera_control_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
   },
   "captures": [
     {
@@ -76,6 +78,9 @@
       "wkc2_vertex_fetch",
       "wkc2_spu_fp",
       "wkc2_spurs_abi",
+      "wkc2_spu_interp_profile",
+      "wkc2_spu_interp_profile_off",
+      "wkc2_spu_microstep_profile",
       "wkc2_ppu_join",
       "wkc2_osk_window",
       "wkc2_fp_precision",
@@ -107,8 +112,8 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 41,
-    "current_passed_count": 39
+    "current_sdk_patch_count": 42,
+    "current_passed_count": 42
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -1304,7 +1309,7 @@
     "source_level_game_decompilation_completed": false,
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
-    "remaining_requirement": "Replace observed interpreted SPU paths with validated static/native implementations and measure fallback coverage"
+    "remaining_requirement": "Cover missing SPU entries and any runtime-generated code with validated static/native implementations, then measure fallback coverage across gameplay."
   },
   "wkc1_town_world_view": {
     "probe": "20261016-233313",
@@ -1349,13 +1354,113 @@
     "old_allocator_fails_reuse_regression": true,
     "unamended_suggestion_fails_mixed_mapper_regression": true,
     "amended_patch_passes_reuse_zeroing_alignment_and_mixed_mapper_checks": true,
-    "native_game_run_verified": false
+    "native_game_run_verified": true,
+    "native_scope": "Present in the full 42-patch run through the town; reuse behavior was not separately measured in-game."
   },
   "analog_probe_input": {
     "patch": "0041-pad-file-analog-input.patch",
     "production_guest_packet_check_passed": true,
     "finite_hold_restore_digital_and_invalid_input_checks_passed": true,
-    "native_game_run_verified": false
+    "native_game_run_verified": true,
+    "native_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
   },
-  "record_scope": "Per-probe history plus current verified/checks summaries; older probe counts and failures describe those runs. Latest world-view evidence is in wkc1_town_world_view."
+  "record_scope": "Per-probe history plus current verified/checks summaries; older probe counts and failures describe those runs. Latest world-view evidence is in wkc1_town_world_view.",
+  "host_runtime_review": {
+    "audio_error_end_restart_regression_passed": true,
+    "old_audio_implementation_fails_regression": true,
+    "demux_aligned_capacity_regression_passed": true,
+    "old_demux_implementation_fails_regression": true,
+    "pad_test_posix_environment_wrapper_added": true,
+    "posix_build_verified": false,
+    "chroma_siting_change_included": false
+  },
+  "spu_fallback_census": {
+    "probe": "20261017-010907",
+    "scope": "Startup, WKC1 avatar acceptance, opening cutscene skips, town and short analog movement/camera probes",
+    "sdk_patch_count": 42,
+    "rows": 6,
+    "completed_sessions": 2017,
+    "recorded_instructions": 8744,
+    "dropped_sessions": 0,
+    "snapshot_sha256": "0bcbd02a7582741062aaa3ec910dfb46d90795223a3372963470b2795b78e5c4",
+    "survived_forced_stop": true,
+    "run_stopped_after_milestone": true,
+    "rows_data": [
+      {
+        "path": "interp",
+        "image": 17,
+        "entry": "0x07D68",
+        "fingerprint": "5EFC997629A14715",
+        "sessions": 672,
+        "steps": 2688,
+        "max_steps": 4
+      },
+      {
+        "path": "interp",
+        "image": 17,
+        "entry": "0x07E4C",
+        "fingerprint": "B11C61F140A74B9C",
+        "sessions": 168,
+        "steps": 1848,
+        "max_steps": 11
+      },
+      {
+        "path": "interp",
+        "image": 17,
+        "entry": "0x07E88",
+        "fingerprint": "8C000DFCAD9A5CD1",
+        "sessions": 169,
+        "steps": 1352,
+        "max_steps": 8
+      },
+      {
+        "path": "microstep",
+        "image": 17,
+        "entry": "0x07D60",
+        "fingerprint": "BAD09E1CCC15986B",
+        "sessions": 672,
+        "steps": 1344,
+        "max_steps": 2
+      },
+      {
+        "path": "microstep",
+        "image": 17,
+        "entry": "0x07E38",
+        "fingerprint": "8BE1F18B292D8F2D",
+        "sessions": 168,
+        "steps": 840,
+        "max_steps": 5
+      },
+      {
+        "path": "microstep",
+        "image": 17,
+        "entry": "0x07E78",
+        "fingerprint": "52A1C3E317021A9D",
+        "sessions": 168,
+        "steps": 672,
+        "max_steps": 4
+      }
+    ],
+    "lifted_instruction_denominator_measured": false,
+    "unfinished_sessions_and_latest_unwritten_updates_may_be_absent": true,
+    "fallback_disabled": false,
+    "entry_window_comparison": {
+      "method": "FNV-1a over 64 bytes",
+      "image": 17,
+      "input_text_fingerprint": "4FE4255D8907D8F3",
+      "all_six_fingerprints_match_baseline_input": true,
+      "whole_function_identity_verified": false
+    },
+    "static_candidate": {
+      "primary_entries": [
+        "0x07D60",
+        "0x07E38",
+        "0x07E78"
+      ],
+      "private_lift_compiles_on_Windows": true,
+      "behavior_comparison_verified": false,
+      "native_execution_verified": false,
+      "integrated_into_current_build": false
+    }
+  }
 }

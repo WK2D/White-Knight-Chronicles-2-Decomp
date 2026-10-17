@@ -4,6 +4,29 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_wkc1_town_analog_input",
+      "date": "2026-10-17",
+      "image": "screenshots/2026-10-17-native-wkc1-town-controls.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "Vulkan shared RSX draw engine",
+      "source_format": "Vulkan GPU readback PPM",
+      "source_sha256": "5f9b019845579d5058a5d8418841e211ef0f02906d0860a79d2603085c52556f",
+      "png_sha256": "3d9ba8835d9f8aec44f622fb13e845c7e9b9edb8ddb25f7753c812ae986d09b4",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "native_probe": "20261017-010907",
+      "sdk_patch_count_in_captured_run": 42,
+      "limited_town_movement_and_camera_response_verified": true,
+      "visible_geometry_corruption": true,
+      "native_gameplay_verified": false
+    },
+    {
       "milestone": "native_wkc1_town_world_view",
       "date": "2026-10-16",
       "image": "screenshots/2026-10-16-native-wkc1-town.png",

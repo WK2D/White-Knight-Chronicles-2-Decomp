@@ -54,7 +54,12 @@ def apply_stack(sdk, patch_directory, expected_commit):
             if [digest(read(scratch / name)) for name in names] == current:
                 known_prefix = count
             if count < len(patches):
-                result = git(scratch, 'apply', str(patches[count]))
+                # Reconstruct from pinned bytes independently of the user's Git
+                # line-ending policy. Upstream has mixed CRLF/LF context; only
+                # context whitespace is flexible here. Known-prefix hashes below
+                # still reject unrelated SDK edits, including indentation changes.
+                result = git(scratch, '-c', 'core.autocrlf=false', 'apply',
+                             '--ignore-space-change', str(patches[count]))
                 if result.returncode:
                     raise RuntimeError('Cannot reconstruct SDK patch: ' + patches[count].name)
         if known_prefix is None:

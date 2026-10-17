@@ -30,10 +30,10 @@ do not establish interpreter-free execution.
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | Clang build and 39 runtime regression checks | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | Clang build and 42 runtime regression checks | Compilation alone does not verify gameplay |
 | Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | Character creation only; full visual fidelity, gameplay and save/load unverified |
 | WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
-| WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | Stretched geometry and corrupt NPC surfaces remain; movement, camera control, combat and save/load unverified |
+| WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | Stretched geometry and corrupt NPC surfaces remain; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -642,8 +642,75 @@ Patch 0041 adds finite analog-stick input to the private `PAD_FILE` probe,
 with validation and restoration of underlying input after the hold. Its check
 uses the actual guest packet interface. All 39 runtime checks pass with the
 complete 41-patch stack, and reconstruction from the pinned SDK is verified.
-The town run used patch 0039; neither the amended allocator nor the new analog
-probe has yet been tested in a native game run.
+That initial town run used patch 0039. The later census run below includes the
+amended allocator and verifies the analog probe's town response.
+
+## SPU fallback census and host-runtime review
+
+The suggestion branch's census is incorporated as patch 0042, with Windows
+follow-up changes. Mixed-line-ending context was rebuilt against the pinned
+SDK. Thread-safe initialization replaces unsynchronized flag access, and
+Windows snapshot replacement keeps the prior complete file instead of deleting
+it before rename. Microstep counting uses its existing loop index rather than
+an unconditional per-instruction TLS increment.
+
+The public Windows build workflow passes all 42 checks. The new checks cover
+profiling on/off and concurrent initialization. A separate production-dispatch
+check verifies a microstep branch and its interpreter handoff without double
+counting. Native results are recorded separately below; standalone tests do not
+establish gameplay coverage. The goal is to prioritize static implementations
+of the remaining fallback code. No fallback path has been removed.
+
+The host-runtime review also produced two confirmed fixes. AC-3 fatal errors
+still reject further input, but EndSeq can now drain and permit a fresh sequence;
+stereo and surround tests force a single-AU contract error, then restart and
+compare valid decoded samples. The demuxer now rejects AUs exceeding the actual
+aligned arena capacity instead of waiting for an impossible free block. Both
+regressions fail against the earlier code and pass on Windows with the fixes.
+The pad-file test now has a POSIX environment-setting path; a Linux/macOS build
+has not been run here. The proposed chroma-siting change is deferred pending an
+independent pixel comparison. See [the review and disposition](CODE_REVIEW.md).
+
+## Native census and limited town controls
+
+The full 42-patch native Vulkan run reaches the WKC1 town after avatar acceptance
+and ordinary cutscene-skip inputs. Left-stick probes produce short movement,
+facing/walking changes and a changed minimap position; right-stick input rotates
+the camera. The [newest gallery entry](GALLERY.md) records this limited input
+milestone. Geometry and NPC surfaces remain visibly corrupt. Sustained traversal,
+combat and save/load are unverified.
+
+The retained census contains **2,017 completed sessions and 8,744 recorded
+instructions across six rows**, all in image 17, with zero dropped sessions.
+The snapshot remains parseable after stopping the process. It excludes lifted
+instructions, unfinished/nonlocally exited sessions and the latest unwritten
+updates; it does not establish a fallback percentage or interpreter-free execution.
+The structured record and snapshot hash are in [rendering.json](../verification/rendering.json).
+
+| Path | Entry | Sessions | Recorded instructions |
+| --- | --- | --- | --- |
+| interp | `0x07D68` | 672 | 2688 |
+| interp | `0x07E4C` | 168 | 1848 |
+| interp | `0x07E88` | 169 | 1352 |
+| microstep | `0x07D60` | 672 | 1344 |
+| microstep | `0x07E38` | 168 | 840 |
+| microstep | `0x07E78` | 168 | 672 |
+
+All six 64-byte entry fingerprints match the corresponding windows in the
+baseline SPU image (text fingerprint `4FE4255D8907D8F3`). This points to missing
+static entry coverage as a useful next investigation. The existing lifter's
+three primary entry hints (`0x7D60`, `0x7E38`, `0x7E78`) produce a private
+Windows-compilable candidate. Whole-function identity, behavioral equivalence
+and native execution of that candidate remain unverified. It is not integrated
+into this build, and the fallback remains enabled.
+
+The initial 600-second probe ended before the town. Comparison with the earlier
+successful run showed that this route can spend more than ten minutes before
+the opening menus advance. A longer bounded run was required; the short runs
+did not establish an allocator regression. All 42 patches, including reuse,
+are present in the town run. Their in-game reuse behavior was not separately
+measured. The patch stack also reconstructs consistently under both Git
+line-ending settings without changing the resulting source after CRLF normalization.
 
 ## Update 1.01 and DLC integration
 
@@ -702,7 +769,8 @@ conversion now retain the name through Quick Start to the **final avatar Review*
 Avatar confirmation now enters the **WKC1 opening movie**; completing GPU batches
 at guest flip boundaries prevents presentation from stalling at that transition.
 A later Vulkan run now reaches the town and responds to pause/resume input,
-with geometry and NPC material faults. Movement, camera control, combat and
+with geometry and NPC material faults. A later profiling run also verifies
+short town movement and camera response; sustained traversal, combat and
 save/load remain unverified.
 
 Vulkan is the primary Windows renderer. It now renders the avatar and room
@@ -838,7 +906,7 @@ Open audio issue: audible distortion in character-creation music. Device buffer
 starvation, guest mixer scheduling and source decoding have not yet been
 distinguished. Decoder comparisons do not establish real-time mixer fidelity.
 
-Correct town rendering, movement, camera control, combat, save/load, macOS
+Correct town rendering, sustained traversal, combat, save/load, macOS
 execution and online functionality.
 Fresh extraction, static generation and a full native build reproduce the
 startup route described above; later gameplay remains unverified.

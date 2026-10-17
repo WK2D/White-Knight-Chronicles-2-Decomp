@@ -30,7 +30,7 @@ uint32_t arg(ppu_context* c,unsigned n) { return uint32_t(c->gpr[3+n]); }
 void result(ppu_context* c,uint32_t v) { c->gpr[3]=uint64_t(int64_t(int32_t(v))); }
 struct Allocation { uint32_t address,size; bool acquired=false; };
 struct Elementary {
-    uint32_t handle=0,size=0,callback=0,user=0,major=0,minor=0;
+    uint32_t handle=0,size=0,capacity=0,callback=0,user=0,major=0,minor=0;
     bool enabled=true,flushing=false;
     Codec codec=Codec::mpeg2;
     Assembler assembler;
@@ -84,7 +84,7 @@ void release_block(Elementary& es,uint32_t address,uint32_t size) {
 }
 bool publish(const std::shared_ptr<Demuxer>& d,const std::shared_ptr<Elementary>& es,const AccessUnit& au) {
     uint64_t want=(au.data.size()+128+127)&~uint64_t(127);
-    if(want>es->size-128) throw std::runtime_error("access unit exceeds guest ES resource");
+    if(want>es->capacity) throw std::runtime_error("access unit exceeds guest ES resource");
     std::unique_lock l(d->mutex);
     auto block=es->free.end();
     d->changed.wait(l,[&] {
@@ -210,7 +210,8 @@ void enable_es(ppu_context* c) {
     auto es=std::make_shared<Elementary>(); es->handle=base; es->size=size;
     es->callback=r32(cb); es->user=r32(cb+4); es->major=major; es->minor=minor; es->codec=config.codec; es->assembler=Assembler(config.codec,config.pcm);
     uint32_t arena=uint32_t((uint64_t(base)+255)&~uint64_t(127))-base;
-    es->free.emplace(arena,(size-arena)&~127u);
+    es->capacity=(size-arena)&~127u;
+    es->free.emplace(arena,es->capacity);
     {std::lock_guard l(d->mutex); if(d->busy || d->closing || d->streams.size()>=16) {result(c,seq_error); return;}
      for(auto& [id,s]:d->streams) if(s->major==major && s->minor==minor) {result(c,arg_error); return;}
      std::lock_guard directory_lock(directory_mutex);

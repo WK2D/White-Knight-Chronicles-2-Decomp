@@ -8,16 +8,26 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-**Current status:** the native Vulkan build accepts the WKC1 avatar, advances
-through the opening cutscenes and reaches the live town view. Leonard, NPCs,
-the minimap and a save crystal are visible; pause/resume responds to input.
-Stretched geometry and corrupt NPC surfaces remain. Movement, camera control,
-combat and save/load have not been verified. Complete audio fidelity and timing
-against original hardware also remain unverified.
+**Current status:** the full 42-patch Windows Vulkan build reaches the WKC1
+town after avatar acceptance and opening cutscene skips. Short analog movement,
+facing changes, walking animation and camera rotation respond to input.
+Stretched geometry and corrupt NPC surfaces remain. Sustained traversal, combat,
+save/load and full audio fidelity remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-17 — Town movement and camera response
+
+The full 42-patch native build reaches the town and responds to left-stick
+movement and right-stick camera input. Successive GPU readbacks show walking,
+facing changes, a changed minimap position and a rotated view of the street.
+The SPU census was active throughout this run. This is limited starting-town
+input validation; sustained traversal, combat and save/load remain unverified.
+Stretched geometry and corrupt NPC surfaces are still visible.
+
+![Native WKC1 town after analog movement and camera rotation](../verification/screenshots/2026-10-17-native-wkc1-town-controls.png)
 
 ## 2026-10-16 — WKC1 town world view
 

@@ -6,6 +6,13 @@ static uint16_t read_button(unsigned index) {
     const uint8_t* p=vm_base+0x10004+index*2;
     return (uint16_t)((uint16_t)p[0]<<8|p[1]);
 }
+static void environment(const char* name,const char* value) {
+#ifdef _WIN32
+    assert(_putenv_s(name,value)==0);
+#else
+    assert(setenv(name,value,1)==0);
+#endif
+}
 static void request(const char* path,const char* line) {
     FILE* file=fopen(path,"wb");assert(file);
     assert(fputs(line,file)>=0);assert(fclose(file)==0);
@@ -21,8 +28,8 @@ static void sample(unsigned mask,unsigned lx,unsigned ly,unsigned rx,unsigned ry
 }
 int wkc2_test_pad_file(const char* path) {
     assert(!vm_base);
-    _putenv_s("PAD_FILE",path);_putenv_s("PAD_NO_KEYBOARD","1");
-    _putenv_s("PAD_STICK","128,128,128,128");
+    environment("PAD_FILE",path);environment("PAD_NO_KEYBOARD","1");
+    environment("PAD_STICK","128,128,128,128");
     vm_base=VirtualAlloc(NULL,(SIZE_T)UINT64_C(0x100000000),MEM_RESERVE,PAGE_READWRITE);assert(vm_base);
     assert(VirtualAlloc(vm_base+0x10000,0x10000,MEM_COMMIT,PAGE_READWRITE));
     assert(cellPadInit(1)==0);

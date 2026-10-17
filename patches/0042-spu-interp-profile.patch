@@ -1,0 +1,379 @@
+Record completed SPU interpreter and microstep fallback sessions; preserve atomic snapshots.
+
+diff --git a/runtime/spu/spu_channels.c b/runtime/spu/spu_channels.c
+--- a/runtime/spu/spu_channels.c
++++ b/runtime/spu/spu_channels.c
+@@ -17,6 +17,7 @@
+ #include "spu_helpers.h"   /* spu_splat_u32 / spu_ls_read128 (SMC microstep) */
+ #include "spu_lockstep.h"
+ #include "spu_interp.h"    /* spu_lifted_fn / spu_lifted_lookup -- defined below */
++#include "spu_interp_profile.h"
+ #include <stdint.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -1891,7 +1892,7 @@
+  * the small instruction set such stubs use, and exit back into lifted code at
+  * the first branch (trampoline re-dispatch). Returns 1 if it executed to a
+  * branch, 0 on an unknown opcode (caller falls through to BRANCH-TO-0). */
+-static int spu_smc_microstep(spu_context* ctx)
++static int spu_smc_microstep(spu_context* ctx, uint64_t* executed)
+ {
+     uint32_t pc = ctx->pc & SPU_LS_MASK & ~3u;
+     for (int steps = 0; steps < 4096; steps++) {
+@@ -1915,6 +1916,7 @@
+                 ctx->gpr[rt] = spu_splat_u32(pc + 4);
+             ctx->pc = tgt & SPU_LS_MASK & ~3u;
+             g_spu_trampoline_fn = spu_indirect_branch;
++            *executed = (uint64_t)steps + 1;
+             return 1;
+         }
+         if (op11 >= 0x128 && op11 <= 0x12B) {
+@@ -1932,6 +1934,7 @@
+             else if (w & 0x80000) ctx->int_enable = 0;
+             ctx->pc = ctx->gpr[ra]._u32[0] & SPU_LS_MASK & ~3u;
+             g_spu_trampoline_fn = spu_indirect_branch;
++            *executed = (uint64_t)steps + 1;
+             return 1;
+         }
+         if (op9 == 0x064 || op9 == 0x060 || op9 == 0x066 || op9 == 0x062) {
+@@ -1943,6 +1946,7 @@
+                 ctx->gpr[rt] = spu_splat_u32(pc + 4);
+             ctx->pc = tgt & SPU_LS_MASK & ~3u;
+             g_spu_trampoline_fn = spu_indirect_branch;
++            *executed = (uint64_t)steps + 1;
+             return 1;
+         }
+         if (op9 == 0x040 || op9 == 0x042 || op9 == 0x044 || op9 == 0x046) {
+@@ -1958,6 +1962,7 @@
+             if (!taken) { pc += 4; continue; }
+             ctx->pc = (pc + ((uint32_t)i16 << 2)) & SPU_LS_MASK & ~3u;
+             g_spu_trampoline_fn = spu_indirect_branch;
++            *executed = (uint64_t)steps + 1;
+             return 1;
+         }
+         if (op8 == 0x24) {                                    /* stqd rt,i10(ra) */
+@@ -2043,11 +2048,13 @@
+         /* Stop at the drain's return point too: it sits mid-function, so it is
+          * no lifted entry, and a job's return would otherwise run on through
+          * the caller's code (GH3's song-freeze; see drain_ret_pc). */
++        *executed = (uint64_t)steps; /* Handoff instruction belongs to the interpreter. */
+         return spu_interp_run_until(ctx, pc, ctx->drain_ret_pc) ? 1 : 0;
+     }
+     { static int _n = 0; if (_n++ < 4)
+         fprintf(stderr, "[spu-smc] microstep img=%d runaway (4096 steps from 0x%05X)\n",
+                 ctx->image_id, ctx->pc & SPU_LS_MASK); }
++    *executed = 4096;
+     return 0;
+ }
+ 
+@@ -2604,8 +2611,16 @@
+      * WWS jobmanager writes a save/restore stub above its static
+      * image and calls it). Interpret the live LS bytes; on success the next
+      * branch re-enters lifted code via the trampoline. */
+-    if (spu_smc_microstep(ctx))
+-        return;
++    { int profiled = spu_interp_profile_enabled();
++      uint32_t entry = ctx->pc & SPU_LS_MASK & ~3u;
++      uint64_t fingerprint = profiled ? spu_interp_fingerprint(ctx->ls, entry) : 0;
++      uint64_t microstep_steps = 0;
++      int handled = spu_smc_microstep(ctx, &microstep_steps);
++      if (profiled)
++          spu_interp_profile_record(SPU_PROFILE_MICROSTEP, ctx->image_id, entry,
++                                    fingerprint, microstep_steps);
++      if (handled)
++          return; }
+     /* Cap the unresolved-branch log PER IMAGE: a global cap let one noisy
+      * image (the FMOD mixer's overlay calls) exhaust it and silently hide
+      * every other image's misses -- LBP's loading jobs skipped their command
+diff --git a/runtime/spu/spu_interp.c b/runtime/spu/spu_interp.c
+--- a/runtime/spu/spu_interp.c
++++ b/runtime/spu/spu_interp.c
+@@ -6,6 +6,7 @@
+  * bit-identical. Uncommon opcodes trap loudly (never silently wrong).
+  */
+ #include "spu_interp.h"
++#include "spu_interp_profile.h"
+ #include "spu_helpers.h"
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -343,7 +344,10 @@
+     return spu_interp_run_until(ctx, start_lsa, 0);
+ }
+ 
+-uint32_t spu_interp_run_until(spu_context* ctx, uint32_t start_lsa, uint32_t stop_lsa) {
++/* Instructions interpreted by this thread's latest session, for the profile. */
++static SPU_THREAD_LOCAL uint64_t s_session_steps;
++
++static uint32_t interp_run_until(spu_context* ctx, uint32_t start_lsa, uint32_t stop_lsa) {
+     ctx->pc = start_lsa & 0x3FFFC;
+     ctx->status = SPU_STATUS_RUNNING;
+     uint64_t steps = 0;
+@@ -380,7 +384,7 @@
+          * un-lifted image (e.g. a title's raw SPU jobs) must never rejoin
+          * another image's functions that happen to share an LS address. */
+         /* ponytail: pc-only match; a recursive call through the same site would stop early -- compare r1 too if one shows up. */
+-        if (ctx->image_id >= 0 && ((stop_lsa && ctx->pc == stop_lsa) || spu_lifted_lookup(ctx, ctx->pc))) { g_spu_interp_steps = steps; g_spu_interp_last_pc = ctx->pc; return ctx->pc; }  /* rejoin fast path */
++        if (ctx->image_id >= 0 && ((stop_lsa && ctx->pc == stop_lsa) || spu_lifted_lookup(ctx, ctx->pc))) { g_spu_interp_steps = s_session_steps = steps; g_spu_interp_last_pc = ctx->pc; return ctx->pc; }  /* rejoin fast path */
+         g_spu_interp_last_pc = ctx->pc;
+         if (_g1>0) {
+             int inr = (ctx->pc >= 0x26E80u && ctx->pc < 0x26F14u);
+@@ -411,7 +415,7 @@
+             fprintf(stderr,"[spu-trace] LS ctx: RUN=%08X READY=%08X PEND=%08X ENA=%08X SIG=%08X WAIT=%08X | 2790=%08X 2794=%08X 27D8=%08X 2FB0=%08X\n",
+                 LB(0x2700),LB(0x2710),LB(0x2720),LB(0x2730),LB(0x2740),LB(0x2750),LB(0x2790),LB(0x2794),LB(0x27D8),LB(0x2FB0));
+             #undef LB
+-            fflush(stderr); _tr--; g_spu_interp_steps=steps; return 0x2000u;
++            fflush(stderr); _tr--; g_spu_interp_steps = s_session_steps = steps; return 0x2000u;
+         }
+         if (spu_step(ctx)) {
+             /* stop 0x110 = SYS_SPU_THREAD_STOP_RECEIVE_EVENT. The worker writes
+@@ -433,13 +437,25 @@
+                 ctx->status = SPU_STATUS_RUNNING;
+                 continue;
+             }
+-            g_spu_interp_steps = steps;
++            g_spu_interp_steps = s_session_steps = steps;
+             if (_tr>0) { fprintf(stderr,"[spu-trace] halt stop=0x%X pc=0x%05X after %llu steps; last %d PCs:",
+                     ctx->stop_code, ctx->pc, (unsigned long long)steps, rn);
+                 for(int k=rn;k>0;k--) fprintf(stderr," %05X", ring[(rc-k)&63]);
+                 fprintf(stderr,"\n"); fflush(stderr); _tr--; }
+             return ctx->stop_code; }
+     }
++}
++
++/* Every interpreter session enters here, so the profile sees all fallback use:
++ * computed-branch misses, microstep handoffs and pure-interpretation threads. */
++uint32_t spu_interp_run_until(spu_context* ctx, uint32_t start_lsa, uint32_t stop_lsa) {
++    if (!spu_interp_profile_enabled()) return interp_run_until(ctx, start_lsa, stop_lsa);
++    uint32_t entry = start_lsa & 0x3FFFC;
++    uint64_t fingerprint = spu_interp_fingerprint(ctx->ls, entry);
++    s_session_steps = 0;
++    uint32_t rc = interp_run_until(ctx, start_lsa, stop_lsa);
++    spu_interp_profile_record(SPU_PROFILE_INTERP, ctx->image_id, entry, fingerprint, s_session_steps);
++    return rc;
+ }
+ 
+ void spu_dispatch(spu_context* ctx, uint32_t target) {
+diff --git a/runtime/spu/spu_interp_profile.c b/runtime/spu/spu_interp_profile.c
+new file mode 100644
+--- /dev/null
++++ b/runtime/spu/spu_interp_profile.c
+@@ -0,0 +1,168 @@
++/* spu_interp_profile.c — see spu_interp_profile.h. */
++#include "spu_interp_profile.h"
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <time.h>
++
++/* SPU threads are real host threads; serialize the table and its file. */
++#ifdef _WIN32
++#ifndef WIN32_LEAN_AND_MEAN
++#define WIN32_LEAN_AND_MEAN
++#endif
++#include <windows.h>
++static volatile LONG s_state = -1;
++static int state_load(void) { return (int)InterlockedCompareExchange(&s_state, -1, -1); }
++static void state_store(int value) { InterlockedExchange(&s_state, value); }
++static SRWLOCK s_lock = SRWLOCK_INIT;
++static void profile_lock(void)   { AcquireSRWLockExclusive(&s_lock); }
++static void profile_unlock(void) { ReleaseSRWLockExclusive(&s_lock); }
++#else
++#include <pthread.h>
++#include <stdatomic.h>
++static atomic_int s_state = ATOMIC_VAR_INIT(-1);
++static int state_load(void) { return atomic_load_explicit(&s_state, memory_order_acquire); }
++static void state_store(int value) { atomic_store_explicit(&s_state, value, memory_order_release); }
++static pthread_mutex_t s_mtx = PTHREAD_MUTEX_INITIALIZER;
++static void profile_lock(void)   { pthread_mutex_lock(&s_mtx); }
++static void profile_unlock(void) { pthread_mutex_unlock(&s_mtx); }
++#endif
++
++#define PROFILE_LS_MASK  0x3FFFFu
++#define PROFILE_CODE_LEN 64u
++#define PROFILE_MAX      4096u
++
++typedef struct {
++    int      path, image_id;
++    uint32_t entry;
++    uint64_t fingerprint;
++    uint64_t sessions, steps, max_steps;
++} profile_row;
++
++static profile_row s_rows[PROFILE_MAX];
++static unsigned    s_count;
++static uint64_t    s_dropped;
++static time_t      s_written;
++static char        s_path[1024];
++
++static void write_table(void);
++
++int spu_interp_profile_enabled(void)
++{
++    if (state_load() < 0) {
++        profile_lock();
++        if (state_load() < 0) {
++            const char* e = getenv("SPU_INTERP_PROFILE");
++            if (e && *e && strlen(e) < sizeof s_path) {
++                strcpy(s_path, e);
++                atexit(spu_interp_profile_flush);
++                write_table(); /* An initialized but empty census is explicit. */
++                state_store(1);
++            } else {
++                state_store(0);
++            }
++        }
++        profile_unlock();
++    }
++    return state_load();
++}
++
++uint64_t spu_interp_fingerprint(const uint8_t* ls, uint32_t lsa)
++{
++    uint64_t h = 0xcbf29ce484222325ull;
++    for (uint32_t i = 0; i < PROFILE_CODE_LEN; i++) {
++        h ^= ls[(lsa + i) & PROFILE_LS_MASK];
++        h *= 0x100000001b3ull;
++    }
++    return h;
++}
++
++void spu_interp_profile_record(int path, int image_id, uint32_t entry,
++                               uint64_t fingerprint, uint64_t steps)
++{
++    if (!steps || !spu_interp_profile_enabled()) return;
++    profile_lock();
++    profile_row* row = NULL;
++    for (unsigned i = 0; i < s_count; i++) {
++        profile_row* r = &s_rows[i];
++        if (r->path == path && r->image_id == image_id && r->entry == entry &&
++            r->fingerprint == fingerprint) {
++            row = r; break;
++        }
++    }
++    int added = 0;
++    if (!row && s_count < PROFILE_MAX) {
++        row = &s_rows[s_count++];
++        memset(row, 0, sizeof *row);
++        row->path = path; row->image_id = image_id;
++        row->entry = entry; row->fingerprint = fingerprint;
++        added = 1;
++    }
++    if (row) {
++        row->sessions++;
++        row->steps += steps;
++        if (steps > row->max_steps) row->max_steps = steps;
++    } else {
++        s_dropped++;
++    }
++    /* A new row is the finding a run exists to report; write it at once. */
++    if (added || time(NULL) != s_written) write_table();
++    profile_unlock();
++}
++
++void spu_interp_profile_flush(void)
++{
++    if (!spu_interp_profile_enabled()) return;
++    profile_lock();
++    write_table();
++    profile_unlock();
++}
++
++static int by_steps(const void* a, const void* b)
++{
++    const profile_row* x = (const profile_row*)a;
++    const profile_row* y = (const profile_row*)b;
++    if (x->steps != y->steps) return x->steps < y->steps ? 1 : -1;
++    if (x->path != y->path) return x->path < y->path ? -1 : 1;
++    if (x->image_id != y->image_id) return x->image_id < y->image_id ? -1 : 1;
++    return x->entry < y->entry ? -1 : x->entry > y->entry;
++}
++
++/* Caller holds the lock. Replace the file whole so a reader, or a process
++ * killed mid-write, never sees a partial table under the final name. */
++static void write_table(void)
++{
++    static profile_row sorted[PROFILE_MAX];
++    s_written = time(NULL);
++    memcpy(sorted, s_rows, s_count * sizeof *sorted);
++    qsort(sorted, s_count, sizeof *sorted, by_steps);
++    char tmp[sizeof s_path + 4];
++    snprintf(tmp, sizeof tmp, "%s.tmp", s_path);
++    FILE* f = fopen(tmp, "wb");
++    if (!f) return;
++    uint64_t sessions = 0, steps = 0;
++    for (unsigned i = 0; i < s_count; i++) { sessions += sorted[i].sessions; steps += sorted[i].steps; }
++    fprintf(f, "# spu-interp-profile v1\n");
++    fprintf(f, "# rows=%u sessions=%llu steps=%llu dropped_sessions=%llu\n", s_count,
++            (unsigned long long)sessions, (unsigned long long)steps,
++            (unsigned long long)s_dropped);
++    fprintf(f, "path\timage\tentry\tfingerprint\tsessions\tsteps\tmax_steps\n");
++    for (unsigned i = 0; i < s_count; i++) {
++        const profile_row* r = &sorted[i];
++        fprintf(f, "%s\t%d\t0x%05X\t%016llX\t%llu\t%llu\t%llu\n",
++                r->path == SPU_PROFILE_MICROSTEP ? "microstep" : "interp", r->image_id, r->entry,
++                (unsigned long long)r->fingerprint, (unsigned long long)r->sessions,
++                (unsigned long long)r->steps, (unsigned long long)r->max_steps);
++    }
++    if (fclose(f) != 0) { remove(tmp); return; }
++#ifdef _WIN32
++    /* Keep the previous complete snapshot if the process dies or replacement
++     * fails. Deleting the destination before rename creates a data-loss gap. */
++    if (!MoveFileExA(tmp, s_path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
++        fprintf(stderr, "[spu-profile] snapshot replacement failed (%lu)\n", (unsigned long)GetLastError());
++#else
++    if (rename(tmp, s_path) != 0)
++        fprintf(stderr, "[spu-profile] snapshot replacement failed\n");
++#endif
++}
+diff --git a/runtime/spu/spu_interp_profile.h b/runtime/spu/spu_interp_profile.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/spu/spu_interp_profile.h
+@@ -0,0 +1,46 @@
++/* spu_interp_profile.h — opt-in census of SPU interpreter fallback use.
++ *
++ * SPU_INTERP_PROFILE=<path> records completed sessions of the SPU interpreter and of
++ * the runtime-code microstepper, keyed by path, image, entry address and a
++ * fingerprint of the code at that entry, so overlays that share an address stay
++ * distinct. Sessions that execute no instruction are not counted. The table is
++ * rewritten to <path> when a new entry appears and at most once a second
++ * otherwise. A stopped probe retains its latest complete snapshot. Unfinished
++ * or nonlocally exited sessions and updates since the last write can be absent.
++ * The 4096-row limit reports dropped sessions. Unset, hashing and file work are
++ * skipped. An empty census alone is not proof of interpreter-free execution.
++ *
++ * Steps count instructions each path executed itself; a microstep handoff to
++ * the interpreter is the interpreter's session. Lifted execution is not counted,
++ * so the table measures fallback volume, not its share of all execution.
++ */
++#ifndef SPU_INTERP_PROFILE_H
++#define SPU_INTERP_PROFILE_H
++
++#include <stdint.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/* Execution paths that run SPU code without a lifted body. */
++enum { SPU_PROFILE_INTERP = 0, SPU_PROFILE_MICROSTEP = 1 };
++
++/* Nonzero when SPU_INTERP_PROFILE names an output file. */
++int spu_interp_profile_enabled(void);
++
++/* FNV-1a over the 64 local-store bytes at lsa, wrapping at the LS end. */
++uint64_t spu_interp_fingerprint(const uint8_t* ls, uint32_t lsa);
++
++/* Count one session on path. fingerprint is taken at entry, before the
++ * session can rewrite its own code. */
++void spu_interp_profile_record(int path, int image_id, uint32_t entry,
++                               uint64_t fingerprint, uint64_t steps);
++
++/* Write the table now. Also runs at normal process exit. */
++void spu_interp_profile_flush(void);
++
++#ifdef __cplusplus
++}
++#endif
++#endif /* SPU_INTERP_PROFILE_H */

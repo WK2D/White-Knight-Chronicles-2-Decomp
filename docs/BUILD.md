@@ -1,6 +1,6 @@
 # Current Windows build workflow
 
-This builds the current hybrid recompilation/runtime project, including an
+This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
@@ -57,7 +57,7 @@ Movement, combat and save/load remain under investigation.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies the numbered runtime patches idempotently
-and runs 39 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs 42 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
@@ -68,9 +68,11 @@ The current suite also covers fragment-program cache identity, ordered surface
 clears, Windows PPU join lifetime and the shared draw engine's colour feedback.
 It also covers persistent DMA label polling, reuse of freed memory ranges and
 finite digital/analog input through the private controller probe file. The
-current build contains 41 numbered SDK patches; the published town capture
-was made with patches 0001–0039. Patches 0040/0041 pass standalone regressions
-but have not yet been exercised in a native game run.
+current build contains 42 numbered SDK patches; the published town capture
+was made with patches 0001–0039. A later run with all 42 patches now reaches
+the town and responds to short analog movement and camera input. Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
+regressions now pass on Windows. Native census results are recorded in the
+findings log.
 
 ## Windows renderer
 
@@ -109,6 +111,12 @@ It accepts an unchanged SDK or any known earlier prefix, including one already
 fully patched. Overlapping later patches do not make earlier patches appear
 missing. Unrecognized edits to affected files cause an error before any SDK
 source is changed.
+
+Reconstruction fixes Git's line-ending policy and tolerates whitespace in patch
+context for the upstream mixed CRLF/LF files. Known-prefix comparison still
+rejects unrelated source edits, including indentation changes. The full stack
+was checked with both line-ending settings and produced the same source after
+CRLF normalization.
 
 For periodic native Vulkan GPU readbacks, create a private directory and set
 `RSX_ENGINE_SNAP_DIR` to it and `RSX_ENGINE_SNAP_EVERY_S` to the interval in seconds
@@ -162,8 +170,8 @@ Patch 0040 incorporates the allocator fix reviewed from the
 and zeroes reused bytes. The old allocator exhausted its address window after
 two freed 96 MiB allocations despite reporting free memory. The Windows
 regression reproduces that failure and passes repeated cycles, zeroed reuse,
-gap filling, alignment and non-overlap with the fix. Native game behavior with
-this patch remains unverified. Review added protection for mapper reservations
+gap filling, alignment and non-overlap with the fix. The full 42-patch native run
+reaches the town; reuse behavior has not been isolated in-game. Review added protection for mapper reservations
 and shared mappings in the same address window; mixed-API cases fail without
 that protection and pass with it. The same branch's patch-0015 context correction
 applies to the pinned SDK without changing the reconstructed source.
@@ -175,8 +183,31 @@ left-stick up for 120 input polls. The existing `mask polls` format still works.
 After the hold expires, the underlying host/`PAD_STICK` state is restored.
 Incomplete or out-of-range numeric stick fields are rejected. The regression exercises
 the production guest input packet, finite holds, stick-only input, digital
-compatibility and invalid input. Native movement with this extension has not
-been tested. This probe is separate from the planned gamepad-operated keyboard.
+compatibility and invalid input. Short starting-town movement and camera response have now been observed
+in the full 42-patch native run; sustained traversal remains unverified. This probe is separate from the planned gamepad-operated keyboard.
+
+Patch 0042 adds an opt-in census to guide replacement of the remaining SPU
+fallback paths with validated static C/C++ implementations. Set
+`SPU_INTERP_PROFILE=<path>`, or pass `probe.ps1 -InterpProfile`. Completed
+interpreter and runtime-code microstep sessions are grouped by path, image,
+entry address and an FNV-1a fingerprint of the 64 local-store bytes at entry.
+The fingerprint distinguishes different entry windows, rather than identifying
+an entire overlay. Interpreter handoffs are counted separately from instructions
+the microstepper executes itself.
+
+The TSV records sessions, instructions and the longest session, sorted by
+instruction count. It writes new rows immediately and refreshes existing rows
+at most once a second. Initialization is synchronized across host threads;
+Windows file replacement retains the previous complete snapshot on failure.
+The default mode skips hashing, table updates and file output. Checks exercise
+actual interpreter execution, concurrent initialization, disabled mode, actual
+microstep dispatch and a handoff to the interpreter.
+
+This is a census of completed sessions, not proof of complete coverage.
+Unfinished or nonlocally exited sessions and updates since the latest snapshot
+can be absent after a forced stop. The 4096-row table reports dropped sessions.
+Lifted instructions are not counted, so it does not measure fallback's share
+of all execution. An empty table alone must not trigger removal of the fallback.
 
 ## Movie decoding
 
@@ -551,12 +582,16 @@ analysis directory. Probes record the last observed guest flip and presented-fra
 counts every five seconds; these counters alone do not verify visible content.
 `-CaptureFrames` saves four backend BMP readbacks by default in a private probe
 subdirectory. `-CaptureFrameCount`, `-CaptureEvery` and `-CaptureSkip` select a
-longer sampling interval; probes accept durations up to 600 seconds, with each
+longer sampling interval; probes accept durations up to 3600 seconds, with each
 host wait bounded to five seconds. `PAD_SCRIPT` can supply timed controller pulses
 through the SDK's controller path; the probe records that script in its result.
 Capture suppresses the runner's pre-flip placeholder presents, changing
 presentation timing for diagnostics. `WKC2_THREADS=1` adds guest thread register
-snapshots at each progress report.
+snapshots at each progress report. `-InterpProfile` writes the SPU interpreter
+census described under patch 0042 to `work/probes/<tag>.spu-interp.tsv`.
+Use `-Executable <private-executable>` to inspect a separately prepared build.
+The current WKC1 loading route can exceed ten minutes, so a 600-second probe
+alone may not reach the town. Use a longer bounded run for that route.
 `tools/trace_calls.py` optionally adds opt-in return/argument
 tracing to selected generated functions. Those diagnostics are disabled unless
 `WKC2_TRACE_CALLS=1` is set.

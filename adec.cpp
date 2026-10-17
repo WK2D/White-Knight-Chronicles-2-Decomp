@@ -187,7 +187,7 @@ void run(const std::shared_ptr<Decoder>& d) {
         uint32_t hz=f.hz;
         if(d->codec==2) {
             if(!decode_ac3(*d,c,pcm,frames,size,hz)) {
-                {std::lock_guard l(d->mutex);d->used[c.slot]=false;d->failed=true;d->accepting=false;}
+                {std::lock_guard l(d->mutex);d->used[c.slot]=false;d->failed=true;}
                 notify(d,0,c.au_address);notify(d,2,fatal);continue;
             }
         } else for(uint32_t n=0;n<frames;++n) for(uint32_t ch=0;ch<f.channels;++ch) {

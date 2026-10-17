@@ -25,17 +25,23 @@ static uint32_t call(const char* name,std::initializer_list<uint64_t> args) {
     ppu_context c{}; unsigned i=3; for(auto a:args) c.gpr[i++]=a;
     handlers.at(ps3_compute_nid(name))(&c); return uint32_t(c.gpr[3]);
 }
-static std::atomic<unsigned> consumed=0,produced=0,ended=0;
+static std::atomic<unsigned> consumed=0,produced=0,ended=0,failed=0;
 static void callback(uint32_t opd,uint64_t h,uint64_t type,uint64_t data,uint64_t user,uint64_t,uint64_t,uint64_t,uint64_t) {
     assert(opd==0x11223344 && h==0x10000 && user==0x12345678);
     if(type==0) {assert(data==0x1600); ++consumed;}
     else if(type==1) {assert(!data); ++produced;}
+    else if(type==2) {assert(uint32_t(data)==0x80610001); ++failed;}
     else {assert(type==3 && !data); ++ended;}
 }
 extern "C" {ps3_guest_caller_fn g_ps3_guest_caller=callback;}
 template<class P> static void wait_until(P p) {
     auto end=std::chrono::steady_clock::now()+std::chrono::seconds(3);
-    while(!p()) {assert(std::chrono::steady_clock::now()<end); std::this_thread::yield();}
+    while(!p()) {
+        if(std::chrono::steady_clock::now()>=end)
+            std::fprintf(stderr,"Audio wait timed out: consumed=%u produced=%u ended=%u failed=%u\n",
+                         consumed.load(),produced.load(),ended.load(),failed.load());
+        assert(std::chrono::steady_clock::now()<end); std::this_thread::yield();
+    }
 }
 static void start(unsigned channels,unsigned depth,unsigned payload) {
     w32(0x1400,channels); w32(0x1404,1); w32(0x1408,depth); w32(0x140C,payload);
@@ -54,6 +60,7 @@ static void end() {
     wait_until([&]{return ended.load()==e+1;});
 }
 int main(int argc,char** argv) {
+    std::setvbuf(stdout,nullptr,_IONBF,0);
     wkc2_register_adec(); assert(handlers.size()==8);
     bool ac3=argc==5 && std::strcmp(argv[1],"ac3")==0;
     w32(0x1000,ac3?2:1); assert(call("cellAdecQueryAttr",{0x1000,0x1100})==0);
@@ -100,7 +107,21 @@ int main(int argc,char** argv) {
                 assert(!std::memcmp(memory.data()+0x3000,expected.data()+size_t(read_count)*1536*channels*4,1536*channels*4));
                 ++read_count;
             }
-            producer.join();assert(submitted);end();
+            producer.join();assert(submitted);
+            std::printf("AC3 pass %u decoded; testing sequence completion\n",pass);
+            if(pass==0) {
+                // Two frames in one AU violate the decoder's single-frame
+                // contract without relying on FFmpeg's error concealment.
+                // EndSeq must still drain so StartSeq can recover.
+                auto [offset,frame_size]=packets.front();
+                assert(frame_size*2<=3840);
+                std::memcpy(memory.data()+0x1800,input.data()+offset,frame_size);
+                std::memcpy(memory.data()+0x1800+frame_size,input.data()+offset,frame_size);
+                auto errors=failed.load();submit(unsigned(frame_size*2));
+                wait_until([&]{return failed.load()==errors+1;});
+                assert(call("cellAdecDecodeAu",{0x10000,0x1600})==0x80610002);
+            }
+            end();
             std::printf("AC3 pass %u: %u frames, %u channels; every sample matches\n",pass,read_count,channels);
         }
         assert(call("cellAdecClose",{0x10000})==0);wkc2_shutdown_adec();return 0;

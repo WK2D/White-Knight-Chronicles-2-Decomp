@@ -120,6 +120,20 @@ int main() {
     wait_until([&]{return found.load()>=before+15;});
     assert(done.load()==2);
     assert(call("cellDmuxClose",{0x10000})==0);
-    assert(errors.load()==0); wkc2_shutdown_dmux();
+    assert(errors.load()==0);
+    // The aligned arena at an unaligned resource base is only 3840 bytes.
+    // A 3800-byte AU needs 3968 including its record: reject rather than wait
+    // forever for a block larger than the entire arena.
+    setup(0x20010);
+    std::vector<uint8_t> oversized(3800,0x55);
+    oversized[0]=oversized[1]=0;oversized[2]=1;oversized[3]=0;oversized[4]=0;oversized[5]=8;
+    input=pes(0xE0,oversized);
+    auto boundary=pes(0xE0,std::vector<uint8_t>{0,0,1,0,0,8,1,2,3});
+    input.insert(input.end(),boundary.begin(),boundary.end());
+    std::memcpy(memory.data()+0x40000,input.data(),input.size());
+    assert(call("cellDmuxSetStream",{0x10000,0x40000,input.size(),1,0x1122334455667788ull})==0);
+    wait_until([]{return errors.load()==1;});
+    assert(call("cellDmuxClose",{0x10000})==0);
+    wkc2_shutdown_dmux();
     std::puts("Demux guest callback, backpressure, AU lifetime and shutdown checks passed");
 }

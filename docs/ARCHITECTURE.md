@@ -61,10 +61,13 @@ that a supported WKC modding framework currently exists.
 
 ## Remaining CPU work
 
-The intended interpreter-free execution path still requires identifying the
-runtime-generated SPU code, replacing supported cases with statically compiled
-or specific native implementations, and checking their behavior. Disabling the
-interpreter without replacing that work would break execution.
+The intended interpreter-free path requires covering missing SPU entries and
+any runtime-generated code with validated static or specific native implementations.
+The first census finds six entry fingerprints in image 17 matching the
+corresponding windows in the extracted SPU image. These are candidates for improving static
+entry discovery. The three primary entry hints produce a Windows-compilable
+private lift; its behavior and native execution have not been verified.
+Disabling the interpreter before validating replacements would break execution.
 
 Validation must measure fallback use along tested routes. Boot, rendering or
 gameplay milestones must not be presented as proof of fully static CPU coverage.
