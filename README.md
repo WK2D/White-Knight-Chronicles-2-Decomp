@@ -31,6 +31,11 @@ The latest image shows the live WKC1 town after short analog movement and
 camera rotation. Stretched geometry and corrupt NPC surfaces remain. Earlier
 captures are in the [gallery](docs/GALLERY.md).
 
+The latest runtime review fixes callback-stack placement, thread lifetime and
+graphics-copy handling bugs. Town comparisons still show the visible faults;
+tracing confirms unimplemented NV0039 memory copies as the next graphics task.
+See the [validation results](docs/FINDINGS.md#second-runtime-review).
+
 Verified progress, with the latest milestone first:
 
 - reaches the **live WKC1 town** after avatar acceptance and opening cutscene
@@ -46,7 +51,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **43 Windows runtime regression checks** with **44 SDK patches** applied.
+- passes **48 Windows runtime regression checks** with **51 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. Geometry and material faults
@@ -132,7 +137,7 @@ coverage report distinguishes handler presence from verified implementation.
 - **WKC1 town world view and pause/resume:** observed on the native Vulkan build
   after the opening cutscenes. Geometry and NPC materials remain visibly corrupt.
 - **Initial town controls:** short analog movement, facing changes and camera
-  rotation first observed on the 42-patch build and rechecked with all 44 patches.
+  rotation first observed on the 42-patch build and rechecked with all 51 patches.
 - **Sustained traversal, combat and save/load verification:** pending.
 - **In-game keyboard with gamepad navigation, shared across Windows and macOS:**
   planned. The current Windows text-entry window is temporary.

@@ -1,0 +1,22 @@
+A negative SPU_CRI_IMAGE matches no context; -1 is the pure-interpretation
+image id and used to inherit the CRI task special cases.
+
+diff --git a/runtime/spu/spu_context.h b/runtime/spu/spu_context.h
+--- a/runtime/spu/spu_context.h
++++ b/runtime/spu/spu_context.h
+@@ -32,7 +32,14 @@ static inline int spu_cri_image(void)
+ #else
+     static __thread int v = -2;
+ #endif
+-    if (v == -2) { const char* e = getenv("SPU_CRI_IMAGE"); v = e ? atoi(e) : 22; }
++    if (v == -2) {
++        const char* e = getenv("SPU_CRI_IMAGE");
++        v = e ? atoi(e) : 22;
++        /* Disabled must match no context. image_id -1 is a real one (pure
++         * interpretation under RD_SPU_INTERP): matching it gave every
++         * interpreted SPU thread the CRI task's EXIT and syscall handling. */
++        if (v < 0) v = -0x7FFFFFFF;
++    }
+     return v;
+ }
+ 

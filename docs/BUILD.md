@@ -4,10 +4,10 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Verified on 2026-10-17:** the full 44-patch Windows Vulkan build reaches the
+**Verified on 2026-10-17:** the full 51-patch Windows Vulkan build reaches the
 live WKC1 town and responds to short analog movement, walking/facing changes,
 and camera rotation. Earlier town testing also verified pause/resume input.
-The current build passes 43 runtime checks. Town geometry and NPC materials
+The current build passes 48 runtime checks with 51 SDK patches. Town geometry and NPC materials
 still have visible faults; sustained traversal, combat and save/load remain unverified. See the
 [latest gallery entry](GALLERY.md).
 
@@ -64,7 +64,7 @@ and save/load remain unverified, and rendering faults remain.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies the numbered runtime patches idempotently
-and runs 43 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs 48 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
@@ -75,9 +75,13 @@ The current suite also covers fragment-program cache identity, ordered surface
 clears, Windows PPU join lifetime and the shared draw engine's colour feedback.
 It also covers persistent DMA label polling, reuse of freed memory ranges and
 finite digital/analog input through the private controller probe file. The
-current build contains 44 numbered SDK patches. The newest published town-controls
-capture uses 42; the earlier town world-view capture used 39. Patch 0043 and all
-43 runtime checks pass on Windows; its effect on town rendering is checked separately.
+current build contains 51 numbered SDK patches. The newest published town-controls
+capture uses 42; the earlier town world-view capture used 39. Patch 0043 passed
+the earlier 43-check Windows suite and remains covered by the current suite;
+its town-rendering comparison is recorded separately.
+Patch 0045's three float-mode checks and patches 0046-0051's new and extended
+checks pass in the native Windows clang-cl build. The full 48-check suite
+passes with all 51 patches; Wine's MinGW TLS workaround is not needed here.
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
@@ -263,6 +267,134 @@ to save `vs_<fingerprint>.bin` alongside each newly created pipeline's HLSL and
 fragment-program diagnostics. The raw vertex programs can be scanned with the
 same command above. `RSX_CAP_GEOMETRY` alone selects the older D3D12 capture path
 and does not collect these inputs from Vulkan. Dumped game programs stay private.
+
+Patch 0045 tests whether SPU floating-point differences cause the remaining
+geometry faults. Patch 0028 gave `FNMS` the SPU single-precision rules:
+truncation, denormal inputs read as zero, exponent 255 as a finite value, and
+saturation on overflow. `FA`, `FS`, `FM`, `FMA`, `FMS`, the four integer/float
+conversions and the four compares still use host IEEE arithmetic, which rounds
+to nearest, keeps denormals and treats exponent 255 as infinity or NaN.
+`SPU_FLOAT_MODE` selects the behavior at startup:
+
+| Value | Behavior |
+| --- | --- |
+| unset | Host results, unchanged from earlier builds |
+| `audit` | Host results; lanes that differ from the SPU rules are counted per instruction as `rounding` (one unit, both normal) or `special` |
+| `exact` | SPU rules for all thirteen instructions |
+
+Audit logs each count when it reaches a power of two, with one sample of the
+input and both results, and prints a summary at normal exit. A town run in
+`audit` mode shows whether these differences occur. A run in `exact` mode shows
+whether they cause the stretched geometry or the NPC surface faults.
+
+The original bodies remain as `spu_*_host`; the helpers test one flag and call
+out-of-line code in `spu_float_mode.c` only when a mode is set. In a Linux
+benchmark of memory-fed transform-like chains, the default measured the same
+as before (3.6 ns per vector operation); exact and audit measured about 29 ns.
+The SPU sources are built without hardware FMA. With `-mfma` the unmodified
+helpers vectorize further (1.0 ns) and the default measured 2.8 ns, so revisit
+this dispatch if those flags are enabled.
+
+Host `CFLTS`/`CFLTU` previously converted a NaN through an undefined cast. They
+now return `0x80000000` and `0`, the values x86 produced. Other default-mode
+results are unchanged.
+
+The regression compares the general SPU routine with patch 0028's `FNMS` on
+four million random operand sets, covering every exponent. It also checks sums,
+products and fused results against an exact double-precision reference with
+truncation, with fixed SPU edge cases and the vector helpers in all three
+modes. The SDK's SPU helper and numeric tests give identical results in
+default and exact modes. The three float-mode checks also pass on Windows
+with clang-cl; Linux runs included AddressSanitizer and UBSan. Native audit
+and exact runs also reach the WKC1 town. Audit records both rounding and
+special differences; exact mode still shows Leonard's stretched strip and
+corrupt NPC surfaces. Host arithmetic remains the default. See the
+[native results](FINDINGS.md#second-runtime-review) for scope and limits.
+
+Patch 0046 moves the guest stacks that host threads use to call guest code
+(GCM flip and vblank handlers, sysutil and other HLE callbacks) out of RSX
+local memory. Patch 0007 placed them at fixed addresses from 0xC7FF0000 to
+0xCFFF0000, one 1 MiB slot per host thread; the SDK code it replaced used
+0xCFFE0000. `cellGcmSys.c` reports 256 MiB of local memory at 0xC0000000, so
+these frames lay in the top half of video memory, and each callback overwrote
+whatever the title had placed below its slot's top: textures, vertex buffers
+or render targets. Slots now come from the PPU stack allocator at 0xD0000000,
+with the same guard page as thread stacks, and keep their memory for reuse.
+The 51-patch native town recheck still shows the stretched geometry and NPC
+surface faults. This combined run does not isolate patch 0046's effect.
+`wkc2_callback_stack` checks that every slot and nested slice lies in the stack
+region with room for the callee's register saves, and fails against the
+earlier runtime.
+
+Patch 0047 fixes PPU thread lifetime. `sys_ppu_thread_create` ignored its
+flags, so a thread created without `SYS_PPU_THREAD_CREATE_JOINABLE` kept its
+slot after it ended, waiting for a join that lv2 would refuse; once the
+64-entry thread table filled, creation failed with EAGAIN. A detached thread that ended through
+`sys_ppu_thread_exit` was freed by the exit and then marked finished by its
+host epilogue, which leaked the slot or overwrote a thread that had reused it.
+Each started thread now ends once, in its epilogue, which wakes the joiner
+under the table lock. As in lv2, joining oneself returns EDEADLK, a second
+joiner gets EINVAL and detaching a thread being joined gets EBUSY. Released
+guest stacks are reused, zeroed, instead of taking new stack region for every
+creation, which ran out (ENOMEM) after about 250 threads with the default
+1 MiB stack. The SDK's two
+self-checks that join a thread now create it joinable.
+`wkc2_ppu_thread_lifetime` ends 192 detached and 128 joinable threads,
+including exits from a nested guest context, and checks the error codes,
+detaching a running thread, zeroed reuse and that stack region use stops
+growing. It fails against the earlier runtime. It passes on Linux under
+AddressSanitizer/UBSan and ThreadSanitizer, whose only reports are the test's
+own polling. The Windows path of this test and the existing `wkc2_ppu_join`
+pass under Wine with a MinGW build.
+
+Patch 0048: `cellSpursJobGuardReset` restored the guard's current reset value,
+which a guard without autoReset sets to zero when it releases. Such a guard
+stayed open after a reset and ran its job again without a notify. Reset now
+restores the initial notify count, as lv2's does. `wkc2_spurs_job` adds a
+two-guard lap that fails against the earlier runtime; it passes under Wine.
+
+Patch 0049: `SPU_CRI_IMAGE=-1`, which this runner sets, is also the image id
+of pure SPU interpretation (`RD_SPU_INTERP`). Interpreted SPU threads matched
+the CRI checks and received that task's EXIT, syscall and DMA special cases.
+A negative value now matches no context. Runs without `RD_SPU_INTERP` are
+unaffected. `wkc2_spu_title_*` adds an image -1 task that must end at its
+first EXIT; that check is part of the game executable and runs in the native
+suite. The selector itself was checked on Linux.
+
+Patch 0050 corrects NV3089 scaled-image blits, which the FIFO walker performs
+in guest memory for both renderers. `IMAGE_IN` gives the source point in 12.4
+fixed point; the copy loops shifted it as if it were 12.12, so any start below
+256 pixels was dropped and the copy read from the source origin. The point is
+now read as RPCS3 reads it, including the half-pixel offset of a centre origin.
+Centred unit copies from the origin, the common case, are unchanged. X8R8G8B8
+sources (format 4) were skipped because the accepted list had R5G6B5 and Y8
+labelled as the 32-bit formats; they are now copied like A8R8G8B8, as in RPCS3.
+`wkc2_nv3089_blit` drives the walker's own NV3062/NV3089 methods for unit,
+offset, centred and 2:1 copies through both the row and per-pixel paths, and
+for X8R8G8B8 and R5G6B5 sources. It fails against the earlier runtime.
+
+Patch 0051 keeps 2D-object methods out of the shared draw engine's 3D state.
+The FIFO walker mirrors every method into the engine, which masked off the
+subchannel and so stored NV3062, NV308A and NV3089 methods in NV4097
+registers at the same offsets: a scaled blit's `SET_OPERATION` and
+`IMAGE_OUT_POINT` became the alpha-test and blend enables of the following
+draws, and an inline transfer's pitch and point did the same to alpha test.
+The engine now ignores subchannels 2-6, which the walker treats as 2D objects,
+and subchannel 1 when `GCM_SUBCH1_2D` is set. `RSX_ENGINE_ALL_SUBCHANNELS=1`
+restores the old behaviour. This affects the Vulkan path only; D3D12 never
+received these methods. `wkc2_draw_engine` adds a check that a blit and an
+inline transfer between two draws leave blending and alpha test unchanged; it
+fails against the earlier runtime.
+
+The native town comparison with `RSX_ENGINE_ALL_SUBCHANNELS=1` still shows
+the same target faults. Neither route establishes a correction of the
+stretched strip or NPC surfaces. An empty private `GCM_SUBCH_GATE` file,
+created for ten seconds in town, confirms complete NV0039 transfer sequences
+on subchannel 1. Those copies remain unimplemented and their methods still
+reach 3D state. Adding the transfer handler and correct routing is the next
+graphics fix; its effect on these faults has not been verified. Both default
+float runs log inline writes, with no skipped-NV3089 or unhandled-2D messages.
+Absence of those messages does not prove complete copy support.
 
 ## Movie decoding
 

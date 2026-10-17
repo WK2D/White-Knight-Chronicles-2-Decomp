@@ -65,6 +65,24 @@ int main(void) {
  assert(cellSpursCreateJobChain(0x100,0x8000,commands,128,1,0,1,1)==CELL_OK);
  assert(cellSpursRunJobChain(0x8000)==CELL_OK);
  assert(cellSpursJoinJobChain(0x8000)==CELL_OK);assert(jobs_seen==200);
+ // A guard without autoReset stays open after its release; Reset restores
+ // the initial count, so the next lap waits again. B ends each lap.
+ {
+  const u32 lap=0x2000,chain=0xC000,a=0xC080,b=0xC180;LONG initial=jobs_seen;
+  vm_write64(lap,a|15);vm_write64(lap+8,job);vm_write64(lap+16,b|15);vm_write64(lap+24,lap|3);
+  assert(cellSpursCreateJobChain(0x100,chain,lap,128,1,0,1,1)==CELL_OK);
+  assert(cellSpursJobGuardInitialize(chain,a,1,1,0)==CELL_OK);
+  assert(cellSpursJobGuardInitialize(chain,b,1,1,1)==CELL_OK);
+  assert(cellSpursRunJobChain(chain)==CELL_OK);
+  Sleep(20);assert(jobs_seen==initial);
+  assert(cellSpursJobGuardNotify(a)==CELL_OK);wait_jobs(initial+1);
+  assert(cellSpursJobGuardReset(a)==CELL_OK);
+  assert(cellSpursJobGuardNotify(b)==CELL_OK);
+  Sleep(20);assert(jobs_seen==initial+1);
+  assert(cellSpursJobGuardNotify(a)==CELL_OK);wait_jobs(initial+2);
+  assert(cellSpursShutdownJobChain(chain)==CELL_OK);
+  assert(cellSpursJoinJobChain(chain)==CELL_OK);assert(jobs_seen==initial+2);
+ }
  // JOBLIST descriptors are published before releasing the guard. Each list
  // carries its own descriptor size; preserve array order and following jobs.
  const u32 list=0x5000,first=0x5100,chain=0xB000,guard=0xA000;

@@ -1,0 +1,300 @@
+Add SPU_FLOAT_MODE: SPU single-precision rules (exact) or an audit of
+host/SPU differences for FA, FS, FM, FMA, FMS, conversions and compares.
+
+diff --git a/runtime/spu/spu_float_mode.c b/runtime/spu/spu_float_mode.c
+new file mode 100644
+--- /dev/null
++++ b/runtime/spu/spu_float_mode.c
+@@ -0,0 +1,127 @@
++/* spu_float_mode.c — SPU_FLOAT_MODE selection and the non-host paths of the
++ * single-precision helpers (see spu_helpers.h).
++ *
++ * The mode is read once. A port calls spu_float_mode_init() before starting
++ * SPU threads; until then g_spu_float_mode is -1 and the helpers come here,
++ * which initializes it. Audit mode counts lanes whose host result differs
++ * from the SPU result and logs each count that reaches a power of two, with
++ * one sample, so a long run stays readable. "rounding" is a one-unit
++ * difference between two normal results of the same sign; every other
++ * difference is "special".
++ */
++#include "spu_helpers.h"
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++#ifdef _WIN32
++#ifndef WIN32_LEAN_AND_MEAN
++#define WIN32_LEAN_AND_MEAN
++#endif
++#include <windows.h>
++static SRWLOCK s_lock = SRWLOCK_INIT;
++static void mode_lock(void)   { AcquireSRWLockExclusive(&s_lock); }
++static void mode_unlock(void) { ReleaseSRWLockExclusive(&s_lock); }
++static uint64_t count_add(volatile int64_t* c) { return (uint64_t)InterlockedIncrement64(c); }
++#else
++#include <pthread.h>
++static pthread_mutex_t s_mtx = PTHREAD_MUTEX_INITIALIZER;
++static void mode_lock(void)   { pthread_mutex_lock(&s_mtx); }
++static void mode_unlock(void) { pthread_mutex_unlock(&s_mtx); }
++static uint64_t count_add(volatile int64_t* c) { return (uint64_t)__atomic_add_fetch(c, 1, __ATOMIC_RELAXED); }
++#endif
++
++int g_spu_float_mode = -1;
++
++static const char* const s_names[SPU_FOP_COUNT] = {
++    "FA", "FS", "FM", "FMA", "FMS", "CFLTS", "CFLTU", "CSFLT", "CUFLT",
++    "FCEQ", "FCGT", "FCMEQ", "FCMGT",
++};
++static volatile int64_t s_counts[SPU_FOP_COUNT][2];
++
++static void audit_summary(void)
++{
++    fprintf(stderr, "[spu-float] audit summary (lanes differing from SPU results):\n");
++    for (int op = 0; op < SPU_FOP_COUNT; op++)
++        if (s_counts[op][0] || s_counts[op][1])
++            fprintf(stderr, "[spu-float]   %-5s rounding=%lld special=%lld\n", s_names[op],
++                    (long long)s_counts[op][0], (long long)s_counts[op][1]);
++    fflush(stderr);
++}
++
++int spu_float_mode_init(void)
++{
++    mode_lock();
++    if (g_spu_float_mode < 0) {
++        const char* e = getenv("SPU_FLOAT_MODE");
++        int mode = SPU_FLOAT_HOST;
++        if (e && !strcmp(e, "exact")) mode = SPU_FLOAT_EXACT;
++        else if (e && !strcmp(e, "audit")) mode = SPU_FLOAT_AUDIT;
++        if (mode != SPU_FLOAT_HOST)
++            fprintf(stderr, "[spu-float] SPU_FLOAT_MODE=%s\n", mode == SPU_FLOAT_EXACT ? "exact" : "audit");
++        if (mode == SPU_FLOAT_AUDIT) atexit(audit_summary);
++        g_spu_float_mode = mode;
++    }
++    int mode = g_spu_float_mode;
++    mode_unlock();
++    return mode;
++}
++
++uint64_t spu_float_audit_count(int op, int special)
++{
++    if (op < 0 || op >= SPU_FOP_COUNT) return 0;
++    return (uint64_t)s_counts[op][special ? 1 : 0];
++}
++
++static int is_normal(uint32_t x) { uint32_t e = (x >> 23) & 255; return e && e != 255; }
++
++static void audit(int op, uint32_t a, uint32_t b, uint32_t host, uint32_t spu)
++{
++    int float_result = op <= SPU_FOP_FMS || op == SPU_FOP_CSFLT || op == SPU_FOP_CUFLT;
++    uint32_t gap = host > spu ? host - spu : spu - host;
++    int rounding = float_result && is_normal(host) && is_normal(spu) &&
++                   (host >> 31) == (spu >> 31) && gap == 1;
++    uint64_t n = count_add(&s_counts[op][rounding ? 0 : 1]);
++    if (n & (n - 1)) return;
++    mode_lock();
++    fprintf(stderr, "[spu-float] %s %s #%llu: a=%08X b=%08X host=%08X spu=%08X\n",
++            s_names[op], rounding ? "rounding" : "special", (unsigned long long)n,
++            a, b, host, spu);
++    fflush(stderr);
++    mode_unlock();
++}
++
++static int mode(void)
++{
++    int m = g_spu_float_mode;
++    return m >= 0 ? m : spu_float_mode_init();
++}
++
++/* Start from the host lanes; exact replaces them, audit reports differences. */
++#define LANES(OP, HOST, A, B, SPU_EXPR)                                         \
++    u128 r = (HOST);                                                            \
++    int m = mode();                                                             \
++    if (m == SPU_FLOAT_HOST) return r;                                          \
++    for (int i = 0; i < 4; i++) {                                               \
++        uint32_t spu = (SPU_EXPR);                                              \
++        if (m == SPU_FLOAT_EXACT) r._u32[i] = spu;                              \
++        else if (r._u32[i] != spu) audit(OP, (A), (B), r._u32[i], spu);         \
++    }                                                                           \
++    return r
++
++#define MASK(c) ((c) ? 0xFFFFFFFFu : 0u)
++
++u128 spu_fa_mode(const u128* pa, const u128* pb) { u128 a = *pa, b = *pb; LANES(SPU_FOP_FA, spu_fa_host(a, b), a._u32[i], b._u32[i], spu_sf_fused(a._u32[i], 0x3f800000u, b._u32[i], 0, 0)); }
++u128 spu_fs_mode(const u128* pa, const u128* pb) { u128 a = *pa, b = *pb; LANES(SPU_FOP_FS, spu_fs_host(a, b), a._u32[i], b._u32[i], spu_sf_fused(a._u32[i], 0x3f800000u, b._u32[i], 0, 1)); }
++u128 spu_fm_mode(const u128* pa, const u128* pb) { u128 a = *pa, b = *pb; LANES(SPU_FOP_FM, spu_fm_host(a, b), a._u32[i], b._u32[i], spu_sf_fused(a._u32[i], b._u32[i], 0, 0, 0)); }
++u128 spu_fma_mode(const u128* pa, const u128* pb, const u128* pc) { u128 a = *pa, b = *pb, c = *pc; LANES(SPU_FOP_FMA, spu_fma_host(a, b, c), a._u32[i], b._u32[i], spu_sf_fused(a._u32[i], b._u32[i], c._u32[i], 0, 0)); }
++u128 spu_fms_mode(const u128* pa, const u128* pb, const u128* pc) { u128 a = *pa, b = *pb, c = *pc; LANES(SPU_FOP_FMS, spu_fms_host(a, b, c), a._u32[i], b._u32[i], spu_sf_fused(a._u32[i], b._u32[i], c._u32[i], 0, 1)); }
++u128 spu_cflts_mode(const u128* pa, int i8) { u128 a = *pa; LANES(SPU_FOP_CFLTS, spu_cflts_host(a, i8), a._u32[i], (uint32_t)i8, spu_sf_cflt(a._u32[i], i8, 1)); }
++u128 spu_cfltu_mode(const u128* pa, int i8) { u128 a = *pa; LANES(SPU_FOP_CFLTU, spu_cfltu_host(a, i8), a._u32[i], (uint32_t)i8, spu_sf_cflt(a._u32[i], i8, 0)); }
++u128 spu_csflt_mode(const u128* pa, int i8) { u128 a = *pa; LANES(SPU_FOP_CSFLT, spu_csflt_host(a, i8), a._u32[i], (uint32_t)i8, spu_sf_cvflt(a._u32[i], i8, 1)); }
++u128 spu_cuflt_mode(const u128* pa, int i8) { u128 a = *pa; LANES(SPU_FOP_CUFLT, spu_cuflt_host(a, i8), a._u32[i], (uint32_t)i8, spu_sf_cvflt(a._u32[i], i8, 0)); }
++u128 spu_fceq_mode(const u128* pa, const u128* pb) { u128 a = *pa, b = *pb; LANES(SPU_FOP_FCEQ, spu_fceq_host(a, b), a._u32[i], b._u32[i], MASK(spu_sf_order(a._u32[i]) == spu_sf_order(b._u32[i]))); }
++u128 spu_fcgt_mode(const u128* pa, const u128* pb) { u128 a = *pa, b = *pb; LANES(SPU_FOP_FCGT, spu_fcgt_host(a, b), a._u32[i], b._u32[i], MASK(spu_sf_order(a._u32[i]) > spu_sf_order(b._u32[i]))); }
++u128 spu_fcmeq_mode(const u128* pa, const u128* pb) { u128 a = *pa, b = *pb; LANES(SPU_FOP_FCMEQ, spu_fcmeq_host(a, b), a._u32[i], b._u32[i], MASK(spu_sf_magnitude(a._u32[i]) == spu_sf_magnitude(b._u32[i]))); }
++u128 spu_fcmgt_mode(const u128* pa, const u128* pb) { u128 a = *pa, b = *pb; LANES(SPU_FOP_FCMGT, spu_fcmgt_host(a, b), a._u32[i], b._u32[i], MASK(spu_sf_magnitude(a._u32[i]) > spu_sf_magnitude(b._u32[i]))); }
+diff --git a/runtime/spu/spu_helpers.h b/runtime/spu/spu_helpers.h
+--- a/runtime/spu/spu_helpers.h
++++ b/runtime/spu/spu_helpers.h
+@@ -273,23 +273,62 @@ static inline u128 spu_rotqbii(u128 a, int sh) { sh&=7; if(!sh) return a;
+     uint64_t nhi=(hi<<sh)|(lo>>(64-sh)), nlo=(lo<<sh)|(hi>>(64-sh));
+     u128 r; r._u32[0]=(uint32_t)(nhi>>32); r._u32[1]=(uint32_t)nhi; r._u32[2]=(uint32_t)(nlo>>32); r._u32[3]=(uint32_t)nlo; return r; }
+ 
+-/* ---- single-precision float (4 lanes) ---- */
+-static inline u128 spu_fa(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._f32[i]=a._f32[i]+b._f32[i]; return r; }
+-static inline u128 spu_fs(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._f32[i]=a._f32[i]-b._f32[i]; return r; }
++/* ---- single-precision float (4 lanes) ----
++ * The host bodies (spu_*_host) are IEEE: round to nearest, denormals kept,
++ * exponent 255 read as Inf/NaN, overflow to Inf. SPU single precision
++ * truncates, reads denormals as zero, treats exponent 255 as finite and
++ * saturates. SPU_FLOAT_MODE=exact applies the SPU rules to FA, FS, FM, FMA,
++ * FMS, the four conversions and the four compares; audit keeps the host
++ * results and reports lanes where the two differ (spu_float_mode.c). Unset
++ * runs the host bodies after one flag test. FNMS always uses the SPU rules
++ * (spu_sf_fnms). */
++enum { SPU_FLOAT_HOST = 0, SPU_FLOAT_EXACT = 1, SPU_FLOAT_AUDIT = 2 };
++enum { SPU_FOP_FA, SPU_FOP_FS, SPU_FOP_FM, SPU_FOP_FMA, SPU_FOP_FMS,
++       SPU_FOP_CFLTS, SPU_FOP_CFLTU, SPU_FOP_CSFLT, SPU_FOP_CUFLT,
++       SPU_FOP_FCEQ, SPU_FOP_FCGT, SPU_FOP_FCMEQ, SPU_FOP_FCMGT, SPU_FOP_COUNT };
++extern int g_spu_float_mode;   /* -1 until spu_float_mode_init(), then the mode */
++int spu_float_mode_init(void);
++uint64_t spu_float_audit_count(int op, int special);
++/* Operands by address keep the inline host path free of call-ABI moves. */
++u128 spu_fa_mode(const u128* a, const u128* b);
++u128 spu_fs_mode(const u128* a, const u128* b);
++u128 spu_fm_mode(const u128* a, const u128* b);
++u128 spu_fma_mode(const u128* a, const u128* b, const u128* c);
++u128 spu_fms_mode(const u128* a, const u128* b, const u128* c);
++u128 spu_cflts_mode(const u128* a, int i8);
++u128 spu_cfltu_mode(const u128* a, int i8);
++u128 spu_csflt_mode(const u128* a, int i8);
++u128 spu_cuflt_mode(const u128* a, int i8);
++u128 spu_fceq_mode(const u128* a, const u128* b);
++u128 spu_fcgt_mode(const u128* a, const u128* b);
++u128 spu_fcmeq_mode(const u128* a, const u128* b);
++u128 spu_fcmgt_mode(const u128* a, const u128* b);
++static inline u128 spu_fa_host(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._f32[i]=a._f32[i]+b._f32[i]; return r; }
++static inline u128 spu_fs_host(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._f32[i]=a._f32[i]-b._f32[i]; return r; }
++static inline u128 spu_fa(u128 a, u128 b) { return g_spu_float_mode ? spu_fa_mode(&a,&b) : spu_fa_host(a,b); }
++static inline u128 spu_fs(u128 a, u128 b) { return g_spu_float_mode ? spu_fs_mode(&a,&b) : spu_fs_host(a,b); }
+ 
+ /* RI8 scale: float-to-int uses 2^(173-i8), int-to-float 2^(i8-155).
+  * The canonical immediates 173 and 155 are identity conversions. */
+-static inline u128 spu_cflts(u128 a, int i8){ u128 r; double f=exp2((double)(173-i8));
+-    for(int i=0;i<4;i++){ double v=(double)a._f32[i]*f; if(v>2147483647.0)v=2147483647.0; if(v<-2147483648.0)v=-2147483648.0; r._s32[i]=(int32_t)v; } return r; }
+-static inline u128 spu_cfltu(u128 a, int i8){ u128 r; double f=exp2((double)(173-i8));
+-    for(int i=0;i<4;i++){ double v=(double)a._f32[i]*f; if(v<0)v=0; if(v>4294967295.0)v=4294967295.0; r._u32[i]=(uint32_t)v; } return r; }
+-static inline u128 spu_csflt(u128 a, int i8){ u128 r; double f=exp2((double)(i8-155));
++/* A host NaN keeps the value x86 conversion gave it, without the undefined cast. */
++static inline u128 spu_cflts_host(u128 a, int i8){ u128 r; double f=exp2((double)(173-i8));
++    for(int i=0;i<4;i++){ double v=(double)a._f32[i]*f; if(v!=v)v=-2147483648.0; if(v>2147483647.0)v=2147483647.0; if(v<-2147483648.0)v=-2147483648.0; r._s32[i]=(int32_t)v; } return r; }
++static inline u128 spu_cfltu_host(u128 a, int i8){ u128 r; double f=exp2((double)(173-i8));
++    for(int i=0;i<4;i++){ double v=(double)a._f32[i]*f; if(v!=v)v=0; if(v<0)v=0; if(v>4294967295.0)v=4294967295.0; r._u32[i]=(uint32_t)v; } return r; }
++static inline u128 spu_csflt_host(u128 a, int i8){ u128 r; double f=exp2((double)(i8-155));
+     for(int i=0;i<4;i++) r._f32[i]=(float)((double)a._s32[i]*f); return r; }
+-static inline u128 spu_cuflt(u128 a, int i8){ u128 r; double f=exp2((double)(i8-155));
++static inline u128 spu_cuflt_host(u128 a, int i8){ u128 r; double f=exp2((double)(i8-155));
+     for(int i=0;i<4;i++) r._f32[i]=(float)((double)a._u32[i]*f); return r; }
+-static inline u128 spu_fm(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._f32[i]=a._f32[i]*b._f32[i]; return r; }
+-static inline u128 spu_fma(u128 a, u128 b, u128 c)  { u128 r; for(int i=0;i<4;i++) r._f32[i]=fmaf(a._f32[i], b._f32[i], c._f32[i]); return r; }
+-static inline u128 spu_fms(u128 a, u128 b, u128 c)  { u128 r; for(int i=0;i<4;i++) r._f32[i]=fmaf(a._f32[i], b._f32[i], -c._f32[i]); return r; }
++static inline u128 spu_fm_host(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._f32[i]=a._f32[i]*b._f32[i]; return r; }
++static inline u128 spu_fma_host(u128 a, u128 b, u128 c)  { u128 r; for(int i=0;i<4;i++) r._f32[i]=fmaf(a._f32[i], b._f32[i], c._f32[i]); return r; }
++static inline u128 spu_fms_host(u128 a, u128 b, u128 c)  { u128 r; for(int i=0;i<4;i++) r._f32[i]=fmaf(a._f32[i], b._f32[i], -c._f32[i]); return r; }
++static inline u128 spu_cflts(u128 a, int i8) { return g_spu_float_mode ? spu_cflts_mode(&a,i8) : spu_cflts_host(a,i8); }
++static inline u128 spu_cfltu(u128 a, int i8) { return g_spu_float_mode ? spu_cfltu_mode(&a,i8) : spu_cfltu_host(a,i8); }
++static inline u128 spu_csflt(u128 a, int i8) { return g_spu_float_mode ? spu_csflt_mode(&a,i8) : spu_csflt_host(a,i8); }
++static inline u128 spu_cuflt(u128 a, int i8) { return g_spu_float_mode ? spu_cuflt_mode(&a,i8) : spu_cuflt_host(a,i8); }
++static inline u128 spu_fm(u128 a, u128 b) { return g_spu_float_mode ? spu_fm_mode(&a,&b) : spu_fm_host(a,b); }
++static inline u128 spu_fma(u128 a, u128 b, u128 c) { return g_spu_float_mode ? spu_fma_mode(&a,&b,&c) : spu_fma_host(a,b,c); }
++static inline u128 spu_fms(u128 a, u128 b, u128 c) { return g_spu_float_mode ? spu_fms_mode(&a,&b,&c) : spu_fms_host(a,b,c); }
+ /* SPU single-precision extended range: exponent 255 is finite, exponent 0
+  * flushes to zero. Form c-a*b with integer significands, then truncate to
+  * 24 bits. This avoids host NaNs and host floating-point rounding modes. */
+@@ -330,8 +369,71 @@ static inline u128 spu_fnms(u128 a,u128 b,u128 c) {
+     for(int i=0;i<4;i++) r._u32[i]=spu_sf_fnms(a._u32[i],b._u32[i],c._u32[i]);
+     return r;
+ }
+-static inline u128 spu_fceq(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._u32[i]=(a._f32[i]==b._f32[i])?0xFFFFFFFFu:0; return r; }
+-static inline u128 spu_fcgt(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._u32[i]=(a._f32[i]>b._f32[i])?0xFFFFFFFFu:0; return r; }
++/* (+-a*b) + (+-c) under the same rules as spu_sf_fnms, which is the
++ * negate_product case. FM passes c = 0; FA and FS pass b = 1.0. */
++static inline uint32_t spu_sf_fused(uint32_t a,uint32_t b,uint32_t c,int negate_product,int negate_addend) {
++    if(negate_addend) c^=0x80000000u;
++    int ea=(int)((a>>23)&255),eb=(int)((b>>23)&255),ec=(int)((c>>23)&255);
++    if(!ea || !eb) return ec ? c : 0;
++    uint64_t product=(uint64_t)((a&0x7fffffu)|0x800000u)*((b&0x7fffffu)|0x800000u);
++    uint64_t addend=ec ? ((c&0x7fffffu)|0x800000u) : 0;
++    int pe=ea+eb-300,ce=ec-150;
++    int pt=pe+(int)spu_sf_msb64(product);
++    int ct=addend ? ce+(int)spu_sf_msb64(addend) : pt;
++    int unit=(pt>ct ? pt : ct)-61;
++    uint64_t p=spu_sf_align(product,unit-pe),q=addend ? spu_sf_align(addend,unit-ce) : 0;
++    uint32_t ps=((a^b)&0x80000000u)^(negate_product ? 0x80000000u : 0),cs=c&0x80000000u,sign;
++    uint64_t magnitude;
++    if(ps==cs) { magnitude=p+q;sign=ps; }
++    else if(p>=q) { magnitude=p-q;sign=ps; }
++    else { magnitude=q-p;sign=cs; }
++    if(!magnitude) return 0;
++    unsigned top=spu_sf_msb64(magnitude);
++    int exponent=unit+(int)top+127;
++    if(exponent<=0) return 0;
++    if(exponent>255) return sign|0x7fffffffu;
++    uint64_t sig=top>23 ? magnitude>>(top-23) : magnitude<<(23-top);
++    return sign|((uint32_t)exponent<<23)|((uint32_t)sig&0x7fffffu);
++}
++/* CFLTS/CFLTU: a * 2^(173-i8), truncated and saturated. Exponent 255 is a
++ * finite value, so it saturates by sign rather than converting a host NaN. */
++static inline uint32_t spu_sf_cflt(uint32_t a, int i8, int is_signed) {
++    int e=(int)((a>>23)&255);
++    if(!e) return 0;
++    int negative=(a>>31)!=0;
++    if(negative && !is_signed) return 0;
++    uint32_t limit=is_signed ? (negative ? 0x80000000u : 0x7fffffffu) : 0xffffffffu;
++    int shift=e+23-i8;   /* value = 24-bit significand * 2^shift */
++    uint64_t sig=(a&0x7fffffu)|0x800000u, magnitude;
++    if(shift>=40) magnitude=UINT64_MAX;
++    else if(shift>=0) magnitude=sig<<shift;
++    else magnitude=-shift>=64 ? 0 : sig>>-shift;
++    if(magnitude>limit) magnitude=limit;
++    return negative ? (uint32_t)(0u-(uint32_t)magnitude) : (uint32_t)magnitude;
++}
++/* CSFLT/CUFLT: integer * 2^(i8-155), truncated to 24 bits, saturated. */
++static inline uint32_t spu_sf_cvflt(uint32_t a, int i8, int is_signed) {
++    uint32_t sign=(is_signed && (a>>31)) ? 0x80000000u : 0;
++    uint32_t magnitude=sign ? 0u-a : a;
++    if(!magnitude) return 0;
++    unsigned top=31u-(unsigned)spu_clz32(magnitude);
++    int exponent=(int)top+i8-155+127;
++    if(exponent<=0) return 0;
++    if(exponent>255) return sign|0x7fffffffu;
++    uint32_t sig=top>23 ? magnitude>>(top-23) : magnitude<<(23-top);
++    return sign|((uint32_t)exponent<<23)|(sig&0x7fffffu);
++}
++/* Compare order: denormals equal zero; exponent 255 is an ordinary value. */
++static inline int64_t spu_sf_order(uint32_t x) {
++    if(!((x>>23)&255)) return 0;
++    int64_t m=(int64_t)(x&0x7fffffffu);
++    return (x>>31) ? -m : m;
++}
++static inline int64_t spu_sf_magnitude(uint32_t x) { return ((x>>23)&255) ? (int64_t)(x&0x7fffffffu) : 0; }
++static inline u128 spu_fceq_host(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._u32[i]=(a._f32[i]==b._f32[i])?0xFFFFFFFFu:0; return r; }
++static inline u128 spu_fcgt_host(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._u32[i]=(a._f32[i]>b._f32[i])?0xFFFFFFFFu:0; return r; }
++static inline u128 spu_fceq(u128 a, u128 b) { return g_spu_float_mode ? spu_fceq_mode(&a,&b) : spu_fceq_host(a,b); }
++static inline u128 spu_fcgt(u128 a, u128 b) { return g_spu_float_mode ? spu_fcgt_mode(&a,&b) : spu_fcgt_host(a,b); }
+ 
+ /* ---- SPU double-precision (2 doubles/reg; dword i = words 2i(high),2i+1(low)).
+  * Reassemble via _u32 -- our u128 is host-LE, so a naive _f64[i] would SWAP the
+@@ -448,8 +550,10 @@ static inline u128 spu_mpyh(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++) r._s3
+ static inline u128 spu_mpyhh(u128 a, u128 b){ u128 r; for(int i=0;i<4;i++) r._s32[i]=(int32_t)a._s16[2*i+1] * (int32_t)b._s16[2*i+1]; return r; }
+ static inline u128 spu_mpys(u128 a, u128 b) { u128 r; for(int i=0;i<4;i++){ int32_t p=(int32_t)a._s16[2*i]*(int32_t)b._s16[2*i]; r._s32[i]=(int16_t)(p>>16); } return r; }
+ static inline u128 spu_mpyui(u128 a, int32_t imm) { u128 r; for(int i=0;i<4;i++) r._u32[i]=(uint32_t)a._u16[2*i]*(uint32_t)(uint16_t)imm; return r; }
+-static inline u128 spu_fcmeq(u128 a, u128 b){ u128 r; for(int i=0;i<4;i++){ float fa=fabsf(a._f32[i]),fb=fabsf(b._f32[i]); r._u32[i]=(fa==fb)?0xFFFFFFFFu:0; } return r; }
+-static inline u128 spu_fcmgt(u128 a, u128 b){ u128 r; for(int i=0;i<4;i++){ float fa=fabsf(a._f32[i]),fb=fabsf(b._f32[i]); r._u32[i]=(fa>fb)?0xFFFFFFFFu:0; } return r; }
++static inline u128 spu_fcmeq_host(u128 a, u128 b){ u128 r; for(int i=0;i<4;i++){ float fa=fabsf(a._f32[i]),fb=fabsf(b._f32[i]); r._u32[i]=(fa==fb)?0xFFFFFFFFu:0; } return r; }
++static inline u128 spu_fcmgt_host(u128 a, u128 b){ u128 r; for(int i=0;i<4;i++){ float fa=fabsf(a._f32[i]),fb=fabsf(b._f32[i]); r._u32[i]=(fa>fb)?0xFFFFFFFFu:0; } return r; }
++static inline u128 spu_fcmeq(u128 a, u128 b) { return g_spu_float_mode ? spu_fcmeq_mode(&a,&b) : spu_fcmeq_host(a,b); }
++static inline u128 spu_fcmgt(u128 a, u128 b) { return g_spu_float_mode ? spu_fcmgt_mode(&a,&b) : spu_fcmgt_host(a,b); }
+ static const uint32_t spu_frest_fraction_lut[32] = {
+     0x7FFBE0, 0x7F87A6, 0x70EF72, 0x708B40, 0x638B12, 0x633AEA, 0x5792C4, 0x574AA0,
+     0x4CCA7E, 0x4C9262, 0x430A44, 0x42D62A, 0x3A2E12, 0x39FDFA, 0x3215E4, 0x31F1D2,

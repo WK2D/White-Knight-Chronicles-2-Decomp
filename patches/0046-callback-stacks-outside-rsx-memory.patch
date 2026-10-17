@@ -1,0 +1,91 @@
+Allocate HLE->guest callback stacks from the PPU stack region instead of
+fixed addresses inside RSX local memory (0xC7FF0000-0xCFFF0000).
+
+diff --git a/runtime/ppu/guest_callback_stack.hpp b/runtime/ppu/guest_callback_stack.hpp
+--- a/runtime/ppu/guest_callback_stack.hpp
++++ b/runtime/ppu/guest_callback_stack.hpp
+@@ -1,8 +1,10 @@
+ /* Each host callback thread needs distinct guest stack memory. A TLS variable
+  * containing the same constant address does not provide that isolation.
+  * Slots are returned when the host thread exits; nested callbacks use a separate
+- * 64 KiB slice within their thread's 1 MiB slot. This range is outside WKC2's
+- * mapped heaps and below the normal PPU thread-stack region.
++ * 64 KiB slice within their thread's 1 MiB slot. A slot's memory comes from the
++ * PPU thread-stack allocator the first time it is leased and is kept for reuse.
++ * The fixed addresses used before (0xC7FF0000-0xCFFF0000) are RSX local
++ * memory, so every callback frame overwrote whatever the title had placed there.
+  */
+ #pragma once
+ #include <array>
+@@ -11,16 +13,27 @@
+ #include <cstdlib>
+ #include <mutex>
+ 
++/* sys_ppu_thread.c: a guarded stack from the 0xD0000000 stack region, 0 if full. */
++extern "C" uint32_t ppu_callback_stack_allocate(uint32_t size);
++
+ namespace ps3recomp {
+ class GuestCallbackStack {
+-    struct Pool { std::mutex mutex; std::array<bool,128> used{}; };
++    static constexpr uint32_t slot_bytes=0x100000, nest_bytes=0x10000;
++    /* The callee saves LR and CR in its caller's frame, above the incoming SP;
++     * keep those writes inside the slot instead of the next stack's guard page. */
++    static constexpr uint32_t top_reserve=0x100;
++    struct Pool { std::mutex mutex; std::array<bool,128> used{}; std::array<uint32_t,128> base{}; };
+     static Pool& pool() { static Pool value; return value; }
+     struct Lease {
+         unsigned slot=128;
++        uint32_t base=0;
+         Lease() {
+             auto& p=pool(); std::lock_guard l(p.mutex);
+             for(unsigned i=0;i<p.used.size();++i) if(!p.used[i]) {p.used[i]=true; slot=i; break;}
+             if(slot==128) {std::fputs("[ppu] guest callback stack pool exhausted\n",stderr); std::abort();}
++            if(!p.base[slot]) p.base[slot]=ppu_callback_stack_allocate(slot_bytes);
++            if(!p.base[slot]) {std::fputs("[ppu] guest stack region has no room for a callback stack\n",stderr); std::abort();}
++            base=p.base[slot];
+         }
+         ~Lease() {auto& p=pool(); std::lock_guard l(p.mutex); p.used[slot]=false;}
+     };
+@@ -28,7 +41,7 @@ class GuestCallbackStack {
+     static unsigned& depth() {static thread_local unsigned value=0; return value;}
+ public:
+     const uint32_t top;
+-    GuestCallbackStack():top(0xCFFF0000u-lease().slot*0x100000u-depth()*0x10000u) {
++    GuestCallbackStack():top(lease().base+slot_bytes-top_reserve-depth()*nest_bytes) {
+         if(depth()>=16) {std::fputs("[ppu] guest callback nesting exceeds stack slot\n",stderr); std::abort();}
+         ++depth();
+     }
+diff --git a/runtime/syscalls/sys_ppu_thread.c b/runtime/syscalls/sys_ppu_thread.c
+--- a/runtime/syscalls/sys_ppu_thread.c
++++ b/runtime/syscalls/sys_ppu_thread.c
+@@ -94,6 +94,17 @@ static ppu_thread_info* find_thread(uint64_t thread_id)
+     return t;
+ }
+ 
++/* Guest stack for a host thread that calls into guest code
++ * (guest_callback_stack.hpp): same region, guard page and lock as thread
++ * stacks. RSX local memory sits directly below this region. */
++uint32_t ppu_callback_stack_allocate(uint32_t size)
++{
++    table_lock();
++    uint32_t base = vm_stack_allocate(&g_vm_stack_alloc, size);
++    table_unlock();
++    return base;
++}
++
+ /* ---------------------------------------------------------------------------
+  * Host thread entry point
+  * -----------------------------------------------------------------------*/
+diff --git a/runtime/syscalls/sys_ppu_thread.h b/runtime/syscalls/sys_ppu_thread.h
+--- a/runtime/syscalls/sys_ppu_thread.h
++++ b/runtime/syscalls/sys_ppu_thread.h
+@@ -89,6 +89,9 @@ int64_t sys_ppu_thread_create(ppu_context* ctx);
+  * Call before the first sys_ppu_thread_create so no created thread aliases
+  * main (thread_id 0 broke every owner-tracking sync primitive). */
+ uint64_t ppu_thread_register_main(void);
++/* A guarded guest stack from the PPU stack region for a host thread that
++ * calls into guest code (guest_callback_stack.hpp). Returns 0 when full. */
++uint32_t ppu_callback_stack_allocate(uint32_t size);
+ int64_t sys_ppu_thread_exit(ppu_context* ctx);
+ int64_t sys_ppu_thread_join(ppu_context* ctx);
+ int64_t sys_ppu_thread_detach(ppu_context* ctx);

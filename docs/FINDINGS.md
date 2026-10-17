@@ -2,12 +2,12 @@
 
 Updated 2026-10-17. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current milestone:** the full 44-patch native Windows Vulkan build reaches
+**Current milestone:** the full 51-patch native Windows Vulkan build reaches
 the live WKC1 town and responds to short analog movement, facing/walking changes,
 and camera rotation. Earlier town testing also verified pause/resume input.
-All 43 current runtime checks pass. Geometry and NPC material faults remain; sustained
+All 48 current runtime checks pass. Geometry and NPC material faults remain; sustained
 traversal, combat and save/load are unverified.
-See [the latest recheck](#vertex-program-co-issue-review) and [gallery](GALLERY.md).
+See [the latest recheck](#second-runtime-review) and [gallery](GALLERY.md).
 
 ## Goal and reporting
 
@@ -722,6 +722,68 @@ are present in the town run. Their in-game reuse behavior was not separately
 measured. The patch stack also reconstructs consistently under both Git
 line-ending settings without changing the resulting source after CRLF normalization.
 
+## Second runtime review
+
+Reviewed source changes from `claude-suggestions` at `a54d99c` add patches
+0045-0051. Windows Vulkan builds with clang-cl and passes all **48 project
+checks**, including the new PPU-thread-lifetime and NV3089-copy tests, the
+extended callback-stack, SPURS, draw-engine and title-selection tests, and
+all three SPU float modes. No MinGW TLS workaround was needed. The separately
+regenerated disc-input build also compiles with this runtime.
+
+The default-float town run `20261017-040537` repeats short movement and camera
+rotation. Leonard's stretched strip and corrupt NPC surfaces remain in both
+the live opening scene and town. Applying these seven patches together has
+not corrected those faults in this run; this does not isolate each patch's
+individual effect.
+
+Repeating the town route with `RSX_ENGINE_ALL_SUBCHANNELS=1` (probe
+`20261017-043029`, still using default float arithmetic) shows both faults
+again. This qualitative comparison did not establish a correction of either
+fault from patch 0051; it is not a pixel-identical output comparison or proof
+about every use of the graphics state. That run's ten-second town trace
+contains another 39 complete NV0039 sequences.
+
+Patch 0045's native `audit` run (`20261017-045114`) and `exact` run
+(`20261017-052058`) also reach town. Both still show the stretched strip and
+corrupt NPC surfaces. Applying the thirteen SPU float instructions' exact
+rules did not correct either target fault on this route; the default remains
+host arithmetic. This is not proof that all floating-point differences are
+harmless elsewhere.
+
+The audit reports both rounding and special differences. Its largest logged
+power-of-two counts include at least 8,589,934,592 differing FMA rounding
+lanes, 2,147,483,648 FM special lanes and 16,777,216 CFLTU special lanes.
+These are whole-process lower bounds, including non-graphics SPU work,
+rather than final totals, graphics-only counts or a percentage of execution.
+The process was stopped after validation, so the normal-exit summary did not
+run. Full per-instruction lower bounds are in
+[rendering.json](../verification/rendering.json).
+
+A ten-second town trace using an empty private `GCM_SUBCH_GATE` file contains
+**33 complete NV0039 copy sequences** on subchannel 1: DMA bindings, source and
+destination offsets, pitches, byte and line counts, format, and copy triggers.
+This confirms actual memory-to-memory copy use, beyond the ambiguous presence
+of individual register addresses. The runtime has no NV0039 transfer handler
+and normally sends these methods into its 3D state. Implementing the copies
+and routing them to the correct engine is the next concrete graphics fix.
+Its effect on the visible faults remains unverified.
+
+The run logs contain six inline-write messages (the diagnostic's cap), no
+`[NV3089] SKIPPED` messages and no `[GCM2D-UNH]` messages. The latter absence
+does not establish complete copy support: the subchannel-1 transfers above
+silently take the 3D path. Full logs, command values and captures stay private.
+Both short town traces contain subchannels 1, 3 and 5, with no methods on 6
+or 7 in those windows. This does not rule out NV3089 activity before the
+traced frames or elsewhere in the game.
+The default-float run's fallback census retains the same six entry
+fingerprints, with 2,221 completed sessions and 9,628 instructions in its
+final snapshot. Fallback remains enabled. The four runs' checked aggregate
+records and comparison-frame hashes are in
+[rendering.json](../verification/rendering.json). Their captures show no
+new correction of these faults, so the gallery retains its earlier town
+image rather than adding another equivalent milestone.
+
 ## Vertex-program co-issue review
 
 Patch 0043 incorporates the vertex-program translation fixes reviewed from
@@ -937,7 +999,7 @@ SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
 Twenty checks passed at this checkpoint. The title screen and its menu rendered
-natively; the current suite has 42 passing checks.
+natively; the current suite has 48 passing checks.
 
 Packed A4R4G4B4 font textures were excluded by the D3D12 binding filter, leaving
 previous artwork selected for text draws. The backend now records the current

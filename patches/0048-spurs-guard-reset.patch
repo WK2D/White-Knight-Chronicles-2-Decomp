@@ -1,0 +1,36 @@
+cellSpursJobGuardReset restores the initial notify count, so a guard
+without autoReset closes again after it has released.
+
+diff --git a/libs/spurs/cellSpurs.c b/libs/spurs/cellSpurs.c
+--- a/libs/spurs/cellSpurs.c
++++ b/libs/spurs/cellSpurs.c
+@@ -2390,6 +2390,7 @@ typedef struct JobGuard {
+     u32 ea;
+     u32 chain_ea;
+     u32 count, reset, pending, auto_reset;
++    u32 initial;            /* notifyCount, which Reset restores */
+     struct JobGuard* next;
+ } JobGuard;
+ /* Guards are guest objects, not one-per-workload slots. A title can keep
+@@ -2431,7 +2432,7 @@ s32 cellSpursJobGuardInitialize(u64 jc_ea, u64 guard_ea, u32 notify_count,
+     }
+     g->ea = ea;
+     g->chain_ea = (u32)jc_ea;
+-    g->count = g->reset = notify_count;
++    g->count = g->reset = g->initial = notify_count;
+     g->pending = 0;
+     g->auto_reset = auto_reset;
+ 
+@@ -2485,8 +2486,11 @@ s32 cellSpursJobGuardReset(u64 guard_ea)
+         ReleaseSRWLockExclusive(&s_jobguard_lock);
+         return CELL_SPURS_TASK_ERROR_INVAL;
+     }
++    /* A guard without autoReset opened for good when it released (reset 0);
++     * Reset closes it again with the count it was initialized with, as
++     * cellSpursJobGuardReset does (ncount0 = ncount1). */
+     g->pending = 0;
+-    g->count = g->reset;
++    g->count = g->reset = g->initial;
+     vm_write32(ea, g->count);
+     ReleaseSRWLockExclusive(&s_jobguard_lock);
+     return CELL_OK;

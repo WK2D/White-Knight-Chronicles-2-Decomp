@@ -371,7 +371,8 @@ if(WKC2_BUILD_TESTS)
     add_test(NAME wkc2_spurs_abi COMMAND wkc2_spurs_abi_test)
     set_tests_properties(wkc2_spurs_abi PROPERTIES TIMEOUT 10)
     add_executable(wkc2_spu_interp_profile_test tests/spu_interp_profile_test.c
-        "${PS3RECOMP_DIR}/runtime/spu/spu_interp.c" "${PS3RECOMP_DIR}/runtime/spu/spu_interp_profile.c")
+        "${PS3RECOMP_DIR}/runtime/spu/spu_interp.c" "${PS3RECOMP_DIR}/runtime/spu/spu_interp_profile.c"
+        "${PS3RECOMP_DIR}/runtime/spu/spu_float_mode.c")
     target_include_directories(wkc2_spu_interp_profile_test PRIVATE
         "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/spu")
     target_link_libraries(wkc2_spu_interp_profile_test PRIVATE Threads::Threads)
@@ -387,6 +388,23 @@ if(WKC2_BUILD_TESTS)
         COMMAND ${CMAKE_COMMAND} -E env --unset=SPU_INTERP_PROFILE
             $<TARGET_FILE:wkc2_spu_interp_profile_test> "${SPU_INTERP_PROFILE_FIXTURE}.off" 0)
     set_tests_properties(wkc2_spu_interp_profile_off PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_spu_float_mode_test tests/spu_float_mode_test.c
+        "${PS3RECOMP_DIR}/runtime/spu/spu_float_mode.c")
+    target_include_directories(wkc2_spu_float_mode_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/spu")
+    target_link_libraries(wkc2_spu_float_mode_test PRIVATE Threads::Threads)
+    if(NOT WIN32)
+        target_link_libraries(wkc2_spu_float_mode_test PRIVATE m)
+    endif()
+    add_test(NAME wkc2_spu_float_host
+        COMMAND ${CMAKE_COMMAND} -E env --unset=SPU_FLOAT_MODE
+            $<TARGET_FILE:wkc2_spu_float_mode_test> host)
+    add_test(NAME wkc2_spu_float_exact COMMAND wkc2_spu_float_mode_test exact)
+    add_test(NAME wkc2_spu_float_audit COMMAND wkc2_spu_float_mode_test audit)
+    set_tests_properties(wkc2_spu_float_exact PROPERTIES ENVIRONMENT "SPU_FLOAT_MODE=exact")
+    set_tests_properties(wkc2_spu_float_audit PROPERTIES ENVIRONMENT "SPU_FLOAT_MODE=audit")
+    set_tests_properties(wkc2_spu_float_host wkc2_spu_float_exact wkc2_spu_float_audit
+        PROPERTIES TIMEOUT 60)
     add_test(NAME wkc2_spu_microstep_profile COMMAND ${PROJECT_NAME}
         --test-spu-microstep-profile "${CMAKE_BINARY_DIR}/spu-microstep-profile.tsv")
     set_tests_properties(wkc2_spu_microstep_profile PROPERTIES
@@ -482,6 +500,17 @@ if(WKC2_BUILD_TESTS)
     endif()
     add_test(NAME wkc2_draw_engine COMMAND wkc2_draw_engine_test)
     set_tests_properties(wkc2_draw_engine PROPERTIES TIMEOUT 15)
+    # Includes cellGcmSys.c to drive the FIFO walker's own 2D-engine methods.
+    add_executable(wkc2_nv3089_blit_test tests/nv3089_blit_test.c)
+    target_include_directories(wkc2_nv3089_blit_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_DIR}/runtime/ppu")
+    if(NOT WIN32)
+        target_sources(wkc2_nv3089_blit_test PRIVATE
+            "${PS3RECOMP_DIR}/runtime/platform/win32_compat.c")
+        target_link_libraries(wkc2_nv3089_blit_test PRIVATE Threads::Threads m)
+    endif()
+    add_test(NAME wkc2_nv3089_blit COMMAND wkc2_nv3089_blit_test)
+    set_tests_properties(wkc2_nv3089_blit PROPERTIES TIMEOUT 10)
     add_executable(wkc2_texture_layout_test
         "${PS3RECOMP_DIR}/libs/video/tests/test_texture_layout.c"
         "${PS3RECOMP_DIR}/libs/video/rsx_texture_layout.c")
@@ -571,6 +600,13 @@ if(WKC2_BUILD_TESTS)
     target_link_libraries(wkc2_memory_test PRIVATE Threads::Threads)
     add_test(NAME wkc2_memory COMMAND wkc2_memory_test)
     set_tests_properties(wkc2_memory PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_ppu_thread_lifetime_test tests/ppu_thread_lifetime_test.c
+        "${PS3RECOMP_DIR}/runtime/syscalls/sys_ppu_thread.c")
+    target_include_directories(wkc2_ppu_thread_lifetime_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/syscalls")
+    target_link_libraries(wkc2_ppu_thread_lifetime_test PRIVATE Threads::Threads)
+    add_test(NAME wkc2_ppu_thread_lifetime COMMAND wkc2_ppu_thread_lifetime_test)
+    set_tests_properties(wkc2_ppu_thread_lifetime PROPERTIES TIMEOUT 30)
     add_executable(wkc2_lfqueue_test tests/lfqueue_test.cpp lfqueue.cpp)
     target_include_directories(wkc2_lfqueue_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
     target_link_libraries(wkc2_lfqueue_test PRIVATE Threads::Threads)

@@ -1,0 +1,379 @@
+Honour SYS_PPU_THREAD_CREATE_JOINABLE, end each started thread exactly once
+in its epilogue, and reuse released guest stacks.
+
+diff --git a/runtime/host/host_posix.c b/runtime/host/host_posix.c
+--- a/runtime/host/host_posix.c
++++ b/runtime/host/host_posix.c
+@@ -987,7 +987,7 @@ static int run_thread_check(void)
+     ctx.gpr[5] = 0;            /* arg */
+     ctx.gpr[6] = 1000;         /* priority */
+     ctx.gpr[7] = 0x10000;      /* guest stack size */
+-    ctx.gpr[8] = 0;            /* flags */
++    ctx.gpr[8] = 1;            /* flags: JOINABLE (joined below) */
+     ctx.gpr[9] = 0;            /* name */
+     int64_t crc = sys_ppu_thread_create(&ctx);
+     if (crc != 0) {
+diff --git a/runtime/ppu/tests/smoke/smoke_recomp.c b/runtime/ppu/tests/smoke/smoke_recomp.c
+--- a/runtime/ppu/tests/smoke/smoke_recomp.c
++++ b/runtime/ppu/tests/smoke/smoke_recomp.c
+@@ -491,7 +491,7 @@ void func_00010000(ppu_context* ctx)
+     ctx->gpr[5]  = SMOKE_THREAD_ARG;      /* the new thread's r3 */
+     ctx->gpr[6]  = 1000;                  /* priority            */
+     ctx->gpr[7]  = 0x10000;               /* stack size          */
+-    ctx->gpr[8]  = 0;                     /* flags               */
++    ctx->gpr[8]  = 1;                     /* flags: JOINABLE     */
+     ctx->gpr[9]  = SMOKE_THREAD_NAME;
+     lv2_syscall(ctx);
+     smoke_check((int32_t)ctx->gpr[3] == 0, "sys_ppu_thread_create failed");
+diff --git a/runtime/syscalls/sys_ppu_thread.c b/runtime/syscalls/sys_ppu_thread.c
+--- a/runtime/syscalls/sys_ppu_thread.c
++++ b/runtime/syscalls/sys_ppu_thread.c
+@@ -105,6 +105,63 @@ uint32_t ppu_callback_stack_allocate(uint32_t size)
+     return base;
+ }
+ 
++/* Guest stacks of released threads. The bump allocator never takes memory
++ * back, so without reuse every sys_ppu_thread_create consumed fresh stack
++ * region and a title that keeps starting short-lived threads ran out of it
++ * (ENOMEM) after a few hundred. Take the smallest cached block that fits,
++ * zeroed as a fresh stack would be. Must be called under the table lock. */
++#define PPU_STACK_CACHE_MAX 64
++static struct { uint32_t addr, size; } s_stack_cache[PPU_STACK_CACHE_MAX];
++static int s_stack_cache_n = 0;
++
++static uint32_t stack_take_locked(uint32_t size, uint32_t* block)
++{
++    int best = -1;
++    for (int i = 0; i < s_stack_cache_n; i++)
++        if (s_stack_cache[i].size >= size &&
++            (best < 0 || s_stack_cache[i].size < s_stack_cache[best].size))
++            best = i;
++    if (best < 0) {
++        *block = VM_ALIGN_UP(size, vm_host_page_size());
++        return vm_stack_allocate(&g_vm_stack_alloc, size);
++    }
++    uint32_t addr = s_stack_cache[best].addr;
++    *block = s_stack_cache[best].size;
++    s_stack_cache[best] = s_stack_cache[--s_stack_cache_n];
++    memset(vm_base + addr, 0, *block);
++    return addr;
++}
++
++static void stack_give_locked(uint32_t addr, uint32_t block)
++{
++    if (addr && block && s_stack_cache_n < PPU_STACK_CACHE_MAX) {
++        s_stack_cache[s_stack_cache_n].addr = addr;
++        s_stack_cache[s_stack_cache_n].size = block;
++        s_stack_cache_n++;
++    }
++}
++
++/* Return a finished thread's slot and stack. The host thread must no longer
++ * touch the slot or the guest stack: it has been joined, or this is its own
++ * epilogue with nothing left to do. Under the table lock; the slot can be
++ * reused as soon as the lock is released. */
++static void release_slot_locked(ppu_thread_info* t)
++{
++#ifdef _WIN32
++    if (t->host_thread)  CloseHandle(t->host_thread);
++    if (t->finish_event) CloseHandle(t->finish_event);
++    t->host_thread = NULL;
++    t->finish_event = NULL;
++#else
++    pthread_mutex_destroy(&t->finish_mutex);
++    pthread_cond_destroy(&t->finish_cond);
++#endif
++    stack_give_locked(t->stack_addr, t->stack_block);
++    t->stack_addr = 0;
++    t->stack_block = 0;
++    t->state = PPU_THREAD_STATE_FREE;
++}
++
+ /* ---------------------------------------------------------------------------
+  * Host thread entry point
+  * -----------------------------------------------------------------------*/
+@@ -172,27 +229,36 @@ static void* ppu_host_thread_proc(void* param)
+                 (unsigned long long)info->ctx.thread_id);
+     }
+ 
+-    /* Mark as finished */
++    /* Mark as finished. This is the only place a started thread ends:
++     * sys_ppu_thread_exit records the status and unwinds to here. The joiner
++     * is signalled under the table lock because a FINISHED slot can be
++     * released (detach) as soon as the lock is dropped; nothing below the
++     * unlock may touch `info`. */
+     table_lock();
+-    info->exit_status = (int64_t)info->ctx.gpr[3];
++    if (!info->exit_called)
++        info->exit_status = (int64_t)info->ctx.gpr[3];
+ 
+     if (info->state == PPU_THREAD_STATE_DETACHED) {
+-        /* Detached threads self-clean */
+-        info->state = PPU_THREAD_STATE_FREE;
+-    } else {
+-        info->state = PPU_THREAD_STATE_FINISHED;
++        /* Nobody can join a detached thread: release it now. */
++        release_slot_locked(info);
++        table_unlock();
++#ifdef _WIN32
++        return 0;
++#else
++        return NULL;
++#endif
+     }
+-    table_unlock();
+-
+-    /* Signal anyone waiting for join */
++    info->state = PPU_THREAD_STATE_FINISHED;
+ #ifdef _WIN32
+     SetEvent(info->finish_event);
++    table_unlock();
+     return 0;
+ #else
+     pthread_mutex_lock(&info->finish_mutex);
+     info->finished = 1;
+     pthread_cond_signal(&info->finish_cond);
+     pthread_mutex_unlock(&info->finish_mutex);
++    table_unlock();
+     return NULL;
+ #endif
+ }
+@@ -339,7 +405,7 @@ int64_t sys_ppu_thread_create(ppu_context* ctx)
+     uint64_t arg          = LV2_ARG_U64(ctx, 2);
+     int32_t  priority     = LV2_ARG_S32(ctx, 3);
+     uint32_t stack_size   = LV2_ARG_U32(ctx, 4);
+-    /* uint64_t flags     = LV2_ARG_U64(ctx, 5); */
++    uint64_t flags        = LV2_ARG_U64(ctx, 5);
+     uint32_t name_addr    = LV2_ARG_PTR(ctx, 6);
+ 
+     if (stack_size == 0) stack_size = VM_PPU_STACK_SIZE;
+@@ -357,7 +423,8 @@ int64_t sys_ppu_thread_create(ppu_context* ctx)
+     memset(t, 0, sizeof(*t));
+ 
+     /* Allocate guest stack */
+-    uint32_t stack_addr = vm_stack_allocate(&g_vm_stack_alloc, stack_size);
++    uint32_t stack_block = 0;
++    uint32_t stack_addr = stack_take_locked(stack_size, &stack_block);
+     if (stack_addr == 0) {
+         table_unlock();
+         return (int64_t)(int32_t)CELL_ENOMEM;
+@@ -374,11 +441,12 @@ int64_t sys_ppu_thread_create(ppu_context* ctx)
+     uint64_t thread_id = (uint64_t)(slot + 1);
+     t->ctx.thread_id = thread_id;
+ 
+-    t->state      = PPU_THREAD_STATE_RUNNING;
++    t->joinable   = (flags & SYS_PPU_THREAD_CREATE_JOINABLE) ? 1 : 0;
++    t->state      = t->joinable ? PPU_THREAD_STATE_RUNNING : PPU_THREAD_STATE_DETACHED;
+     t->priority   = priority;
+-    t->joinable   = 1;
+     t->stack_addr = stack_addr;
+     t->stack_size = stack_size;
++    t->stack_block = stack_block;
+     t->entry_addr = entry;
+ 
+     /* Copy thread name if provided */
+@@ -456,8 +524,7 @@ int64_t sys_ppu_thread_create(ppu_context* ctx)
+                                   (unsigned (__stdcall*)(void*))ppu_host_thread_proc, t,
+                                   _initflag, (unsigned*)&t->host_tid);
+     if (t->host_thread == NULL) {
+-        t->state = PPU_THREAD_STATE_FREE;
+-        CloseHandle(t->finish_event);
++        release_slot_locked(t);
+         table_unlock();
+         return (int64_t)(int32_t)CELL_EAGAIN;
+     }
+@@ -501,12 +568,13 @@ int64_t sys_ppu_thread_create(ppu_context* ctx)
+         }
+     }
+     if (rc != 0) {
+-        t->state = PPU_THREAD_STATE_FREE;
+-        pthread_mutex_destroy(&t->finish_mutex);
+-        pthread_cond_destroy(&t->finish_cond);
++        release_slot_locked(t);
+         table_unlock();
+         return (int64_t)(int32_t)CELL_EAGAIN;
+     }
++    /* Its epilogue needs the table lock, which is still held, so it cannot
++     * have released the slot yet. */
++    if (!t->joinable) pthread_detach(t->host_thread);
+ #endif
+ 
+     table_unlock();
+@@ -525,34 +593,40 @@ int64_t sys_ppu_thread_exit(ppu_context* ctx)
+     fprintf(stderr, "[SYS] sys_ppu_thread_exit(tid=%llu status=%llu)\n",
+             (unsigned long long)tid, (unsigned long long)status);
+ 
++    static int allow = -1;
++    if (allow < 0) allow = getenv("PS3_NO_THREAD_EXIT_UNWIND") ? 0 : 1;
++
+     table_lock();
+     ppu_thread_info* t = find_thread(tid);
+     if (t) {
+         t->exit_status = (int64_t)status;
+-        if (t->state == PPU_THREAD_STATE_DETACHED) {
+-            t->state = PPU_THREAD_STATE_FREE;
+-        } else {
+-            t->state = PPU_THREAD_STATE_FINISHED;
+-        }
++        t->exit_called = 1;
++        /* A thread started by ppu_host_thread_proc ends in its epilogue,
++         * which marks it and wakes the joiner. Ending it here as well let
++         * the epilogue stamp FINISHED on a detached thread's freed (or
++         * already reused) slot. Only a thread with no epilogue ends here. */
++        if (!s_exit_armed) {
++            if (t->state == PPU_THREAD_STATE_DETACHED) {
++                t->state = PPU_THREAD_STATE_FREE;
++            } else {
++                t->state = PPU_THREAD_STATE_FINISHED;
++            }
+ 
+ #ifdef _WIN32
+-        SetEvent(t->finish_event);
++            SetEvent(t->finish_event);
+ #else
+-        pthread_mutex_lock(&t->finish_mutex);
+-        t->finished = 1;
+-        pthread_cond_signal(&t->finish_cond);
+-        pthread_mutex_unlock(&t->finish_mutex);
++            pthread_mutex_lock(&t->finish_mutex);
++            t->finished = 1;
++            pthread_cond_signal(&t->finish_cond);
++            pthread_mutex_unlock(&t->finish_mutex);
+ #endif
++        }
+     }
+     table_unlock();
+ 
+     /* Hardware never returns from this. Unwind to the thread proc so the guest
+      * cannot keep running past its own exit. */
+-    {
+-        static int allow = -1;
+-        if (allow < 0) allow = getenv("PS3_NO_THREAD_EXIT_UNWIND") ? 0 : 1;
+-        if (allow && s_exit_armed) { s_exit_armed = 0; longjmp(s_exit_jmp, 1); }
+-    }
++    if (allow && s_exit_armed) { s_exit_armed = 0; longjmp(s_exit_jmp, 1); }
+     return CELL_OK;
+ }
+ 
+@@ -568,16 +642,22 @@ int64_t sys_ppu_thread_join(ppu_context* ctx)
+     uint32_t status_addr  = LV2_ARG_PTR(ctx, 1);
+     { static int n=0; if(n++<30) fprintf(stderr,"[WAIT] ppu_thread_join(tid=%llu)\n", (unsigned long long)tid); }
+ 
++    if (tid == ctx->thread_id)
++        return (int64_t)(int32_t)CELL_EDEADLK;
++
+     table_lock();
+     ppu_thread_info* t = find_thread(tid);
+     if (!t) {
+         table_unlock();
+         return (int64_t)(int32_t)CELL_ESRCH;
+     }
+-    if (!t->joinable || t->state == PPU_THREAD_STATE_DETACHED) {
++    /* One joiner, as in lv2. A second one, or a detach during the wait,
++     * would release the slot and its event while the first still waits. */
++    if (!t->joinable || t->state == PPU_THREAD_STATE_DETACHED || t->joining) {
+         table_unlock();
+         return (int64_t)(int32_t)CELL_EINVAL;
+     }
++    t->joining = 1;
+     table_unlock();
+ 
+     /* Wait for completion */
+@@ -619,33 +699,22 @@ int64_t sys_ppu_thread_join(ppu_context* ctx)
+     /* Clean up */
+ #ifdef _WIN32
+     table_lock();
+-    CloseHandle(t->host_thread);
+-    CloseHandle(t->finish_event);
+-    t->host_thread = NULL;
+-    t->finish_event = NULL;
+ #else
+     /* Reap the host thread with the table lock RELEASED.
+      *
+-     * pthread_join blocks until the thread procedure returns, and that
+-     * procedure's epilogue takes the table lock to stamp its own state. The
+-     * joiner is woken well before that epilogue runs, because a guest thread
+-     * normally ends at sys_ppu_thread_exit, which signals `finished` from
+-     * INSIDE the thread body and then longjmps back out to the epilogue. So a
+-     * joiner that holds the lock across the join is waiting for a thread that
+-     * is waiting for the lock -- and the whole title stops with no message.
+-     *
+-     * Windows never saw it: its half of this block is CloseHandle, which
+-     * records nothing about whether the thread has finished and never waits.
+-     * The two halves have to be read as one thing, and only one of them was.
+-     * Take the lock again afterwards for the teardown, which is what actually
+-     * needs it: nothing can claim this slot in between, because it is still
+-     * FINISHED rather than FREE until the line below. */
++     * pthread_join blocks until the thread procedure returns. Its epilogue
++     * wakes this joiner while holding the table lock and returns right after
++     * dropping it, so waiting here with the lock held would only stall every
++     * other thread-table user until then. (When sys_ppu_thread_exit still
++     * signalled from inside the thread body, it deadlocked outright: the
++     * epilogue had not taken the lock yet.) Windows waits for the host thread
++     * above for the same reason. Take the lock again afterwards for the
++     * teardown: nothing can claim this slot in between, because it is still
++     * FINISHED rather than FREE until release_slot_locked. */
+     pthread_join(t->host_thread, NULL);
+     table_lock();
+-    pthread_mutex_destroy(&t->finish_mutex);
+-    pthread_cond_destroy(&t->finish_cond);
+ #endif
+-    t->state = PPU_THREAD_STATE_FREE;
++    release_slot_locked(t);
+     table_unlock();
+ 
+     return CELL_OK;
+@@ -667,17 +736,18 @@ int64_t sys_ppu_thread_detach(ppu_context* ctx)
+         return (int64_t)(int32_t)CELL_ESRCH;
+     }
+ 
++    if (t->state == PPU_THREAD_STATE_DETACHED || t->joining) {
++        int32_t rc = t->joining ? (int32_t)CELL_EBUSY : (int32_t)CELL_EINVAL;
++        table_unlock();
++        return (int64_t)rc;
++    }
+     if (t->state == PPU_THREAD_STATE_FINISHED) {
+-        /* Already finished, free it */
+-#ifdef _WIN32
+-        CloseHandle(t->host_thread);
+-        CloseHandle(t->finish_event);
+-#else
++        /* Already finished, free it. Its epilogue signalled under this lock
++         * and touches nothing after it, so the slot can go now. */
++#ifndef _WIN32
+         pthread_detach(t->host_thread);
+-        pthread_mutex_destroy(&t->finish_mutex);
+-        pthread_cond_destroy(&t->finish_cond);
+ #endif
+-        t->state = PPU_THREAD_STATE_FREE;
++        release_slot_locked(t);
+     } else {
+         t->state = PPU_THREAD_STATE_DETACHED;
+         t->joinable = 0;
+diff --git a/runtime/syscalls/sys_ppu_thread.h b/runtime/syscalls/sys_ppu_thread.h
+--- a/runtime/syscalls/sys_ppu_thread.h
++++ b/runtime/syscalls/sys_ppu_thread.h
+@@ -36,6 +36,11 @@ extern "C" {
+ #define PPU_THREAD_STATE_FINISHED   2
+ #define PPU_THREAD_STATE_DETACHED   3
+ 
++/* sys_ppu_thread_create flags (r8). A thread created without JOINABLE is
++ * detached from the start: lv2 frees it when it ends, and join is EINVAL. */
++#define SYS_PPU_THREAD_CREATE_JOINABLE   0x1
++#define SYS_PPU_THREAD_CREATE_INTERRUPT  0x2
++
+ /* Thread entry point type - recompiled function pointer */
+ typedef void (*ppu_thread_entry_fn)(ppu_context* ctx);
+ 
+@@ -47,8 +52,11 @@ typedef struct ppu_thread_info {
+     int32_t      priority;
+     int64_t      exit_status;
+     int          joinable;
++    int          joining;      /* a sys_ppu_thread_join is waiting */
++    int          exit_called;  /* exit_status came from sys_ppu_thread_exit */
+     uint32_t     stack_addr;   /* guest stack base */
+     uint32_t     stack_size;
++    uint32_t     stack_block;  /* bytes reserved at stack_addr, for reuse */
+     uint64_t     entry_addr;   /* guest entry point */
+     uint64_t     tls_addr;
+     uint32_t     prof_pc;      /* last syscall/HLE callsite (sampling profiler) */

@@ -1,0 +1,90 @@
+Keep libgcm 2D-object methods (subchannels 2-6, and 1 under GCM_SUBCH1_2D)
+out of the shared draw engine's NV4097 state.
+
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -2857,6 +2857,21 @@ void rsx_draw_engine_method(u32 method, u32 arg)
+      * (< 0x2000) strip the subchannel with & 0x1FFC.  Driver methods
+      * (0xE9xx, 0xEBxx) encode the subchannel bits as part of the address;
+      * preserve them with the wider mask. */
++    /* Except where the slot holds a 2D object. The FIFO walker treats
++     * subchannels 2-6 as NV3062, NV309E, NV308A and NV3089, and 1 as NV0039
++     * when GCM_SUBCH1_2D is set, and performs those transfers in guest memory.
++     * Masked into this bank, an inline transfer's NV3062 SET_PITCH and NV308A
++     * POINT/SIZE became the alpha-test enable, function and reference, and a
++     * scaled blit's out point and size the blend enable and factors, of every
++     * later draw that did not set them again. RSX_ENGINE_ALL_SUBCHANNELS=1
++     * keeps the old behaviour. */
++    const u32 subch = (method >> 13) & 7u;
++    if (method < 0xE000u && subch) {
++        static int s_all = -1, s_sub1_2d = -1;
++        if (s_all < 0) s_all = getenv("RSX_ENGINE_ALL_SUBCHANNELS") ? 1 : 0;
++        if (s_sub1_2d < 0) { const char* e = getenv("GCM_SUBCH1_2D"); s_sub1_2d = e ? atoi(e) : 0; }
++        if (!s_all && (subch >= 2 || s_sub1_2d)) return;
++    }
+     u32 m = (method >= 0xE000u) ? (method & 0xFFFCu) : (method & 0x1FFCu);
+     if (m >= 0x0B80u && m < 0x0C00u) g.vp_serial++;     /* SET_TRANSFORM_PROGRAM: the program is changing */
+     rsx_dispatch_method(&g.rsx, m, arg);
+diff --git a/libs/video/tests/test_rsx_draw_engine.c b/libs/video/tests/test_rsx_draw_engine.c
+--- a/libs/video/tests/test_rsx_draw_engine.c
++++ b/libs/video/tests/test_rsx_draw_engine.c
+@@ -95,6 +95,7 @@ typedef struct {
+     u32 copied_src, copied_dst, copied_w, copied_h;
+     u32 color_stamp[STUB_MAX_OBJECTS], sampled_stamp;
+     u32 pipeline_color_mask[STUB_MAX_OBJECTS];
++    u8  pipeline_blend[STUB_MAX_OBJECTS], pipeline_alpha_test[STUB_MAX_OBJECTS];
+     u32 last_view_surface, last_view_remap;
+ } StubState;
+ 
+@@ -190,6 +191,8 @@ static u32 stub_pipeline_create(void* u, const char* vs, const char* ps,
+     stub.pipeline_rt_count = rt_count;
+     const u32 handle = stub_handle();
+     stub.pipeline_color_mask[handle] = rs->color_mask;
++    stub.pipeline_blend[handle] = (u8)rs->blend_enable;
++    stub.pipeline_alpha_test[handle] = (u8)rs->alpha_test_enable;
+     return handle;
+ }
+ 
+@@ -526,6 +529,33 @@ static void test_surface_aliasing(void)
+     engine_down();
+ }
+ 
++/* libgcm's 2D objects sit on other subchannels, at offsets NV4097 uses for
++ * state: NV3089 SET_OPERATION and IMAGE_OUT_POINT are the alpha-test and
++ * blend enables, NV3062 SET_PITCH and NV308A POINT the alpha-test enable. A
++ * blit or inline transfer between two draws must not change the second. */
++static void test_2d_subchannels(void)
++{
++    printf("-- 2D object subchannels\n");
++    engine_up();
++    m(M_COLOR_A_OFFSET, 0x90000u);
++    m(0x0310u, 1u);                        /* NV4097 SET_BLEND_ENABLE */
++    draw_triangle();
++    CHECK(stub.pipeline_blend[stub.bound_pipeline] == 1 &&
++          stub.pipeline_alpha_test[stub.bound_pipeline] == 0,
++          "subchannel 0 sets the 3D state");
++    m(0xC304u, 3u);                        /* NV3089 SET_OPERATION: SRCCOPY */
++    m(0xC310u, 0u);                        /* NV3089 IMAGE_OUT_POINT */
++    m(0x6304u, (128u << 16) | 128u);       /* NV3062 SET_PITCH */
++    m(0xA304u, 1u);                        /* NV308A POINT */
++    draw_triangle();
++    CHECK(stub.n_draw == 2 && stub.pipeline_blend[stub.bound_pipeline] == 1 &&
++          stub.pipeline_alpha_test[stub.bound_pipeline] == 0,
++          "2D-object methods leave blending and alpha test (blend %u, alpha test %u)",
++          stub.pipeline_blend[stub.bound_pipeline],
++          stub.pipeline_alpha_test[stub.bound_pipeline]);
++    engine_down();
++}
++
+ /* A backend with GPU copies must preserve the pixels before the consuming
+  * draw, rather than read stale guest bytes or bind an attachment as a texture. */
+ static void test_surface_feedback(void)
+@@ -1276,6 +1306,7 @@ int main(void)
+ 
+     test_surface_set();
+     test_surface_aliasing();
++    test_2d_subchannels();
+     test_surface_feedback();
+     test_mrt_set();
+     test_texture_cache();

@@ -13,8 +13,8 @@
       "Sustained traversal, combat and save/load unverified",
       "SPU interpreter fallback remains enabled"
     ],
-    "latest_recheck_probe": "20261017-021013",
-    "latest_recheck_sdk_patch_count": 44
+    "latest_recheck_probe": "20261017-052058",
+    "latest_recheck_sdk_patch_count": 51
   },
   "verified": {
     "native_language_selection_rendered": true,
@@ -94,6 +94,9 @@
       "wkc2_spurs_abi",
       "wkc2_spu_interp_profile",
       "wkc2_spu_interp_profile_off",
+      "wkc2_spu_float_host",
+      "wkc2_spu_float_exact",
+      "wkc2_spu_float_audit",
       "wkc2_spu_microstep_profile",
       "wkc2_ppu_join",
       "wkc2_osk_window",
@@ -107,6 +110,7 @@
       "wkc2_vp_coissue",
       "wkc2_fp_identity",
       "wkc2_draw_engine",
+      "wkc2_nv3089_blit",
       "wkc2_texture_layout",
       "wkc2_vdec_decode",
       "wkc2_vdec_timing",
@@ -121,14 +125,15 @@
       "wkc2_pamf",
       "wkc2_lwcond",
       "wkc2_memory",
+      "wkc2_ppu_thread_lifetime",
       "wkc2_lfqueue",
       "wkc2_event_queue"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 44,
-    "current_passed_count": 43
+    "current_sdk_patch_count": 51,
+    "current_passed_count": 48
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -1381,7 +1386,7 @@
     "native_game_run_verified": true,
     "native_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
   },
-  "record_scope": "Current status is summarized in current_milestone and verified. Other named probes retain historical counts, failures and unverified fields. Latest town-controls recheck and shader scan are in vertex_program_coissue_review; the gallery retains its original capture provenance.",
+  "record_scope": "Current status is summarized in current_milestone and verified. Other named probes retain historical counts, failures and unverified fields. Latest town/float/subchannel comparisons are in second_runtime_review; vertex_program_coissue_review retains the earlier shader review and the gallery retains its original capture provenance.",
   "host_runtime_review": {
     "audio_error_end_restart_regression_passed": true,
     "old_audio_implementation_fails_regression": true,
@@ -1578,5 +1583,373 @@
       "entry_fingerprints_match_previous_census": true,
       "fallback_disabled": false
     }
+  },
+  "second_runtime_review": {
+    "suggestion_commit": "a54d99cfab006a2900f7ad81ddd35827ab7002c0",
+    "sdk_patch_count": 51,
+    "windows_build": {
+      "renderer": "Vulkan",
+      "compiler": "clang-cl 23.1.3",
+      "configuration": "Debug",
+      "project_tests_passed": 48,
+      "test_elapsed_seconds": 19.52,
+      "mingw_tls_override_used": false
+    },
+    "native_binary_sha256": "ef164be4c9afc2b63709791bd4d5e9e563e85a2b90716b0075ef24e5f8da0deb",
+    "native_input_build": "Previously clean disc extraction and PPU/SPU regeneration, rebuilt with this runtime",
+    "baseline_gallery_image": "screenshots/2026-10-17-native-wkc1-town-controls.png",
+    "comparison_scope": "Qualitative native readbacks; finite controller inputs; no debugger state edits. Not pixel-identical scene replay.",
+    "raw_logs_game_programs_and_comparison_frames_published": false,
+    "inline_write_diagnostic_cap": 6,
+    "nv0039_use_confirmed": true,
+    "nv0039_transfer_handler_implemented": false,
+    "nv0039_rendering_fix_verified": false,
+    "all_subchannels_toggle_corrected_target_faults": false,
+    "default_spu_float_mode_changed": false,
+    "fallback_disabled": false,
+    "runs": [
+      {
+        "probe": "20261017-040537",
+        "spu_float_mode": "host",
+        "rsx_engine_all_subchannels": false,
+        "native_town_reached": true,
+        "short_movement_and_camera_response_rechecked": true,
+        "stretched_strip_present": true,
+        "corrupt_npc_surfaces_present": true,
+        "comparison_frame": "snap_1463.ppm",
+        "comparison_frame_sha256": "320dc88411907752e2d2fa58c489ef2fddd02dbe1c9944aea7a1076258e49ddf",
+        "log_message_counts": {
+          "[NV3089] SKIPPED": 0,
+          "[GCM2D-UNH]": 0,
+          "[GCM2D] inline write": 6
+        },
+        "town_trace_gate_seconds": 10,
+        "town_trace_subchannel_method_counts": {
+          "1": 363,
+          "3": 1154,
+          "5": 1652
+        },
+        "town_trace_subchannel_1_copy_range_methods": {
+          "0x0184": 33,
+          "0x0188": 33,
+          "0x030C": 33,
+          "0x0310": 66,
+          "0x0314": 33,
+          "0x0318": 33,
+          "0x031C": 33,
+          "0x0320": 33,
+          "0x0324": 33,
+          "0x0328": 33
+        },
+        "nv0039_copy_trigger_count": 33,
+        "spu_census": {
+          "rows": 6,
+          "completed_sessions": 2221,
+          "recorded_instructions": 9628,
+          "dropped_sessions": 0,
+          "sha256": "bf0dd52622f30fdd9e69ad1f3c1546e527f740a92cad401ce8d6fe368fc1c1ae",
+          "entry_fingerprints": [
+            [
+              "interp",
+              "17",
+              "0x07D68",
+              "5EFC997629A14715"
+            ],
+            [
+              "interp",
+              "17",
+              "0x07E4C",
+              "B11C61F140A74B9C"
+            ],
+            [
+              "interp",
+              "17",
+              "0x07E88",
+              "8C000DFCAD9A5CD1"
+            ],
+            [
+              "microstep",
+              "17",
+              "0x07D60",
+              "BAD09E1CCC15986B"
+            ],
+            [
+              "microstep",
+              "17",
+              "0x07E38",
+              "8BE1F18B292D8F2D"
+            ],
+            [
+              "microstep",
+              "17",
+              "0x07E78",
+              "52A1C3E317021A9D"
+            ]
+          ]
+        },
+        "stopped_after_validation": true
+      },
+      {
+        "probe": "20261017-043029",
+        "spu_float_mode": "host",
+        "rsx_engine_all_subchannels": true,
+        "native_town_reached": true,
+        "short_movement_and_camera_response_rechecked": true,
+        "stretched_strip_present": true,
+        "corrupt_npc_surfaces_present": true,
+        "comparison_frame": "snap_1211.ppm",
+        "comparison_frame_sha256": "7a2fa3179b01802a9ee3d177f3072eb3e600228f77f4f6aca8ee80ac6102a0f2",
+        "log_message_counts": {
+          "[NV3089] SKIPPED": 0,
+          "[GCM2D-UNH]": 0,
+          "[GCM2D] inline write": 6
+        },
+        "town_trace_gate_seconds": 10,
+        "town_trace_subchannel_method_counts": {
+          "1": 429,
+          "3": 1014,
+          "5": 1443
+        },
+        "town_trace_subchannel_1_copy_range_methods": {
+          "0x0184": 39,
+          "0x0188": 39,
+          "0x030C": 39,
+          "0x0310": 78,
+          "0x0314": 39,
+          "0x0318": 39,
+          "0x031C": 39,
+          "0x0320": 39,
+          "0x0324": 39,
+          "0x0328": 39
+        },
+        "nv0039_copy_trigger_count": 39,
+        "spu_census": {
+          "rows": 6,
+          "completed_sessions": 1849,
+          "recorded_instructions": 8016,
+          "dropped_sessions": 0,
+          "sha256": "db81e57740a35bac2e238127a78f9f677b8b308f1e859a63dfbfcfb70cdadf75",
+          "entry_fingerprints": [
+            [
+              "interp",
+              "17",
+              "0x07D68",
+              "5EFC997629A14715"
+            ],
+            [
+              "interp",
+              "17",
+              "0x07E4C",
+              "B11C61F140A74B9C"
+            ],
+            [
+              "interp",
+              "17",
+              "0x07E88",
+              "8C000DFCAD9A5CD1"
+            ],
+            [
+              "microstep",
+              "17",
+              "0x07D60",
+              "BAD09E1CCC15986B"
+            ],
+            [
+              "microstep",
+              "17",
+              "0x07E38",
+              "8BE1F18B292D8F2D"
+            ],
+            [
+              "microstep",
+              "17",
+              "0x07E78",
+              "52A1C3E317021A9D"
+            ]
+          ]
+        },
+        "stopped_after_validation": true
+      },
+      {
+        "probe": "20261017-045114",
+        "spu_float_mode": "audit",
+        "rsx_engine_all_subchannels": false,
+        "native_town_reached": true,
+        "short_movement_and_camera_response_rechecked": true,
+        "stretched_strip_present": true,
+        "corrupt_npc_surfaces_present": true,
+        "comparison_frame": "snap_1735.ppm",
+        "comparison_frame_sha256": "3f51d547931135d5b37f845edb6e51a75a5ee7b1195225b185a3da67411185bf",
+        "log_message_counts": {
+          "[NV3089] SKIPPED": 0,
+          "[GCM2D-UNH]": 0,
+          "[GCM2D] inline write": 6
+        },
+        "town_trace_gate_seconds": 10,
+        "town_trace_subchannel_method_counts": {
+          "1": 363,
+          "3": 925,
+          "5": 1319
+        },
+        "town_trace_subchannel_1_copy_range_methods": {
+          "0x0184": 33,
+          "0x0188": 33,
+          "0x030C": 33,
+          "0x0310": 66,
+          "0x0314": 33,
+          "0x0318": 33,
+          "0x031C": 33,
+          "0x0320": 33,
+          "0x0324": 33,
+          "0x0328": 33
+        },
+        "nv0039_copy_trigger_count": 33,
+        "spu_census": {
+          "rows": 6,
+          "completed_sessions": 1585,
+          "recorded_instructions": 6872,
+          "dropped_sessions": 0,
+          "sha256": "c5f586ddd199b339ddec3b9efdc1cb970d81c8b5293a106756cc98005962abdc",
+          "entry_fingerprints": [
+            [
+              "interp",
+              "17",
+              "0x07D68",
+              "5EFC997629A14715"
+            ],
+            [
+              "interp",
+              "17",
+              "0x07E4C",
+              "B11C61F140A74B9C"
+            ],
+            [
+              "interp",
+              "17",
+              "0x07E88",
+              "8C000DFCAD9A5CD1"
+            ],
+            [
+              "microstep",
+              "17",
+              "0x07D60",
+              "BAD09E1CCC15986B"
+            ],
+            [
+              "microstep",
+              "17",
+              "0x07E38",
+              "8BE1F18B292D8F2D"
+            ],
+            [
+              "microstep",
+              "17",
+              "0x07E78",
+              "52A1C3E317021A9D"
+            ]
+          ]
+        },
+        "stopped_after_validation": true,
+        "float_audit_differing_lane_lower_bounds": {
+          "FM:special": 2147483648,
+          "FMA:rounding": 8589934592,
+          "FMA:special": 536870912,
+          "CFLTU:special": 16777216,
+          "FM:rounding": 4294967296,
+          "FA:rounding": 1073741824,
+          "FS:rounding": 268435456,
+          "CFLTS:special": 8388608,
+          "FS:special": 16777216,
+          "FA:special": 67108864,
+          "FMS:rounding": 536870912,
+          "FCEQ:special": 16777216,
+          "FCGT:special": 8388608,
+          "FMS:special": 536870912,
+          "CSFLT:rounding": 1024
+        },
+        "float_audit_scope": "Whole process, including non-graphics SPU work; largest logged power of two per category. These are lower bounds, not final totals or a share of execution. The process was stopped after validation, so its normal-exit summary did not run."
+      },
+      {
+        "probe": "20261017-052058",
+        "spu_float_mode": "exact",
+        "rsx_engine_all_subchannels": false,
+        "native_town_reached": true,
+        "short_movement_and_camera_response_rechecked": true,
+        "stretched_strip_present": true,
+        "corrupt_npc_surfaces_present": true,
+        "comparison_frame": "snap_1569.ppm",
+        "comparison_frame_sha256": "1b9e8a9e89e4cf21c5a011581b6656ffca07b8d6e9776898f98d03d4e177ccfb",
+        "log_message_counts": {
+          "[NV3089] SKIPPED": 0,
+          "[GCM2D-UNH]": 0,
+          "[GCM2D] inline write": 6
+        },
+        "town_trace_gate_seconds": 10,
+        "town_trace_subchannel_method_counts": {
+          "1": 357,
+          "3": 921,
+          "5": 1312
+        },
+        "town_trace_subchannel_1_copy_range_methods": {
+          "0x0184": 32,
+          "0x0188": 32,
+          "0x030C": 32,
+          "0x0310": 65,
+          "0x0314": 32,
+          "0x0318": 32,
+          "0x031C": 33,
+          "0x0320": 33,
+          "0x0324": 33,
+          "0x0328": 33
+        },
+        "nv0039_copy_trigger_count": 33,
+        "spu_census": {
+          "rows": 6,
+          "completed_sessions": 1693,
+          "recorded_instructions": 7340,
+          "dropped_sessions": 0,
+          "sha256": "b18c3e16536f63a6888ae07ff52afeb665207270367db7701c8112c7d4b53118",
+          "entry_fingerprints": [
+            [
+              "interp",
+              "17",
+              "0x07D68",
+              "5EFC997629A14715"
+            ],
+            [
+              "interp",
+              "17",
+              "0x07E4C",
+              "B11C61F140A74B9C"
+            ],
+            [
+              "interp",
+              "17",
+              "0x07E88",
+              "8C000DFCAD9A5CD1"
+            ],
+            [
+              "microstep",
+              "17",
+              "0x07D60",
+              "BAD09E1CCC15986B"
+            ],
+            [
+              "microstep",
+              "17",
+              "0x07E38",
+              "8BE1F18B292D8F2D"
+            ],
+            [
+              "microstep",
+              "17",
+              "0x07E78",
+              "52A1C3E317021A9D"
+            ]
+          ]
+        },
+        "stopped_after_validation": true
+      }
+    ]
   }
 }

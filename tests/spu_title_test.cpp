@@ -31,6 +31,8 @@ int wkc2_test_spu_title(int selected) {
     // A selected CRI task's next EXIT ends it. Other tasks always end at once.
     check_exit(ctx,selected>=0 ? selected : 22,false);
     check_exit(ctx,7,false);
+    // A disabled selection matches no image, including pure interpretation's -1.
+    check_exit(ctx,-1,false);
     free(ctx);
     puts("SPU title selection and actual task EXIT behavior passed");
     return 0;

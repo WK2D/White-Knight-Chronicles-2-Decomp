@@ -1,0 +1,157 @@
+Read the NV3089 IMAGE_IN point as 12.4 fixed point with the centre-origin
+half pixel, and copy X8R8G8B8 sources instead of skipping them.
+
+diff --git a/libs/video/cellGcmSys.c b/libs/video/cellGcmSys.c
+--- a/libs/video/cellGcmSys.c
++++ b/libs/video/cellGcmSys.c
+@@ -937,6 +937,19 @@ static struct {
+     u32 ds_dx, dt_dy, in_sz, in_fmt, in_off, in_uv;
+ } s_nv3089;
+ 
++/* One axis of IMAGE_IN (12.4 fixed point) as 12.20, the format of DS_DX and
++ * DT_DY. A CENTER origin (IMAGE_IN_FORMAT bits 16-23 = 1) names pixel centres,
++ * so the first source pixel is floor(max(p, 0.5) - 0.5), as RPCS3's nv3089
++ * computes it. Shifting the point by 8 read it as 12.12: a start below 256
++ * pixels was lost and the copy began at the source origin. */
++static u64 nv3089_src_start(u32 point)
++{
++    u64 p = (u64)(point & 0xFFFFu) << 16;
++    if (((s_nv3089.in_fmt >> 16) & 0xFFu) == 1u)
++        p = p > 0x80000u ? p - 0x80000u : 0;
++    return p;
++}
++
+ /* NV309E "swizzled surface" -- the destination object for a scaled-image blit
+  * whose target is a swizzled (Morton-ordered) texture rather than a linear
+  * surface. Rubber Ducky binds it to the same subchannel this file previously
+@@ -978,10 +991,10 @@ static u32 nv309e_swz(u32 x, u32 y, u32 l2w, u32 l2h)
+ static void nv3089_engine_read(u32 in_pitch, u32 out_w, u32 out_h)
+ {
+     if (!rsx_draw_engine_enabled() || !out_w || !out_h) return;
+-    const u32 u0 = s_nv3089.in_uv & 0xFFFF, v0 = s_nv3089.in_uv >> 16;   /* 12.4 */
+-    const u32 sx0 = u0 >> 4, sy0 = v0 >> 4;
+-    const u32 sx1 = (u32)((((u64)u0 << 8) + (u64)(out_w - 1) * s_nv3089.ds_dx) >> 20);
+-    const u32 sy1 = (u32)((((u64)v0 << 8) + (u64)(out_h - 1) * s_nv3089.dt_dy) >> 20);
++    const u64 u0 = nv3089_src_start(s_nv3089.in_uv), v0 = nv3089_src_start(s_nv3089.in_uv >> 16);
++    const u32 sx0 = (u32)(u0 >> 20), sy0 = (u32)(v0 >> 20);
++    const u32 sx1 = (u32)((u0 + (u64)(out_w - 1) * s_nv3089.ds_dx) >> 20);
++    const u32 sy1 = (u32)((v0 + (u64)(out_h - 1) * s_nv3089.dt_dy) >> 20);
+     if (sx1 < sx0 || sy1 < sy0) return;
+     const u32 loc = (s_nv3089.src_dma != 0xFEED0001u) ? RSX_LOCATION_LOCAL : RSX_LOCATION_MAIN;
+     rsx_draw_engine_guest_read(loc, s_nv3089.in_off + sy0 * in_pitch + sx0 * 4u, in_pitch,
+@@ -1001,8 +1014,8 @@ static void nv3089_engine_wrote(u32 dst_pitch, u32 x0, u32 y0, u32 x1, u32 y1)
+ static void nv3089_engine_access(u32 in_pitch, u32 out_h, u32 dst_pitch, u32 y0, u32 y1)
+ {
+     if (!rsx_draw_engine_enabled() || !out_h) return;
+-    const u32 v0 = s_nv3089.in_uv >> 16;   /* 12.4 */
+-    const u32 sy1 = (u32)((((u64)v0 << 8) + (u64)(out_h - 1) * s_nv3089.dt_dy) >> 20);
++    const u64 v0 = nv3089_src_start(s_nv3089.in_uv >> 16);
++    const u32 sy1 = (u32)((v0 + (u64)(out_h - 1) * s_nv3089.dt_dy) >> 20);
+     rsx_draw_engine_guest_access((s_nv3089.src_dma != 0xFEED0001u) ? RSX_LOCATION_LOCAL : RSX_LOCATION_MAIN,
+                                  s_nv3089.in_off, (sy1 + 1u) * in_pitch);
+     if (y1 > y0)
+@@ -1038,7 +1051,8 @@ static void nv3089_blit(void)
+      * mirror 1:1 blits there too (the guest-memory copy below still runs). */
+     if (s_nv3089.ds_dx == 0x100000u && s_nv3089.dt_dy == 0x100000u &&
+         rsx_live_draw_enabled()) {
+-        const u32 u0 = (s_nv3089.in_uv & 0xFFFF) >> 4, v0 = (s_nv3089.in_uv >> 16) >> 4;
++        const u32 u0 = (u32)(nv3089_src_start(s_nv3089.in_uv) >> 20);
++        const u32 v0 = (u32)(nv3089_src_start(s_nv3089.in_uv >> 16) >> 20);
+         const int sl = (s_nv3089.src_dma != 0xFEED0001u);
+         const int dl = (s_gcm2d.dst_dma  != 0xFEED0001u);
+         rsx_live_draw_blit(sl ? 0u : 1u, s_nv3089.in_off + v0 * in_pitch + u0 * 4u, in_pitch,
+@@ -1050,7 +1064,8 @@ static void nv3089_blit(void)
+          * back to presenting the source when that cannot be done. */
+         const u32 sl = s_nv3089.src_dma != 0xFEED0001u ? 0u : 1u;
+         const u32 dl = s_gcm2d.dst_dma  != 0xFEED0001u ? 0u : 1u;
+-        const u32 u0 = (s_nv3089.in_uv & 0xFFFF) >> 4, v0 = (s_nv3089.in_uv >> 16) >> 4;
++        const u32 u0 = (u32)(nv3089_src_start(s_nv3089.in_uv) >> 20);
++        const u32 v0 = (u32)(nv3089_src_start(s_nv3089.in_uv >> 16) >> 20);
+         const int rok = rsx_live_draw_resolve_blit(sl, s_nv3089.in_off + v0 * in_pitch + u0 * 4u, in_pitch,
+                                         s_nv3089.ds_dx, s_nv3089.dt_dy, dl, s_gcm2d.dst_offset,
+                                         dst_pitch, out_x, out_y, out_w, out_h);
+@@ -1078,12 +1093,12 @@ static void nv3089_blit(void)
+        * where a minified surface should be, and the shell that samples the
+        * pyramid draws untextured. NV309E_BLIT=0 disables. */
+       if (en < 0) { const char* e = getenv("NV309E_BLIT"); en = e ? atoi(e) : 1; }
+-      if (en && f == 3 && s_nv309e.active && s_nv309e.offset &&
++      if (en && (f == 3 || f == 4) && s_nv309e.active && s_nv309e.offset &&
+           (1u << l2w) == out_w && (1u << l2h) == out_h) {
+         int sl = (s_nv3089.src_dma != 0xFEED0001u);
+         u32 src2 = cellGcmResolveLocated(sl, s_nv3089.in_off);
+         u32 dst2 = cellGcmResolveLocated(1, s_nv309e.offset);
+-        u32 u0b = s_nv3089.in_uv & 0xFFFF, v0b = s_nv3089.in_uv >> 16;
++        const u64 u0b = nv3089_src_start(s_nv3089.in_uv), v0b = nv3089_src_start(s_nv3089.in_uv >> 16);
+         nv3089_engine_read(in_pitch, out_w, out_h);
+         nv3089_engine_access(in_pitch, out_h, dst_pitch, 0, 0);
+         if (rsx_draw_engine_enabled())
+@@ -1095,10 +1110,10 @@ static void nv3089_blit(void)
+           const u8* sbase = vm_base + src2;
+           u8* dbase = vm_base + dst2;
+           for (u32 y = 0; y < out_h; y++) {
+-              u64 sv = ((u64)v0b << 8) + (u64)y * s_nv3089.dt_dy;
++              u64 sv = v0b + (u64)y * s_nv3089.dt_dy;
+               const u8* srow = sbase + (u32)(sv >> 20) * in_pitch;
+               for (u32 x = 0; x < out_w; x++) {
+-                  u64 su = ((u64)u0b << 8) + (u64)x * s_nv3089.ds_dx;
++                  u64 su = u0b + (u64)x * s_nv3089.ds_dx;
+                   memcpy(dbase + (u64)nv309e_swz(x, y, l2w, l2h) * 4,
+                          srow + (u32)(su >> 20) * 4, 4);
+               }
+@@ -1118,8 +1133,10 @@ static void nv3089_blit(void)
+      * sampled blended texture in the frame. Skipping those left every one of
+      * those textures empty. Same 4-byte pixel layout as the formats already
+      * handled. */
+-    if (f != 3 /* A8R8G8B8 (scale-format enum) */ &&
+-        f != 7 /* A8R8G8B8 */ && f != 8 /* X8R8G8B8 */ && f != 0xD /* A8B8G8R8 */) {
++    /* CELL_GCM_TRANSFER_SCALE_FORMAT_*: 3 A8R8G8B8, 4 X8R8G8B8, 7 R5G6B5,
++     * 8 Y8, 0xD X8B8G8R8. X8R8G8B8 is copied as A8R8G8B8, as RPCS3 does; it
++     * was skipped because the list had 7 and 8 labelled as the 32-bit pair. */
++    if (f != 3 && f != 4 && f != 7 && f != 8 && f != 0xD) {
+         /* Log the GEOMETRY of a skipped blit, not just the format: a full-screen
+          * copy from the scene surface to a registered display buffer is the
+          * composite this title needs, and is worth telling apart from some
+@@ -1139,7 +1156,7 @@ static void nv3089_blit(void)
+     int dst_local = (s_gcm2d.dst_dma  != 0xFEED0001u);
+     u32 src = cellGcmResolveLocated(src_local, s_nv3089.in_off);
+     u32 dst = cellGcmResolveLocated(dst_local, s_gcm2d.dst_offset);
+-    u32 u0 = s_nv3089.in_uv & 0xFFFF, v0 = s_nv3089.in_uv >> 16;   /* 12.4 start */
++    const u64 u0 = nv3089_src_start(s_nv3089.in_uv), v0 = nv3089_src_start(s_nv3089.in_uv >> 16);   /* 12.20 */
+     /* Clip to SET_CLIP_POINT/SIZE (destination coordinates). A title tiling a
+      * resolve in 512x512 blocks relies on it to stop at the surface edge:
+      * Tornado Outbreak's bottom band is 512 rows tall with 208 left in the
+@@ -1170,7 +1187,7 @@ static void nv3089_blit(void)
+         const u32 dloc = dst_local ? RSX_LOCATION_LOCAL : RSX_LOCATION_MAIN;
+         const u32 rw = (cx1 != 0xFFFFFFFFu && cx1 < out_w) ? cx1 : out_w;      /* the clip bounds the tile */
+         const u32 rh = (cy1 != 0xFFFFFFFFu && cy1 < out_h) ? cy1 : out_h;
+-        if (rsx_draw_engine_resolve_read(sloc, s_nv3089.in_off + (v0 >> 4) * in_pitch + (u0 >> 4) * 4u, in_pitch,
++        if (rsx_draw_engine_resolve_read(sloc, s_nv3089.in_off + (u32)(v0 >> 20) * in_pitch + (u32)(u0 >> 20) * 4u, in_pitch,
+                                          s_nv3089.ds_dx, s_nv3089.dt_dy, dloc,
+                                          s_gcm2d.dst_offset + out_y * dst_pitch + out_x * 4u, dst_pitch,
+                                          rw, rh))
+@@ -1184,8 +1201,8 @@ static void nv3089_blit(void)
+      * a PPU reservation or a write watch keep the per-pixel path. */
+     int rows_done = 0;
+     if (s_nv3089.ds_dx == 0x100000u && s_nv3089.dt_dy == 0x100000u && g_resv_store_active <= 0 && !g_ww_hi) {
+-        /* The per-pixel loop's source position at 1:1: ((u0 << 8) + x * 1.0) >> 20. */
+-        const u32 sx = (u0 >> 12) + (rx0 - out_x), sy0 = (v0 >> 12) + (ry0 - out_y);
++        /* The per-pixel loop's source position at 1:1: (u0 + x * 1.0) >> 20. */
++        const u32 sx = (u32)(u0 >> 20) + (rx0 - out_x), sy0 = (u32)(v0 >> 20) + (ry0 - out_y);
+         const u64 s_lo = (u64)src + (u64)sy0 * in_pitch + (u64)sx * bpp;
+         const u64 s_hi = s_lo + (u64)(ry1 > ry0 ? ry1 - ry0 : 0) * in_pitch;
+         const u64 d_lo = (u64)dst + (u64)ry0 * dst_pitch + (u64)rx0 * bpp;
+@@ -1201,12 +1218,12 @@ static void nv3089_blit(void)
+     for (u32 y = 0; !rows_done && y < out_h; y++) {
+         u32 dy = out_y + y;
+         if (dy < cy0 || dy >= cy1) continue;
+-        u64 sv = ((u64)v0 << 8) + (u64)y * s_nv3089.dt_dy;         /* 20.12 */
++        u64 sv = v0 + (u64)y * s_nv3089.dt_dy;                     /* 12.20 */
+         u32 sy = (u32)(sv >> 20);
+         for (u32 x = 0; x < out_w; x++) {
+             u32 dx = out_x + x;
+             if (dx < cx0 || dx >= cx1) continue;
+-            u64 su = ((u64)u0 << 8) + (u64)x * s_nv3089.ds_dx;
++            u64 su = u0 + (u64)x * s_nv3089.ds_dx;
+             u32 sx = (u32)(su >> 20);
+             u32 s = src + sy * in_pitch + sx * bpp;
+             u32 d = dst + dy * dst_pitch + dx * bpp;
