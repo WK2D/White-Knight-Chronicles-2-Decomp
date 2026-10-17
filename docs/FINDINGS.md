@@ -957,6 +957,18 @@ the renderer wait on one another, and the job chain runs jobs one at a time.
 `RSX_VK_PRESENT_MODE=mailbox` did not change the frame rate, so vertical
 blank is not the limit either.
 
+Running a chain's independent jobs side by side was tried and set aside. The
+Edge geometry chain keeps one output ring per SPU. Every host job reporting
+SPU 0 corrupted that ring, and reporting SPUs 1-3 stalled the GPU on a
+semaphore at the title screen, so that chain must stay serial. The one other
+multi-SPU chain ran in parallel safely but did not change the town frame
+rate. Patch 0056 instead cuts per-job setup: each job thread reuses one
+context and clears only the local store earlier jobs could have written,
+and the per-step launch check runs only on steps that can act. That removed
+both costs from the profile, but the town stayed at 7-8 fps. The Edge
+chain's thread now mostly waits: its jobs poll for output-ring space the GPU
+frees late, and the renderer thread waits on a fence after each batch flush.
+
 `WKC2_SKIP_INTRO=1` (port hook on the boot sequencer at 0x00325248) skips the
 copyright and save notices and the publisher/middleware logos while keeping
 the system-setup steps; the title appears about 30 s after launch.

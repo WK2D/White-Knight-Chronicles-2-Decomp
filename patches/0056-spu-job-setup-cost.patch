@@ -1,0 +1,213 @@
+Cut per-job setup on SPURS job chains. Each job thread keeps one SPU
+context and clears only the local store earlier jobs on it could have
+written (binary end to their highest region end, plus the context and
+descriptor block) instead of zeroing a fresh 256 KB context per job;
+SPURS_JOB_ZERO_LS=1 restores the full clear. spu_task_launch_check now
+runs only on steps that can act: a branch to LS 0, a registered
+stack-reset entry, a policy context, or with a step diagnostic enabled
+(SPU_LAUNCH_CHECK_ALL=1 forces every step). Skipped steps still count.
+
+diff --git a/runtime/spu/spu_context.h b/runtime/spu/spu_context.h
+--- a/runtime/spu/spu_context.h
++++ b/runtime/spu/spu_context.h
+@@ -807,6 +807,27 @@
+ /* Central per-transfer hooks (stubbed in spu_drain.c until their milestones). */
+ void yz_lockstep_tick(spu_context* ctx);             /* round-robin token gate */
+ void spu_task_launch_check(spu_context* ctx, void* fn); /* SPURS task-launch    */
++/* Whether this step needs spu_task_launch_check. The check acts only on a
++ * branch to LS 0 (a finished job), a registered stack-reset entry, a SPURS
++ * policy context or a step-level diagnostic; for every other step it is
++ * bookkeeping, and calling it on each trampoline hop cost an Edge job chain
++ * a seventh of its time. A skipped step is still counted in `steps`, which
++ * the LS-0 test reads to tell a job's entry from its exit.
++ * g_spu_launch_check_all starts at -1 so the first step takes the full
++ * check, which reads the diagnostic switches and settles it at 0 or 1. */
++extern int g_spu_launch_check_all;
++extern unsigned g_spu_stack_reset_count;
++extern void* volatile g_pm_flow_ctx;
++static inline int spu_launch_check_due(spu_context* ctx)
++{
++    if (g_spu_launch_check_all || ctx->policy_mode ||
++        (ctx->pc & SPU_LS_MASK) == 0 ||
++        (g_spu_stack_reset_count && ctx->host_depth) ||
++        g_pm_flow_ctx == (void*)ctx)
++        return 1;
++    ctx->steps++;
++    return 0;
++}
+ /* Restore image_id after a call-bracket (adopt-on-serve); re-applies the
+  * persistent LS-0xA00 workload module if one is set. */
+ void spu_img_restore(spu_context* ctx, int32_t saved_img);
+@@ -897,7 +918,8 @@
+             void (*_tf)(spu_context*) = g_spu_trampoline_fn;    \
+             g_spu_trampoline_fn = 0;                            \
+             yz_lockstep_tick(ctx);                             \
+-            spu_task_launch_check((ctx), (void*)_tf);          \
++            if (spu_launch_check_due(ctx))                     \
++                spu_task_launch_check((ctx), (void*)_tf);      \
+             if ((ctx)->int_enable &&                            \
+                 ((ctx)->event_status & (ctx)->event_mask))      \
+                 _tf = spu_take_interrupt((ctx), _tf);          \
+diff --git a/runtime/spu/spu_drain.c b/runtime/spu/spu_drain.c
+--- a/runtime/spu/spu_drain.c
++++ b/runtime/spu/spu_drain.c
+@@ -57,8 +57,13 @@
+     return k;
+ }
+ 
++int g_spu_launch_check_all = -1;   /* see spu_launch_check_due */
++
+ void spu_task_launch_check(spu_context* ctx, void* fn)
+ {
++    if (g_spu_launch_check_all < 0)
++        g_spu_launch_check_all = (getenv("SPU_EXITTRACE") || getenv("SPU_STEPTRACE") ||
++                                  getenv("SPU_JOBDRAIN") || getenv("SPU_LAUNCH_CHECK_ALL")) ? 1 : 0;
+     t_recent[t_recent_n++ & 31] = (uint32_t)ctx->pc & SPU_LS_MASK;
+     extern void spu_check_stack_reset(spu_context*, void (*)(spu_context*));
+     spu_check_stack_reset(ctx, (void (*)(spu_context*))fn);
+@@ -417,7 +422,8 @@
+             g_spu_trampoline_fn = 0;
+             ctx->drain_ret_pc = return_pc & SPU_LS_MASK;   /* re-set: a nested drain changed it */
+             yz_lockstep_tick(ctx);
+-            spu_task_launch_check(ctx, (void*)fn);
++            if (spu_launch_check_due(ctx))
++                spu_task_launch_check(ctx, (void*)fn);
+             if (ctx->int_enable && (ctx->event_status & ctx->event_mask)) {
+                 void (*vf)(spu_context*) = spu_take_interrupt(ctx, fn);
+                 if (!ctx->int_enable) {   /* taken (a take clears the enable; a deferral leaves it) */
+diff --git a/runtime/spu/spu_channels.c b/runtime/spu/spu_channels.c
+--- a/runtime/spu/spu_channels.c
++++ b/runtime/spu/spu_channels.c
+@@ -1523,11 +1523,13 @@
+  * unrelated overlays using the same address. Registration precedes execution. */
+ static struct { uint32_t entry; int image_id; } s_stack_reset[16];
+ static unsigned s_stack_reset_count;
++unsigned g_spu_stack_reset_count;   /* mirror for spu_launch_check_due */
+ void spu_register_stack_reset_entry(uint32_t entry, int image_id)
+ {
+     if (s_stack_reset_count < 16) {
+         s_stack_reset[s_stack_reset_count].entry = entry & SPU_LS_MASK;
+         s_stack_reset[s_stack_reset_count++].image_id = image_id;
++        g_spu_stack_reset_count = s_stack_reset_count;
+     }
+ }
+ 
+diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
+--- a/runtime/spu/spurs_job.c
++++ b/runtime/spu/spurs_job.c
+@@ -42,6 +42,8 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <stddef.h>
++#include <malloc.h>
+ 
+ /* Optional host observer: const context, before and after the same job.
+  * The observer owns its storage and must not change guest execution state. */
+@@ -158,6 +160,63 @@
+  * The chain walker must not enqueue an additional synthetic completion. */
+ SPURS_JOB_TLS int g_spurs_job_running, g_spurs_job_user_events;
+ 
++/* One job context per host thread, reused. On hardware jm2 does not clear
++ * local store between jobs at all: a job's binary and bss arrive by DMA and its
++ * buffers hold whatever the previous job left. We keep the old zero-filled
++ * behaviour, but zero only what can be dirty -- [binary end, highest region end
++ * of any earlier job on this thread) plus the context/descriptor block at the
++ * top -- instead of all 256 KB. SPURS_JOB_ZERO_LS=1 restores a full clear.
++ * A job dispatched while another runs on the same thread gets a fresh
++ * context, as before. */
++static SPURS_JOB_TLS spu_context* t_job_ctx;
++static SPURS_JOB_TLS int          t_job_ctx_busy;
++static SPURS_JOB_TLS uint32_t     t_job_dirty_hi;
++static SPURS_JOB_TLS int          t_job_ctx_fresh;
++
++static spu_context* job_ctx_acquire(void)
++{
++    spu_context* c;
++    if (t_job_ctx_busy || !t_job_ctx) {
++        c = (spu_context*)_aligned_malloc(sizeof(spu_context), 64);
++        if (!c) return NULL;
++        spu_context_init(c, 0);
++        if (!t_job_ctx_busy && !t_job_ctx) { t_job_ctx = c; t_job_dirty_hi = 0; }
++        t_job_ctx_fresh = (c != t_job_ctx);
++        if (c == t_job_ctx) t_job_ctx_busy = 1;
++        return c;
++    }
++    c = t_job_ctx;
++    t_job_ctx_busy = 1;
++    t_job_ctx_fresh = 0;
++    /* Everything but the local store, as spu_context_init leaves it. */
++    const size_t lo = offsetof(spu_context, ls_store);
++    const size_t hi = lo + sizeof(c->ls_store);
++    memset(c, 0, lo);
++    memset((uint8_t*)c + hi, 0, sizeof(spu_context) - hi);
++    c->ls     = c->ls_store;
++    c->spu_id = 0;
++    c->status = SPU_STATUS_STOPPED;
++    return c;
++}
++
++static void job_ls_clear(uint8_t* ls, uint32_t size_bin)
++{
++    static int s_full = -1;
++    if (s_full < 0) s_full = getenv("SPURS_JOB_ZERO_LS") ? 1 : 0;
++    if (t_job_ctx_fresh) return;                 /* zero from spu_context_init */
++    if (s_full) { memset(ls + size_bin, 0, SPU_LS_SIZE - size_bin); return; }
++    const uint32_t top = SPU_LS_SIZE - 0x440;   /* context, descriptor, return */
++    if (t_job_dirty_hi > size_bin)
++        memset(ls + size_bin, 0, (t_job_dirty_hi < top ? t_job_dirty_hi : top) - size_bin);
++    memset(ls + top, 0, SPU_LS_SIZE - top);
++}
++
++static void job_ctx_release(spu_context* c)
++{
++    if (c == t_job_ctx) { t_job_ctx_busy = 0; return; }
++    _aligned_free(c);
++}
++
+ int spu_run_spurs_job(spu_lifted_entry_fn entry, int image_id,
+                       uint32_t job_ea, uint32_t job_desc_size)
+ {
+@@ -182,15 +241,18 @@
+         return -1;
+     }
+ 
+-    /* The job is laid out directly in its context's (zeroed) local store:
+-     * a separate 256 KB buffer copied in afterwards cost two full-store
+-     * passes per job. */
+-    spu_context ctx;
+-    spu_context_init(&ctx, 0);
++    /* The job is laid out directly in its context's local store. Each job
++     * thread keeps one context and clears only what earlier jobs on it wrote
++     * (see job_ctx_acquire): zeroing a whole fresh context per job was a fifth
++     * of WKC's Edge chain. */
++    spu_context* const ctx_ = job_ctx_acquire();
++    if (!ctx_) return -1;
++#define ctx (*ctx_)
+     uint8_t* ls = ctx.ls;
+ 
+     /* ---- binary at LS 0 (PIC, so delta 0 keeps the lifted addresses) ---- */
+     memcpy(ls, vm_base + ea_bin, size_bin);
++    job_ls_clear(ls, size_bin);
+ 
+     /* ---- regions, following _cellSpursCheckJob's own arithmetic --------- */
+     uint32_t p         = ALIGN1024(size_bin);
+@@ -246,6 +308,7 @@
+     /* ---- context + descriptor, parked above the job's memory region ------
+      * jm2 keeps these in its own bss (outside job memory); we load the job at
+      * LS 0, so the top of LS is the equivalent free space. */
++    if (ctx_ == t_job_ctx) t_job_dirty_hi = p;  /* this job's regions end here */
+     uint32_t desc_ls = SPU_LS_SIZE - 0x400;     /* descriptors are <= 1024 B */
+     uint32_t ctx_ls  = desc_ls - 0x40;          /* CellSpursJobContext2, 48 B */
+     uint32_t dsz     = job_desc_size ? job_desc_size : 256u;
+@@ -437,7 +500,9 @@
+         }
+     }
+ 
+-    spu_coh_unregister(&ctx);   /* stack local: out of the reserver set */
++    spu_coh_unregister(&ctx);   /* out of the reserver set until the next job */
++    job_ctx_release(ctx_);
++#undef ctx
+     return 0;
+ }
+ 
