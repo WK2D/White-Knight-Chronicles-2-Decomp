@@ -31,8 +31,9 @@ The latest image shows improved NPC surfaces after adding NV0039 transfers
 and correcting their engine routing. Stretched geometry remains. Earlier
 captures are in the [gallery](docs/GALLERY.md).
 
-NV0039 memory copies now execute on the native build and pass destination-byte
-verification during the town run. Previously speckled NPC surfaces look coherent
+NV0039 memory copies now execute on the native build. During the town run, a
+diagnostic re-read of each destination reported no mismatches; this confirms
+the writes landed, not that the copy semantics are fully correct. Previously speckled NPC surfaces look coherent
 in the inspected views; the stretched strip remains. See the
 [implementation and validation results](docs/FINDINGS.md#nv0039-memory-transfers).
 

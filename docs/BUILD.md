@@ -419,15 +419,18 @@ layouts are rejected rather than copied from stale guest bytes; depth-target
 copies remain unverified. The D3D12
 renderer has not been validated for copies involving GPU-owned surfaces.
 
-`wkc2_nv0039_copy` exercises the production FIFO walker, the observed 12/16-byte
-transfer shapes, noncontiguous mappings, overlap, pitches, strides, bounds,
+`wkc2_nv0039_copy` exercises the production FIFO walker, the 12/16-byte
+transfer shapes seen in the town trace (the native run also performs larger,
+unlogged transfers), noncontiguous mappings, overlap, pitches, strides, bounds,
 reservation notifications and separation from both 3D renderers.
 `wkc2_nv0039_routing_3d` checks the SDK compatibility override. The extended
 `wkc2_draw_engine` verifies an unaligned partial-pixel update preserves adjacent
 GPU-owned bytes. All pass in the 50-check Windows Vulkan suite.
 
 Set `GCM_M2MF_VERIFY=1` before a private run to compare copied destination bytes
-against the staged source. `[NV0039] copies=...` reports the first eight copies
+against the staged source. This re-read confirms the writes landed at the
+computed addresses; it cannot detect wrong addressing or transfer semantics.
+`[NV0039] copies=...` reports the first eight copies
 and powers of two thereafter, so the last line is a lower bound rather than a
 final total. Rejections and verification mismatches have their own immediate,
 throttled diagnostics. Logs contain counts and reasons, not payload bytes.

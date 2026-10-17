@@ -41,7 +41,7 @@ do not establish interpreter-free execution.
 | Native Windows build succeeds | Clang build and 43 runtime regression checks | Compilation alone does not verify gameplay |
 | Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | This colour-fix capture covers character creation; later town validation is recorded below; full visual fidelity remains unverified |
 | WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
-| WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | Stretched geometry and corrupt NPC surfaces remain; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
+| WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | Stretched geometry remains; NPC surfaces improve with patch 0052 ([NV0039 transfers](#nv0039-memory-transfers)), full material fidelity unverified; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
 | Initial town movement and camera response work | Full 42-patch run; successive readbacks show walking/facing changes, changed minimap position and a rotated street view | Short starting-town probes only; sustained traversal, combat and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | This check covers startup input; limited town controls are verified above |
@@ -793,7 +793,8 @@ This prevents copy offsets, pitches and formats from overwriting unrelated
 NV4097 state. The SDK's default for other runners remains unchanged.
 
 The Windows Vulkan build passes all **50 project tests with 52 SDK patches**.
-The new FIFO regressions cover the observed 12/16-byte transfer shapes,
+The new FIFO regressions cover the 12/16-byte transfer shapes seen in the
+earlier town trace,
 overlap, zero/negative pitches, interleaved byte strides, noncontiguous MAIN
 mappings, invalid ranges, reservation notifications and the 3D compatibility
 override. The draw-engine regression also checks a partial-pixel byte write
@@ -804,7 +805,14 @@ The native WKC1 recheck (`20261017-061720`) reaches town using the clean-generat
 input build, with the default SPU float mode and `GCM_M2MF_VERIFY=1`.
 The log confirms at least **65,536 completed copies / 14,363,492 bytes**,
 with no rejection or verification-mismatch diagnostics. These totals are
-lower bounds from the diagnostic's power-of-two checkpoints. A ten-second
+lower bounds from the diagnostic's power-of-two checkpoints. Between the
+32,768 and 65,536 checkpoints, copies average about 420 bytes, so the run
+also contains larger transfers than the traced 12/16-byte shapes; those
+shapes are not individually logged or modelled by the regressions. The
+verification re-reads each destination byte after writing it, which confirms
+the writes landed at the computed addresses. It cannot detect wrong addressing
+or transfer semantics, so it is a consistency check rather than a correctness
+proof. A ten-second
 town gate contains **47 NV0039 triggers**. Short movement and camera
 response were rechecked, then the sole native process was stopped.
 
