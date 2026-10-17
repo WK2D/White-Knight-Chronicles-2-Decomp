@@ -63,7 +63,7 @@ names = [n.decode('utf-8') for n in git('ls-files', '--cached', '-z').split(b'\0
 for name in names:
     path = PurePosixPath(name)
     screenshot = len(path.parts) == 3 and path.parts[:2] == ('verification', 'screenshots') and re.fullmatch(r'[a-z0-9][a-z0-9-]*\.png', path.name)
-    allowed = screenshot or name in root_files or name in {'.github/FUNDING.yml', 'verification/rendering.json', 'verification/gallery.json', 'verification/installation.json', 'verification/movie-demux.json'} or (
+    allowed = screenshot or name in root_files or name in {'.github/FUNDING.yml', 'verification/rendering.json', 'verification/gallery.json', 'verification/installation.json', 'verification/movie-demux.json', 'verification/performance.json'} or (
         len(path.parts) == 2 and path.parts[0] in extensions and path.suffix in extensions[path.parts[0]])
     if not allowed:
         findings.append({'file': name, 'reason': 'outside publication allowlist'})

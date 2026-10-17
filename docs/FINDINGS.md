@@ -2,13 +2,17 @@
 
 Updated 2026-10-17. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current milestone:** the 58-patch native Windows Vulkan build runs the
+**Current milestone:** the 59-patch native Windows Vulkan build runs the
 missing secondary-bone physics job. The long stretched hair/clothing strips
 are gone in the inspected WKC1 town views, including after short movement and
 camera rotation. All 51 current runtime checks pass. Full material/rendering
 fidelity, sustained traversal, combat and save/load remain unverified.
 See [the physics trace and native recheck](#secondary-bone-physics-and-town-stretching)
 and [gallery](GALLERY.md).
+
+The first performance pass after that fix raises the profiled starting-town
+view from 8.1–8.3 to 9.3–9.6 fps. A steady 30 fps is the immediate target,
+followed by validated 60 fps support. See [the comparison](#town-performance-after-the-physics-fix).
 
 ## Goal and reporting
 
@@ -101,7 +105,8 @@ remaining validation work.
 - Preserve depth-only targets and reload GPU surfaces after video conversion
   writes; patch 0053 removes the observed cutscene red flashes.
 - Reduce SPURS dispatch/setup costs and avoid Vulkan mid-frame fence waits
-  with patches 0054–0057; town performance remains below the 60 fps target.
+  with patches 0054–0057; town performance remains below the immediate 30 fps
+  target and the later 60 fps goal.
 - Execute the statically compiled secondary-bone physics job through its
   SPURS queue/port imports; patch 0058 removes the long town strips in the
   inspected views.
@@ -1016,8 +1021,8 @@ The initial town measurement was about 7 fps with 1,400-1,800 draws per frame. T
 renderer records a frame, submits it and waits for the GPU before the next
 one, and reads two depth targets back each frame; overlapping frames is the
 performance candidate considered at that checkpoint. Later profiling and
-patch 0057's mid-frame changes are recorded below. The eventual target is
-60 fps. These are qualitative native measurements with the diagnostics shown,
+patch 0057's mid-frame changes are recorded below. The immediate target is
+30 fps, followed by validated 60 fps support. These are qualitative native measurements with the diagnostics shown,
 not a reproducible benchmark.
 
 Subsequent town profiling showed the renderer was not the only limit: its
@@ -1051,13 +1056,76 @@ frame. A full batch is now submitted without waiting while recording goes on
 in a second set of buffers, and the pool holds 8192 sets. Renderer blocking
 fell to about 13 ms a frame (the end-of-frame wait), but the town only rose to
 about 8 fps. No thread is saturated any more. The PPU, the job chains, the
-renderer and the GPU each wait on the next, and the debug C runtime's
-memcpy/memset is about a quarter of both the Edge chain and renderer threads.
+renderer and the GPU each wait on the next. This checkpoint attributed much of
+the Debug C runtime cost to copying/clearing; the later profile below identifies
+repeated environment scans as a substantial part of that cost. The sampler's
+first-stack-pointer heuristic is not a reliable full call stack.
 `RSX_VK_FLUSH_FILE=<path>` reports flushes per frame by source line.
 
 `WKC2_SKIP_INTRO=1` (port hook on the boot sequencer at 0x00325248) skips the
 copyright and save notices and the publisher/middleware logos while keeping
 the system-setup steps; the title appears about 30 s after launch.
+
+## Town performance after the physics fix
+
+Patch 0059 caches launch-time diagnostic settings in the renderer and SPU job
+dispatcher. Previously, disabled diagnostics repeatedly scanned the host process
+environment: `RSX_DRAW_AUDIT` was queried for each RSX method, and six lookups
+were performed for each SPURS job. The new per-thread caches retain presence
+semantics, descriptor dump levels, selected fingerprint parsing and log budgets.
+They do not change guest work or disable physics.
+
+Two private native runs compare the same initial WKC1 town view after dismissing
+the party and Travelogue dialogs. No movement or camera input was sent during
+the measured windows. NPCs continue moving, so this is a limited live-scene
+comparison rather than an identical-workload benchmark.
+
+| Build | First 60-second sample | Second 60-second sample |
+| --- | --- | --- |
+| 58 patches, physics enabled | 500 frames / 8.33 fps | 487 frames / 8.12 fps |
+| 59 patches, diagnostic caches | 575 frames / 9.58 fps | 559 frames / 9.32 fps |
+
+The combined averages are 8.22 and 9.45 fps, about a 15% improvement. Both builds
+use `/O2 /Ob2 /arch:AVX2`, the Debug C runtime/ABI, Vulkan, logs sent to NUL,
+the Windows sampling profiler and five-second GPU readbacks. Frame counts are
+read independently from the host presentation counter. They are diagnostic
+measurements on one machine, not a clean profiler-off benchmark or evidence of
+a steady 30 fps. The immediate target is 30 fps, followed by validated 60 fps
+support. Aggregate counts and conditions are in
+[performance.json](../verification/performance.json); raw profiles, game captures
+and local paths stay private.
+
+The fresh profile identifies real environment-scan work in `ucrtbased.dll`;
+those repeated diagnostic lookups disappear with the caches. Earlier broad
+attribution of that module's cost to memcpy/memset was too strong. The profiler
+finds a possible caller by scanning stack words, which can find stale return
+addresses; a full host-stack check is needed before blaming a specific call.
+In particular, apparent SDL event-poll waits did not survive that check.
+
+Two private, reversible host-wait experiments were rejected: removing the
+four-millisecond idle wait reduced the 58-patch sample to 7.65 fps; a
+one-millisecond wait with 59 patches measured 9.32 fps against 9.27 fps after
+restoring four milliseconds. Neither establishes a useful gain. The published
+runner keeps the four-millisecond event wait. No reference-register publications
+occurred during these town samples, so shortening their publication delay has
+no supporting evidence here.
+
+The review of [Drakengard 3's frame code at 96df4c3](https://github.com/soyjxck/dod3-recomp/blob/96df4c364a20c306724a48886a43f8f14ce5bedd/src/main.cpp)
+identified its separate limiter and wakeup mechanisms: `DOD3_FPS` replaces UE3's
+`GetMaxTickRate`, while guest poll waits can wake the renderer and finish when a
+GPU label changes. Its UE3 hook is not a WKC frame-rate patch. WKC's main thread
+is observed polling label `0x48` in its own graphics wait at `0x00AEF65C`, with
+50-microsecond sleeps, and waiting on job completion. Those dependencies need a
+WKC-specific timing comparison before changing wait behavior. None of
+Drakengard's FPS code has been imported in patch 0059.
+
+All 51 Windows Vulkan regressions pass. Existing process fixtures verify that
+six presence switches still emit diagnostics when set to `0`, with unchanged
+normal output. The full 59-patch stack applies cleanly; upgrading a 58-patch
+checkout changes four files, and reapplication changes none. The native build
+reaches town, responds to short movement and camera input, and retains normal
+hair/clothing geometry in inspected views. Sustained traversal, combat, save/load
+and full rendering fidelity remain unverified.
 
 ## Secondary-bone physics and town stretching
 
@@ -1312,7 +1380,7 @@ animation program; eight dispatch/return pairs have been observed after lifting
 it. FIFO consumption continues through a later timeout. A subsequent vertex-shader
 cache fix revealed avatar-customization menus. At this checkpoint, the model
 was still missing. Later SPU arithmetic and renderer fixes restored the avatar.
-The current 58-patch build reaches town, with limited controls verified and
+The current 59-patch build reaches town, with limited controls verified and
 the long secondary-bone strips removed in inspected views. Full rendering
 fidelity, broader gameplay, save/load and imports needed on untested paths
 remain unverified.
@@ -1328,7 +1396,8 @@ corrections. Full material, lighting and physics fidelity still need wider
 validation. The remaining work includes:
 
 - Sustained traversal, combat, later scenes and verified save/load.
-- Better town performance; the last measured pre-physics build was about 8 fps.
+- Better town performance: patch 0059 measures 9.3–9.6 fps in the profiled
+  starting view, below the immediate 30 fps target and later 60 fps goal.
 - All character-creation options and an in-game keyboard usable by gamepad.
 - Complete static SPU coverage, including the six observed image-17 fallback
   fingerprints; source-level reconstruction and a supported modding framework.

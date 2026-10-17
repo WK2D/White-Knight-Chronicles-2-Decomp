@@ -48,6 +48,11 @@ The pinned SDK is built with the project's [runtime patches](BUILD.md),
 including [SPURS queue/port execution](../patches/0058-spurs-job-queue-secondary-bones.patch)
 and [fallback profiling](../patches/0042-spu-interp-profile.patch).
 
+The [launch-time diagnostic caches](../patches/0059-cache-launch-diagnostics.patch)
+reduce host overhead while retaining the same guest jobs and rendering work.
+The [starting-town timing comparison](FINDINGS.md#town-performance-after-the-physics-fix)
+remains below the immediate 30 fps target; 60 fps support is a later validation goal.
+
 Generated game sources and game inputs remain private. The public repository
 contains the build tools, project code, runtime patches and verification records.
 

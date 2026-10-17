@@ -16,6 +16,10 @@ gone in the inspected town views. Full material and rendering fidelity,
 sustained traversal, combat, save/load and full audio fidelity remain unverified.
 Linux and macOS execution have not been verified.
 
+Patch 0059's first performance pass measures 9.3–9.6 fps in the profiled starting
+view, up from 8.1–8.3 fps; [conditions and limits](FINDINGS.md#town-performance-after-the-physics-fix).
+This is a timing result, so the existing physics captures remain the newest images.
+
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.

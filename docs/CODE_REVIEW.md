@@ -1,6 +1,6 @@
 # Code review suggestions
 
-Updated 2026-10-17. The current Windows Vulkan build has 58 SDK patches and
+Updated 2026-10-17. The current Windows Vulkan build has 59 SDK patches and
 51 passing runtime checks. Later tracing located the long town strips in
 omitted secondary-bone physics jobs. Patch 0058 restores their queue execution
 and CRT handoff; see the
@@ -8,6 +8,10 @@ and CRT handoff; see the
 Patch 0052 improved the inspected NPC surfaces, and patch 0053 removed the
 observed cutscene red flashes. Full rendering fidelity and broader gameplay
 remain unverified.
+
+Patch 0059 caches launch-time diagnostics and passes the same 51 Windows checks;
+the [town comparison](FINDINGS.md#town-performance-after-the-physics-fix) records
+its modest frame-rate improvement. It does not change the review dispositions below.
 
 The reviews below retain their original baselines, check counts and validation
 scope. They are an audit history, not a list of changes still waiting to merge.

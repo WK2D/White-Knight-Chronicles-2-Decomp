@@ -1,0 +1,181 @@
+Cache launch-time RSX audit/index and SPU job diagnostics per host thread.
+The disabled paths otherwise scan the process environment for each method
+or job. Preserve presence-based switches, descriptor dump levels, selected
+fingerprints and existing log budgets. Keep initialization private to each
+thread and use the compiler TLS spelling supported by MSVC/clang-cl or GCC.
+
+diff --git a/libs/video/rsx_commands.c b/libs/video/rsx_commands.c
+--- a/libs/video/rsx_commands.c
++++ b/libs/video/rsx_commands.c
+@@ -21,6 +21,14 @@
+ #include <stdlib.h>   /* getenv -- an implicit decl returns int, truncating the pointer */
+ #include <string.h>
+ #include "../../runtime/memory/vm.h"    /* VM_HLE_INJECT_BASE */
++
++/* Diagnostic switches are fixed when launching the host. Keep their first
++ * lookup per thread; repeated getenv scans otherwise cost time per method. */
++#if defined(_MSC_VER)
++#  define RSX_COMMAND_DIAG_TLS __declspec(thread)
++#else
++#  define RSX_COMMAND_DIAG_TLS __thread
++#endif
+ 
+ /* ---------------------------------------------------------------------------
+  * Global backend
+@@ -839,7 +847,9 @@
+     if (method == 0x1DAC || method == 0x1DB0) {
+         if (method == 0x1DAC) state->restart_index_enable = data;
+         else state->restart_index = data;
+-        if (getenv("RSX_INDEX_TRACE")) {
++        static RSX_COMMAND_DIAG_TLS int index_trace = -1;
++        if (index_trace < 0) index_trace = getenv("RSX_INDEX_TRACE") != NULL;
++        if (index_trace) {
+             static unsigned n;
+             if (n++ < 16) fprintf(stderr, "[IDX-STATE] method=%04X value=%08X\n", method, data);
+         }
+@@ -853,7 +863,9 @@
+     }
+ #endif
+ 
+-    if (getenv("RSX_DRAW_AUDIT") && method < 0x2000u && !(method & 3u)) {
++    static RSX_COMMAND_DIAG_TLS int draw_audit = -1;
++    if (draw_audit < 0) draw_audit = getenv("RSX_DRAW_AUDIT") != NULL;
++    if (draw_audit && method < 0x2000u && !(method & 3u)) {
+         static unsigned char seen[0x800];
+         if (!seen[method >> 2]) {
+             seen[method >> 2] = 1;
+diff --git a/runtime/spu/spu_workload.c b/runtime/spu/spu_workload.c
+--- a/runtime/spu/spu_workload.c
++++ b/runtime/spu/spu_workload.c
+@@ -24,6 +24,14 @@
+  * as opposed to the 64-byte context handshake DMAs. The dispatcher's
+  * YDKJ_CRI_RESUME poll-loop watches this to know real work arrived. */
+ int g_cri_video_dma = 0;
++
++/* Launch-time diagnostic state is private to each dispatching host thread.
++ * Test _MSC_VER rather than _WIN32: MinGW supports __thread. */
++#if defined(_MSC_VER)
++#  define SPU_WORKLOAD_DIAG_TLS __declspec(thread)
++#else
++#  define SPU_WORKLOAD_DIAG_TLS __thread
++#endif
+ 
+ /* ---- fingerprint ------------------------------------------------------- */
+ 
+@@ -897,9 +905,16 @@
+      * the per-job pair is verbose-only. */
+     int verbose = ps3_log_verbose();
+     /* Trace one observed binary without enabling per-job audio logging. */
+-    { const char* selected = getenv("SPURS_JOB_TRACE_FP");
++    { static SPU_WORKLOAD_DIAG_TLS int selected_initialized, selected_present;
++      static SPU_WORKLOAD_DIAG_TLS uint64_t selected_fp;
+       static volatile LONG trace_count;
+-      if (selected && fp == strtoull(selected, NULL, 16) &&
++      if (!selected_initialized) {
++          const char* selected = getenv("SPURS_JOB_TRACE_FP");
++          selected_present = selected != NULL;
++          selected_fp = selected ? strtoull(selected, NULL, 16) : 0;
++          selected_initialized = 1;
++      }
++      if (selected_present && fp == selected_fp &&
+           InterlockedIncrement(&trace_count) <= 8) verbose = 1;
+     }
+     if (verbose) {
+diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
+--- a/runtime/spu/spurs_job.c
++++ b/runtime/spu/spurs_job.c
+@@ -44,6 +44,33 @@
+ #include <string.h>
+ #include <stddef.h>
+ #include <malloc.h>
++
++/* These diagnostics are selected at host launch, independently of job state.
++ * Each thread initializes its own cache, without a shared initialization race. */
++#if defined(_MSC_VER)
++#  define SPURS_JOB_DIAG_TLS __declspec(thread)
++#else
++#  define SPURS_JOB_DIAG_TLS __thread
++#endif
++typedef struct {
++    int initialized;
++    int descriptor_dump, descriptor_level;
++    int job_dump, exit_trace;
++} spurs_job_diagnostics;
++
++static const spurs_job_diagnostics* job_diagnostics(void)
++{
++    static SPURS_JOB_DIAG_TLS spurs_job_diagnostics cached;
++    if (!cached.initialized) {
++        const char* level = getenv("SPURS_JOB_DESCDUMP");
++        cached.descriptor_dump = level != NULL;
++        cached.descriptor_level = level ? atoi(level) : 0;
++        cached.job_dump = getenv("SPURS_JOB_DUMP") != NULL;
++        cached.exit_trace = getenv("SPURS_JOB_EXIT_TRACE") != NULL;
++        cached.initialized = 1;
++    }
++    return &cached;
++}
+ 
+ /* Optional host observer: const context, before and after the same job.
+  * The observer owns its storage and must not change guest execution state. */
+@@ -352,8 +379,9 @@
+     /* SPURS_JOB_DESCDUMP=1: hexdump the guest job descriptor. The SPU derives
+      * its DMA and atomic EAs from these words, so when a job spins on a
+      * lock-line address that is not backed, this is what to read first. */
++    const spurs_job_diagnostics* diagnostics = job_diagnostics();
+     { static int _d = 0;
+-      if (getenv("SPURS_JOB_DESCDUMP") && _d++ < 4) {
++      if (diagnostics->descriptor_dump && _d++ < 4) {
+           fprintf(stderr, "[spurs-job] desc @0x%08X (%u bytes):", job_ea, dsz);
+           for (uint32_t o = 0; o < dsz && o < 128; o += 4) {
+               if ((o & 31) == 0) fprintf(stderr, "\n    +%02X:", o);
+@@ -364,7 +392,7 @@
+            * data (past JH_SIZE) and dump what they point at. The job reads its
+            * parameters from there, so a wild DMA/atomic address usually
+            * originates in one of these blocks. */
+-          if (atoi(getenv("SPURS_JOB_DESCDUMP")) >= 2) {
++          if (diagnostics->descriptor_level >= 2) {
+               for (uint32_t o = JH_SIZE; o < dsz && o < 128; o += 4) {
+                   uint32_t v = g32(job_ea + o);
+                   if (v < 0x10000u || v >= 0xD0000000u) continue;
+@@ -383,7 +411,7 @@
+      * The header's input-DMA-list/io fields are legitimately zero for it. Dump
+      * the user data + that command block so the bail path is attributable. */
+     uint32_t dump_cmd = 0;
+-    if (getenv("SPURS_JOB_DUMP")) {
++    if (diagnostics->job_dump) {
+         uint64_t ud  = g64(job_ea + JH_SIZE);        /* desc+0x30 */
+         uint32_t cmd = (uint32_t)ud;                 /* low word = EA */
+         fprintf(stderr, "[spurs-job] job 0x%08X userdata: %016llX %016llX %016llX %016llX\n",
+@@ -474,7 +502,7 @@
+           fprintf(stderr, "[spurs-job] job 0x%08X posted mbox=0x%08X intr=0x%08X\n",
+                   job_ea, g_spurs_job_mbox, g_spurs_job_mbox_intr); }
+ 
+-    if (getenv("SPURS_JOB_DUMP")) {
++    if (diagnostics->job_dump) {
+         fprintf(stderr, "[spurs-job] job 0x%08X exit: status=0x%X stop=0x%X pc=0x%05X\n",
+                 job_ea, ctx.status, ctx.stop_code, ctx.pc);
+         /* Post-run view of the same command block: the game polls result/status
+@@ -493,7 +521,7 @@
+ 
+     /* Optional bounded post-run observation. Returning from the dispatcher
+      * alone does not establish that the job produced its expected output. */
+-    if (getenv("SPURS_JOB_EXIT_TRACE")) {
++    if (diagnostics->exit_trace) {
+         static SPURS_JOB_TLS uint32_t seen[64][4];
+         static SPURS_JOB_TLS unsigned count;
+         uint32_t key[4] = {(uint32_t)image_id,ctx.status,ctx.stop_code,ctx.pc};
+diff --git a/runtime/spu/spu_channels.c b/runtime/spu/spu_channels.c
+--- a/runtime/spu/spu_channels.c
++++ b/runtime/spu/spu_channels.c
+@@ -264,7 +264,9 @@
+          * calls drain inside their own call brackets (see the lifter). */
+         entry(ctx);
+         { static int _e = 0;
+-          if (getenv("SPU_ARGWATCH") && _e < 8) { _e++;
++          static SPU_TLS int argwatch = -1;
++          if (argwatch < 0) argwatch = getenv("SPU_ARGWATCH") != NULL;
++          if (argwatch && _e < 8) { _e++;
+               fprintf(stderr, "[argwatch] after entry(): img=%d pc=0x%05X "
+                       "r2=0x%08X r3=0x%08X r4=0x%08X\n", ctx->image_id,
+                       (uint32_t)ctx->pc & SPU_LS_MASK, ctx->gpr[2]._u32[0],

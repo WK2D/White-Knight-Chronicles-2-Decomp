@@ -50,6 +50,7 @@
 !/verification/gallery.json
 !/verification/installation.json
 !/verification/movie-demux.json
+!/verification/performance.json
 !/verification/screenshots/
 /verification/screenshots/*
 !/verification/screenshots/*.png

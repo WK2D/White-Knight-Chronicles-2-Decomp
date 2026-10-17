@@ -18,6 +18,9 @@ See
 **Current milestone (2026-10-17): the native Vulkan build runs the missing
 secondary-bone physics job, removing the long stretched strips in the tested
 WKC1 town views. Short movement and camera rotation are rechecked.**
+The first performance pass raises the profiled starting-town view from
+8.1–8.3 to 9.3–9.6 fps. A steady 30 fps is the next target, followed by
+validated 60 fps support; see [measurements and limits](docs/FINDINGS.md#town-performance-after-the-physics-fix).
 Full material and rendering fidelity remain unverified. Sustained traversal,
 combat and save/load remain unverified, so this is not a playable port yet.
 
@@ -49,6 +52,8 @@ physics work and corrected by patch 0058. See the
 
 Verified progress, with the latest milestone first:
 
+- improves the measured starting-town view by about 15% by caching launch-time
+  diagnostic settings (patch 0059); this remains well below 30 fps;
 - removes the long **stretched hair and clothing strips** in the tested town
   views by running the previously omitted SPURS queue physics job; all 128
   sampled geometry jobs now have normal referenced vertex bounds;
@@ -71,7 +76,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **51 Windows runtime regression checks** with **58 SDK patches** applied.
+- passes **51 Windows runtime regression checks** with **59 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are

@@ -153,9 +153,9 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 58,
+    "sdk_patch_count": 59,
     "runtime_checks_passed": 51,
-    "town_native_run_sdk_patch_count": 58,
+    "town_native_run_sdk_patch_count": 59,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
     "patch_0042_native_game_run_verified": true,
@@ -193,7 +193,10 @@
     "patch_0057_windows_regression_verified": true,
     "patch_0058_windows_regression_verified": true,
     "patch_0058_native_game_run_verified": true,
-    "patch_0058_town_stretched_strips_removed_verified": true
+    "patch_0058_town_stretched_strips_removed_verified": true,
+    "patch_0059_windows_regression_verified": true,
+    "patch_0059_native_game_run_verified": true,
+    "patch_0059_presence_switch_process_fixtures_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -236,5 +239,18 @@
     "jobs_with_referenced_positions_over_100_after": 0,
     "full_game_physics_fidelity_verified": false,
     "findings": "docs/FINDINGS.md#secondary-bone-physics-and-town-stretching"
+  },
+  "performance": {
+    "record": "verification/performance.json",
+    "immediate_target_fps": 30,
+    "later_target_fps": 60,
+    "steady_30_fps_verified": false,
+    "60_fps_verified": false,
+    "latest_measured_sdk_patch_count": 59,
+    "latest_profiled_starting_town_fps_range": [
+      9.3,
+      9.6
+    ],
+    "scope": "Two one-minute idle starting-town samples with physics enabled, an optimized Debug-ABI build, sampler and five-second GPU readbacks; not a profiler-off benchmark."
   }
 }

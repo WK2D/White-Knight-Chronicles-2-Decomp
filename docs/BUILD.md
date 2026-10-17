@@ -4,7 +4,7 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Verified on 2026-10-17:** the 58-patch Windows Vulkan build reaches the live
+**Verified on 2026-10-17:** the 59-patch Windows Vulkan build reaches the live
 WKC1 town with the long stretched hair/clothing strips removed in the inspected
 views. Short movement and camera rotation are rechecked. Earlier town testing
 also verified pause/resume input. All 51 current runtime checks pass.
@@ -944,11 +944,23 @@ Runtime switches, all off unless set:
 - `RSX_VK_PRESENT_MODE=mailbox` or `immediate` requests that Vulkan present
   mode when the driver supports it; otherwise the backend retains FIFO.
 
+Patch 0059 caches seven launch-time diagnostic settings per host thread:
+`RSX_DRAW_AUDIT`, `RSX_INDEX_TRACE`, `SPURS_JOB_TRACE_FP`,
+`SPURS_JOB_DESCDUMP`, `SPURS_JOB_DUMP`, `SPURS_JOB_EXIT_TRACE` and
+`SPU_ARGWATCH`. Set them before launch; changing them in a running process
+does not refresh a thread's cache. Presence-based switches still enable with
+an empty value or `0`; descriptor levels and fingerprint parsing are retained.
+All 51 Windows checks pass. Existing fixtures also verify six presence switches
+set to `0` still emit diagnostics while preserving their normal output.
+
 `tools/probe.ps1 -ShowWindow` keeps the game window visible during a probe.
 Draw/shader captures, profiler files and logs stay in the private workspace.
-These options can change timing; the observed roughly 25–31 fps in heavier
-cutscene shots and roughly 8 fps in the pre-0058 town run are not a measured
-performance guarantee for a new machine or the current physics-enabled build.
+These options can change timing. With the physics fix included, two one-minute
+starting-town samples measured 8.1–8.3 fps at patch 0058 and 9.3–9.6 fps at
+patch 0059, using the optimized Debug-ABI build, sampling profiler and five-second
+readbacks. The immediate target is a steady 30 fps, followed by validated 60 fps
+support. These limited measurements are not a performance guarantee; see
+[conditions and records](FINDINGS.md#town-performance-after-the-physics-fix).
 
 ## Diagnostic probes
 

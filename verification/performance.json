@@ -1,0 +1,116 @@
+{
+  "title_id": "BLUS30784",
+  "app_version": "01.00",
+  "date": "2026-10-17",
+  "scene": "Initial WKC1 town view after dismissing the party and Travelogue dialogs",
+  "conditions": {
+    "platform": "Windows x86-64",
+    "renderer": "Vulkan",
+    "presented_surface_size": [
+      1920,
+      1080
+    ],
+    "optimization": "/O2 /Ob2 /arch:AVX2",
+    "runtime_abi": "Debug /MDd",
+    "secondary_bone_physics_enabled": true,
+    "stdout_stderr_to_NUL": true,
+    "sampling_profiler_enabled": true,
+    "gpu_readback_interval_seconds": 5,
+    "movement_or_camera_input_during_samples": false,
+    "moving_NPCs": true,
+    "frame_counter": "Independent read-only samples of ppu_boot_frames_presented backing counter",
+    "fifo_kick_wait_ms": 4
+  },
+  "samples": [
+    {
+      "sdk_patch_count": 58,
+      "probe": "20261017-210227",
+      "sample": 1,
+      "seconds": 60.00036,
+      "presented_frames": 500,
+      "average_fps": 8.333283,
+      "reference_publications": 0,
+      "private_counter_record_sha256": "f9235c3527d6c01050e2fdf7d7e568f31249b63d45132f0e39dc2f8cc666ec6b"
+    },
+    {
+      "sdk_patch_count": 58,
+      "probe": "20261017-210227",
+      "sample": 2,
+      "seconds": 60.00026,
+      "presented_frames": 487,
+      "average_fps": 8.116631,
+      "reference_publications": 0,
+      "private_counter_record_sha256": "631c5635c2cf92e77de535810bb18a86aab90e694a3f06939476b19be8217fe6"
+    },
+    {
+      "sdk_patch_count": 59,
+      "probe": "20261017-212432",
+      "sample": 1,
+      "seconds": 60.000201,
+      "presented_frames": 575,
+      "average_fps": 9.583301,
+      "reference_publications": 0,
+      "private_counter_record_sha256": "44f8a1cc277564473bdeac1a86b837d2aa0e6b643735fc7a5777532c1ea9010f"
+    },
+    {
+      "sdk_patch_count": 59,
+      "probe": "20261017-212432",
+      "sample": 2,
+      "seconds": 60.000395,
+      "presented_frames": 559,
+      "average_fps": 9.316605,
+      "reference_publications": 0,
+      "private_counter_record_sha256": "7c14a2dab85032b1c7ba50dceccdb8bc5952ed6f01449fd2713ef869373b9ff0"
+    }
+  ],
+  "combined": {
+    "58": {
+      "seconds": 120.00062,
+      "presented_frames": 987,
+      "average_fps": 8.224958
+    },
+    "59": {
+      "seconds": 120.000596,
+      "presented_frames": 1134,
+      "average_fps": 9.449953
+    }
+  },
+  "approximate_improvement_percent": 14.89,
+  "validation": {
+    "windows_runtime_checks_passed": 51,
+    "patch_count": 59,
+    "upgrade_from_58_files_changed": 4,
+    "repeat_apply_files_changed": 0,
+    "native_reaches_town": true,
+    "short_movement_and_camera_rechecked": true,
+    "long_strips_absent_in_inspected_views": true,
+    "six_presence_switch_fixtures_with_value_0_passed": true
+  },
+  "rejected_experiments": [
+    {
+      "change": "58-patch host idle timeout 4 to 0 ms",
+      "average_fps": 7.65,
+      "kept": false
+    },
+    {
+      "change": "59-patch host idle timeout 4 to 1 ms",
+      "average_fps": 9.3167,
+      "restored_4_ms_average_fps": 9.2666,
+      "kept": false
+    }
+  ],
+  "goals": {
+    "immediate_fps": 30,
+    "later_fps": 60,
+    "steady_30_fps_verified": false,
+    "60_fps_verified": false
+  },
+  "limits": [
+    "One machine and one starting-town view; live NPC workloads differ between windows.",
+    "Profiler and readbacks affect timing. No profiler-off gameplay benchmark.",
+    "A read-only guest-context census also ran during part of the first 59-patch sample.",
+    "No sustained traversal, combat, save/load or full rendering/physics fidelity validation.",
+    "Raw counters, profiles, game data, generated code, host identifiers and local paths remain private."
+  ],
+  "findings": "../docs/FINDINGS.md#town-performance-after-the-physics-fix"
+}
