@@ -8,7 +8,8 @@ param(
     [switch]$CaptureFrames,
     [ValidateRange(1,128)][int]$CaptureFrameCount = 4,
     [ValidateRange(1,3600)][int]$CaptureEvery = 1,
-    [ValidateRange(0,3600)][int]$CaptureSkip = 0
+    [ValidateRange(0,3600)][int]$CaptureSkip = 0,
+    [switch]$ShowWindow
 )
 $ErrorActionPreference = 'Stop'
 if ($Renderer -eq 'Vulkan' -and $CaptureFrames) {
@@ -40,7 +41,7 @@ $elf = Join-Path $Workspace 'work/wkc2-inspection/PS3_GAME/USRDIR/EBOOT.elf'
 $exe = Join-Path $Workspace 'work/build/wkc2/WKC2Native.exe'
 if ($Renderer -eq 'Vulkan') { $exe = Join-Path $Workspace 'work/build/wkc2-vulkan/WKC2Native.exe' }
 if ($Executable) { $exe = (Resolve-Path -LiteralPath $Executable).Path }
-$p = Start-Process -FilePath $exe -ArgumentList ('"'+$elf+'"') -WorkingDirectory $Workspace -WindowStyle Hidden -RedirectStandardOutput "$logRoot/$tag.stdout.log" -RedirectStandardError "$logRoot/$tag.stderr.log" -PassThru
+$p = Start-Process -FilePath $exe -ArgumentList ('"'+$elf+'"') -WorkingDirectory $Workspace -WindowStyle $(if ($ShowWindow) { 'Normal' } else { 'Hidden' }) -RedirectStandardOutput "$logRoot/$tag.stdout.log" -RedirectStandardError "$logRoot/$tag.stderr.log" -PassThru
 $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
 $timedOut = $false
 while (-not $p.HasExited) {

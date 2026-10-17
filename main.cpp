@@ -55,8 +55,169 @@ extern "C" uint32_t g_last_hle_nid;
 extern "C" const char* g_last_hle_name;
 extern "C" PPU_THREAD_LOCAL ppu_context* g_active_ctx;
 
+#include <tlhelp32.h>
+#include <algorithm>
+#include <map>
+#include <string>
+#include <thread>
+#include <vector>
+
+/* Copy up to `cap` stack words starting at `rsp` from a stopped thread.
+ * ReadProcessMemory is a plain system call: it takes no user-mode lock the
+ * stopped thread could hold and reports unreadable memory instead of
+ * faulting. Shorter reads are retried for a stack near its top. */
+static size_t wkc2_profile_copy_stack(uintptr_t rsp, uint64_t* out, size_t cap)
+{
+    for (size_t want = cap; want >= 16; want /= 4) {
+        SIZE_T got = 0;
+        if (ReadProcessMemory(GetCurrentProcess(), (LPCVOID)rsp, out, want * 8, &got))
+            return (size_t)got / 8;
+    }
+    return 0;
+}
+
+/* WKC2_SAMPLE_PROFILE=<file>: every ten seconds, rewrite <file> with each
+ * thread's CPU share over that window and the module-relative instruction
+ * addresses it was sampled at most often (resolve them with the link map).
+ * A background thread suspends each other thread briefly every 2 ms. */
+static void wkc2_start_sample_profiler(void)
+{
+    const char* out = getenv("WKC2_SAMPLE_PROFILE");
+    if (!out || !*out) return;
+    static std::string path; path = out;
+    std::thread([] {
+        const DWORD self = GetCurrentThreadId(), pid = GetCurrentProcessId();
+        const uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
+        struct Info { HANDLE h = NULL; std::wstring name; uint64_t cpu0 = 0;
+                      std::map<uint64_t, uint32_t> hits, leaves; uint32_t samples = 0; };
+        std::map<DWORD, Info> threads;
+        DWORD last_scan = 0, window_start = GetTickCount();
+        auto cpu_of = [](HANDLE h) {
+            FILETIME c, e, k, u;
+            if (!GetThreadTimes(h, &c, &e, &k, &u)) return (uint64_t)0;
+            return (((uint64_t)k.dwHighDateTime << 32) | k.dwLowDateTime) +
+                   (((uint64_t)u.dwHighDateTime << 32) | u.dwLowDateTime);
+        };
+        for (;;) {
+            const DWORD now = GetTickCount();
+            if (now - last_scan > 1000) {
+                last_scan = now;
+                HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+                THREADENTRY32 te; te.dwSize = sizeof te;
+                if (snap != INVALID_HANDLE_VALUE && Thread32First(snap, &te)) do {
+                    if (te.th32OwnerProcessID != pid || te.th32ThreadID == self) continue;
+                    if (threads.count(te.th32ThreadID)) continue;
+                    Info& t = threads[te.th32ThreadID];
+                    t.h = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT |
+                                     THREAD_QUERY_INFORMATION, FALSE, te.th32ThreadID);
+                    PWSTR desc = NULL;
+                    if (t.h && SUCCEEDED(GetThreadDescription(t.h, &desc)) && desc) {
+                        t.name = desc; LocalFree(desc);
+                    }
+                    t.cpu0 = t.h ? cpu_of(t.h) : 0;
+                } while (Thread32Next(snap, &te));
+                if (snap != INVALID_HANDLE_VALUE) CloseHandle(snap);
+            }
+            for (auto& [id, t] : threads) {
+                if (!t.h || SuspendThread(t.h) == (DWORD)-1) continue;
+                CONTEXT ctx; ctx.ContextFlags = CONTEXT_FULL;
+                /* Only the register and stack copies happen while the thread
+                 * is stopped: no allocation, file or loader calls that could
+                 * wait on a lock it holds. */
+                uintptr_t leaf = 0, caller = 0;
+                static uint64_t stack[512];
+                size_t words = 0;
+                const int got = GetThreadContext(t.h, &ctx);
+                if (got) {
+                    leaf = (uintptr_t)ctx.Rip;
+                    if (!(leaf >= base && leaf - base < 0x40000000u))
+                        words = wkc2_profile_copy_stack((uintptr_t)ctx.Rsp, stack, 512);
+                }
+                ResumeThread(t.h);
+                if (!got) continue;
+                /* Outside the module: the nearest stack word pointing into its
+                 * code approximates the game-side caller. */
+                for (size_t i = 0; i < words && !caller; i++) {
+                    const uintptr_t a = (uintptr_t)stack[i];
+                    if (a < base + 0x1000 || a - base >= 0x0A000000u) continue;
+                    const uint8_t* c = (const uint8_t*)a;
+                    if (c[-5] == 0xE8 || (c[-6] == 0xFF && (c[-5] & 0x38) == 0x10) ||
+                        (c[-2] == 0xFF && (c[-1] & 0x38) == 0x10) ||
+                        (c[-3] == 0xFF && (c[-2] & 0x38) == 0x10))
+                        caller = a;
+                }
+                t.samples++;
+                const bool in_leaf = leaf >= base && leaf - base < 0x40000000u;
+                uint32_t tag = 0;
+                uintptr_t leaf_off = 0;
+                if (!in_leaf) {
+                    HMODULE m = NULL;
+                    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                                           GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                                           (LPCSTR)leaf, &m) && m) {
+                        char mod[MAX_PATH] = "";
+                        GetModuleFileNameA(m, mod, sizeof mod);
+                        const char* slash = strrchr(mod, 92);
+                        static std::map<std::string, uint32_t> ids;
+                        static std::vector<std::string> names;
+                        std::string key = slash ? slash + 1 : mod;
+                        if (!ids.count(key)) {
+                            ids[key] = (uint32_t)names.size() + 1; names.push_back(key);
+                            if (FILE* legend = fopen((path + ".modules").c_str(), "w")) {
+                                for (size_t i = 0; i < names.size(); i++)
+                                    fprintf(legend, "%zu %s%c", i + 1, names[i].c_str(), 10);
+                                fclose(legend);
+                            }
+                        }
+                        tag = ids[key];
+                        leaf_off = leaf - (uintptr_t)m;
+                    }
+                }
+                if (!in_leaf && tag) t.leaves[((uint64_t)tag << 32) | (uint32_t)leaf_off]++;
+                const uintptr_t rip = in_leaf ? leaf : caller;
+                const uint32_t rva = rip >= base && rip - base < 0x40000000u ? (uint32_t)(rip - base) : 0xFFFFFFFFu;
+                t.hits[((uint64_t)tag << 32) | rva]++;
+            }
+            if (now - window_start >= 10000) {
+                const double wall = (now - window_start) * 10000.0;   /* 100 ns units */
+                FILE* f = fopen(path.c_str(), "w");
+                if (f) {
+                    std::vector<std::pair<double, DWORD>> order;
+                    for (auto& [id, t] : threads)
+                        if (t.h) { const uint64_t c = cpu_of(t.h); order.push_back({(c - t.cpu0) / wall, id}); }
+                    std::sort(order.rbegin(), order.rend());
+                    fprintf(f, "window %.1f s\n", (now - window_start) / 1000.0);
+                    for (auto& [share, id] : order) {
+                        Info& t = threads[id];
+                        if (share < 0.02) continue;
+                        fprintf(f, "\nthread %lu %ls cpu %.0f%% samples %u\n", id, t.name.c_str(),
+                                share * 100.0, t.samples);
+                        std::vector<std::pair<uint32_t, uint64_t>> top;
+                        for (auto& [rva, n] : t.hits) top.push_back({n, rva});
+                        std::sort(top.rbegin(), top.rend());
+                        std::vector<std::pair<uint32_t, uint64_t>> lt;
+                        for (auto& [k, n] : t.leaves) lt.push_back({n, k});
+                        std::sort(lt.rbegin(), lt.rend());
+                        for (size_t i = 0; i < lt.size() && i < 12; i++)
+                            fprintf(f, "  leaf %6u dll %u off 0x%08X%c", lt[i].first,
+                                    (uint32_t)(lt[i].second >> 32), (uint32_t)lt[i].second, 10);
+                        for (size_t i = 0; i < top.size() && i < 40; i++)
+                            fprintf(f, "  %6u 0x%08X dll %u\n", top[i].first,
+                                    (uint32_t)top[i].second, (uint32_t)(top[i].second >> 32));
+                    }
+                    fclose(f);
+                }
+                for (auto& [id, t] : threads) { t.hits.clear(); t.leaves.clear(); t.samples = 0; if (t.h) t.cpu0 = cpu_of(t.h); }
+                window_start = now;
+            }
+            Sleep(2);
+        }
+    }).detach();
+}
+
 static LONG WINAPI wkc2_crash_filter(EXCEPTION_POINTERS* ep)
 {
+    fflush(stdout);
     HMODULE module = GetModuleHandleA(NULL);
     auto* er = ep->ExceptionRecord;
     fprintf(stderr, "[CRASH] code=0x%08lX host_rva=0x%llX last_hle=0x%08X (%s)\n",
@@ -242,6 +403,21 @@ extern "C" void ppu_dump_bctrl_ring(uint32_t thread_id, const char* tag);
 
 static uint32_t g_startup_object = 0;
 static uint32_t g_startup_state = 0;
+
+/* WKC2_SKIP_INTRO=1: the boot sequencer (0x00325248) steps through a 13-entry
+ * table: copyright and two save notices (0-2), system setup (3-5), publisher
+ * and middleware logos (6-10), the title (11) and the attract movie (12, which
+ * wraps to 6). Move past the notices and logos so setup still runs and the
+ * title follows it directly. Off by default. */
+extern "C" int32_t wkc2_boot_step_remap(int32_t step)
+{
+    static int skip = -1;
+    if (skip < 0) { const char* e = getenv("WKC2_SKIP_INTRO"); skip = e && atoi(e); }
+    if (!skip) return step;
+    if (step >= 0 && step <= 2) return 3;
+    if (step >= 6 && step <= 10) return 11;
+    return step;
+}
 
 /* The original installer request drops a request if another command-2 check
  * is pending. Native execution can reach it before the worker gets CPU time.
@@ -578,6 +754,16 @@ int main(int argc, char** argv)
 #endif
     // This title's image registry contains no YDKJ CRI media task.
 #ifdef _WIN32
+    /* Diagnostics are written line by line, often with an explicit flush, so
+     * each line costs a WriteFile; on a scanned log file that cost the main
+     * game thread about a third of every cutscene frame. A player does not
+     * need them: WKC2_DISCARD_LOGS=1 sends both streams to NUL. Research runs
+     * keep their logs. */
+    if (getenv("WKC2_DISCARD_LOGS")) {
+        FILE* ignored = NULL;
+        freopen_s(&ignored, "NUL", "w", stdout);
+        freopen_s(&ignored, "NUL", "w", stderr);
+    }
     _putenv_s("SPU_CRI_IMAGE", "-1");
     // Native FIFO traces confirm NV0039 memory copies on this title's slot 1.
     if (!getenv("GCM_SUBCH1_2D")) _putenv_s("GCM_SUBCH1_2D", "1");
@@ -639,6 +825,9 @@ int main(int argc, char** argv)
     ppu_recomp_register();   /* lifted function table -> address map */
     wkc2_init_graphics_writers();
     wkc2_init_spu_job_capture();
+#ifdef _WIN32
+    wkc2_start_sample_profiler();
+#endif
     spu_float_mode_init();   /* SPU_FLOAT_MODE, read before any SPU thread starts */
     ps3_load_prx_modules();  /* this game's lifted system PRX, if it has any */
     ppu_hle_init();          /* firmware import NID -> HLE handlers */

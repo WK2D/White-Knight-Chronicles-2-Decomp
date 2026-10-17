@@ -8,6 +8,9 @@ static std::array<uint8_t,65536> memory;
 extern "C" {uint8_t* vm_base=memory.data(); void wkc2_register_vpost(void);}
 static std::map<uint32_t,void(*)(ppu_context*)> handlers;
 extern "C" void ps3_hle_register_ctx(uint32_t n,const char*,void(*f)(ppu_context*)) {handlers[n]=f;}
+// Each converted frame is reported to the renderer as a host write.
+static uint32_t written_ea=0,written_bytes=0,written_calls=0;
+extern "C" void rsx_draw_engine_note_host_write(uint32_t ea,uint32_t bytes) {written_ea=ea;written_bytes=bytes;++written_calls;}
 static void w32(uint32_t a,uint32_t v) {for(unsigned i=0;i<4;++i) memory[a+i]=uint8_t(v>>(24-i*8));}
 static uint32_t r32(uint32_t a) {return uint32_t(memory[a])<<24|uint32_t(memory[a+1])<<16|uint32_t(memory[a+2])<<8|memory[a+3];}
 static uint32_t call(const char* name,std::initializer_list<uint32_t> args) {ppu_context c{}; unsigned i=3; for(auto a:args) c.gpr[i++]=a; handlers.at(ps3_compute_nid(name))(&c); return uint32_t(c.gpr[3]);}
@@ -28,6 +31,7 @@ int main() {
     for(unsigned y=0;y<4;++y) for(unsigned x=2;x<4;++x) memory[input+y*4+x]=235;
     std::memset(memory.data()+output-1,0x5A,66); memory[info+88]=0xA5;
     assert(call("cellVpostExec",{handle,input,ctrl,output,info})==0);
+    assert(written_calls==1 && written_ea==output && written_bytes==4u*4u*4u);
     for(unsigned y=0;y<4;++y) for(unsigned x=0;x<4;++x) {
         auto a=output+(y*4+x)*4; assert(memory[a]==(x<2 ? 0 : 255) && memory[a+1]==memory[a] && memory[a+2]==memory[a] && memory[a+3]==0xA7);
     }

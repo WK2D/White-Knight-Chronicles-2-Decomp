@@ -15,6 +15,7 @@
 extern "C" {
 extern uint8_t* vm_base;
 void ps3_hle_register_ctx(uint32_t,const char*,void (*)(ppu_context*));
+void rsx_draw_engine_note_host_write(uint32_t ea,uint32_t bytes);
 }
 namespace {
 bool range(uint32_t a,uint64_t n) {return a && n<=(uint64_t(1)<<32)-a;}
@@ -115,6 +116,9 @@ void exec(ppu_context* c) {
             p[2]=byte(yy+(matrix ? 1.8556 : 1.772)*u); p[3]=vm_base[ctrl+72];
         }
     }
+    // The frame may land in a buffer the renderer also holds as a GPU surface
+    // (WKC reuses a render target for its cutscene movie); have it reload.
+    rsx_draw_engine_note_host_write(output,uint32_t(output_bytes));
     std::memset(vm_base+info,0,88);
     w32(info,iw); w32(info+4,ih); w32(info+20,r32(ctrl+20)); w32(info+28,quant); w32(info+32,matrix);
     w32(info+36,ow); w32(info+40,oh); w32(info+52,cfg.format); w32(info+64,cfg.format ? quant : 0); w32(info+68,matrix);

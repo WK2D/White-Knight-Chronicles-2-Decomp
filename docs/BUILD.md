@@ -7,7 +7,7 @@ coverage. See [architecture and modding scope](ARCHITECTURE.md).
 **Verified on 2026-10-17:** the full 52-patch Windows Vulkan build reaches the
 live WKC1 town and responds to short analog movement, walking/facing changes,
 and camera rotation. Earlier town testing also verified pause/resume input.
-The current build passes 50 runtime checks with 52 SDK patches. NPC surfaces
+The current build passes 50 runtime checks with 54 SDK patches. NPC surfaces
 improve in the latest town run, but stretched geometry remains and full material
 fidelity is unverified. Sustained traversal, combat and save/load remain
 unverified. See the
@@ -810,6 +810,45 @@ supports UTF-16 surrogate pairs. Shift-JIS conversion is not implemented here.
 The intended replacement for the temporary Windows editor is an in-game keyboard
 with complete gamepad navigation, acceptance and cancellation, sharing the same
 guest protocol on Windows and macOS. That interface remains planned work.
+
+## Playing and performance options
+
+`tools/build.ps1` produces the Debug build used by the regression suite. For
+play, configure a second build directory with compiler optimization. The
+prepared glslang and SDL2 libraries use the debug C runtime, so keep `/MDd`
+and raise only the optimization level:
+
+```
+cmake -S <checkout> -B <workspace>/work/build/wkc2-release -G Ninja ^
+  -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_C_FLAGS_DEBUG=/MDd /O2 /Ob2" ^
+  "-DCMAKE_CXX_FLAGS_DEBUG=/MDd /O2 /Ob2" "-DCMAKE_C_FLAGS=/w /arch:AVX2" ^
+  "-DCMAKE_CXX_FLAGS=/w /arch:AVX2" <the remaining options build.ps1 passes>
+```
+
+`/arch:AVX2` lets SPU multiply-adds use the FMA instruction instead of the C
+runtime's software `fmaf`; it requires an AVX2-capable CPU (Intel Haswell or
+AMD Excavator and later).
+
+Runtime switches, all off unless set:
+
+- `WKC2_SKIP_INTRO=1` skips the copyright and save notices and the publisher
+  and middleware logos. The boot sequencer's system-setup steps still run.
+- `WKC2_DISCARD_LOGS=1` sends stdout/stderr to NUL. Per-line diagnostic writes
+  cost the main game thread about a third of a cutscene frame.
+- `WKC2_SAMPLE_PROFILE=<file>` rewrites `<file>` every ten seconds with each
+  thread's CPU share and its most-sampled module offsets; link with `/MAP` to
+  resolve them.
+- `RSX_ENGINE_PRESENT_LOG=1` reports presents of surfaces nothing drew since
+  their last present, plus frame rate and per-site GPU synchronisation cost
+  every five seconds; `RSX_ENGINE_FPS_FILE=<file>` also writes the frame rate
+  there, which survives `WKC2_DISCARD_LOGS`.
+- `RSX_ENGINE_DRAW_CAPTURE=<dir>` writes every draw of one frame (state,
+  fetched vertices, constants, indices) while `<dir>/arm` exists.
+  `RSX_ENGINE_RED_TRIGGER=<dir>` keeps a per-frame draw log and saves it with
+  the presented image when a sampled patch is strongly red.
+  `RSX_ENGINE_WATCH_TARGET=<hex offset>` prints draws into one colour target.
+
+`tools/probe.ps1 -ShowWindow` keeps the game window visible during a probe.
 
 ## Diagnostic probes
 

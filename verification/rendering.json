@@ -137,7 +137,7 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 52,
+    "current_sdk_patch_count": 54,
     "current_passed_count": 50
   },
   "gallery": "gallery.json",
@@ -2083,5 +2083,21 @@
     "prior_npc_mosaic_fault_visible_in_comparison_frame": false,
     "raw_logs_and_game_programs_published": false,
     "selected_comparison_readback_published": true
+  },
+  "cutscene_red_flash_and_frame_rate": {
+    "sdk_patch_count": 54,
+    "red_frames_before": "repeated identical red frames in the post-avatar cutscene",
+    "red_frames_after_fix": 0,
+    "stale_presents_after_fix": 0,
+    "causes": [
+      "depth-only pass replaced display buffer 0",
+      "cellVpost frames sampled from a stale GPU surface through the 0x93 crossbar"
+    ],
+    "cutscene_fps_debug_build": 11,
+    "cutscene_fps_optimized_build": "25-31",
+    "town_fps_optimized_build": 7,
+    "town_draws_per_frame": "1400-1800",
+    "max_threads_during_loading_after_fix": 80,
+    "measurement_scope": "Qualitative native runs with diagnostics enabled; not a benchmark."
   }
 }

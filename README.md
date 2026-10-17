@@ -14,7 +14,8 @@ recompiled; some remaining SPU code still uses an interpreter fallback. See
 [execution architecture and modding scope](docs/ARCHITECTURE.md).
 
 **Current milestone (2026-10-17): the native Vulkan build reaches the live WKC1
-town, with improved NPC surfaces and short movement/camera response verified.**
+town; the post-avatar cutscene no longer flashes red, and an optimized build runs
+cutscenes at about 25-31 fps (town about 7 fps).**
 Stretched geometry remains; full material fidelity is unverified. Sustained traversal,
 combat and save/load remain unverified, so this is not a playable port yet.
 
@@ -31,6 +32,11 @@ The latest image shows improved NPC surfaces after adding NV0039 transfers
 and correcting their engine routing. Stretched geometry remains. Earlier
 captures are in the [gallery](docs/GALLERY.md).
 
+The cutscene's red flashes came from a depth-only pass replacing display
+buffer 0 and from movie frames sampled through a stale GPU copy; see
+[the findings](docs/FINDINGS.md#cutscene-red-flash-and-frame-rate), which also
+cover the frame-rate work.
+
 NV0039 memory copies now execute on the native build. During the town run, a
 diagnostic re-read of each destination reported no mismatches; this confirms
 the writes landed, not that the copy semantics are fully correct. Previously speckled NPC surfaces look coherent
@@ -39,6 +45,10 @@ in the inspected views; the stretched strip remains. See the
 
 Verified progress, with the latest milestone first:
 
+- removes the **red flashes** in the post-avatar cutscene (two shared-renderer
+  faults) and raises cutscene frame rate from about 11 to 25-31 fps in an
+  optimized build; the town still runs at about 7 fps;
+- boots **straight to the title** with the optional `WKC2_SKIP_INTRO` switch;
 - improves previously speckled **NPC surfaces** in the starting town after NV0039
   transfer support; stretched geometry and full visual fidelity remain unresolved;
 - reaches the **live WKC1 town** after avatar acceptance and opening cutscene
@@ -54,7 +64,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **50 Windows runtime regression checks** with **52 SDK patches** applied.
+- passes **50 Windows runtime regression checks** with **54 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. Stretched geometry remains and

@@ -1,0 +1,623 @@
+Give depth-only passes (SET_SURFACE_COLOR_TARGET NONE) a private scratch
+colour target instead of replacing the surface at their stale colour offset,
+and reload GPU surfaces when host code writes guest memory they cover
+(queued from any thread). Together these fix WKC1's red cutscene flashes.
+Also adds opt-in diagnostics: RSX_ENGINE_DRAW_CAPTURE, RSX_ENGINE_PRESENT_LOG
+(stale presents, fps and GPU sync cost), RSX_ENGINE_FPS_FILE,
+RSX_ENGINE_RED_TRIGGER and RSX_ENGINE_WATCH_TARGET.
+
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -21,6 +21,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <stdatomic.h>
+ #include <time.h>
+ 
+ /* Guest memory and the RSX offset resolvers, declared the way every backend
+@@ -32,6 +33,7 @@
+ /* Non-zero only when the offset's page is in the IO table, so a caller can
+  * tell IO-mapped main memory from "assume VRAM". */
+ u32 cellGcmResolveIO(u32 offset);
++int cellGcm_ea_to_location(u32 ea, u32* location, u32* offset);
+ /* The guest VM's OOB guard: the size a host backed, or 0 for "the whole 32-bit
+  * space is backed and no check is needed" (runtime/memory/vm.h). */
+ extern u32 ppu_vm_size;
+@@ -46,6 +48,9 @@
+ #define ENG_MAX_BATCHES    256
+ #define ENG_VERT_STRIDE    (RSX_DSP_NUM_VERTEX_ATTR * 16u)
+ #define ENG_INVALID        0xFFFFFFFFu
++/* Location of the host-only target used by passes without a colour target;
++ * it matches no RSX location, so no guest address or texture can alias it. */
++#define ENG_LOCATION_SCRATCH 0xFFFFu
+ /* Guest textures larger than this are a misdecoded register, not an image;
+  * rsx_live_draw.c rejects the same 4096 bound (2033). */
+ #define ENG_MAX_TEX_DIM    4096u
+@@ -202,6 +207,24 @@
+ } g;
+ 
+ static void eng_resolves_sync(u32 location, u32 offset, u32 bytes);
++/* Full GPU synchronisations, counted and timed per call site for the
++ * RSX_ENGINE_PRESENT_LOG fps line. */
++#include <stdint.h>
++static struct { u32 n; u64 us; } s_sync[8];
++static u64 eng_now_us(void)
++{
++    struct timespec ts;
++    timespec_get(&ts, TIME_UTC);
++    return (u64)ts.tv_sec * 1000000u + (u64)ts.tv_nsec / 1000u;
++}
++static void eng_sync(int site)
++{
++    const u64 t0 = eng_now_us();
++    g.be->submit_and_wait(g.be->user, RSX_BE_FLUSH_GUEST_REFERENCE);
++    s_sync[site].n++;
++    s_sync[site].us += eng_now_us() - t0;
++}
++
+ 
+ /* The decompilers' HLSL. The VP decompiler builds bodies up to 192 KB. */
+ static char s_vs_hlsl[256 * 1024];
+@@ -655,10 +678,24 @@
+ {
+     rsx_dsp_surface sf;
+     rsx_dsp_get_surface(&g.rsx, &sf);
++    const rsx_be_format fmt = eng_surface_format(sf.color_format);
++    /* SET_SURFACE_COLOR_TARGET NONE is a depth-only pass. Its colour offset
++     * names no target, and binding it would replace whatever surface lives
++     * there: WKC's 2560x2560 shadow pass leaves offset 0, which is display
++     * buffer 0, so the next flip presented an image no draw had written --
++     * stale GPU memory, seen as a red flash. Give such a pass a private
++     * scratch target that aliases no guest memory. A register never written
++     * also reads 0; only an explicit NONE means "no colour target". */
++    if (sf.color_target == CELL_GCM_SURFACE_TARGET_NONE && g.rsx.seen[0x0220 >> 2]) {
++        const u32 scratch = eng_surface_get(ENG_LOCATION_SCRATCH, 0,
++                                            sf.clip_w, sf.clip_h, fmt);
++        if (scratch == ENG_INVALID) return 0;
++        slots[0] = scratch;
++        return 1;
++    }
+     /* SET_SURFACE_COLOR_TARGET 2 selects B alone; every other value starts at
+      * A, and the MRT selectors add B, C and D on top of it. */
+     const u32 sel = (sf.color_target == CELL_GCM_SURFACE_TARGET_1) ? 1u : 0u;
+-    const rsx_be_format fmt = eng_surface_format(sf.color_format);
+     const u32 first = eng_surface_get(sf.color_location[sel], sf.color_offset[sel],
+                                       sf.clip_w, sf.clip_h, fmt);
+     if (first == ENG_INVALID) return 0;
+@@ -794,7 +831,7 @@
+             s_rbc.px = n;
+             s_rbc.cap = need;
+         }
+-        g.be->submit_and_wait(g.be->user, RSX_BE_FLUSH_GUEST_REFERENCE);
++        eng_sync(1);
+         g.be->readback(g.be->user, s->handle, 0, 0, s->w, s->h, s_rbc.px, s->w * 4u);
+         s_rbc.handle = s->handle; s_rbc.w = s->w; s_rbc.h = s->h; s_rbc.epoch = g.readback_epoch;
+     }
+@@ -883,7 +920,7 @@
+     const u32 bw = x1 - x0, bh = y1 - y0;
+     u8* rows = eng_coherence_buffer(bw * 4u * bh);
+     if (rows) {
+-        g.be->submit_and_wait(g.be->user, RSX_BE_FLUSH_GUEST_REFERENCE);
++        eng_sync(2);
+         g.be->readback(g.be->user, r->handle, x0, y0, bw, bh, rows, bw * 4u);
+         for (u32 i = 0; i < r->n_rects; i++) {
+             const eng_rect* q = &r->rects[i];
+@@ -1445,7 +1482,7 @@
+         s_depth_cap = w * h;
+     }
+     eng_resolves_sync(z->location, z->offset, (h - 1u) * z->pitch + w * bpp);
+-    g.be->submit_and_wait(g.be->user, RSX_BE_FLUSH_GUEST_REFERENCE);
++    eng_sync(3);
+     if (g.be->depth_readback(g.be->user, z->handle, 0, 0, w, h, s_depth_rows,
+                              w * (u32)sizeof(float)) != 0)
+         return 0;
+@@ -2265,7 +2302,7 @@
+     FILE* f = (raw && rgb) ? fopen(path, "wb") : NULL;
+     if (f) {
+         memset(raw, 0, (size_t)s->w * s->h * bpp);
+-        g.be->submit_and_wait(g.be->user, RSX_BE_FLUSH_GUEST_REFERENCE);
++        eng_sync(4);
+         g.be->readback(g.be->user, s->handle, 0, 0, s->w, s->h, raw, s->w * bpp);
+         for (size_t i = 0; i < (size_t)s->w * s->h; i++) {
+             const u8* p = raw + i * bpp;
+@@ -2308,7 +2345,7 @@
+     u8* px = (u8*)malloc((size_t)w * h);
+     FILE* f = (d && px) ? fopen(path, "wb") : NULL;
+     if (f) {
+-        g.be->submit_and_wait(g.be->user, RSX_BE_FLUSH_GUEST_REFERENCE);
++        eng_sync(5);
+         if (g.be->depth_readback(g.be->user, z->handle, 0, 0, w, h, d, w * 4u) == 0) {
+             float lo = 1.0f, hi = 0.0f;
+             for (size_t i = 0; i < (size_t)w * h; i++) {
+@@ -2495,10 +2532,275 @@
+     }
+ }
+ 
++/* RSX_ENGINE_DRAW_CAPTURE=<existing dir>: while <dir>/arm exists, every draw
++ * of the next whole frame is written as <dir>/cNN_dNNNN.{txt,verts,cb,idx,refs}
++ * -- its state, the fetched float4 vertices in layout order, the transform
++ * constant block as bound, the rebuilt triangle-list indices and each unique
++ * vertex's guest index -- then <dir>/arm is removed. Pair the pipeline number
++ * with RSX_ENGINE_SHADER_DUMP's pipe<N>.vs.hlsl to replay a draw offline. */
++static struct {
++    int state;              /* 0 unread, 1 idle, 2 capturing, 3 off */
++    const char* dir;
++    u32 capture, draws;
++    time_t polled;
++} s_dcap;
++
++/* RSX_ENGINE_RED_TRIGGER=<existing dir>: keep the text half of the draw
++ * capture for every draw of the frame in memory; at present, read back a
++ * 16x16 patch of the presented surface and, when it is strongly red, write
++ * that frame's draw log and the presented image to the directory (bounded). */
++static struct { int on; const char* dir; char* log; size_t len, cap; u32 hits; } s_red;
++
++static void red_log(const char* text, size_t n)
++{
++    if (s_red.len + n + 1 > s_red.cap) {
++        size_t next = s_red.cap ? s_red.cap * 2 : (1u << 20);
++        while (next < s_red.len + n + 1) next *= 2;
++        char* m = (char*)realloc(s_red.log, next);
++        if (!m) return;
++        s_red.log = m; s_red.cap = next;
++    }
++    memcpy(s_red.log + s_red.len, text, n);
++    s_red.len += n;
++    s_red.log[s_red.len] = 0;
++}
++
++static void red_present(u32 target)
++{
++    if (!s_red.on) {
++        s_red.dir = getenv("RSX_ENGINE_RED_TRIGGER");
++        s_red.on = (s_red.dir && *s_red.dir) ? 1 : -1;
++    }
++    if (s_red.on < 0) return;
++    const eng_surface* s = &g.surfaces[target];
++    if (s_red.hits < 6 && s->fmt == RSX_BE_FMT_R8G8B8A8 && s->w >= 64 && s->h >= 64 &&
++        g.be->readback) {
++        u8 px[16 * 16 * 4];
++        eng_sync(6);
++        g.be->readback(g.be->user, s->handle, s->w / 5, s->h / 2, 16, 16, px, 16 * 4);
++        u32 r = 0, gg = 0, b = 0;
++        for (u32 i = 0; i < 256; i++) { r += px[i * 4]; gg += px[i * 4 + 1]; b += px[i * 4 + 2]; }
++        r /= 256; gg /= 256; b /= 256;
++        if (r > 170 && gg < 120 && b < 120) {
++            char path[1024];
++            snprintf(path, sizeof path, "%s/red_%u.txt", s_red.dir, g.frames);
++            FILE* f = fopen(path, "wb");
++            if (f) {
++                fprintf(f, "frame %u presented surface %u 0x%08X %ux%u patch %u %u %u\n",
++                        g.frames, target, s->offset, s->w, s->h, r, gg, b);
++                for (u32 i = 0; i < g.n_surfaces; i++)
++                    fprintf(f, "surface %u loc %u 0x%08X %ux%u fmt %d serial %llu\n", i,
++                            g.surfaces[i].location, g.surfaces[i].offset, g.surfaces[i].w,
++                            g.surfaces[i].h, (int)g.surfaces[i].fmt,
++                            (unsigned long long)g.surfaces[i].color_serial);
++                /* Each tracked surface's centre pixels as the GPU holds them and
++                 * as guest memory holds them, to show which copy is current. */
++                for (u32 i = 0; i < g.n_surfaces; i++) {
++                    const eng_surface* q = &g.surfaces[i];
++                    if (!q->handle || q->fmt != RSX_BE_FMT_R8G8B8A8 || q->location > 1) continue;
++                    u8 gpu[4 * 4];
++                    g.be->readback(g.be->user, q->handle, q->w / 2, q->h / 2, 4, 1, gpu, 16);
++                    const u8* mem = eng_guest_ptr(NULL, q->location,
++                                                  q->offset + (q->h / 2) * q->pitch + (q->w / 2) * 4, 16);
++                    fprintf(f, "pixels surface %u 0x%08X gpu", i, q->offset);
++                    for (u32 k = 0; k < 16; k++) fprintf(f, "%s%02X", (k & 3) ? "" : " ", gpu[k]);
++                    fprintf(f, " guest");
++                    for (u32 k = 0; k < 16; k++) fprintf(f, "%s%02X", (k & 3) ? "" : " ", mem ? mem[k] : 0);
++                    fprintf(f, " dirty %d\n", q->guest_dirty);
++                }
++                if (s_red.log) fputs(s_red.log, f);
++                fclose(f);
++            }
++            snprintf(path, sizeof path, "%s/red_%u.ppm", s_red.dir, g.frames);
++            pd_write_surface(target, path);
++            fprintf(stderr, "[rsx engine] red frame %u captured\n", g.frames);
++            s_red.hits++;
++        }
++    }
++    s_red.len = 0;
++    if (s_red.log) s_red.log[0] = 0;
++}
++
++static void dcap_present(void)
++{
++    if (s_dcap.state == 0) {
++        s_dcap.dir = getenv("RSX_ENGINE_DRAW_CAPTURE");
++        s_dcap.state = (s_dcap.dir && *s_dcap.dir) ? 1 : 3;
++    }
++    if (s_dcap.state == 3) return;
++    char path[1024];
++    snprintf(path, sizeof path, "%s/arm", s_dcap.dir);
++    if (s_dcap.state == 2) {
++        fprintf(stderr, "[rsx engine] draw capture %u: %u draws\n", s_dcap.capture, s_dcap.draws);
++        remove(path);
++        s_dcap.capture++;
++        s_dcap.state = 1;
++        return;
++    }
++    const time_t now = time(NULL);
++    if (now == s_dcap.polled) return;
++    s_dcap.polled = now;
++    FILE* f = fopen(path, "rb");
++    if (!f) return;
++    fclose(f);
++    s_dcap.draws = 0;
++    s_dcap.state = 2;
++}
++
++static void dcap_write(const char* ext, const void* data, size_t bytes)
++{
++    char path[1024];
++    snprintf(path, sizeof path, "%s/c%02u_d%04u.%s", s_dcap.dir, s_dcap.capture,
++             s_dcap.draws, ext);
++    FILE* f = fopen(path, "wb");
++    if (!f) return;
++    if (bytes) fwrite(data, 1, bytes, f);
++    fclose(f);
++}
++
++static void dcap_draw(u32 prim, u32 pipeline, int indexed, u32 n_draw,
++                      const rsx_vertex_layout_plan* layout, const u32* targets,
++                      u32 n_targets, u32 zslot, const rsx_dsp_viewport* vp,
++                      float W, float H)
++{
++    /* RSX_ENGINE_WATCH_TARGET=<hex offset>: also print every draw whose first
++     * colour target is at that offset (bounded), with the same detail. */
++    static long long watch = -2;
++    static u32 watched;
++    if (watch == -2) { const char* e = getenv("RSX_ENGINE_WATCH_TARGET"); watch = e ? (long long)strtoul(e, NULL, 16) : -1; }
++    const int is_watch = watch >= 0 && n_targets && g.surfaces[targets[0]].offset == (u32)watch && watched < 60;
++    if (s_dcap.state != 2 && s_red.on <= 0 && !is_watch) return;
++    char text[4096];
++    size_t at = (size_t)snprintf(text, sizeof text,
++        "prim %u pipe %u vphash %016llX indexed %d n_draw %u n_verts %u source_refs %u"
++        " cuts %u remapped %d mask %04X stride %u packets %u arr %u idx %u\n"
++        "base_index %u base_offset 0x%08X W %g H %g vp_scale %g %g %g vp_translate %g %g %g"
++        " cfmt %u ctarget %u frame %u\n",
++        prim, pipeline, (unsigned long long)g.vpm.hash, indexed, n_draw, dc.n_verts,
++        dc.n_source_refs, dc.n_cuts, dc.refs_remapped, layout->mask, layout->stride,
++        dc.n_packets, dc.n_arr, dc.n_idx,
++        rsx_dsp_vertex_data_base_index(&g.rsx), rsx_dsp_vertex_data_base_offset(&g.rsx),
++        W, H, vp->scale[0], vp->scale[1], vp->scale[2],
++        vp->translate[0], vp->translate[1], vp->translate[2],
++        rsx_dsp_reg(&g.rsx, 0x0208) & 0x1Fu, rsx_dsp_reg(&g.rsx, 0x0220), g.frames);
++    for (u32 k = 0; k < n_targets && at < sizeof text; k++)
++        at += (size_t)snprintf(text + at, sizeof text - at, "target %u 0x%08X %ux%u\n",
++                               g.surfaces[targets[k]].location, g.surfaces[targets[k]].offset,
++                               g.surfaces[targets[k]].w, g.surfaces[targets[k]].h);
++    if (zslot != ENG_INVALID && at < sizeof text)
++        at += (size_t)snprintf(text + at, sizeof text - at, "zeta 0x%08X\n",
++                               g.zdepths[zslot].offset);
++    for (u32 a = 0; a < RSX_DSP_NUM_VERTEX_ATTR && at < sizeof text; a++)
++        at += (size_t)snprintf(text + at, sizeof text - at, "attr %u fmt %08X off %08X\n",
++                               a, rsx_dsp_reg(&g.rsx, 0x1740u + a * 4u),
++                               rsx_dsp_reg(&g.rsx, 0x1680u + a * 4u));
++    for (u32 v = 0; v < dc.n_verts && v < 2 && at < sizeof text; v++) {
++        at += (size_t)snprintf(text + at, sizeof text - at, "vertex %u:", v);
++        for (u32 k = 0; k < layout->count && at < sizeof text; k++) {
++            const float* f = (const float*)(dc.verts + (size_t)v * layout->stride + k * 16u);
++            at += (size_t)snprintf(text + at, sizeof text - at, " a%u(%g %g %g %g)",
++                                   layout->attrs[k], f[0], f[1], f[2], f[3]);
++        }
++        if (at < sizeof text) at += (size_t)snprintf(text + at, sizeof text - at, "\n");
++    }
++    for (u32 u = 0; u < RSX_DSP_NUM_TEXTURES && at < sizeof text; u++) {
++        rsx_dsp_texture t;
++        rsx_dsp_get_texture(&g.rsx, u, &t);
++        if (!t.enabled) continue;
++        int surf = -1;
++        for (u32 i = 0; i < g.n_surfaces; i++)
++            if (g.surfaces[i].handle && g.surfaces[i].location == t.location &&
++                g.surfaces[i].offset == t.offset) { surf = (int)i; break; }
++        at += (size_t)snprintf(text + at, sizeof text - at,
++            "tex %u loc %u off 0x%08X fmt %08X %ux%u pitch %u remap %04X surface %d%s\n",
++            u, t.location, t.offset, t.format, t.width, t.height, t.pitch,
++            t.remap & 0xFFFFu, surf,
++            surf >= 0 ? (g.surfaces[surf].fmt == RSX_BE_FMT_R8G8B8A8 ? " rgba8" : " other") : "");
++    }
++    for (u32 b = 0; b < dc.n_idx && at < sizeof text; b++)
++        at += (size_t)snprintf(text + at, sizeof text - at, "index_batch %u first %u count %u\n",
++                               b, dc.idx[b].first, dc.idx[b].count);
++    for (u32 b = 0; b < dc.n_arr && at < sizeof text; b++)
++        at += (size_t)snprintf(text + at, sizeof text - at, "array_batch %u first %u count %u\n",
++                               b, dc.arr[b].first, dc.arr[b].count);
++    if (at >= sizeof text) at = sizeof text - 1;
++    if (is_watch) { watched++; fprintf(stderr, "[watch-target]\n%.*s", (int)at, text); }
++    if (s_red.on > 0) {
++        char head[64];
++        const int hn = snprintf(head, sizeof head, "-- draw %u\n", g.guest_draws);
++        red_log(head, (size_t)hn);
++        red_log(text, at);
++    }
++    if (s_dcap.state != 2) return;
++    dcap_write("txt", text, at);
++    dcap_write("verts", dc.verts, (size_t)dc.n_verts * layout->stride);
++    dcap_write("cb", g.vp_cb, ENG_VP_CB_BYTES);
++    if (indexed) dcap_write("idx", g.indices, (size_t)n_draw * sizeof(u32));
++    {
++        u32* ids = (u32*)malloc((size_t)dc.n_verts * sizeof(u32) + 4u);
++        if (ids) {
++            for (u32 i = 0; i < dc.n_verts; i++) ids[i] = dc.refs[i].vertex_id;
++            dcap_write("refs", ids, (size_t)dc.n_verts * sizeof(u32));
++            free(ids);
++        }
++    }
++    s_dcap.draws++;
++}
++
++/* Host code on other threads -- a video post-processor converting a frame,
++ * say -- writes guest memory the GPU may hold a surface for. Those writes are
++ * queued here and applied on the engine's thread before its next draw or
++ * present: the overlapping surfaces are reloaded from guest memory. WKC's
++ * cutscene movies land in a buffer it had earlier used as a render target, and
++ * sampling the stale GPU copy through the movie's crossbar showed it red. */
++#define ENG_PENDING_WRITES 64
++static struct {
++    atomic_flag lock;
++    u32 n, dropped;
++    struct { u32 location, offset, bytes; } w[ENG_PENDING_WRITES];
++} s_pending = { ATOMIC_FLAG_INIT };
++
++void rsx_draw_engine_note_host_write(u32 ea, u32 bytes)
++{
++    u32 location, offset;
++    if (!bytes || !cellGcm_ea_to_location(ea, &location, &offset)) return;
++    while (atomic_flag_test_and_set_explicit(&s_pending.lock, memory_order_acquire)) {}
++    if (s_pending.n < ENG_PENDING_WRITES) {
++        s_pending.w[s_pending.n].location = location;
++        s_pending.w[s_pending.n].offset = offset;
++        s_pending.w[s_pending.n].bytes = bytes;
++        s_pending.n++;
++    } else {
++        s_pending.dropped++;
++    }
++    atomic_flag_clear_explicit(&s_pending.lock, memory_order_release);
++}
++
++static void eng_apply_host_writes(void)
++{
++    if (!s_pending.n) return;
++    struct { u32 location, offset, bytes; } w[ENG_PENDING_WRITES];
++    u32 n, dropped;
++    while (atomic_flag_test_and_set_explicit(&s_pending.lock, memory_order_acquire)) {}
++    n = s_pending.n;
++    dropped = s_pending.dropped;
++    memcpy(w, s_pending.w, n * sizeof w[0]);
++    s_pending.n = 0;
++    s_pending.dropped = 0;
++    atomic_flag_clear_explicit(&s_pending.lock, memory_order_release);
++    if (dropped) {
++        static u32 logs;
++        if (logs++ < 8) fprintf(stderr, "[rsx engine] %u host writes overflowed the queue\n", dropped);
++    }
++    for (u32 i = 0; i < n; i++)
++        rsx_draw_engine_guest_buffer_wrote(w[i].location, w[i].offset, w[i].bytes);
++}
++
+ static void sink_end(void* user, const rsx_dispatch* r)
+ {
+     (void)user; (void)r;
+     if (!g.ready || !dc.n_packets) return;
++    eng_apply_host_writes();
+ 
+     const u32 prim = g.rsx.current_primitive;
+     /* Everything that becomes triangles -- lists, strips, fans, quads, quad
+@@ -2618,6 +2920,7 @@
+       alpha[1] = alpha[2] = alpha[3] = 0.0f; }
+ 
+     pd_note(targets, n_targets, zslot, &rs, pipeline, tex_mask);
++    dcap_draw(prim, pipeline, indexed, n_draw, &layout, targets, n_targets, zslot, &vp, W, H);
+ 
+     /* The depth attachment is cleared the first time it is bound, so a title
+      * that never clears its shadow zeta still tests against something. */
+@@ -2775,7 +3078,61 @@
+                     i, g.surfaces[i].location, g.surfaces[i].offset,
+                     g.surfaces[i].w, g.surfaces[i].h, g.surfaces[i].handle);
+     }
++    /* RSX_ENGINE_PRESENT_LOG=1: report a present whose surface no draw has
++     * written since that surface was last presented, with the buffer the flip
++     * named and the surfaces this frame did write. Bounded output. */
++    {
++        static int plog = -1;
++        static u64 shown_serial[ENG_MAX_SURFACES], frame_mark;
++        static u32 reports;
++        if (plog < 0) { const char* e = getenv("RSX_ENGINE_PRESENT_LOG"); plog = e && atoi(e); }
++        if (plog) {
++            /* Presented frames per second, every five seconds. */
++            static time_t fps_t0;
++            static u32 fps_frames;
++            const time_t now = time(NULL);
++            if (!fps_t0) fps_t0 = now;
++            fps_frames++;
++            if (difftime(now, fps_t0) >= 5.0) {
++                fprintf(stderr, "[present] fps %.1f (%u guest draws last frame) syncs/frame:",
++                        fps_frames / difftime(now, fps_t0), g.guest_draws);
++                for (int k = 1; k < 8; k++)
++                    if (s_sync[k].n)
++                        fprintf(stderr, " site%d %.1fx %.2fms", k, (double)s_sync[k].n / fps_frames,
++                                s_sync[k].us / 1000.0 / fps_frames);
++                fprintf(stderr, "\n");
++                { static FILE* ff = (FILE*)-1;
++                  if (ff == (FILE*)-1) { const char* e = getenv("RSX_ENGINE_FPS_FILE"); ff = e ? fopen(e, "w") : NULL; }
++                  if (ff) { fprintf(ff, "%u fps %.1f draws %u\n", g.frames,
++                                    fps_frames / difftime(now, fps_t0), g.guest_draws); fflush(ff); } }
++                memset(s_sync, 0, sizeof s_sync);
++                fps_t0 = now;
++                fps_frames = 0;
++            }
++            const u64 s = g.surfaces[target].color_serial;
++            if (s == shown_serial[target] && reports < 400) {
++                reports++;
++                fprintf(stderr, "[present] frame %u buffer %u -> surface %u 0x%08X %ux%u unchanged"
++                        " (serial %llu, %u guest draws); written:", g.frames, buffer_id, target,
++                        g.surfaces[target].offset, g.surfaces[target].w, g.surfaces[target].h,
++                        (unsigned long long)s, g.guest_draws);
++                for (u32 i = 0; i < g.n_surfaces; i++)
++                    if (g.surfaces[i].color_serial > frame_mark)
++                        fprintf(stderr, " %u:0x%08X:%ux%u", i, g.surfaces[i].offset,
++                                g.surfaces[i].w, g.surfaces[i].h);
++                for (u32 b = 0; b < 8; b++)
++                    if (g.display_buffers[b].valid)
++                        fprintf(stderr, " | db%u 0x%08X", b, g.display_buffers[b].offset);
++                fprintf(stderr, "\n");
++            }
++            shown_serial[target] = s;
++            frame_mark = g.write_serial;
++        }
++    }
++    eng_apply_host_writes();
+     pd_present(target);
++    red_present(target);
++    dcap_present();
+     g.last_present_surface = target;
+     g.be->present(g.be->user, g.surfaces[target].handle);
+     g.frames++;
+@@ -2927,7 +3284,7 @@
+ void rsx_draw_engine_flush(void)
+ {
+     if (g.ready && g.be->submit_and_wait)
+-        g.be->submit_and_wait(g.be->user, RSX_BE_FLUSH_GUEST_REFERENCE);
++        eng_sync(7);
+ }
+ 
+ void rsx_draw_engine_present(void)
+diff --git a/libs/video/rsx_draw_engine.h b/libs/video/rsx_draw_engine.h
+--- a/libs/video/rsx_draw_engine.h
++++ b/libs/video/rsx_draw_engine.h
+@@ -305,6 +305,12 @@
+ int rsx_draw_engine_guest_buffer_read(u32 location, u32 offset, u32 bytes);
+ void rsx_draw_engine_guest_buffer_wrote(u32 location, u32 offset, u32 bytes);
+ 
++/* Host code writing guest memory from any thread (e.g. a video post-processor
++ * filling a frame at effective address `ea`): queue the range; the engine
++ * reloads overlapping surfaces from guest memory on its own thread before its
++ * next draw or present. */
++void rsx_draw_engine_note_host_write(u32 ea, u32 bytes);
++
+ /* --- test hooks ---------------------------------------------------------- */
+ 
+ /* Draws that ran the guest's OWN programs in the last presented frame. A draw
+diff --git a/libs/video/cellGcmSys.c b/libs/video/cellGcmSys.c
+--- a/libs/video/cellGcmSys.c
++++ b/libs/video/cellGcmSys.c
+@@ -2897,6 +2897,22 @@
+ /* NID: 0xDB769B32 */
+ static u32 gcm_io_alloc(u32 size);   /* defined below */
+ 
++/* An effective address as (location, offset) without mapping anything: RSX
++ * local memory, else an already IO-mapped main-memory page. 0 otherwise. */
++int cellGcm_ea_to_location(u32 ea, u32* location, u32* offset)
++{
++    if (ea >= s_config.localAddress && ea < s_config.localAddress + s_config.localSize) {
++        *location = RSX_LOCATION_LOCAL;
++        *offset = ea - s_config.localAddress;
++        return 1;
++    }
++    const u32 io = gcm_ea2io(ea);
++    if (io == 0xFFFFFFFFu) return 0;
++    *location = RSX_LOCATION_MAIN;
++    *offset = io;
++    return 1;
++}
++
+ s32 cellGcmAddressToOffset(u32 address, u32* offset)
+ {
+     /* `offset` is a GUEST address; write big-endian via vm_write32. */
+diff --git a/libs/video/tests/test_rsx_draw_engine.c b/libs/video/tests/test_rsx_draw_engine.c
+--- a/libs/video/tests/test_rsx_draw_engine.c
++++ b/libs/video/tests/test_rsx_draw_engine.c
+@@ -57,6 +57,14 @@
+ 
+ /* No cellGcmSys here: nothing was registered before the engine came up. */
+ void cellGcm_replay_display_buffers_to_engine(void) {}
++
++int cellGcm_ea_to_location(u32 ea, u32* location, u32* offset)
++{
++    if (ea >= GUEST_BYTES) return 0;
++    *location = ea >= GUEST_LOCAL_EA ? RSX_LOCATION_LOCAL : RSX_LOCATION_MAIN;
++    *offset = ea >= GUEST_LOCAL_EA ? ea - GUEST_LOCAL_EA : ea;
++    return 1;
++}
+ 
+ /* ---- the stub backend ---------------------------------------------------- */
+ 
+@@ -1311,6 +1319,65 @@
+     engine_down();
+ }
+ 
++/* ---- depth-only passes and host writes ---------------------------------- */
++
++/* SET_SURFACE_COLOR_TARGET NONE: a depth-only pass whose colour offset
++ * matches a live surface of another size must not replace that surface.
++ * WKC1's 2560x2560 shadow pass named offset 0 -- display buffer 0 -- and the
++ * next flip presented a never-written image, seen as red flashes. */
++static void test_depth_only_target(void)
++{
++    printf("-- depth-only target\n");
++    engine_up();
++    m(M_COLOR_TARGET, 1u);                    /* explicit target A */
++    draw_triangle();
++    const u32 surface = stub.last_created_color;
++    const int creates = stub.n_color_create, releases = stub.n_color_release;
++
++    m(M_COLOR_TARGET, 0u);                    /* NONE */
++    m(M_SURFACE_CLIP_H, 512u << 16);
++    m(M_SURFACE_CLIP_V, 512u << 16);
++    draw_triangle();
++    CHECK(stub.n_color_release == releases && stub.alive[surface],
++          "a depth-only pass leaves the surface at its colour offset alive");
++    CHECK(stub.n_color_create == creates + 1 && stub.bound_rt[0] != surface,
++          "and draws into a separate scratch target");
++
++    m(M_COLOR_TARGET, 1u);
++    m(M_SURFACE_CLIP_H, 256u << 16);
++    m(M_SURFACE_CLIP_V, 256u << 16);
++    draw_triangle();
++    CHECK(stub.n_color_create == creates + 1 && stub.bound_rt[0] == surface,
++          "the original surface is bound again unchanged");
++    engine_down();
++}
++
++/* Host code (a video post-processor) writing guest memory a surface covers:
++ * the queued write reloads the surface before the next draw. */
++static void test_host_write_reload(void)
++{
++    printf("-- host write reload\n");
++    engine_up();
++    m(M_COLOR_TARGET, 1u);
++    m(M_COLOR_A_PITCH, 1024u);
++    draw_triangle();
++    const u32 surface = stub.last_created_color;
++    memset(&g_written, 0, sizeof g_written);
++    u8* px = vm_base + GUEST_LOCAL_EA + 0x40000u;
++    px[0] = 0xFF; px[1] = 0x10; px[2] = 0x20; px[3] = 0x30;   /* A,R,G,B */
++    rsx_draw_engine_note_host_write(GUEST_LOCAL_EA + 0x40000u, 256u * 4u);
++    CHECK(g_written.n == 0, "a queued host write does nothing until the engine runs");
++    draw_triangle();
++    CHECK(g_written.n == 1 && g_written.surface == surface &&
++          g_written.first[0] == 0x10 && g_written.first[1] == 0x20 &&
++          g_written.first[2] == 0x30 && g_written.first[3] == 0xFF,
++          "the next draw reloads the surface from the written guest bytes");
++    rsx_draw_engine_note_host_write(GUEST_BYTES + 16u, 64u);
++    draw_triangle();
++    CHECK(g_written.n == 1, "an unmapped address queues nothing");
++    engine_down();
++}
++
+ int main(void)
+ {
+     vm_base = (u8*)calloc(1, GUEST_BYTES);
+@@ -1341,6 +1408,8 @@
+     test_depth_clear_value();
+     test_depth_read_as_color();
+     test_color_read_as_float();
++    test_depth_only_target();
++    test_host_write_reload();
+ 
+     free(vm_base);
+     printf(g_failures ? "\n%d check(s) FAILED\n" : "\nall checks passed\n",

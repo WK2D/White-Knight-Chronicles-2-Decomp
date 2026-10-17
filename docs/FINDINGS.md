@@ -886,6 +886,69 @@ sessions and 8,484 recorded instructions in the retained snapshot. The original
 census and its source-entry candidates remain recorded above; the fallback is
 still enabled. Full gameplay, combat and save/load remain unverified.
 
+## Cutscene red flash and frame rate
+
+The cutscene after avatar acceptance repeatedly flashed a red-tinted close-up
+of Leonard. An opt-in renderer trigger (`RSX_ENGINE_RED_TRIGGER`) captured the
+draw list of each red frame automatically; two independent faults combine:
+
+1. **Depth-only passes replaced a live surface.** The shadow pass sets
+   `SET_SURFACE_COLOR_TARGET` to NONE and leaves colour offset 0, which is
+   display buffer 0. The shared renderer bound a 2560x2560 colour target there,
+   replacing the 1920x1080 display surface, so later flips of buffer 0
+   presented a never-written image. Depth-only passes now draw into a private
+   scratch target that aliases no guest memory (patch 0053). The
+   `RSX_ENGINE_PRESENT_LOG` stale-present report drops to zero.
+2. **Movie frames were sampled from a stale GPU copy.** The cutscene's
+   prerendered segments are converted by `cellVpost` into a buffer the game had
+   earlier used as a render target. The port wrote the converted R,G,B,A bytes
+   to guest memory, but the renderer kept sampling its older GPU copy of that
+   surface through the movie's `0x93` crossbar, which turned alpha into red.
+   Host code now queues the written range
+   (`rsx_draw_engine_note_host_write`), and the renderer reloads overlapping
+   surfaces from guest memory on its own thread before the next draw.
+
+A native run through the same cutscene captures no red frames, and the movie
+segments show the expected image. Two new draw-engine regressions cover both
+faults, and the `cellVpost` test checks the reported write range.
+
+### Frame rate
+
+A built-in sampling profiler (`WKC2_SAMPLE_PROFILE`, link map `/MAP`) and the
+renderer's per-site GPU-sync timing located the main costs in the cutscene:
+
+| Change | Cutscene fps |
+| --- | --- |
+| Debug build (baseline) | ~11 |
+| Logging off the game thread | ~25 |
+| Optimized `/O2` build with `/arch:AVX2` (hardware FMA for SPU arithmetic) | 25-31 in heavier shots |
+
+- About a third of the main game thread's time was spent in `WriteFile`:
+  diagnostics flush each line to a scanned log file. `WKC2_DISCARD_LOGS=1`
+  sends both streams to NUL for play; research runs keep their logs. An
+  in-process pipe relay was tried and dropped after it deadlocked a run.
+- Without AVX2, every SPU multiply-add called the C runtime's software
+  `fmaf`; `/arch:AVX2` makes it one instruction with the same result.
+- Job-chain walkers polled job guards every 1 ms; they now sleep on a
+  condition variable woken by the guard notify (patch 0054).
+- Running faster exposed a pile-up during loading: image 4 loader workers spin
+  on a lock line (writer count 1001) and starved its holder, peaking at ~160
+  spinning threads and 0.1 fps. An SPU that re-reads an unchanged reservation
+  line now yields its host time slice; loading completes with at most ~80
+  threads (patch 0054). Capping running tasks at six and sleeping back-off
+  were tried and rejected: both slowed or stalled progress.
+
+The town remains slow: about 7 fps with 1,400-1,800 draws per frame. The
+renderer records a frame, submits it and waits for the GPU before the next
+one, and reads two depth targets back each frame; overlapping frames is the
+next performance task. The game reaches 60 fps under emulation, so 60 fps is
+the eventual target. These are qualitative native measurements with the
+diagnostics shown, not a benchmark.
+
+`WKC2_SKIP_INTRO=1` (port hook on the boot sequencer at 0x00325248) skips the
+copyright and save notices and the publisher/middleware logos while keeping
+the system-setup steps; the title appears about 30 s after launch.
+
 ## Update 1.01 and DLC integration
 
 Planned scope includes the USA 1.01 update and matching DLC. Local package
