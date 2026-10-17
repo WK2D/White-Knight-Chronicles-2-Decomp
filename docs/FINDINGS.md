@@ -2,6 +2,13 @@
 
 Updated 2026-10-17. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
+**Current milestone:** the full 42-patch native Windows Vulkan build reaches
+the live WKC1 town and responds to short analog movement, facing/walking changes,
+and camera rotation. Earlier town testing also verified pause/resume input.
+All 42 runtime checks pass. Geometry and NPC material faults remain; sustained
+traversal, combat and save/load are unverified.
+See [the latest run](#native-census-and-limited-town-controls) and [gallery](GALLERY.md).
+
 ## Goal and reporting
 
 Develop native Windows C/C++ execution through the title screen, gameplay and
@@ -31,11 +38,12 @@ do not establish interpreter-free execution.
 | Result | Evidence | Limit |
 | --- | --- | --- |
 | Native Windows build succeeds | Clang build and 42 runtime regression checks | Compilation alone does not verify gameplay |
-| Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | Character creation only; full visual fidelity, gameplay and save/load unverified |
+| Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | This colour-fix capture covers character creation; later town validation is recorded below; full visual fidelity remains unverified |
 | WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
 | WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | Stretched geometry and corrupt NPC surfaces remain; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
+| Initial town movement and camera response work | Full 42-patch run; successive readbacks show walking/facing changes, changed minimap position and a rotated street view | Short starting-town probes only; sustained traversal, combat and save/load unverified |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
-| Language selection accepts input | CROSS through the controller path advances startup | General gameplay controls remain untested |
+| Language selection accepts input | CROSS through the controller path advances startup | This check covers startup input; limited town controls are verified above |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
 | Lifted SPU decoder produces correct output for sampled assets | Eight outputs match independent raw-DEFLATE decoding byte for byte; [record](../decompression-verification.json) | Sampled blocks, not all assets |
 | Native guest installer writes the large data archives | Three installed archives, totaling 4,364,470,879 bytes, hash-identical to their disc data; [record](../verification/installation.json) | Installation progress, not gameplay or save/load |
@@ -47,7 +55,7 @@ do not establish interpreter-free execution.
 | Decoded first-logo image renders natively | D3D12 GPU readback in the [gallery](GALLERY.md) | First-image milestone; later playback is recorded below |
 | Two LPCM startup movies advance natively | Successive readbacks, decoder lifecycle and later Havok/Dolby capture in one 120-second probe with no input after movie start | Startup-clip evidence; title rendering is recorded below |
 | Native LPCM sample conversion matches FFmpeg | All 336,480 stereo sample frames from the first logo match; [record](../verification/movie-demux.json) | Assembled elementary input; independent audio demux and final mix fidelity unverified |
-| Native title menu renders over an animated background | GPU readback shows New Game, Continue and Options; idle execution proceeds to the attract movie | Controller navigation is recorded below; gameplay remains unverified |
+| Native title menu renders over an animated background | GPU readback shows New Game, Continue and Options; idle execution proceeds to the attract movie | Menu rendering checkpoint; menu input and limited town controls were verified later |
 | AC-3 samples match the reference through the guest API | Opening: 3,750 frames in stereo and 5.1; title: 938 frames in 5.1; two sequence passes each | Assembled elementary input; original-console mix fidelity unverified |
 | Guest flips continue during the later black screen | A 120-second probe observed 6,171 flips and 6,171 presentation calls | Counters do not establish visible rendering |
 
@@ -55,7 +63,8 @@ do not establish interpreter-free execution.
 
 The investigation sections record successive checkpoints, including failures
 later resolved. Test counts and limitations within those accounts describe
-that checkpoint. The verified table above and the town/polling section below
+that checkpoint, rather than the current build. The verified table above and
+[native census and limited town controls](#native-census-and-limited-town-controls)
 record the latest result.
 
 - Correct lightweight-condition layout and wait/signal behavior.
@@ -614,14 +623,15 @@ the following live cutscene and enters the WKC1 town after normal cutscene-skip
 inputs. Sixty-four sampled geometry-job dispatches from image 19 return without
 the old halt. Town GPU readbacks show Leonard, NPC names, the minimap and a save
 crystal. The pause menu opens and resumes through ordinary controller input.
-The [newest gallery entry](GALLERY.md) is an unchanged world-frame readback,
-not prerecorded movie footage. No debugger writes or render-state overrides
+The [2026-10-16 town capture](GALLERY.md#2026-10-16--wkc1-town-world-view) is an
+unchanged world-frame readback, not prerecorded movie footage. No debugger writes or render-state overrides
 were used to produce it.
 
 This route still has conspicuous stretched geometry and corrupt NPC surfaces.
-Movement, camera control, combat and save/load are unverified. Seeing a save
-crystal does not verify saving. No performance improvement or full-game
-compatibility is claimed.
+Movement and camera control were not checked in that first town run; the later
+42-patch run verifies short town movement and camera rotation. Sustained traversal,
+combat and save/load remain unverified. Seeing a save crystal does not verify
+saving. No performance improvement or full-game compatibility is claimed.
 
 ## Reviewed allocator suggestion and probe input
 
@@ -874,7 +884,8 @@ progressive YUV conversion, cropping and bilinear resizing. The build enables th
 SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
-Twenty checks pass. The title screen and its menu render natively; see the gallery.
+Twenty checks passed at this checkpoint. The title screen and its menu rendered
+natively; the current suite has 42 passing checks.
 
 Packed A4R4G4B4 font textures were excluded by the D3D12 binding filter, leaving
 previous artwork selected for text draws. The backend now records the current
@@ -896,9 +907,10 @@ processor-ID query now reads native handoff metadata, preserving job code at the
 kernel's original local-store address. Loading advances to another 16,912-byte
 animation program; eight dispatch/return pairs have been observed after lifting
 it. FIFO consumption continues through a later timeout. A subsequent vertex-shader
-cache fix reveals avatar-customization menus; model rendering and job-output
-correctness still need investigation.
-Gameplay, save/load and missing imports remain open.
+cache fix revealed avatar-customization menus. At this checkpoint, the model
+was still missing. Later SPU arithmetic and renderer fixes restored the avatar,
+and the current build reaches the town with limited controls verified. Town
+rendering faults, broader gameplay, save/load and missing imports remain open.
 
 ## Still unverified
 
@@ -908,8 +920,9 @@ distinguished. Decoder comparisons do not establish real-time mixer fidelity.
 
 Correct town rendering, sustained traversal, combat, save/load, macOS
 execution and online functionality.
-Fresh extraction, static generation and a full native build reproduce the
-startup route described above; later gameplay remains unverified.
+Fresh extraction and static generation supply the inputs used by the current
+runtime build through the town and limited controls. Sustained traversal and
+later gameplay remain unverified.
 
 See the [build limitations](BUILD.md) and [capture manifest](../verification/gallery.json)
 for reproduction requirements and screenshot provenance.

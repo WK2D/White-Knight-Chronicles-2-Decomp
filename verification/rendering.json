@@ -2,6 +2,18 @@
   "title_id": "BLUS30784",
   "app_version": "01.00",
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
+  "current_milestone": {
+    "date": "2026-10-17",
+    "native_probe": "20261017-010907",
+    "sdk_patch_count": 42,
+    "summary": "Live WKC1 town with short movement, facing/walking animation, minimap position change and camera rotation verified",
+    "gallery_image": "screenshots/2026-10-17-native-wkc1-town-controls.png",
+    "remaining_limits": [
+      "Visible stretched geometry and corrupt NPC surfaces",
+      "Sustained traversal, combat and save/load unverified",
+      "SPU interpreter fallback remains enabled"
+    ]
+  },
   "verified": {
     "native_language_selection_rendered": true,
     "language_selection_controller_response": true,
@@ -1309,7 +1321,8 @@
     "source_level_game_decompilation_completed": false,
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
-    "remaining_requirement": "Cover missing SPU entries and any runtime-generated code with validated static/native implementations, then measure fallback coverage across gameplay."
+    "remaining_requirement": "Cover missing SPU entries and any runtime-generated code with validated static/native implementations, then measure fallback coverage across gameplay.",
+    "latest_census_probe": "20261017-010907"
   },
   "wkc1_town_world_view": {
     "probe": "20261016-233313",
@@ -1339,7 +1352,8 @@
     "performance_improvement_verified": false,
     "run_stopped_after_milestone": true,
     "last_reported_guest_flips": 19166,
-    "last_reported_presentations": 19166
+    "last_reported_presentations": 19166,
+    "record_scope": "First town world-view checkpoint; short movement and camera response were verified later in probe 20261017-010907."
   },
   "spu_dma_label_polling": {
     "patch": "0039-spu-dma-polling.patch",
@@ -1364,7 +1378,7 @@
     "native_game_run_verified": true,
     "native_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
   },
-  "record_scope": "Per-probe history plus current verified/checks summaries; older probe counts and failures describe those runs. Latest world-view evidence is in wkc1_town_world_view.",
+  "record_scope": "Current status is summarized in current_milestone and verified. Other named probes retain historical counts, failures and unverified fields. Latest town-controls evidence is in spu_fallback_census and the newest gallery capture.",
   "host_runtime_review": {
     "audio_error_end_restart_regression_passed": true,
     "old_audio_implementation_fails_regression": true,

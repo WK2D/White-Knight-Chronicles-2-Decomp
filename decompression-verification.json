@@ -60,5 +60,6 @@
     }
   ],
   "title_screen_verified": false,
-  "gameplay_verified": false
+  "gameplay_verified": false,
+  "record_scope": "Historical decompression-only checkpoint. Title/gameplay fields describe that run; see verification/rendering.json for later title, town and limited-control validation."
 }

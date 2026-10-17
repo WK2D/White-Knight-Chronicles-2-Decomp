@@ -395,5 +395,6 @@
       "renderer": "D3D12"
     }
   ],
-  "cpu_execution_qualification": "Current build includes observed SPU interpreter fallback; captures do not prove interpreter-free execution"
+  "cpu_execution_qualification": "Current build includes observed SPU interpreter fallback; captures do not prove interpreter-free execution",
+  "record_scope": "Newest captures first. Each capture records the state of its dated run; older limitations are historical. See rendering.json current_milestone and verified for current status."
 }

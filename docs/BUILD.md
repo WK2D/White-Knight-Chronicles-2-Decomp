@@ -4,6 +4,13 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
+**Verified on 2026-10-17:** the full 42-patch Windows Vulkan build reaches the
+live WKC1 town and responds to short analog movement, walking/facing changes,
+and camera rotation. Earlier town testing also verified pause/resume input.
+All 42 runtime checks pass. Town geometry and NPC materials still have visible
+faults; sustained traversal, combat and
+save/load remain unverified. See the [latest gallery entry](GALLERY.md).
+
 The source checkout and private working directory can be separate. Pass the
 private workspace with `-Workspace`; the build script gets project sources from
 its own location. Its default workspace layout is three parent directories above
@@ -49,10 +56,10 @@ before extracting those jobs. Six jobs initially found through runtime captures
 were subsequently located byte-for-byte in that executable. A clean extraction
 and static lift now reproduces all 23 registered image inputs without captures.
 A clean PPU/SPU regeneration and full native build have also been verified.
-That executable boots through the title menu, WKC1 selection and the shaded
-avatar scene. This verifies the known boot path with regenerated code. A later runtime build
-using those generated inputs reaches the town, with rendering faults remaining.
-Movement, combat and save/load remain under investigation.
+The regenerated inputs have been built with the current runtime and verified
+through the title menu, WKC1 selection, avatar acceptance and live town. Short
+movement and camera response are observed there; sustained traversal, combat
+and save/load remain unverified, and rendering faults remain.
 `tools/import_spu_misses.py` is available for discovering additional jobs.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
@@ -68,9 +75,9 @@ The current suite also covers fragment-program cache identity, ordered surface
 clears, Windows PPU join lifetime and the shared draw engine's colour feedback.
 It also covers persistent DMA label polling, reuse of freed memory ranges and
 finite digital/analog input through the private controller probe file. The
-current build contains 42 numbered SDK patches; the published town capture
-was made with patches 0001–0039. A later run with all 42 patches now reaches
-the town and responds to short analog movement and camera input. Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
+current build contains 42 numbered SDK patches. The newest town-controls capture
+uses all 42; the earlier town world-view capture used patches 0001–0039.
+Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
 
@@ -161,8 +168,9 @@ cutoff reproduces the failure. `SPU_DMA_REPEAT_LIMIT` is now an opt-in diagnosti
 zero or an absent value disables it, and a positive value requests a cutoff.
 Its counters are local to each host execution thread. A native run with this
 fix passes the earlier loading stall, reaches the next cutscene and enters
-the live WKC1 town. World geometry and NPC surfaces remain visibly corrupt;
-movement, combat and save/load are unverified.
+the live WKC1 town. Short movement and camera response were verified later
+with all 42 patches. World geometry and NPC surfaces remain visibly corrupt;
+sustained traversal, combat and save/load are unverified.
 
 Patch 0040 incorporates the allocator fix reviewed from the
 [suggestion branch](https://github.com/WK2D/White-Knight-Chronicles-2-Decomp/blob/6ca620d7f328996eeb4bf118652d78528d90107a/patches/0039-memory-range-reuse.patch).

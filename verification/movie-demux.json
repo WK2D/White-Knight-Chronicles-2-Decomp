@@ -119,8 +119,8 @@
     }
   },
   "limitations": [
-    "LPCM bytes were extracted, but independent LPCM audio comparison is not established.",
-    "AC-3 title/attract playback now runs; menu interaction, gameplay and save/load remain unverified.",
+    "Native LPCM conversion matches FFmpeg for assembled input; independent container audio demux remains unverified.",
+    "These decoder and startup probes do not establish full audio fidelity or complete movie rendering. Later menu input, live town rendering and limited controls are recorded in rendering.json.",
     "No game bytes, decoded frames or host paths are included."
   ],
   "native_decoder_check": {

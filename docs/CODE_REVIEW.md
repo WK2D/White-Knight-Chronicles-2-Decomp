@@ -20,7 +20,7 @@ suggestions only. No runtime code was changed, because the affected paths need
 the private generated sources and FFmpeg to test, and native behaviour can only
 be checked on the Windows build.
 
-## Checked in a Linux container
+### Original checks in a Linux container
 
 - All 41 patches apply to a clean SDK checkout of `a2c20108` with
   `tools/apply_sdk_patches.py`.
@@ -36,11 +36,11 @@ be checked on the Windows build.
 
 Not checked: Windows builds, game regeneration, native boot and rendering.
 
-## Findings
+### Original findings
 
 Ordered by priority. None of them blocks current progress.
 
-### 1. Audio decoder cannot restart after an AC-3 decode failure
+#### 1. Audio decoder cannot restart after an AC-3 decode failure
 
 `adec.cpp:190`. On a failed AC-3 decode, the worker sets `failed=true` and
 `accepting=false` but leaves `active=true`. After that:
@@ -64,7 +64,7 @@ body), expect the fatal error callback, then check that EndSeq returns 0, the
 sequence-end callback fires and StartSeq succeeds. This only matters if the
 game retries after a fatal audio error rather than closing the decoder.
 
-### 2. Demuxer can wait forever on an AU that fits the size check but not the arena
+#### 2. Demuxer can wait forever on an AU that fits the size check but not the arena
 
 `dmux.cpp:87`. `publish()` rejects an AU only when it exceeds `es->size-128`.
 The free arena starts at a 128-byte boundary at least 128 bytes into the
@@ -90,7 +90,7 @@ unlikely in practice. If you want it closed, record the arena size in
 +    es->free.emplace(arena,es->capacity);
 ```
 
-### 3. The two new self-tests only compile on Windows
+#### 3. The two new self-tests only compile on Windows
 
 `tests/pad_file_test.c` calls `_putenv_s`, which the SDK's `win32_compat.h`
 does not provide off Windows. `VirtualAlloc` is provided, so
@@ -99,7 +99,7 @@ executable whenever `WKC2_BUILD_TESTS` is on, so a future Linux or macOS build
 will fail to compile there. One option is to add a small `setenv` wrapper
 under `#ifndef _WIN32`, as `main.cpp` already does for `SPU_CRI_IMAGE`.
 
-### 4. Minor: horizontal chroma siting in scaled YUV-to-RGBA conversion
+#### 4. Minor: horizontal chroma siting in scaled YUV-to-RGBA conversion
 
 `vpost.cpp:307`. The scaled path samples chroma at `(sx-0.5)/2`
 horizontally, which assumes centre-sited chroma. MPEG-2's default 4:2:0
@@ -109,7 +109,7 @@ path picks nearest samples, so the two paths differ by a quarter of a chroma
 sample. This is a subpixel shift and probably invisible in movie playback.
 Change it only if a pixel comparison test calls for it.
 
-## Areas reviewed with no issues found
+### Original areas reviewed with no issues found
 
 - `lwcond.cpp`: the guest mutex is released and the waiter enqueued under one
   lock, so a signal cannot be lost. Timed waits remove the waiter before

@@ -13,7 +13,9 @@
     "findings_log": "docs/FINDINGS.md",
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
-    "gallery_order": "newest_first"
+    "gallery_order": "newest_first",
+    "current_milestone": "Live WKC1 town with short movement, walking/facing changes and camera rotation verified",
+    "updated": "2026-10-17"
   },
   "native_data_installation_verified": true,
   "native_decoded_movie_frame_verified": true,
@@ -118,7 +120,7 @@
   "native_avatar_review_verified": true,
   "native_clean_regeneration_build_and_known_boot_verified": true,
   "native_avatar_acceptance_and_opening_movie_verified": true,
-  "native_avatar_acceptance_and_opening_movie_scope": "Fresh PPU/SPU code; confirms avatar and plays the prerecorded WKC1 opening movie. Interactive 3D gameplay remains unverified.",
+  "native_avatar_acceptance_and_opening_movie_scope": "Fresh PPU/SPU code; confirms avatar and plays the prerecorded WKC1 opening movie. Later live town rendering and limited controls are verified separately.",
   "renderers": {
     "default_windows": "Vulkan shared RSX draw engine",
     "vulkan_avatar_and_room_verified": true,
@@ -141,7 +143,8 @@
     "source_level_game_decompilation_completed": false,
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
-    "remaining_requirement": "Cover missing SPU entries and any runtime-generated code with validated static/native implementations, then measure fallback coverage across gameplay."
+    "remaining_requirement": "Cover missing SPU entries and any runtime-generated code with validated static/native implementations, then measure fallback coverage across gameplay.",
+    "latest_census_probe": "20261017-010907"
   },
   "native_character_creation_completed_scope": "Default male avatar named and accepted through Quick Start; opening cutscenes advance to the town. Full visual fidelity and all customization options are not verified.",
   "native_wkc1_town_world_view_verified": true,

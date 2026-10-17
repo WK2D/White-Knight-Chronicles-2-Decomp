@@ -31,15 +31,16 @@ Stretched geometry and corrupt NPC surfaces are still visible.
 
 ## 2026-10-16 — WKC1 town world view
 
-The native Vulkan build now reaches the town after avatar acceptance and the
+This earlier native Vulkan run reached the town after avatar acceptance and the
 opening cutscenes. Leonard, the surrounding buildings, NPC names, minimap and
 save crystal appear in live 3D. Pause/resume input was checked separately in
 the same run. Fixing a runtime cutoff that halted valid SPU completion-label
 polling lets this run pass the previous loading stall.
 
-There are still obvious stretched triangles and corrupt NPC surfaces, visible
-in this unchanged readback. Movement, camera control, combat and save/load
-remain unverified. This is a world-view milestone, not a playable-port claim.
+Stretched triangles and corrupt NPC surfaces are visible in this unchanged
+readback. Movement and camera control were unchecked in this run and were
+verified in limited town probes on 2026-10-17. Sustained traversal, combat and
+save/load remain unverified.
 The 1920×1080 display readback contains the game's 1280×720 scene.
 
 ![Native WKC1 town showing Leonard, NPCs, minimap and save crystal, with visible geometry faults](../verification/screenshots/2026-10-16-native-wkc1-town.png)
@@ -52,61 +53,88 @@ it is updating; preserving the preceding pixels in a separate GPU image restores
 the missing colour channels. The entered name is retained. This is live 3D
 rendering from the hybrid C/C++ build with the shared RSX draw engine.
 The 1920×1080 display readback contains the game's 1280×720 scene. Full visual
-fidelity, interactive gameplay, save/load and macOS execution remain unverified.
+fidelity was not established by this capture. Later town rendering and limited
+controls are recorded above; save/load and macOS execution remain unverified.
 
 ![Native Vulkan WKC1 avatar and room after colour-feedback correction](../verification/screenshots/2026-10-16-native-vulkan-avatar-colours.png)
 
 ## 2026-10-16 — WKC1 opening movie after avatar confirmation
 
-The native executable now accepts the avatar and enters the WKC1 opening movie. Presenting completed batches at guest FIFO flips prevents the small movie batches from being withheld by the earlier scene threshold. This capture shows prerecorded movie footage. Interactive 3D gameplay and save/load remain unverified. The run uses freshly regenerated PPU and SPU code from the baseline executable.
+At this checkpoint, the native executable accepted the avatar and entered the
+WKC1 opening movie. Presenting completed batches at guest FIFO flips prevents
+small movie batches from being withheld by the earlier scene threshold. This
+capture shows prerecorded footage, using freshly regenerated PPU and SPU code.
+Live town rendering and limited controls were verified later, as recorded above.
 
 ![Native WKC1 opening movie after avatar confirmation](../verification/screenshots/2026-10-16-native-wkc1-opening-movie.png)
 
 ## 2026-10-16 — Character name retained through avatar review
 
-Native WKC1 character creation now retains the entered name and reaches the final Review page through Quick Start. The avatar, face shading and textured clothing render with normal depth testing and culling. This capture verifies name retention and review navigation; entering gameplay and save/load remain unverified. A gamepad-operated in-game keyboard is planned; the Windows text-entry window is temporary.
+This checkpoint verified name retention through Quick Start to final Review,
+with the avatar, face shading and textured clothing visible under normal depth
+testing and culling. Avatar acceptance and town entry were verified later.
+A gamepad-operated in-game keyboard is planned; the Windows text-entry window
+is temporary.
 
 ![Native Character name retained through avatar review](../verification/screenshots/2026-10-16-native-avatar-review.png)
 
 ## 2026-10-16 — Avatar face and clothing shading
 
-The native WKC1 character creator now shows a shaded face and textured clothing after correcting packed vertex normals and fragment source-range modifiers. The complete default male avatar is visible with normal depth testing and culling. Captured on the original version 1.00 baseline. Full visual fidelity, completed character creation, gameplay and save/load remain unverified.
+Correcting packed vertex normals and fragment source-range modifiers revealed
+the shaded face and textured clothing of the default male avatar, with normal
+depth testing and culling. This version 1.00 capture predates avatar acceptance
+and town validation. Full visual fidelity remains unverified.
 
 ![Native Avatar face and clothing shading](../verification/screenshots/2026-10-16-native-avatar-shading.png)
 
 ## 2026-10-16 — Avatar body geometry
 
-The avatar body now appears in the native WKC1 character creator after correcting SPU FNMS extended-range arithmetic. Previously missing arms, hands, trousers and boots are visible with normal depth and culling. Face shading and clothing materials remain incorrect; completed character creation, gameplay and save/load are still unverified. Captured on the original version 1.00 baseline.
+Correcting SPU FNMS extended-range arithmetic revealed the previously missing
+arms, hands, trousers and boots, with normal depth and culling. Face shading and
+clothing materials were still incorrect in this version 1.00 capture; later
+fixes and town progress are recorded above.
 
 ![Native Avatar body geometry](../verification/screenshots/2026-10-16-native-avatar-body.png)
 
 ## 2026-10-16 — 3D room with normal depth
 
-The character-creation room now renders with normal depth testing after correcting indexed triangle strips and primitive restart. Some avatar pieces appear, but the body is incomplete. Captured from native C/C++ execution on the original version 1.00 baseline after selecting White Knight Chronicles I. Completed character creation, gameplay and save/load remain unverified.
+Correcting indexed triangle strips and primitive restart made the WKC1
+character-creation room render with normal depth testing. Some avatar pieces
+appeared, but the body was incomplete in this version 1.00 capture. Later
+entries record the complete default avatar, avatar acceptance and town progress.
 
 ![Native 3D room with normal depth](../verification/screenshots/2026-10-16-native-3d-room.png)
 
 ## 2026-10-16 — Avatar customization UI
 
-Selecting White Knight Chronicles I now reaches Customize Avatar. Controller input dismisses the introductory notice. Text and menu controls render, but the character model is missing. Gameplay, completed character creation and save/load remain unverified. Captured on the original version 1.00 baseline.
+This version 1.00 checkpoint reached Customize Avatar and dismissed its
+introductory notice through controller input. Text and menu controls rendered,
+but the character model was missing at the time. Later entries record the
+avatar rendering fixes and progression into the town.
 
 ![Native Avatar customization UI](../verification/screenshots/2026-10-16-avatar-customization.png)
 
 ## 2026-10-16 — White Knight Chronicles I selected
 
-The first White Knight Chronicles is selected through native controller input. Its description and selection dialog render correctly. Confirming this choice reaches a job with an empty SPU binary source during loading; no playable scene is verified.
+This checkpoint selected the first White Knight Chronicles through native
+controller input, with readable description and dialog text. Loading then
+stopped at a job with an empty SPU binary source. That failure was resolved
+before the later avatar and town milestones above.
 
 ![Native White Knight Chronicles I selected](../verification/screenshots/2026-10-16-wkc1-selection.png)
 
 ## 2026-10-16 — Readable New Game description
 
-The native New Game description is readable after fixing packed font texture bindings. This verifies this menu text; gameplay and save/load remain unverified.
+Fixing packed font texture bindings made the native New Game description
+readable. This capture verifies that menu text; later progress is recorded above.
 
 ![Native Readable New Game description](../verification/screenshots/2026-10-16-readable-new-game.png)
 
 ## 2026-10-16 — New Game submenu
 
-Live controller input moves the title highlight and opens New Game. Its submenu renders the book artwork, labels and cursor. Description text is visibly corrupted into blocks. A further confirm opens a dialog with the same glyph issue; starting gameplay remains unverified.
+At this checkpoint, live controller input moved the title highlight and opened
+New Game, showing its book artwork, labels and cursor. Description and dialog
+text still appeared as blocks; the later font fix is recorded above.
 
 ![Native New Game submenu](../verification/screenshots/2026-10-16-new-game-menu.png)
 
@@ -115,7 +143,7 @@ Live controller input moves the title highlight and opens New Game. Its submenu 
 The native title menu displays New Game, Continue and Options over the animated
 background. Successive captures show the title artwork changing. With no input,
 the guest subsequently opens its attract movie. This capture proves menu rendering;
-menu response was validated later; gameplay remains unverified.
+menu response, avatar acceptance and limited town controls were validated later.
 
 ![Native White Knight Chronicles II title menu](../verification/screenshots/2026-10-16-title-menu.png)
 

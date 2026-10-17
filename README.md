@@ -13,9 +13,10 @@ All 56,580 main-CPU (PPU) functions and all 23 known SPU programs are statically
 recompiled; some remaining SPU code still uses an interpreter fallback. See
 [execution architecture and modding scope](docs/ARCHITECTURE.md).
 
-**This is not a playable port yet.** Analysis, compilation, boot, rendering and
-gameplay are distinct milestones. Passing an analysis or build step does not
-establish that the game works.
+**Current milestone (2026-10-17): the native Vulkan build reaches the live WKC1
+town, with short movement, walking animation and camera rotation verified.**
+Town geometry and NPC materials still have visible faults. Sustained traversal,
+combat and save/load remain unverified, so this is not a playable port yet.
 
 - [Build instructions](docs/BUILD.md)
 - [Contribution workflow](docs/CONTRIBUTING.md)
@@ -30,20 +31,22 @@ The latest image shows the live WKC1 town after short analog movement and
 camera rotation. Stretched geometry and corrupt NPC surfaces remain. Earlier
 captures are in the [gallery](docs/GALLERY.md).
 
-So far the native build:
+Verified progress, with the latest milestone first:
 
-- renders the title menu, with New Game, Continue and Options, over an animated background;
-- plays LPCM startup logos and AC-3 title/attract movies through the native movie pipeline;
-- accepts controller input to open New Game and select White Knight Chronicles I,
-  with description and dialog text rendering correctly;
-- reaches the WKC1 **Customize Avatar** screen, rendering the **3D room with normal
+- reaches the **live WKC1 town** after avatar acceptance and opening cutscene
+  skips, showing Leonard, NPCs, the minimap and a save crystal;
+- responds to short left-stick movement, facing changes and walking animation,
+  right-stick camera rotation, and pause/resume input;
+- retains a name through native text entry, Quick Start and **final avatar Review**,
+  then accepts the avatar and enters the **WKC1 opening movie**;
+- renders the WKC1 **Customize Avatar** screen, including the **3D room with normal
   depth testing** and the **avatar body geometry**, including arms, hands, trousers
   and boots, with **face shading and textured clothing**;
-- retains a name entered through native text entry through Quick Start to the
-  **final avatar Review**;
-- accepts the avatar and enters the **WKC1 opening movie**;
-- advances through the opening cutscenes to the **live WKC1 town**, with NPCs,
-  the minimap and a save crystal visible, and responds to pause/resume input.
+- accepts controller input to open New Game and select White Knight Chronicles I,
+  with description and dialog text rendering correctly;
+- renders the title menu over an animated background and plays LPCM startup logos
+  and AC-3 title/attract movies through the native movie pipeline;
+- passes **42 Windows runtime regression checks** with **42 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. Geometry and material faults
@@ -114,8 +117,8 @@ coverage report distinguishes handler presence from verified implementation.
 - **Native startup:** executes the game, its SPU tasks/jobs, filesystem operations,
   graphics initialization and audio initialization. GPU readback confirms the
   language-selection screen, copyright page and warning screen render natively.
-- **Initial UI input:** a simulated CROSS press selects English and the screen fades
-  into the next startup stage. Further input and gameplay remain under test.
+- **Initial UI input:** a simulated CROSS press selects English and advances startup.
+  Later menu input, avatar acceptance and limited town controls are verified below.
 - **Title screen and menu input:** verified on Windows.
 - **Readable New Game and WKC1 selection dialogs:** verified on Windows.
 - **WKC1 avatar-customization UI:** renders and dismisses its introductory notice; the
@@ -124,7 +127,8 @@ coverage report distinguishes handler presence from verified implementation.
   visual fidelity remains unverified. Avatar acceptance and entry into the town
   have now been observed.
 - **Avatar confirmation enters the WKC1 opening movie:** verified with freshly
-  regenerated PPU/SPU code. This does not establish interactive 3D gameplay.
+  regenerated PPU/SPU code. This checkpoint covers prerecorded movie playback;
+  live town rendering and limited controls are verified separately below.
 - **WKC1 town world view and pause/resume:** observed on the native Vulkan build
   after the opening cutscenes. Geometry and NPC materials remain visibly corrupt.
 - **Initial town controls:** short analog movement, facing changes and camera
