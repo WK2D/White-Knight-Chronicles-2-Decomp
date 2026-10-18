@@ -25,7 +25,7 @@ source defect does not establish the cause of WKC's lag or flicker.
 | 4 | S8, R1 | 0091 makes completion/scan updates coherent with SPU reservations; other producer RMW helpers remain to review. Global lock redesign/contention is separate. |
 | 5 | P8, P9 | HLE lookup is linear and per-read HOTREAD TLS diagnostics remain. Measure their current clang-cl cost and test indexed lookup equivalence. |
 | 6 | G3, V11 | Reports stay host-side and ZPASS is fixed-visible. Town logs contain type-1 GET_REPORT requests. Capture DMA context/render-enable use before implementing Vulkan queries. |
-| 7 | V1-V3, V5 | Shared fragment-shader gaps and missing AA sample-resolution handling can affect Vulkan. Use small shader/GPU tests and a WKC feature census. FXAA does not implement RSX AA memory layout. |
+| 7 | V1-V3, V5; polygon offset | Shared shader/AA gaps remain. The [RSX command cross-check](FINDINGS.md#rsx-command-reference-cross-check) also confirms that observed town polygon-offset requests never reach Vulkan. Validate bias units and per-pass usage; FXAA does not implement RSX AA memory layout. |
 | 8 | P6, G1, G5 | TLS sizing/exhaustion, 16 IO-mapping slots/count-based reuse, and ownership-blind FIFO wrapping remain. Add allocation/reuse/context regressions. |
 
 Generated SPU sources contain 18,216 byte-shift/rotate helper call sites and

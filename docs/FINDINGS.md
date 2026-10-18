@@ -14,6 +14,38 @@ physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
+## RSX command-reference cross-check
+
+Reviewed the [RSX FIFO command reference](https://www.psdevwiki.com/ps3/RSXFIFOCommands)
+against the current 93-patch SDK. This was a source review, with the existing
+18-second saved-town register sample described under
+[texture detail and rendering state](#texture-detail-and-rendering-state-audit-patch-0079);
+no new native run or performance measurement was made for this review.
+
+| Commands | Current implementation and evidence | Next check |
+|---|---|---|
+| Polygon offset: fill enable `0x0A68`, scale `0x0A78`, bias `0x0A7C` | The dispatcher stores the words, but `rsx_draw_engine_decode_render_state` and `rsx_be_render_state` omit them. Vulkan's engine pipeline leaves depth bias disabled. The town sample found fill offset enabled with negative, nonzero scale and bias. | Forward the requested state and verify depth-format-dependent bias units with a GPU regression before comparing the foot/Logic Stone flicker. Its effect remains unverified. |
+| Report DMA context `0x01A8`, GET_REPORT `0x1800`, render enable `0x1E98` | `cellGcmSys.c` records reports only in the host table and returns a constant visible value for ZPASS. The shared draw path has no conditional-render evaluation. Type-1 reports were observed in town; conditional drawing and the requested report location have not been established. | Capture these three commands together before implementing query publication/predication. Extra drawing is a possible cost, not a measured explanation of lag. |
+| Surface AA bits in `0x0208` and AA control `0x1D7C` | The shared surface extraction omits AA sample factors; Vulkan engine pipelines use one rasterization sample. The Graphics Settings FXAA option is a separate post-process. | Establish WKC's actual per-pass sample layout before changing surface dimensions, addressing or resolves. |
+| Depth bounds `0x0380`-`0x0388`, fog `0x08CC`/`0x08D0` | These features were inactive in the sampled town state. | Keep them separate from the observed active polygon-offset omission; check other scenes before attributing a symptom. |
+| Depth comparison/mask/test `0x0A6C`/`0x0A70`/`0x0A74` | The shared engine decodes these and Vulkan applies them. | Preserve the existing shadow-polarity fix; these commands are not another missing depth-test implementation. |
+| NV0039, NV3089 and inline-copy subchannels | Transfer implementations already exist, including patch 0052's NV0039 path. The FIFO walker routes them separately from the 3D register bank. | Use actual object bindings/traces to check routing; the reference's usual slot assignment alone does not prove a missing engine. |
+
+A stored register or a dispatcher coverage label is not proof that rendering
+uses its value. The trace-to-register-to-backend path matters. In particular,
+the old D3D12 `uvdbg` message labels reads of `0x0A78`/`0x0A7C` as depth
+write/function even though those are offset scale/bias; that message is not
+reliable depth-state evidence.
+
+The command list identifies addresses, but does not establish the conversion
+from RSX offset values to a host depth format. The
+[Vulkan rasterization specification](https://docs.vulkan.org/spec/latest/chapters/primsrast.html#primsrast-depthbias)
+defines constant/slope bias and format-dependent precision. RPCS3's
+[Vulkan draw-state implementation](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/VK/VKDraw.cpp)
+also adjusts constant bias for NVIDIA D24 targets. That adjustment is a useful
+validation lead, not a factor to apply blindly to every depth format or GPU.
+No rendering behavior changed in this review.
+
 ## Killzone 3 SDK comparison
 
 A source review compares all 62 entries in the Killzone 3 runtime catalogue
