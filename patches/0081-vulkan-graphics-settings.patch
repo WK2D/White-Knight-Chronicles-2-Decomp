@@ -1,0 +1,304 @@
+Add host Vulkan graphics preferences and a foreground-only completed-frame FPS HUD.
+Apply display and sampler changes after retiring GPU work; preserve original guest timing.
+
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -172,6 +172,8 @@
+     u32              queue_family;
+     VkPhysicalDeviceMemoryProperties memprops;
+     float            max_sampler_lod_bias;
++    float            max_anisotropy;
++    int              anisotropy_ok;
+ 
+     u32              width, height;
+     vk_image         color;           /* R8G8B8A8_UNORM                 */
+@@ -240,6 +242,11 @@
+     u32              dump_every;       /* write every nth presented frame */
+ } vk_state;
+ 
++static rsx_vulkan_graphics_config s_graphics, s_graphics_applied;
++static int s_graphics_enabled, s_graphics_dirty;
++static void vk_apply_graphics(void);
++static void vk_counter_blit(VkCommandBuffer cmd, u32 idx);
++
+ static vk_state s_vk;
+ 
+ #define VK_LOG(...)  fprintf(stderr, "[RSX vulkan] " __VA_ARGS__)
+@@ -398,6 +405,7 @@
+      * the device really has (a title's 4608-wide target on RADV). */
+     s_vk.max_dim = p.limits.maxImageDimension2D >= 4096u ? p.limits.maxImageDimension2D : 4096u;
+     s_vk.max_sampler_lod_bias = p.limits.maxSamplerLodBias;
++    s_vk.max_anisotropy = p.limits.maxSamplerAnisotropy;
+     VK_LOG("using device %d: %s\n", best, p.deviceName);
+     return 0;
+ }
+@@ -1841,7 +1849,7 @@
+         VK_LOG("window disabled, continuing headless: SDL video init failed: %s\n", SDL_GetError());
+         return;
+     }
+-    Uint32 flags = SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN;
++    Uint32 flags = SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
+     if (vk_env_on("PS3RECOMP_VK_FULLSCREEN")) flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+     s_vk.window = SDL_CreateWindow(title && title[0] ? title : "ps3recomp",
+                                    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+@@ -1941,6 +1949,8 @@
+         VkPresentModeKHR wanted = VK_PRESENT_MODE_FIFO_KHR;
+         if (want && !strcmp(want, "mailbox")) wanted = VK_PRESENT_MODE_MAILBOX_KHR;
+         else if (want && !strcmp(want, "immediate")) wanted = VK_PRESENT_MODE_IMMEDIATE_KHR;
++        if (s_graphics_enabled)
++            wanted = s_graphics.vsync ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
+         VkPresentModeKHR modes[16];
+         u32 nm = 16;
+         if (wanted != VK_PRESENT_MODE_FIFO_KHR &&
+@@ -2031,6 +2041,7 @@
+                     s_vk.sc_images[idx], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                     1, &blit, (width == s_vk.sc_extent.width && height == s_vk.sc_extent.height)
+                               ? VK_FILTER_NEAREST : VK_FILTER_LINEAR);
++    vk_counter_blit(cmd, idx);
+     b.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+     b.dstAccessMask = 0;
+     b.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+@@ -2479,6 +2490,87 @@
+ }
+ 
+ /* The same into the whole of a level, from its origin. */
++/* Host counter pixels are original bitmap digits; no game font/assets. */
++static vk_image s_counter_image;
++static int s_counter_ready;
++static double s_counter_epoch, s_counter_fps;
++static u32 s_counter_frames, s_counter_run_count;
++static VkImageBlit s_counter_runs[512];
++static const u8 s_counter_glyphs[13][7] = {
++    {14,17,19,21,25,17,14}, {4,12,4,4,4,4,14}, {14,17,1,2,4,8,31},
++    {30,1,1,14,1,1,30}, {2,6,10,18,31,2,2}, {31,16,16,30,1,1,30},
++    {14,16,16,30,17,17,14}, {31,1,2,4,8,8,8}, {14,17,17,14,17,17,14},
++    {14,17,17,15,1,1,14}, {31,16,16,30,16,16,16}, /* F */
++    {30,17,17,30,16,16,16}, /* P */ {15,16,16,14,1,1,30} /* S */
++};
++static void vk_counter_update(void)
++{
++    const double now = vk_now_ms();
++    if (!s_counter_epoch) { s_counter_epoch = now; s_counter_frames = 0; }
++    if (now-s_counter_epoch >= 1000.0) {
++        s_counter_fps = 1000.0*s_counter_frames/(now-s_counter_epoch);
++        s_counter_epoch = now; s_counter_frames = 0;
++    }
++    ++s_counter_frames;
++    s_counter_ready = 0;
++    if (!s_graphics_enabled || !s_graphics.fps_counter) return;
++    if (!s_counter_image.img) {
++        if (vk_create_image(&s_counter_image,VK_FORMAT_R8G8B8A8_UNORM,128,24,
++            VK_IMAGE_USAGE_TRANSFER_DST_BIT|VK_IMAGE_USAGE_TRANSFER_SRC_BIT|VK_IMAGE_USAGE_SAMPLED_BIT,VK_IMAGE_ASPECT_COLOR_BIT)) return;
++        vk_barrier_image(s_counter_image.img,VK_IMAGE_ASPECT_COLOR_BIT,VK_IMAGE_LAYOUT_UNDEFINED);
++    }
++    u8 pixels[128*24*4];
++    for (u32 i=0;i<128*24;i++) { pixels[i*4]=10; pixels[i*4+1]=18; pixels[i*4+2]=26; pixels[i*4+3]=255; }
++    char label[32]; snprintf(label,sizeof label,"FPS %.1f",s_counter_fps);
++    for (u32 i=0;label[i] && i<10;i++) {
++        int glyph=label[i]>='0' && label[i]<='9' ? label[i]-'0' :
++                  label[i]=='F' ? 10 : label[i]=='P' ? 11 : label[i]=='S' ? 12 : -1;
++        for (u32 y=0;y<7;y++) for (u32 x=0;x<5;x++) {
++            const int lit = glyph>=0 ? (s_counter_glyphs[glyph][y]>>(4-x))&1 :
++                            label[i]=='.' && y==6 && x==2;
++            if (!lit) continue;
++            for (u32 sy=0;sy<2;sy++) for (u32 sx=0;sx<2;sx++) {
++                const u32 at=((y*2+5+sy)*128+(i*12+x*2+4+sx))*4;
++                pixels[at]=pixels[at+1]=pixels[at+2]=240;
++            }
++        }
++    }
++    /* Copy only foreground runs. A full transfer blit cannot alpha blend;
++     * leaving the gaps untouched makes the counter background transparent. */
++    s_counter_run_count=0;
++    for (u32 y=5;y<19;y+=2) for (u32 x=0;x<128;) {
++        if (pixels[(y*128+x)*4]!=240) { ++x;continue; }
++        const u32 first=x;
++        while(x<128 && pixels[(y*128+x)*4]==240) ++x;
++        s_counter_runs[s_counter_run_count++]=(VkImageBlit){
++            .srcSubresource={VK_IMAGE_ASPECT_COLOR_BIT,0,0,1},
++            .srcOffsets={{(int32_t)first,(int32_t)y,0},{(int32_t)x,(int32_t)y+2,1}},
++            .dstSubresource={VK_IMAGE_ASPECT_COLOR_BIT,0,0,1},
++            .dstOffsets={{(int32_t)first,(int32_t)y,0},{(int32_t)x,(int32_t)y+2,1}} };
++    }
++    if (!vk_eng_upload_region(s_counter_image.img,0,0,0,0,128,24,128*4,24,
++        pixels,128*4,VK_IMAGE_ASPECT_COLOR_BIT)) s_counter_ready=1;
++}
++static void vk_counter_blit(VkCommandBuffer cmd,u32 idx)
++{
++    if (!s_counter_ready || !s_counter_image.img || !s_graphics.fps_counter) return;
++    VkImageBlit visible[512];u32 count=0;
++    for(u32 i=0;i<s_counter_run_count;i++) {
++        VkImageBlit r=s_counter_runs[i];
++        if((u32)r.dstOffsets[0].x>=s_vk.sc_extent.width ||
++           (u32)r.dstOffsets[0].y>=s_vk.sc_extent.height) continue;
++        if((u32)r.dstOffsets[1].x>s_vk.sc_extent.width)
++            r.srcOffsets[1].x=r.dstOffsets[1].x=(int32_t)s_vk.sc_extent.width;
++        if((u32)r.dstOffsets[1].y>s_vk.sc_extent.height)
++            r.srcOffsets[1].y=r.dstOffsets[1].y=(int32_t)s_vk.sc_extent.height;
++        visible[count++]=r;
++    }
++    if (!count) return;
++    vk_barrier_image_in(cmd,s_counter_image.img,VK_IMAGE_ASPECT_COLOR_BIT,VK_IMAGE_LAYOUT_GENERAL);
++    pvkCmdBlitImage(cmd,s_counter_image.img,VK_IMAGE_LAYOUT_GENERAL,s_vk.sc_images[idx],
++        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,count,visible,VK_FILTER_NEAREST);
++}
++
+ static int vk_eng_upload_rows(VkImage img, u32 layer, u32 mip, u32 w, u32 h,
+                               size_t tight, u32 rows, const void* src, u32 row_bytes,
+                               VkImageAspectFlags aspect)
+@@ -2728,10 +2820,28 @@
+  * engine frames never pass through a reduced intermediate image. */
+ static void vk_eng_present(void* user, u32 surface)
+ {
++    /* Cap completed guest frames; repeated display refreshes are not counted.
++     * This does not change the title's simulation or original vblank cadence. */
++    static double last_frame_ms;
++    static u32 last_limit;
++    if (s_graphics_enabled && s_graphics.frame_limit) {
++        const double period = 1000.0 / s_graphics.frame_limit;
++        double now = vk_now_ms();
++        if (last_limit == s_graphics.frame_limit && last_frame_ms > 0.0)
++            while (now < last_frame_ms + period) {
++                const double left = last_frame_ms + period - now;
++                if (left > 1.0) SDL_Delay((u32)(left-0.5));
++                else SDL_Delay(0);
++                now = vk_now_ms();
++            }
++        last_frame_ms = now;
++    } else last_frame_ms = 0;
++    last_limit = s_graphics.frame_limit;
+     vk_flush_report();
+     (void)user;
+     vk_eng_obj* o = vk_eng_get(surface, VK_ENG_COLOR);
+     if (!s_vk.device || vk_rec_begin()) return;
++    vk_counter_update();
+     const VkImage source = o ? o->im.img : s_vk.color.img;
+     const u32 width = o ? o->w : s_vk.width, height = o ? o->h : s_vk.height;
+     const int dump = s_vk.dump_path && ((s_vk.presented + 1u) % s_vk.dump_every) == 0;
+@@ -3721,6 +3831,48 @@
+     return s_e2.scratch_depth.view;
+ }
+ 
++void rsx_vulkan_backend_configure(const rsx_vulkan_graphics_config* config)
++{
++    if (!config || config->window_mode>2 || config->vsync>1 || config->fps_counter>1 ||
++        (config->width && (config->width<320 || config->width>8192)) ||
++        (config->height && (config->height<240 || config->height>8192)) ||
++        (!!config->width != !!config->height) || config->anisotropy>16 ||
++        (config->frame_limit && config->frame_limit!=30 && config->frame_limit!=40 &&
++         config->frame_limit!=60 && config->frame_limit!=120 && config->frame_limit!=144)) return;
++    if (!s_graphics_enabled || memcmp(config,&s_graphics,sizeof *config)) {
++        s_graphics=*config; s_graphics_enabled=1; s_graphics_dirty=1;
++    }
++}
++static void vk_apply_graphics(void)
++{
++    if (!s_graphics_dirty || !s_vk.device || !s_vk.windowed) return;
++    s_graphics_dirty=0;
++    const int window_change=s_graphics.window_mode!=s_graphics_applied.window_mode ||
++        s_graphics.width!=s_graphics_applied.width || s_graphics.height!=s_graphics_applied.height;
++    const int sync_change=s_graphics.vsync!=s_graphics_applied.vsync;
++    const int filter_change=s_graphics.anisotropy!=s_graphics_applied.anisotropy;
++    if(window_change || sync_change || filter_change) {
++        vk_batch_flush(); vk_slot_drain(); pvkDeviceWaitIdle(s_vk.device);
++        if(filter_change) {
++            for(u32 i=0;i<s_esamp_count;i++) pvkDestroySampler(s_vk.device,s_esamp[i].s,NULL);
++            s_esamp_count=0;
++        }
++        if(window_change) {
++            SDL_SetWindowFullscreen(s_vk.window,0);
++            if(s_graphics.window_mode==1) SDL_SetWindowFullscreen(s_vk.window,SDL_WINDOW_FULLSCREEN_DESKTOP);
++            else if(s_graphics.window_mode==2) {
++                SDL_DisplayMode mode={0};mode.w=(int)s_graphics.width;mode.h=(int)s_graphics.height;
++                if(SDL_SetWindowDisplayMode(s_vk.window,&mode) ||
++                   SDL_SetWindowFullscreen(s_vk.window,SDL_WINDOW_FULLSCREEN))
++                    VK_LOG("fullscreen mode failed: %s\n",SDL_GetError());
++            } else if(s_graphics.width && s_graphics.height)
++                SDL_SetWindowSize(s_vk.window,(int)s_graphics.width,(int)s_graphics.height);
++        }
++        if(window_change || sync_change) vk_swapchain_lost();
++    }
++    s_graphics_applied=s_graphics;
++}
++
+ /* rsx_be_sampler_desc is the registers decoded the D3D12 way; the wrap codes
+  * stay the guest's 1..8, which vk_gcm_wrap already translates. */
+ static VkSampler vk_eng_sampler(const rsx_be_sampler_desc* d)
+@@ -3750,6 +3902,9 @@
+         .addressModeU = vk_gcm_wrap(d->wrap_s), .addressModeV = vk_gcm_wrap(d->wrap_t),
+         .addressModeW = vk_gcm_wrap(d->wrap_r),
+         .minLod = min_lod, .maxLod = max_lod, .mipLodBias = bias,
++        .anisotropyEnable = s_vk.anisotropy_ok && s_graphics.anisotropy>1 && d->mip_present && d->min_linear,
++        .maxAnisotropy = s_graphics.anisotropy>s_vk.max_anisotropy ? s_vk.max_anisotropy :
++                         s_graphics.anisotropy>1 ? (float)s_graphics.anisotropy : 1.0f,
+         .compareEnable = d->compare_func ? VK_TRUE : VK_FALSE,
+         .compareOp = vk_gcm_compare(rsx_texture_compare_host_func(d->compare_func)),
+         .borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK };
+@@ -4088,6 +4243,8 @@
+     pvkGetPhysicalDeviceFeatures(s_vk.phys, &have);
+     want.textureCompressionBC = have.textureCompressionBC;
+     s_vk.bc_ok = have.textureCompressionBC ? 1 : 0;
++    want.samplerAnisotropy = have.samplerAnisotropy;
++    s_vk.anisotropy_ok = have.samplerAnisotropy ? 1 : 0;
+     VkDeviceCreateInfo dci = { .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+                                .queueCreateInfoCount = 1, .pQueueCreateInfos = &qci,
+                                .enabledExtensionCount = s_vk.windowed ? 1u : 0u,
+@@ -4213,6 +4370,8 @@
+         for (u32 u = 0; u < RSX_MAX_TEXTURES; u++) vk_destroy_image(&s_vk.tex[u]);
+         vk_destroy_image(&s_vk.dummy);
+         vk_destroy_image(&s_vk.depth);
++        vk_destroy_image(&s_counter_image);
++        s_counter_ready=0; s_counter_epoch=s_counter_fps=0; s_counter_frames=0;
+         vk_destroy_image(&s_vk.color);
+         vk_destroy_buffer(&s_vk.vertices);
+         vk_destroy_buffer(&s_vk.readback);
+@@ -4229,6 +4388,7 @@
+ 
+ int rsx_vulkan_backend_pump_messages(void)
+ {
++    vk_apply_graphics();
+     if (!s_vk.windowed) return 0;
+     int quit = 0;
+     SDL_Event e;
+diff --git a/libs/video/rsx_vulkan_backend.h b/libs/video/rsx_vulkan_backend.h
+--- a/libs/video/rsx_vulkan_backend.h
++++ b/libs/video/rsx_vulkan_backend.h
+@@ -55,6 +55,7 @@
+ #define PS3RECOMP_RSX_VULKAN_BACKEND_H
+ 
+ #include "rsx_commands.h"
++#include "rsx_graphics_settings.h"
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -93,6 +94,7 @@
+  * backend. */
+ int  rsx_vulkan_backend_guest_programs(void);
+ 
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/libs/video/rsx_graphics_settings.h b/libs/video/rsx_graphics_settings.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_graphics_settings.h
+@@ -0,0 +1,17 @@
++#ifndef PS3RECOMP_RSX_GRAPHICS_SETTINGS_H
++#define PS3RECOMP_RSX_GRAPHICS_SETTINGS_H
++#include <stdint.h>
++#ifdef __cplusplus
++extern "C" {
++#endif
++/* Host preferences, called on the renderer thread. Width/height zero keeps
++ * the current window size; frame_limit zero removes the host frame cap. */
++typedef struct rsx_vulkan_graphics_config {
++    uint32_t window_mode, width, height, vsync, anisotropy, frame_limit, fps_counter;
++} rsx_vulkan_graphics_config;
++void rsx_vulkan_backend_configure(const rsx_vulkan_graphics_config* config);
++
++#ifdef __cplusplus
++}
++#endif
++#endif

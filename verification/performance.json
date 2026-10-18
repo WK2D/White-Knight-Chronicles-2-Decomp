@@ -565,5 +565,53 @@
       "The earlier attempted baseline repeat overlapped the test suite and was excluded"
     ]
   },
-  "record_scope": "Historical benchmarks retain their original conditions and patch counts. The latest measured stationary saved-town comparison is vulkan_batch_scheduling_0076. Top-level date, scene, conditions and samples describe the earlier hidden-window series, not current play-like performance."
+  "record_scope": "Historical benchmarks retain original conditions and patch counts. graphics_frame_limit_gate contains short timing-control probes, not a matched performance improvement. vulkan_batch_scheduling_0076 remains the latest matched stationary comparison.",
+  "graphics_frame_limit_gate": {
+    "date": "2026-10-18",
+    "measurement_scope": "Separate short saved-scene timing candidate probes; no matched FPS gain comparison",
+    "conditions": {
+      "optimized_release": true,
+      "hidden": true,
+      "muted_audio_mixing_active": true,
+      "file_logging": false,
+      "sampling_profiler": false,
+      "periodic_screenshots": false,
+      "read_only_clock_poll_ms": 2
+    },
+    "samples": [
+      {
+        "limit": 60,
+        "wall_seconds": 12.0022527,
+        "completed_frames": 454,
+        "completed_frames_per_second": 37.82623,
+        "game_clock_seconds": 12.009029,
+        "normalized_30hz_ticks": 360.270874,
+        "vblank_rate": 119.977477
+      },
+      {
+        "limit": "Unlocked",
+        "vsync": false,
+        "wall_seconds": 10.0024719,
+        "completed_frames": 372,
+        "completed_frames_per_second": 37.190804,
+        "game_clock_seconds": 10.018272,
+        "normalized_30hz_ticks": 300.548158
+      }
+    ],
+    "hard_30_ceiling_removed_in_sample": true,
+    "locked_60_verified": false,
+    "unique_animation_per_frame_verified": false,
+    "high_fps_full_game_compatibility_verified": false,
+    "live_menu_application": {
+      "sdk_patches": 82,
+      "input_route": "Graphics Settings: 30 to 40 to 60, then returned to saved scene",
+      "fxaa_enabled": true,
+      "wall_seconds": 10.0023925,
+      "completed_frames": 385,
+      "completed_frames_per_second": 38.490789,
+      "game_clock_seconds": 9.988781,
+      "vblank_rate": 119.971297,
+      "unique_animation_per_frame_verified": false
+    }
+  }
 }

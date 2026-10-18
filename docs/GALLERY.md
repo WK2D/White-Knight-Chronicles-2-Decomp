@@ -8,18 +8,48 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 80 SDK patches / 68 Windows checks. Patch 0080 removes the
-intermediate window reduction in source; its native visual validation is pending.
-The latest patch-0079 comparison
-shows the texture LOD correction. Saving and Continue reload work; normal
-shadow polarity is restored. Foot/Logic Stone flicker, incomplete rendering
-state and town lag remain open. Still images do not prove smooth animation,
-performance, full gameplay or interpreter-free execution. Historical entries
-retain their original test conditions and patch counts.
+Current source: 82 SDK patches / 72 Windows checks. The current menu captures
+are final Vulkan swapchain readbacks, including window scaling and FXAA.
+The earlier LOD comparison is captured before window scaling. Saving and Continue
+reload work; normal shadow polarity is restored. Foot/Logic Stone flicker,
+incomplete rendering state and town lag remain open. Still images do not prove
+smooth animation, performance, full gameplay or interpreter-free execution.
+Historical entries retain their original test conditions and patch counts.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-18 - Native Graphics Settings
+
+The native System menu now has a Graphics Settings entry. These 82-patch captures
+show actual game widgets after Continue loaded the save, with FXAA enabled.
+All 72 Windows checks pass in Debug and Release. The frame-rate control now
+changes guest pacing as well as the host limit; short saved-scene samples exceed
+30 completed frames/s with normal sampled game-clock speed. These images do not
+prove a frame-rate gain. See [measurements and limits](FINDINGS.md#native-graphics-settings-and-frame-rate-control).
+
+Primary page: windowed/borderless/fullscreen, named output resolution, VSync,
+anisotropic filtering, Off/FXAA and 30/40/60/120/144/Unlocked limits:
+
+![Native Graphics Settings page](../verification/screenshots/2026-10-18-native-graphics-settings.png)
+
+More Settings contains the renderer choice, draw-distance submenu and FPS toggle.
+The asterisk means DirectX 12 has been selected for the next restart; this capture
+is still Vulkan. DirectX 12 also reaches the save and menu in a separate test, but
+has visible differences and does not implement the Vulkan display preferences,
+FXAA or overlay. Vulkan remains the default:
+
+![Native API selector with the restart requirement](../verification/screenshots/2026-10-18-native-graphics-api.png)
+
+The separate entry lives under System:
+
+![Graphics Settings entry under System](../verification/screenshots/2026-10-18-native-system-graphics.png)
+
+World/NPC distance and fog are placeholders, visibly pending and inactive.
+The game's background blur remains in all these pages:
+
+![Inactive draw-distance controls labelled pending](../verification/screenshots/2026-10-18-native-draw-distance-pending.png)
 
 ## 2026-10-18 - Requested texture detail restored
 

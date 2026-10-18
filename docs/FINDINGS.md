@@ -2,12 +2,74 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** Patch 0080 presents the guest surface directly to the Vulkan window, removing the reduced intermediate image from normal presentation. All 68 Windows checks pass in Debug and Release; the new window path is not yet native-run verified. Patch 0079 texture detail improvement remains verified; broader rendering fidelity and lag remain open.
+**Current source checkpoint:** 82 SDK patches / 72 Windows checks in Debug and
+Release. The native System menu now has Graphics Settings, Off/FXAA and a
+restart-selected experimental DirectX 12 path. Higher frame limits now change
+the guest timing gate; short saved-scene probes exceed 30 completed frames/s
+without accelerating the sampled game clock. Rendering fidelity and lag remain open.
 Normal shadow polarity and the starting-town Logic Stone save/reload work.
 Black foot flicker, rotating Logic Stone light flicker, analogue walk/run
 inconsistency and broader game-speed fidelity remain open. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
+
+## Native graphics settings and frame-rate control
+
+The native game now has a separate Triangle -> System -> Graphics Settings page,
+using the game's own widgets, input and text. It contains window mode, named
+output resolution, VSync, anisotropic filtering, anti-aliasing and frame limit.
+More Settings contains the renderer selector, FPS overlay and draw-distance
+submenu. World/NPC distance and fog are visibly pending and do not change the game.
+The background blur has not been removed. Output size does not alter internal
+render-target resolution. See [controls and limitations](BUILD.md#native-graphics-settings-patches-0081-0082)
+and [actual menu captures](GALLERY.md#2026-10-18---native-graphics-settings).
+
+Patch 0081 adds Vulkan preferences and a transparent text FPS overlay. Patch
+0082 adds a project-written FXAA compute pass over the completed image, before
+window scaling/overlay, and deferred flip plus dimension-matched scanout for the
+experimental DirectX 12 live-draw path. The published source contains no private
+capture, hidden-window or mute controls. DirectX 12 loads the saved scene and
+its Graphics Settings page, but differs visually and lacks Vulkan's display
+preferences/FXAA/overlay integration. Changing API requires restarting.
+
+The first frame-rate menu only raised a host limiter; the original game still
+released its render semaphore after two vblanks, leaving a 30 FPS ceiling.
+The runner now changes vblank cadence for fixed caps. The default preserves
+59.94 Hz; 40/60/120/144 request 80/120/240/288 Hz. Unlocked also removes the
+original interval/extra-wait gate through hooks on the guest graphics thread.
+Changing away from Unlocked restores the requested interval and flag.
+The time source and the game's normalized 30-tick-per-second clock are unchanged.
+
+Short stationary saved-scene probes, optimized Release, hidden/muted with file
+logging, sampling profiler and periodic screenshots off:
+
+| Setting | Wall seconds | Completed frames/s | Game-clock seconds | 30-scaled clock ticks |
+|---|---:|---:|---:|---:|
+| 60 | 12.002 | 37.83 | 12.009 | 360.27 |
+| Unlocked, VSync off | 10.002 | 37.19 | 10.018 | 300.55 |
+
+These are separate runs of the timing candidate, with asynchronous read-only
+2 ms samples, not a matched FPS improvement comparison. GPU/CPU work still
+limits throughput; the results do not establish a locked 60 FPS, unique animation
+states, correct cutscenes/physics at every rate, or smooth traversal. They do
+show that the previous hard ceiling is removed and the sampled game clock
+stays close to wall time. The later menu screenshots use diagnostic readbacks;
+their displayed counters are not performance benchmarks.
+
+An end-to-end check on the final 82-patch menu build changed 30 -> 40 -> 60
+using the native menu, returned to the scene, and sampled 385 completed frames
+in 10.002 seconds (38.49/s). Game-clock time advanced 9.989 seconds and vblanks
+ran at 119.97 Hz. FXAA was enabled. This verifies live menu application; it is
+not a comparison with the earlier FXAA-off samples or a traversal benchmark.
+
+All 72 checks pass in normal Debug (12.63 s) and optimized Release (12.61 s).
+The complete 82-patch stack reconstructs 69 SDK files from the pinned baseline.
+The new timing regression covers removing/restoring interval and wait state;
+menu tests cover nested pages and restart-only API persistence. The FXAA shader
+compiles through the production compiler and its descriptor bindings match the
+pipeline. Native Vulkan initializes the compute pipeline and displays the menu;
+DirectX 12 reaches the same saved scene and menu. Full AA quality and API parity
+comparisons remain open.
 
 ## Direct Vulkan window presentation (patch 0080)
 
@@ -24,9 +86,10 @@ unchanged. The allocation-failure path preserves the full-resolution source.
 The recording-API regression fails against the previous code and covers equal,
 smaller and larger window sizes, diagnostic paths, missing/acquire-unavailable
 swapchains, headless operation and allocation fallback. All 68 Windows checks
-pass in Debug and Release. This exact new window path has not yet had a native
-run or side-by-side visual comparison. No FPS gain or completed fidelity is
-claimed, and no gallery image is presented as proof of this change.
+pass in Debug and Release at that checkpoint. The later 82-patch native runs
+execute this path and provide final-window menu readbacks. A matched RPCS3
+comparison, an FPS gain attributable to this patch and full visual fidelity
+remain unverified.
 
 The discussion in [ps3recomp issue 183](https://github.com/sp00nznet/ps3recomp/issues/183#issuecomment-6136128339)
 explicitly identifies synchronous Vulkan submission and incomplete Windows
@@ -1595,7 +1658,7 @@ The 70-patch normal Windows Vulkan build passed all 61 tests in 25.52 seconds.
 Its new regressions check production compute/graphics descriptor bindings and
 real flip completion, including the guest's two-vblank acquire. The earlier
 73-patch stack passed all 63 tests: 22.79 seconds in normal Debug and
-20.46 seconds in optimized Release. The current 76-patch stack passes all 64 in
+20.46 seconds in optimized Release. The historical 76-patch stack passed all 64 in
 **25.31 seconds (normal Debug)** and **22.91 seconds (optimized Release)**.
 The 73-patch suite added worker-lifetime and depth-comparison shader tests;
 patch 0074 extends the latter with all comparison-direction mappings. Patch

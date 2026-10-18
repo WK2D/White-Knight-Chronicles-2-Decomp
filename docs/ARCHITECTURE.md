@@ -34,7 +34,8 @@ interpreter-free port or a recovered, readable version of the original source.
   system interfaces, including threads, files and media services. This is a
   compatibility/emulation layer; claiming there is no emulation would be inaccurate.
 - Graphics commands and shaders are translated for the host GPU. Vulkan is the
-  primary Windows renderer; D3D12 is an optional fallback. Linux and the shared
+  primary Windows renderer; DirectX 12 is an experimental restart-selected
+  comparison path with incomplete feature/rendering parity. Linux and the shared
   engine's Metal path on macOS still require integration and testing.
 
 The build does not run through an RPCS3 executable. That fact alone does not

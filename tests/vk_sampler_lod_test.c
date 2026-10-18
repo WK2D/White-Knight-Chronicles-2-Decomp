@@ -12,7 +12,8 @@
 #include <string.h>
 
 #define VK_ENG_SAMP_CACHE 128
-static struct { VkDevice device; VkSampler sampler; float max_sampler_lod_bias; } s_vk;
+static struct { VkDevice device; VkSampler sampler; float max_sampler_lod_bias, max_anisotropy; int anisotropy_ok; } s_vk;
+static struct { u32 anisotropy; } s_graphics;
 static struct { rsx_be_sampler_desc desc; VkSampler s; } s_esamp[VK_ENG_SAMP_CACHE];
 static u32 s_esamp_count;
 static VkSamplerCreateInfo recorded;
@@ -62,6 +63,18 @@ int main(void)
     assert(vk_eng_sampler(&d) && recorded.minLod == 1 && recorded.maxLod == 1);
     d.compare_func = 1;
     assert(vk_eng_sampler(&d) && recorded.compareEnable == VK_TRUE);
+    /* Preferences retire the cache before changing the global override. */
+    s_esamp_count=0;s_graphics.anisotropy=16;s_vk.anisotropy_ok=1;s_vk.max_anisotropy=8;
+    d.compare_func=0;d.mip_present=d.min_linear=1;
+    assert(vk_eng_sampler(&d) && recorded.anisotropyEnable && recorded.maxAnisotropy==8);
+    s_esamp_count=0;s_vk.anisotropy_ok=0;
+    assert(vk_eng_sampler(&d) && !recorded.anisotropyEnable);
+    s_esamp_count=0;s_vk.anisotropy_ok=1;d.mip_present=0;
+    assert(vk_eng_sampler(&d) && !recorded.anisotropyEnable);
+    s_esamp_count=0;d.mip_present=1;d.min_linear=0;
+    assert(vk_eng_sampler(&d) && !recorded.anisotropyEnable);
+    s_esamp_count=0;s_graphics.anisotropy=0;d.min_linear=1;
+    assert(vk_eng_sampler(&d) && !recorded.anisotropyEnable && recorded.maxAnisotropy==1);
     d.lod_bias = -0.5f; fail_create = 1;
     const u32 before = s_esamp_count;
     assert(!vk_eng_sampler(&d) && s_esamp_count == before);

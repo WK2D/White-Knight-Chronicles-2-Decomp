@@ -22,6 +22,10 @@
 /* The lifter's generated header, which declares ppu_context and the function
  * table. It comes first: everything below is written against that struct. */
 #include "ppu_recomp.h"
+#include "graphics_settings.h"
+#ifdef PS3RECOMP_RSX_VULKAN
+#include "rsx_graphics_settings.h"
+#endif
 
 /* The Win32 names -- Sleep, GetTickCount64, CreateThread, InterlockedIncrement,
  * VirtualAlloc, the scalar typedefs -- from one place. On Windows this is a
@@ -326,10 +330,35 @@ void wkc2_shutdown_dmux(void);
 extern "C" int  rsx_vulkan_backend_init(uint32_t w, uint32_t h, const char* title);
 extern "C" void rsx_vulkan_backend_present(void);
 extern "C" int  rsx_vulkan_backend_pump_messages(void);
-#  define rsx_backend_init    rsx_vulkan_backend_init
-#  define rsx_backend_present rsx_vulkan_backend_present
-#  define rsx_backend_pump    rsx_vulkan_backend_pump_messages
-#  define RSX_BACKEND_NAME    "Vulkan"
+#include "rsx_live_draw.h"
+#include "rsx_null_backend.h"
+extern "C" uint32_t cellGcmResolveLocated(int,uint32_t);
+extern "C" uint32_t cellGcmResolveIO(uint32_t);
+extern "C" uint32_t cellGcmGetCurrentDisplayBufferId(void);
+static const uint8_t* graphics_guest_pointer(void*,uint32_t location,uint32_t offset,uint32_t bytes)
+{
+    uint32_t ea=location ? cellGcmResolveIO(offset) : cellGcmResolveLocated(1,offset);
+    if(location && !ea) ea=cellGcmResolveLocated(0,offset);
+    if(!ea || ea==UINT32_MAX || uint64_t(ea)+bytes>0x100000000ull) return nullptr;
+    return vm_base+ea;
+}
+static int rsx_backend_init(uint32_t w,uint32_t h,const char* title)
+{
+    if(!wkc::graphics_active_renderer()) return rsx_vulkan_backend_init(w,h,title);
+    if(rsx_null_backend_init(w,h,title)) return -1;
+    rsx_null_backend_suppress_present(1);
+    return rsx_live_draw_init(rsx_null_backend_get_hwnd(),w,h,graphics_guest_pointer,nullptr);
+}
+static void rsx_backend_present()
+{
+    if(wkc::graphics_active_renderer()) rsx_live_draw_present(cellGcmGetCurrentDisplayBufferId());
+    else rsx_vulkan_backend_present();
+}
+static int rsx_backend_pump()
+{
+    return wkc::graphics_active_renderer() ? rsx_null_backend_pump_messages() : rsx_vulkan_backend_pump_messages();
+}
+#  define RSX_BACKEND_NAME (wkc::graphics_active_renderer() ? "DirectX 12 (experimental)" : "Vulkan")
 #elif defined(_WIN32)
 extern "C" int  rsx_d3d12_backend_init(uint32_t w, uint32_t h, const char* title);
 extern "C" void rsx_d3d12_backend_present(void);
@@ -566,11 +595,31 @@ static void present_guest_frame(void)
     InterlockedIncrement(&g_frames_presented);
 }
 
+static void graphics_preferences_tick()
+{
+#ifdef PS3RECOMP_RSX_VULKAN
+    if(wkc::graphics_active_renderer()) return;
+    static ULONGLONG next;
+    const ULONGLONG now=GetTickCount64();
+    if (now<next) return;
+    next=now+100;
+    const auto options=wkc::graphics_snapshot();
+    const uint32_t widths[]={1280,1920,2560,3840};
+    const uint32_t heights[]={720,1080,1440,2160};
+    const uint32_t filtering[]={0,2,4,8,16};
+    const rsx_vulkan_graphics_config config={options.window_mode,
+        widths[options.output_resolution],heights[options.output_resolution],options.vsync,
+        filtering[options.anisotropy],wkc::graphics_frame_limit(options),options.fps_counter,options.anti_aliasing};
+    rsx_vulkan_backend_configure(&config);
+#endif
+}
+
 static DWORD WINAPI frame_clock(LPVOID)
 {
     const char* title = getenv("PS3_TITLE");
     if (!title || !*title) title = "ps3recomp";
 
+    graphics_preferences_tick();
     int rsx_ok = (rsx_backend_init(WINDOW_WIDTH, WINDOW_HEIGHT, title) == 0);
     fprintf(stderr, "[rsx] %s backend init %s\n", RSX_BACKEND_NAME,
             rsx_ok ? "OK -- window open" : "FAILED");
@@ -583,7 +632,7 @@ static DWORD WINAPI frame_clock(LPVOID)
     LARGE_INTEGER qpf, qpc;
     QueryPerformanceFrequency(&qpf);
     QueryPerformanceCounter(&qpc);
-    const double vblank_ms = 1000.0 * 1001.0 / 60000.0;   /* 59.94 Hz */
+    double vblank_ms = wkc::graphics_vblank_period_ms(wkc::graphics_snapshot());
     double next_tick_ms = (double)qpc.QuadPart * 1000.0 / (double)qpf.QuadPart;
     ULONGLONG next_report = GetTickCount64() + 5000;
     /* Flips on vblank: in vsync flip mode the RSX holds the command stream at
@@ -601,6 +650,13 @@ static DWORD WINAPI frame_clock(LPVOID)
 
     for (;;) {
         wt_tick();
+        graphics_preferences_tick();
+        const double requested_period=wkc::graphics_vblank_period_ms(wkc::graphics_snapshot());
+        if (requested_period!=vblank_ms) {
+            vblank_ms=requested_period;
+            QueryPerformanceCounter(&qpc);
+            next_tick_ms=(double)qpc.QuadPart*1000.0/(double)qpf.QuadPart;
+        }
 #ifdef _WIN32
         /* Fence polling already signals the SDK's auto-reset kick event.
          * Wait for it so each pass can resume immediately; a flat Sleep(4)
@@ -610,7 +666,7 @@ static DWORD WINAPI frame_clock(LPVOID)
             QueryPerformanceCounter(&qpc);
             const double until = next_tick_ms - (double)qpc.QuadPart * 1000.0 / (double)qpf.QuadPart;
             const uint64_t trace_start=wt_begin();
-            cellGcm_fifo_kick_wait(until <= 0.0 ? 0u : until >= 4.0 ? 4u : (unsigned)until);
+            cellGcm_fifo_kick_wait(vblank_ms==0.0 || until <= 0.0 ? 0u : until >= 4.0 ? 4u : (unsigned)until);
             wt_end(WT_FRAME_WAIT,0,0,trace_start);
         }
 #else
@@ -638,7 +694,7 @@ static DWORD WINAPI frame_clock(LPVOID)
         }
 
         int fired = 0;
-        while (now_ms >= next_tick_ms && fired < 240) {
+        while ((vblank_ms==0.0 || now_ms >= next_tick_ms) && fired < 240) {
             cellGcmTickVBlank();
             cellGcmTickFlip();
             /* Present a pending flip BEFORE draining any further. The flip
@@ -658,8 +714,9 @@ static DWORD WINAPI frame_clock(LPVOID)
                 cellGcm_rsx_process_fifo();
                 if (flip_on_vblank && cellGcm_flip_request_count() != flips) hold_for_vblank = true;
             }
-            next_tick_ms += vblank_ms;
             fired++;
+            if (vblank_ms==0.0) { next_tick_ms=now_ms; break; }
+            next_tick_ms += vblank_ms;
         }
         if (fired >= 240) next_tick_ms = now_ms;   /* fell too far behind -- resync */
 
@@ -777,6 +834,7 @@ extern "C" int wkc2_test_spu_microstep_profile(const char* path);
 
 int main(int argc, char** argv)
 {
+    wkc::graphics_initialize(std::filesystem::path(argv[0]).parent_path()/"graphics-settings.ini");
 #ifdef WKC2_BUILD_SELF_TESTS
     if (argc == 3 && !strcmp(argv[1], "--test-spu-title"))
         return wkc2_test_spu_title(atoi(argv[2]));
@@ -807,6 +865,16 @@ int main(int argc, char** argv)
     // across a transition and indefinitely withhold a smaller movie batch.
     _putenv_s("RSX_ACCUM_FRAME", "1");
 #ifdef PS3RECOMP_RSX_VULKAN
+    // Pick the renderer before any SDK enable gate caches its environment.
+    // Changing this preference in-game applies on the next process launch.
+    if(wkc::graphics_active_renderer()) {
+        _putenv_s("PS3RECOMP_RSX_ENGINE", "");
+        _putenv_s("RSX_LIVE_DRAW", "1");
+        _putenv_s("RSX_LIVE_DEFER_FLIP", "1");
+    } else {
+        _putenv_s("PS3RECOMP_RSX_ENGINE", "dispatch");
+        _putenv_s("RSX_LIVE_DRAW", "");
+    }
     if (!getenv("PS3RECOMP_VK_GUEST_PROGRAMS"))
         _putenv_s("PS3RECOMP_VK_GUEST_PROGRAMS", "1");
     if (!getenv("PS3RECOMP_VK_WINDOW"))

@@ -173,6 +173,9 @@ endif()
 
 add_executable(${PROJECT_NAME}
     main.cpp
+    graphics_settings.cpp
+    graphics_menu.cpp
+    graphics_timing.cpp
     stubs.cpp
     lwcond.cpp
     lfqueue.cpp
@@ -323,6 +326,18 @@ if(WKC2_BUILD_TESTS)
     set_source_files_properties(tests/pad_file_test.c PROPERTIES
         INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/runtime/spu;${PS3RECOMP_DIR}/libs/input")
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS WKC2_BUILD_SELF_TESTS)
+    add_executable(wkc2_graphics_menu_test tests/graphics_menu_test.cpp graphics_menu.cpp graphics_settings.cpp)
+    target_include_directories(wkc2_graphics_menu_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/ppu")
+    add_test(NAME wkc2_graphics_menu COMMAND wkc2_graphics_menu_test)
+    set_tests_properties(wkc2_graphics_menu PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_graphics_timing_test tests/graphics_timing_test.cpp graphics_timing.cpp graphics_settings.cpp)
+    target_include_directories(wkc2_graphics_timing_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/ppu")
+    add_test(NAME wkc2_graphics_timing COMMAND wkc2_graphics_timing_test)
+    set_tests_properties(wkc2_graphics_timing PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_graphics_settings_test tests/graphics_settings_test.cpp graphics_settings.cpp)
+    target_include_directories(wkc2_graphics_settings_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME wkc2_graphics_settings COMMAND wkc2_graphics_settings_test)
+    set_tests_properties(wkc2_graphics_settings PROPERTIES TIMEOUT 10)
     foreach(cri_id IN ITEMS -1 22 23)
         add_test(NAME wkc2_spu_title_${cri_id}
             COMMAND ${PROJECT_NAME} --test-spu-title ${cri_id})
@@ -599,6 +614,15 @@ if(WKC2_BUILD_TESTS)
             "${CMAKE_CURRENT_BINARY_DIR}" "${PS3RECOMP_VULKAN_INCLUDE_DIR}")
         add_test(NAME wkc2_vk_present_source COMMAND wkc2_vk_present_source_test)
         set_tests_properties(wkc2_vk_present_source PROPERTIES TIMEOUT 10)
+        set(GRAPHICS_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/graphics-fixture.inc")
+        add_custom_command(OUTPUT "${GRAPHICS_FIXTURE}"
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_graphics_fixture.py"
+                --source "${PS3RECOMP_DIR}/libs/video/rsx_vulkan_backend.c" --output "${GRAPHICS_FIXTURE}"
+            DEPENDS "${PS3RECOMP_DIR}/libs/video/rsx_vulkan_backend.c" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_graphics_fixture.py" VERBATIM)
+        add_executable(wkc2_vk_graphics_test tests/vk_graphics_test.c "${GRAPHICS_FIXTURE}")
+        target_include_directories(wkc2_vk_graphics_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_VULKAN_INCLUDE_DIR}")
+        add_test(NAME wkc2_vk_graphics COMMAND wkc2_vk_graphics_test)
+        set_tests_properties(wkc2_vk_graphics PROPERTIES TIMEOUT 10)
         set(VK_ARENA_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/vk-arena-fixture.inc")
         add_custom_command(OUTPUT "${VK_ARENA_FIXTURE}"
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_vk_arena_fixture.py"

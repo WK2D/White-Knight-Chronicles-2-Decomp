@@ -1,10 +1,14 @@
 # White Knight Chronicles II native-port research
 
-**2026-10-18:** the game-requested texture LOD bias now restores fabric,
-brick and foliage detail. The next source change removes the extra reduction
-to 720p before window scaling; it passes regression checks, with a native
-window comparison still pending. Town lag, ignored polygon offset and broader
-rendering fidelity remain open. Logic Stone saving and Continue reload work.
+**2026-10-18:** Triangle -> System now has its own **Graphics Settings** page:
+window mode, named output resolution, VSync, anisotropic filtering, Off/FXAA,
+and 30/40/60/120/144/Unlocked frame limits. More Settings contains the FPS overlay
+and an experimental Vulkan / DirectX 12 selector (restart required).
+The previous 30 FPS timing gate is now adjustable: short saved-scene probes
+reach roughly 37-38 completed frames/s with game time tracking real time.
+This is not a locked 60 FPS or full-game compatibility claim. Vulkan remains
+the supported renderer; its display settings are not yet implemented on DirectX 12.
+Draw distance, fog and removing menu background blur remain pending.
 
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
 through **static recompilation**, followed by Apple Silicon portability testing.
@@ -41,9 +45,12 @@ Full rendering fidelity, sustained traversal and combat remain unverified.
 - [Progress gallery](docs/GALLERY.md): newest first
 - [Project icon](docs/ICON.md): approved WKCII artwork used by Windows builds
 
-The source stack contains **80 SDK patches** and passes **68 Windows regression
-checks** in normal Debug and optimized Release. Patch 0080 presents the guest
-surface directly to the window; [validation scope](docs/FINDINGS.md#direct-vulkan-window-presentation-patch-0080).
+The source stack contains **82 SDK patches** and passes **72 Windows regression
+checks** in normal Debug and optimized Release. The menus, preferences, Vulkan
+FXAA initialization and save loading have been exercised in native runs; the
+experimental DirectX 12 path also reaches the saved scene and settings menu.
+See [settings and validation limits](docs/BUILD.md#native-graphics-settings-patches-0081-0082).
+
 Patch 0079 restores signed texture
 LOD bias and distinct sampler-cache entries; see [rendering audit](docs/FINDINGS.md#texture-detail-and-rendering-state-audit-patch-0079).
 Patch 0078 keeps exact arithmetic
@@ -58,12 +65,12 @@ See [batch scheduling and its measurement limits](docs/FINDINGS.md#vulkan-batch-
 
 ## Progress
 
-[![Native WKC1 town after restarting and loading the Logic Stone save](verification/screenshots/2026-10-18-native-wkc1-town-batching.png)](docs/GALLERY.md)
+[![Native in-game Graphics Settings menu](verification/screenshots/2026-10-18-native-graphics-settings.png)](docs/GALLERY.md)
 
-The latest capture shows the 76-patch build in the town loaded from the verified
-Logic Stone save. The performance change is documented by timed counter samples;
-a still image cannot establish smoothness. Black foot flicker remains open.
-Earlier captures are in the [gallery](docs/GALLERY.md).
+The latest captures show the native Graphics Settings pages after Continue loaded
+the verified save. They show the menu, not animation smoothness or performance.
+See the [newest-first gallery](docs/GALLERY.md) for the System entry, API selector
+and explicitly pending draw-distance controls.
 
 The cutscene's red flashes came from a depth-only pass replacing display
 buffer 0 and from movie frames sampled through a stale GPU copy; see
@@ -79,6 +86,11 @@ physics work and corrected by patch 0058. See the
 [implementation and validation results](docs/FINDINGS.md#nv0039-memory-transfers).
 
 Verified progress, with the latest milestone first:
+
+- adds the native Graphics Settings pages, persistent Vulkan display preferences,
+  Off/FXAA, an optional transparent FPS overlay and experimental restart-only API choice;
+- removes the hard 30 FPS gate for higher frame-limit options; short stationary
+  probes exceed 30 completed frames/s while sampled game time stays close to wall time;
 
 - improves Vulkan batch scheduling; the saved-town sample averages **28.03
   presentations/s** with logs and sampling off (patch 0076; a locked 30 fps is

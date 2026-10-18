@@ -39,6 +39,7 @@ int main()
 {
     const std::string depth="#define ZCONV_STORE float4(r,g,b,a)\n"+std::string(s_zconv_hlsl);
     if(!check_bindings(depth.c_str(),RSX_SHADER_STAGE_COMPUTE,{0,1}))return 1;
+    if(!check_bindings(s_fxaa_hlsl,RSX_SHADER_STAGE_COMPUTE,{0,1,2}))return 3;
     const char* fragment=
         "Texture2D<float4> tx : register(t0);\n"
         "SamplerState sm : register(s0);\n"

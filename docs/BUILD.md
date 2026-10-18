@@ -4,44 +4,33 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Latest rendering milestone (2026-10-18):** the 76-patch Windows Vulkan build
-reaches the WKC1 starting town, loads the verified Logic Stone save through
-Continue, and has normal shadow polarity. The clean one-minute stationary
-sample averages 28.03 presentations/s; locked 30 fps, smooth traversal and full
-game-speed equivalence remain unverified. See the
-[latest gallery entry](GALLERY.md#2026-10-18---vulkan-batch-scheduling-in-the-saved-town)
-and [timing conditions](#vulkan-batch-scheduling-patch-0076).
+**Latest checkpoint (2026-10-18):** Triangle -> System -> Graphics Settings
+is available in the native game, including Off/FXAA, frame-rate limits and an
+experimental DirectX 12 selector. Continue loads the verified Logic Stone save.
+See [menu screenshots](GALLERY.md#2026-10-18---native-graphics-settings)
+and [settings and timing details](#native-graphics-settings-patches-0081-0082).
 
-The current source stack contains 80 SDK patches. All 68 Windows Vulkan checks pass
-in normal Debug and optimized Release. The suites run three tests in parallel;
-their elapsed times are not game performance. Patch 0078 adds exact AVX2 FNMS
-with a scalar fallback. It reduces CPU work in the measured town worker but
-does not establish an FPS gain; see [results](FINDINGS.md#exact-spu-vector-math-patch-0078).
-Reapplying the 80-patch stack changes no SDK files. Patch 0074 restores normal shadow
-polarity in the observed native town; black foot flicker remains. Patch 0075
-repairs the FIFO user-command route to the registered HLE callback. Its native Logic Stone
-interaction, save write and restart/Continue reload into town are verified.
-The preceding 70-patch town run initially reaches 16.57 presentations/s, then
-falls to about 7 while idle as asynchronous SPU workers accumulate. The
-73-patch ten-minute idle test completes 17,104 task workers with 58–59 host
-threads and no worker accumulation. It averages 14.25 presentations/s with the
-sampling profiler off, five-second readbacks and a short capture burst;
-this is not a matched performance comparison.
-Earlier native records retain their original scope.
+The current stack contains 82 SDK patches. All 72 Windows checks pass in normal
+Debug and optimized Release. Suite timings are not game performance. Reapplying
+the complete stack changes no SDK files. Full rendering fidelity, smooth traversal,
+combat and a locked 60 fps remain unverified. Historical measurements below retain
+their original build and diagnostic conditions.
 
 The port sets frame-pacing defaults at startup, each overridable by setting it
 first: `GCM_FLIPCB_ONTICK=1` delivers flip callbacks at vblank after a real flip
 request, and `RSX_VK_PRESENT_MODE=mailbox` prefers mailbox presentation when the
 device supports it, with FIFO fallback. Flips wait for the next vblank
 (`WKC2_FLIP_ON_VBLANK=0` turns that off). Vblanks are timed on the high-resolution
-counter at 59.94 Hz. Note that the
+counter at 59.94 Hz for the default 30 FPS option; higher caps select twice
+the requested rate, and Unlocked services ticks without the fixed interval. Note that the
 window title labels the counter `Present/s`; repeated animation states still
 count, so this can exceed the game's own update rate. The startup defaults also
 set `GCM_SEMA_ACQUIRE=1` to honor the game's two-vblank semaphore gate and
 `RSX_ENGINE_ZTEX_GPU=1` for supported GPU depth re-encoding. Patch
 0068 allows flip completion only after an actual FIFO or immediate flip request;
 `ResetFlipStatus` by itself does not create a completion. This uses the guest
-pacing mechanism rather than adding a host 30 fps limit.
+pacing mechanism. The graphics menu also applies a host cap; raising that cap
+alone was insufficient, which the current guest-timing hooks correct.
 
 The source checkout and private working directory can be separate. Pass the
 private workspace with `-Workspace`; the build script gets project sources from
@@ -111,16 +100,16 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 76 numbered SDK patches, and all 64 checks
-pass in both Windows suites. The newest town capture uses 76 patches; saving
+The current source stack contains 82 numbered SDK patches, and all 72 checks
+pass in both Windows suites. The graphics menu captures use 82 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
 52- and 42-patch provenance; the first town world-view capture used 39. Patch 0043 passed
 the earlier 43-check Windows suite and remains covered by the current suite;
 its town-rendering comparison is recorded separately.
 Patch 0045's three float-mode checks and patches 0046-0051's new and extended
-checks pass in the native Windows clang-cl build. All 64 checks pass with
-76 patches in normal Debug and optimized Release; Wine's MinGW TLS workaround is not needed here.
+checks pass in the native Windows clang-cl build. The current 72-check suite passes
+in normal Debug and optimized Release; Wine's MinGW TLS workaround is not needed here.
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
@@ -310,7 +299,7 @@ cached launch-option guard. Live store hooks and self-arming barrier watches
 remain checked. Patch 0070 changes the title label to `Present/s` without dividing
 or otherwise changing its counter. The 70-patch stack passed all 61 normal
 Windows regressions. Its starting-town run initially improved, then progressively
-slowed while idle. The current 76-patch stack passes 64 checks in Debug and
+slowed while idle. The historical 76-patch stack passed 64 checks in Debug and
 Release; see the [timings and worker census](FINDINGS.md#frame-pacing-and-game-speed).
 
 ## Depth snapshot generations (patch 0071)
@@ -441,7 +430,14 @@ CRT and C++ ABI used by `build.ps1`. The measured private Release build uses
 separate matching Release-CRT dependencies; the two ABIs must not be mixed.
 A Vulkan-capable driver and its loader are runtime requirements.
 
-D3D12 is retained as a comparison/fallback build:
+The normal Vulkan-enabled Windows build also offers an experimental DirectX 12
+path through Graphics Settings -> More Settings -> Graphics API. Save the
+selection, exit, and restart. It uses the SDK live-draw engine and does not yet
+share Vulkan's display preferences, FXAA or FPS overlay. The menu remains
+accessible to switch back. This is a comparison path, with visible differences
+and incomplete parity.
+
+A separate legacy D3D12-only comparison build can still be requested:
 
 ```powershell
 ./tools/build.ps1 -Workspace <private-workspace> -Renderer D3D12
@@ -1391,5 +1387,57 @@ Vulkan calls. It covers source selection, larger/smaller/equal window extents,
 center readback, command-buffer allocation failure, unavailable swapchain,
 headless operation, explicit dumps and shutdown-hold behavior. The previous
 implementation fails the regression. All 68 Windows checks pass in Debug and
-Release. A real native run of this new presentation path remains pending;
-these synthetic checks do not establish visual parity or a speed improvement.
+Release at that checkpoint. Subsequent 82-patch native runs execute this path
+and the gallery now includes final swapchain readbacks. This does not establish
+visual parity with RPCS3 or a speed improvement attributable to patch 0080.
+
+
+## Native graphics settings (patches 0081-0082)
+
+Open Triangle -> System -> Graphics Settings. The original game widgets and
+controller navigation are reused. X cycles an option; Circle goes back.
+
+| Page | Options |
+|---|---|
+| Graphics Settings | Windowed / Borderless / Fullscreen; 720p / 1080p / 1440p / 2160p output; VSync; anisotropic filtering Off / 2x / 4x / 8x / 16x; Off / FXAA; 30 / 40 / 60 / 120 / 144 / Unlocked |
+| More Settings | Graphics API Vulkan / DirectX 12; Draw Distance submenu; FPS Counter Off / On |
+| Draw Distance | World distance, NPC distance and fog placeholders, explicitly pending and inactive |
+
+Output resolution controls the window/presentation size, not the game's internal
+render-target resolution. Borderless uses the desktop mode. Unsupported fullscreen
+modes can fail; the preference is not a guarantee that the monitor accepts it.
+VSync falls back to FIFO where the device lacks the preferred present mode.
+Anisotropy is clamped to device support and applies to eligible mipmapped textures.
+FXAA filters the completed guest image, including its menus, before scaling and
+the optional FPS overlay. It is an inexpensive spatial pass, not MSAA or TAA.
+Its luminance/edge method follows the
+[NVIDIA FXAA white paper](https://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf);
+the patch contains a project-written shader rather than copied vendor sample code.
+The game's menu background blur remains; a clear live preview is still pending.
+
+Preferences persist in `graphics-settings.ini` beside the executable. Writes are
+atomic; malformed/unknown/duplicate values reject the file and retain defaults.
+Missing newer keys retain defaults. Remove the file to reset preferences.
+Graphics API changes are marked with an asterisk until the next launch.
+Vulkan is the default; DirectX 12 is experimental. Display settings other than
+the frame limit and API selector currently apply only to Vulkan. Its fallback
+presentation synchronizes actual flip boundaries and resizes scanout buffers
+before copying a differently sized guest image. Renderer parity is unverified.
+
+The frame limit changes the runner's vblank cadence as well as its host limiter.
+The normal two-tick interval remains for fixed caps; Unlocked bypasses the guest
+interval and extra-wait flag on the game graphics thread, restoring the original
+requested values when leaving Unlocked. Game time still comes from the monotonic
+clock. Higher caps do not guarantee that the CPU/GPU can finish at that rate.
+Short hidden/muted, log-free saved-scene probes exceed 30 completed frames/s
+with approximately one game-clock second per real second; see
+[measured scope](FINDINGS.md#native-graphics-settings-and-frame-rate-control).
+They do not prove full-game high-FPS compatibility or unique animation per frame.
+
+`wkc2_graphics_menu`, `wkc2_graphics_settings`, `wkc2_graphics_timing` and
+`wkc2_vk_graphics` cover row transitions, persistence, interval restoration,
+window/sampler configuration and the overlay without a black background.
+`wkc2_depth_shader_binding` also compiles the production FXAA shader and verifies
+its descriptor bindings. The full Windows suite passes 72 checks in Debug and
+Release. Native runs verify menu navigation and saved-scene rendering in both
+APIs, with FXAA initialization on Vulkan; not every display mode or monitor is tested.

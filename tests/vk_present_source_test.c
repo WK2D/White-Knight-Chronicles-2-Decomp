@@ -11,8 +11,14 @@
 typedef uint32_t u32;
 #define HANDLE(type, value) ((type)(uintptr_t)(value))
 #define VK_LOG(...) ((void)0)
+static struct { u32 frame_limit; } s_graphics;
+static int s_graphics_enabled;
+static double vk_now_ms(void) { return 1000.0; }
+static void SDL_Delay(u32 delay) { (void)delay; }
+static void vk_counter_update(void) {}
+static void vk_counter_blit(VkCommandBuffer cmd,u32 index) { (void)cmd; (void)index; }
 #define VK_ENG_COLOR 1
-typedef struct { VkImage img; } vk_image;
+typedef struct { VkImage img; VkImageView view; } vk_image;
 typedef struct { VkBuffer buf; void* ptr; } vk_buffer;
 typedef struct { vk_image im; u32 w, h; } vk_eng_obj;
 static unsigned char pixels[1280 * 720 * 4];
@@ -29,6 +35,7 @@ static struct { u32 draws, last_draws; } s_g;
 static VkCommandBuffer s_cmd_win;
 static struct { VkImage src, dst; VkImageBlit region; VkFilter filter; } blits[4];
 static VkBufferImageCopy copy;
+static VkImage vk_fxaa(VkImage source, VkImageView view,u32 w,u32 h) { (void)view;(void)w;(void)h;return source; }
 static VkImage copy_source;
 static u32 nblits, nsubmits, presents, retired, dumped, source_barriers;
 static int allocation_failure, acquire_result;

@@ -4,10 +4,10 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-18",
-    "native_probe": "20261018-112541",
-    "sdk_patch_count": 79,
-    "summary": "Patch 0079 restores the game-requested negative texture LOD bias in Vulkan. Hidden same-camera captures show improved clothing, brick and foliage detail. All 67 Windows checks pass in Debug and Release. Rendering fidelity and town performance remain incomplete.",
-    "gallery_image": "screenshots/2026-10-18-native-wkc1-lod-after.png",
+    "native_probe": "20261018-144822",
+    "sdk_patch_count": 82,
+    "summary": "Native Graphics Settings with Off/FXAA, configurable frame limits and experimental restart-selected DirectX 12; 82 SDK patches and 72 passing Windows checks in Debug and Release. Short saved-scene timing probes exceed 30 completed frames/s without accelerating the sampled game clock. Draw distance, fog and clear menu preview remain pending.",
+    "gallery_image": "screenshots/2026-10-18-native-graphics-settings.png",
     "remaining_limits": [
       "Town performance remains below the 30 fps target",
       "Black foot flicker and rotating Logic Stone light flicker remain open",
@@ -54,7 +54,14 @@
     "physics_full_fidelity": false,
     "save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified.",
     "logic_stone_proximity_target": true,
-    "gameplay_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately."
+    "gameplay_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
+    "native_graphics_settings_pages": true,
+    "vulkan_fxaa_pipeline_native_initialized": true,
+    "d3d12_live_save_and_menu": true,
+    "higher_frame_limits_exceed_30_in_short_saved_scene_probes": true,
+    "high_fps_full_game_compatibility": false,
+    "draw_distance_controls_active": false,
+    "menu_background_blur_removed": false
   },
   "captures": [
     {
@@ -131,10 +138,37 @@
       "sha256": "17514bb9d1e8a02efd6039d751e7c06b3e4e7e65d076bdc1333e50db91cd3a20",
       "source_ppm_sha256": "545d6b811fb944a61fe639f569dddb92b71d8ef85c5422c3a98c202b6b3e0fbf",
       "method": "Guest presentation surface before the window scaling stage; fixed camera with idle animation and rotating Logic Stone. Private hidden/muted A/B controls; optional PNG metadata removed."
+    },
+    {
+      "file": "screenshots/2026-10-18-native-graphics-settings.png",
+      "sha256": "0e43e2a8aa918190de67ad359c756dba7bf631ca4aab4d69bd9ffc3528508971",
+      "method": "Graphics Settings; unmodified final Vulkan window pixels, FXAA enabled, FPS overlay off. API asterisk denotes a saved selection for the next restart, not the active renderer.",
+      "source_ppm_sha256": "300276919824d6af3b16afad892602c8c8ad7565cba38f4aae03799f0b555b8c"
+    },
+    {
+      "file": "screenshots/2026-10-18-native-graphics-api.png",
+      "sha256": "51f3f15af33cf765dde3de483d9ff5eeec6f382ef3e0a951d4f72ae6fc60e991",
+      "method": "Graphics API selection pending restart; unmodified final Vulkan window pixels, FXAA enabled, FPS overlay off. API asterisk denotes a saved selection for the next restart, not the active renderer.",
+      "source_ppm_sha256": "f6c5a16a5bebc1bbe792e7135eb331fa1e909734834f3019170ed7be9a501477"
+    },
+    {
+      "file": "screenshots/2026-10-18-native-system-graphics.png",
+      "sha256": "4a12b9202b51356dd7c82ff2a3fc62d9080068ef425f64c6d93f3aa3e75a135e",
+      "method": "System entry; unmodified final Vulkan window pixels, FXAA enabled, FPS overlay off. API asterisk denotes a saved selection for the next restart, not the active renderer.",
+      "source_ppm_sha256": "84cf639c0f14d21693df435e151bda6a695e0eaa302077d79c36910130b34885"
+    },
+    {
+      "file": "screenshots/2026-10-18-native-draw-distance-pending.png",
+      "sha256": "61abc91b4d93cb55f7a90da5d1fe27fee8f6a276a8c60621ebd22fbaab7641aa",
+      "method": "Pending draw distance controls; unmodified final Vulkan window pixels, FXAA enabled, FPS overlay off. API asterisk denotes a saved selection for the next restart, not the active renderer.",
+      "source_ppm_sha256": "6dca950aabc928022651816efcc5b65d17b2853d847889604e94d081ae3c6147"
     }
   ],
   "checks": {
     "passed": [
+      "wkc2_graphics_menu",
+      "wkc2_graphics_timing",
+      "wkc2_graphics_settings",
       "wkc2_spu_title_-1",
       "wkc2_spu_title_22",
       "wkc2_spu_title_23",
@@ -145,7 +179,9 @@
       "wkc2_osk",
       "wkc2_l10n",
       "wkc2_vertex_fetch",
+      "wkc2_frame_timeline",
       "wkc2_spu_fp",
+      "wkc2_spu_fnms_vector",
       "wkc2_spu_depth_guard",
       "wkc2_spu_depth_guard_configured",
       "wkc2_spu_depth_guard_zero",
@@ -172,6 +208,13 @@
       "wkc2_fp_identity",
       "wkc2_draw_engine",
       "wkc2_nv3089_blit",
+      "wkc2_vk_sampler_lod",
+      "wkc2_vk_present_source",
+      "wkc2_vk_graphics",
+      "wkc2_vk_arena_reserve",
+      "wkc2_depth_shader_binding",
+      "wkc2_shadow_compare",
+      "wkc2_gcm_flip_completion",
       "wkc2_gcm_producer_wake",
       "wkc2_gcm_producer_wake_disabled",
       "wkc2_gcm_producer_wake_profile_off",
@@ -192,29 +235,21 @@
       "wkc2_lwcond",
       "wkc2_memory",
       "wkc2_ppu_thread_lifetime",
-      "wkc2_lfqueue",
-      "wkc2_event_queue",
-      "wkc2_depth_shader_binding",
-      "wkc2_gcm_flip_completion",
       "wkc2_spu_async_lifetime",
-      "wkc2_shadow_compare",
-      "wkc2_vk_arena_reserve",
-      "wkc2_frame_timeline",
-      "wkc2_spu_fnms_vector",
-      "wkc2_vk_sampler_lod",
-      "wkc2_vk_present_source"
+      "wkc2_lfqueue",
+      "wkc2_event_queue"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 80,
-    "last_verified_sdk_patch_count": 80,
-    "current_passed_count": 68,
-    "record_scope": "Patch 0080 presents the guest surface directly to the Vulkan window, removing the reduced intermediate image from normal presentation. All 68 Windows checks pass in Debug and Release; the new window path is not yet native-run verified. Patch 0079 texture detail improvement remains verified; broader rendering fidelity and lag remain open. The latest gallery captures retain their patch-0079 provenance.",
-    "normal_debug_elapsed_seconds": 12.61,
-    "optimized_release_elapsed_seconds": 12.69,
+    "current_sdk_patch_count": 82,
+    "last_verified_sdk_patch_count": 82,
+    "current_passed_count": 72,
+    "record_scope": "Native Graphics Settings with Off/FXAA, configurable frame limits and experimental restart-selected DirectX 12; 82 SDK patches and 72 passing Windows checks in Debug and Release. Short saved-scene timing probes exceed 30 completed frames/s without accelerating the sampled game clock. Draw distance, fog and clear menu preview remain pending.",
+    "normal_debug_elapsed_seconds": 12.63,
+    "optimized_release_elapsed_seconds": 12.61,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 80
+    "repeat_patch_application_verified_sdk_patch_count": 82
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2632,5 +2667,25 @@
     "window_detail_improvement_verified": false,
     "fps_gain_verified": false,
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
+  },
+  "native_graphics_settings": {
+    "scope": "Native Graphics Settings with Off/FXAA, configurable frame limits and experimental restart-selected DirectX 12; 82 SDK patches and 72 passing Windows checks in Debug and Release. Short saved-scene timing probes exceed 30 completed frames/s without accelerating the sampled game clock. Draw distance, fog and clear menu preview remain pending.",
+    "preferences": "graphics-settings.ini beside the executable",
+    "primary_renderer": "Vulkan",
+    "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
+    "frame_limits": [
+      30,
+      40,
+      60,
+      120,
+      144,
+      "Unlocked"
+    ],
+    "anti_aliasing": [
+      "Off",
+      "FXAA"
+    ],
+    "counter_scope": "Completed guest presentations; does not establish unique animation states",
+    "output_resolution_scope": "Window/presentation size, not internal game render-target resolution"
   }
 }

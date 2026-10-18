@@ -1,0 +1,246 @@
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -2770,6 +2770,122 @@
+     pvkCmdClearDepthStencilImage(s_vk.cmd, o->im.img, VK_IMAGE_LAYOUT_GENERAL, &d, 1, &r);
+ }
+ 
++/* Small FXAA pass. The edge-direction/luminance method follows the public
++ * FXAA white paper (Timothy Lottes, NVIDIA, 2011). This implementation is
++ * project-written; no vendor sample source or game shader is embedded. */
++static const char s_fxaa_hlsl[] =
++    "[[vk::binding(0,0)]] Texture2D<float4> aa_source;\n"
++    "[[vk::binding(1,0)]] SamplerState aa_sampler;\n"
++    "[[vk::binding(2,0)]] [[vk::image_format(\"rgba8\")]] RWTexture2D<float4> aa_target;\n"
++    "float luma(float3 c) { return dot(c,float3(.299,.587,.114)); }\n"
++    "float3 sample_color(float2 uv) { return aa_source.SampleLevel(aa_sampler,uv,0).rgb; }\n"
++    "[numthreads(8,8,1)] void main(uint3 id:SV_DispatchThreadID) {\n"
++    " uint w,h; aa_target.GetDimensions(w,h); if(id.x>=w || id.y>=h) return;\n"
++    " float2 pixel=1.0/float2(w,h), uv=(float2(id.xy)+.5)*pixel;\n"
++    " float4 center=aa_source.Load(int3(id.xy,0)); float m=luma(center.rgb);\n"
++    " float nw=luma(sample_color(uv+float2(-1,-1)*pixel));\n"
++    " float ne=luma(sample_color(uv+float2(1,-1)*pixel));\n"
++    " float sw=luma(sample_color(uv+float2(-1,1)*pixel));\n"
++    " float se=luma(sample_color(uv+float2(1,1)*pixel));\n"
++    " float low=min(m,min(min(nw,ne),min(sw,se)));\n"
++    " float high=max(m,max(max(nw,ne),max(sw,se)));\n"
++    " if(high-low<max(.0312,high*.125)) { aa_target[id.xy]=center; return; }\n"
++    " float2 edge=float2(sw+se-nw-ne,nw+sw-ne-se);\n"
++    " float reduction=max((nw+ne+sw+se)*(.25*.125),1.0/128.0);\n"
++    " edge=clamp(edge/(min(abs(edge.x),abs(edge.y))+reduction),-8.0,8.0)*pixel;\n"
++    " float3 inner=.5*(sample_color(uv-edge/6.0)+sample_color(uv+edge/6.0));\n"
++    " float3 wide=inner*.5+.25*(sample_color(uv-edge*.5)+sample_color(uv+edge*.5));\n"
++    " float check=luma(wide); aa_target[id.xy]=float4(check<low || check>high ? inner : wide,center.a);\n"
++    "}\n";
++
++static struct {
++    int ready, failed;
++    u32 w,h;
++    vk_image output;
++    VkDescriptorSetLayout dsl;
++    VkPipelineLayout layout;
++    VkPipeline pipeline;
++    VkDescriptorPool pool;
++    VkDescriptorSet set;
++    VkSampler sampler;
++} s_aa;
++
++static void vk_fxaa_shutdown(void)
++{
++    vk_destroy_image(&s_aa.output);
++    if(s_aa.pipeline) pvkDestroyPipeline(s_vk.device,s_aa.pipeline,NULL);
++    if(s_aa.layout) pvkDestroyPipelineLayout(s_vk.device,s_aa.layout,NULL);
++    if(s_aa.pool) pvkDestroyDescriptorPool(s_vk.device,s_aa.pool,NULL);
++    if(s_aa.dsl) pvkDestroyDescriptorSetLayout(s_vk.device,s_aa.dsl,NULL);
++    if(s_aa.sampler) pvkDestroySampler(s_vk.device,s_aa.sampler,NULL);
++    memset(&s_aa,0,sizeof s_aa);
++}
++static int vk_fxaa_init(void)
++{
++    if(s_aa.ready) return 0;
++    if(s_aa.failed) return -1;
++    s_aa.failed=1;
++    u32 spv[16384],n=0;char log[1024];
++    if(rsx_hlsl_to_spirv(s_fxaa_hlsl,RSX_SHADER_STAGE_COMPUTE,spv,16384,&n,log,sizeof log)) {
++        VK_LOG("FXAA shader failed: %s\n",log);return -1;
++    }
++    VkDescriptorSetLayoutBinding bindings[3]={
++        {0,VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,1,VK_SHADER_STAGE_COMPUTE_BIT,NULL},
++        {1,VK_DESCRIPTOR_TYPE_SAMPLER,1,VK_SHADER_STAGE_COMPUTE_BIT,NULL},
++        {2,VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,1,VK_SHADER_STAGE_COMPUTE_BIT,NULL}};
++    VkDescriptorSetLayoutCreateInfo ds={.sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,.bindingCount=3,.pBindings=bindings};
++    if(pvkCreateDescriptorSetLayout(s_vk.device,&ds,NULL,&s_aa.dsl)!=VK_SUCCESS) return -1;
++    VkPipelineLayoutCreateInfo pl={.sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,.setLayoutCount=1,.pSetLayouts=&s_aa.dsl};
++    if(pvkCreatePipelineLayout(s_vk.device,&pl,NULL,&s_aa.layout)!=VK_SUCCESS) return -1;
++    VkShaderModuleCreateInfo sm={.sType=VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,.codeSize=n*4u,.pCode=spv};
++    VkShaderModule module=VK_NULL_HANDLE;
++    if(pvkCreateShaderModule(s_vk.device,&sm,NULL,&module)!=VK_SUCCESS) return -1;
++    VkComputePipelineCreateInfo pipe={.sType=VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
++        .stage={.sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,.stage=VK_SHADER_STAGE_COMPUTE_BIT,.module=module,.pName="main"},.layout=s_aa.layout};
++    const VkResult result=pvkCreateComputePipelines(s_vk.device,VK_NULL_HANDLE,1,&pipe,NULL,&s_aa.pipeline);
++    pvkDestroyShaderModule(s_vk.device,module,NULL);
++    if(result!=VK_SUCCESS) return -1;
++    VkDescriptorPoolSize sizes[]={{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,1},{VK_DESCRIPTOR_TYPE_SAMPLER,1},{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,1}};
++    VkDescriptorPoolCreateInfo pool={.sType=VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,.maxSets=1,.poolSizeCount=3,.pPoolSizes=sizes};
++    if(pvkCreateDescriptorPool(s_vk.device,&pool,NULL,&s_aa.pool)!=VK_SUCCESS) return -1;
++    VkDescriptorSetAllocateInfo set={.sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,.descriptorPool=s_aa.pool,.descriptorSetCount=1,.pSetLayouts=&s_aa.dsl};
++    if(pvkAllocateDescriptorSets(s_vk.device,&set,&s_aa.set)!=VK_SUCCESS) return -1;
++    VkSamplerCreateInfo sampler={.sType=VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,.magFilter=VK_FILTER_LINEAR,.minFilter=VK_FILTER_LINEAR,
++        .mipmapMode=VK_SAMPLER_MIPMAP_MODE_NEAREST,.addressModeU=VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
++        .addressModeV=VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,.addressModeW=VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,.maxLod=0};
++    if(pvkCreateSampler(s_vk.device,&sampler,NULL,&s_aa.sampler)!=VK_SUCCESS) return -1;
++    s_aa.ready=1;s_aa.failed=0;
++    VK_LOG("FXAA compute pipeline ready\n");return 0;
++}
++static VkImage vk_fxaa(VkImage source,VkImageView view,u32 width,u32 height)
++{
++    if(!s_graphics_enabled || !s_graphics.anti_aliasing || !view || vk_fxaa_init()) return source;
++    vk_batch_end_pass();
++    if(s_aa.w!=width || s_aa.h!=height) {
++        // Last present has retired; source draws in this batch do not use the
++        // previous AA image. Descriptor updates are also between retired frames.
++        vk_destroy_image(&s_aa.output);s_aa.w=s_aa.h=0;
++        if(vk_create_image(&s_aa.output,VK_FORMAT_R8G8B8A8_UNORM,width,height,
++            VK_IMAGE_USAGE_STORAGE_BIT|VK_IMAGE_USAGE_SAMPLED_BIT|VK_IMAGE_USAGE_TRANSFER_SRC_BIT,VK_IMAGE_ASPECT_COLOR_BIT)) return source;
++        s_aa.w=width;s_aa.h=height;
++        vk_barrier_image(s_aa.output.img,VK_IMAGE_ASPECT_COLOR_BIT,VK_IMAGE_LAYOUT_UNDEFINED);
++    }
++    vk_barrier_image(source,VK_IMAGE_ASPECT_COLOR_BIT,VK_IMAGE_LAYOUT_GENERAL);
++    vk_barrier_image(s_aa.output.img,VK_IMAGE_ASPECT_COLOR_BIT,VK_IMAGE_LAYOUT_GENERAL);
++    VkDescriptorImageInfo images[3]={{.imageView=view,.imageLayout=VK_IMAGE_LAYOUT_GENERAL},
++        {.sampler=s_aa.sampler},{.imageView=s_aa.output.view,.imageLayout=VK_IMAGE_LAYOUT_GENERAL}};
++    VkWriteDescriptorSet writes[3]={0};
++    const VkDescriptorType types[]={VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,VK_DESCRIPTOR_TYPE_SAMPLER,VK_DESCRIPTOR_TYPE_STORAGE_IMAGE};
++    for(u32 i=0;i<3;i++) writes[i]=(VkWriteDescriptorSet){.sType=VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,.dstSet=s_aa.set,
++        .dstBinding=i,.descriptorCount=1,.descriptorType=types[i],.pImageInfo=&images[i]};
++    pvkUpdateDescriptorSets(s_vk.device,3,writes,0,NULL);
++    pvkCmdBindPipeline(s_vk.cmd,VK_PIPELINE_BIND_POINT_COMPUTE,s_aa.pipeline);
++    pvkCmdBindDescriptorSets(s_vk.cmd,VK_PIPELINE_BIND_POINT_COMPUTE,s_aa.layout,0,1,&s_aa.set,0,NULL);
++    pvkCmdDispatch(s_vk.cmd,(width+7)/8,(height+7)/8,1);
++    vk_barrier_image(s_aa.output.img,VK_IMAGE_ASPECT_COLOR_BIT,VK_IMAGE_LAYOUT_GENERAL);
++    return s_aa.output.img;
++}
++
+ /* The engine's present into the window: the frame's batch (its draws and the
+  * diagnostic pixel copy) is submitted as it is, the blit into the acquired swapchain image goes in a second command buffer
+  * that waits for the acquire, and one fence wait covers both. It used to be three submissions and three waits a
+@@ -2842,7 +2958,9 @@
+     vk_eng_obj* o = vk_eng_get(surface, VK_ENG_COLOR);
+     if (!s_vk.device || vk_rec_begin()) return;
+     vk_counter_update();
+-    const VkImage source = o ? o->im.img : s_vk.color.img;
++    const VkImage original = o ? o->im.img : s_vk.color.img;
++    const VkImage source=vk_fxaa(original,o ? o->im.view : s_vk.color.view,
++        o ? o->w : s_vk.width,o ? o->h : s_vk.height);
+     const u32 width = o ? o->w : s_vk.width, height = o ? o->h : s_vk.height;
+     const int dump = s_vk.dump_path && ((s_vk.presented + 1u) % s_vk.dump_every) == 0;
+     if (o && (dump || s_vk.hold_seconds > 0.0)) {
+@@ -3833,7 +3951,7 @@
+ 
+ void rsx_vulkan_backend_configure(const rsx_vulkan_graphics_config* config)
+ {
+-    if (!config || config->window_mode>2 || config->vsync>1 || config->fps_counter>1 ||
++    if (!config || config->window_mode>2 || config->vsync>1 || config->fps_counter>1 || config->anti_aliasing>1 ||
+         (config->width && (config->width<320 || config->width>8192)) ||
+         (config->height && (config->height<240 || config->height>8192)) ||
+         (!!config->width != !!config->height) || config->anisotropy>16 ||
+@@ -4281,6 +4399,7 @@
+     if (vk_create_pipeline_objects()) return -1;
+     if (vk_guest_init()) {
+         VK_LOG("guest programs: setup failed, fixed-function path only\n");
++        vk_fxaa_shutdown();
+         vk_guest_shutdown();
+     }
+ 
+@@ -4354,6 +4473,7 @@
+     if (s_vk.windowed || s_vk.window) vk_window_drop(NULL);
+     if (s_vk.device) {
+         if (pvkDeviceWaitIdle) pvkDeviceWaitIdle(s_vk.device);
++        vk_fxaa_shutdown();
+         vk_guest_shutdown();
+         for (int i = 0; i < VK_PIPELINE_SLOTS; i++)
+             if (s_vk.pipelines[i]) pvkDestroyPipeline(s_vk.device, s_vk.pipelines[i], NULL);
+diff --git a/libs/video/rsx_graphics_settings.h b/libs/video/rsx_graphics_settings.h
+--- a/libs/video/rsx_graphics_settings.h
++++ b/libs/video/rsx_graphics_settings.h
+@@ -7,7 +7,7 @@
+ /* Host preferences, called on the renderer thread. Width/height zero keeps
+  * the current window size; frame_limit zero removes the host frame cap. */
+ typedef struct rsx_vulkan_graphics_config {
+-    uint32_t window_mode, width, height, vsync, anisotropy, frame_limit, fps_counter;
++    uint32_t window_mode, width, height, vsync, anisotropy, frame_limit, fps_counter, anti_aliasing;
+ } rsx_vulkan_graphics_config;
+ void rsx_vulkan_backend_configure(const rsx_vulkan_graphics_config* config);
+ 
+diff --git a/libs/video/rsx_live_draw.c b/libs/video/rsx_live_draw.c
+--- a/libs/video/rsx_live_draw.c
++++ b/libs/video/rsx_live_draw.c
+@@ -87,9 +87,9 @@
+ #if defined(YZ_PERF_CLEAN)
+ #define LD_DIAG_ENABLED(name) 0
+ #else
+-/* Cached per call site: several of these sit on per-draw paths. */
+-#define LD_DIAG_ENABLED(name) ({ static int _ld_diag = -1; \
+-    if (_ld_diag < 0) _ld_diag = getenv(name) != NULL; _ld_diag; })
++/* Cached per call site: several of these sit on per-draw paths. */
++#define LD_DIAG_ENABLED(name) ({ static int _ld_diag = -1; \
++    if (_ld_diag < 0) _ld_diag = getenv(name) != NULL; _ld_diag; })
+ #endif
+ #include <string.h>
+ 
+@@ -7015,7 +7015,7 @@
+                   }
+               }
+           } }
+-        if (sampled < 0 && LD_DIAG_ENABLED("LD_ALIAS_DBG")) {
++        if (sampled < 0 && LD_DIAG_ENABLED("LD_ALIAS_DBG")) {
+             static u32 n_dbg = 0;
+             if (n_dbg++ < 24) {
+                 fprintf(stderr, "[alias-miss] tex %u:0x%08X fmt=0x%02X %ux%u target=%u surf:",
+@@ -7492,6 +7492,28 @@
+     }
+ }
+ 
++/* CopyResource requires matching dimensions. Keep the swapchain image size
++ * equal to the selected guest scanout; DXGI stretches it to the host window.
++ * Retire all GPU references before releasing its backbuffers. */
++static int ld_scanout_size(u32 width,u32 height)
++{
++    D3D12_RESOURCE_DESC desc={0};
++    if(g.backbuf[0]) g.backbuf[0]->lpVtbl->GetDesc(g.backbuf[0],&desc);
++    if(desc.Width==width && desc.Height==height) return 0;
++    ld_flush(LD_FLUSH_PRESENT);
++    for(u32 i=0;i<LD_SWAP_BUFFERS;i++) {
++        if(g.backbuf[i]) g.backbuf[i]->lpVtbl->Release(g.backbuf[i]);
++        g.backbuf[i]=NULL;
++    }
++    HRESULT hr=g.swap->lpVtbl->ResizeBuffers(g.swap,LD_SWAP_BUFFERS,width,height,DXGI_FORMAT_R8G8B8A8_UNORM,0);
++    if(FAILED(hr)) { fprintf(stderr,"[live-draw] scanout resize failed hr=0x%08lX\n",(unsigned long)hr);g.ready=0;return -1; }
++    for(u32 i=0;i<LD_SWAP_BUFFERS;i++) {
++        if(FAILED(g.swap->lpVtbl->GetBuffer(g.swap,i,&IID_ID3D12Resource,(void**)&g.backbuf[i]))) {g.ready=0;return -1;}
++        g.dev->lpVtbl->CreateRenderTargetView(g.dev,g.backbuf[i],NULL,rtv_handle(i));
++    }
++    return 0;
++}
++
+ static void sink_flip(void* user, const rsx_dispatch* r, u32 arg)
+ {
+     (void)user; (void)r;
+@@ -7504,7 +7526,8 @@
+         g_ld_last_consumed_buffer = buffer_id;
+         return;
+     }
+-    rsx_live_draw_present(buffer_id);
++    /* A runner with a frame clock presents after decoding the FIFO flip. */
++    if (!getenv("RSX_LIVE_DEFER_FLIP")) rsx_live_draw_present(buffer_id);
+     g_ld_flip_consumed++;
+     g_ld_last_consumed_buffer = buffer_id;
+ }
+@@ -8839,6 +8862,7 @@
+           ld_trace_target("present", target, buffer_id);
+           last_present_target = target;
+       } }
++    if(ld_scanout_size(presented_surface->w,presented_surface->h)) return;
+     ID3D12Resource* srcimg = presented_surface->tex;
+     const u32 bbi = g.swap->lpVtbl->GetCurrentBackBufferIndex(g.swap);
+     ID3D12Resource* bb = g.backbuf[bbi];

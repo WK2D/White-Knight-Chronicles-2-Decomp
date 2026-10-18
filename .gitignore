@@ -19,6 +19,10 @@
 !/main.cpp
 !/stubs.cpp
 !/thread_diagnostics.cpp
+!/graphics_menu.cpp
+!/graphics_timing.cpp
+!/graphics_settings.cpp
+!/graphics_settings.h
 !/graphics_diagnostics.cpp
 !/spu_job_diagnostics.cpp
 !/windows_guids.c

@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Patch 0080 presents the guest surface directly to the Vulkan window, removing the reduced intermediate image from normal presentation. All 68 Windows checks pass in Debug and Release; the new window path is not yet native-run verified. Patch 0079 texture detail improvement remains verified; broader rendering fidelity and lag remain open.",
+    "current_milestone": "Native Graphics Settings with Off/FXAA, configurable frame limits and experimental restart-selected DirectX 12; 82 SDK patches and 72 passing Windows checks in Debug and Release. Short saved-scene timing probes exceed 30 completed frames/s without accelerating the sampled game clock. Draw distance, fog and clear menu preview remain pending.",
     "updated": "2026-10-18"
   },
   "native_data_installation_verified": true,
@@ -153,8 +153,8 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 80,
-    "runtime_checks_passed": 68,
+    "sdk_patch_count": 82,
+    "runtime_checks_passed": 72,
     "town_native_run_sdk_patch_count": 76,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
@@ -226,7 +226,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 80,
+    "runtime_checks_verified_sdk_patch_count": 82,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -236,8 +236,8 @@
       "GCM_SEMA_ACQUIRE": "1",
       "RSX_ENGINE_ZTEX_GPU": "1"
     },
-    "normal_debug_checks_elapsed_seconds": 12.61,
-    "optimized_release_checks_elapsed_seconds": 12.69,
+    "normal_debug_checks_elapsed_seconds": 12.63,
+    "optimized_release_checks_elapsed_seconds": 12.61,
     "repeat_patch_application_files_changed": 0,
     "patch_0071_windows_regression_verified": true,
     "patch_0072_windows_regression_verified": true,
@@ -253,7 +253,7 @@
     "patch_0074_native_game_run_verified": true,
     "patch_0074_texture_compare_direction_gpu_verified": true,
     "patch_0074_foot_shadow_flicker_fixed_verified": false,
-    "repeat_patch_application_verified_sdk_patch_count": 80,
+    "repeat_patch_application_verified_sdk_patch_count": 82,
     "patch_0075_windows_regression_verified": true,
     "patch_0075_native_interaction_verified": true,
     "patch_0075_save_load_verified": true,
@@ -288,9 +288,18 @@
     "patch_0079_full_visual_fidelity_verified": false,
     "patch_0079_native_comparison_scope": "Hidden/muted same-camera private A/B executable; original guest-surface pixels before window scaling. Idle animation differs.",
     "patch_0080_windows_regression_verified": true,
-    "patch_0080_native_game_run_verified": false,
+    "patch_0080_native_game_run_verified": true,
     "patch_0080_window_detail_improvement_verified": false,
-    "patch_0080_town_fps_gain_verified": false
+    "patch_0080_town_fps_gain_verified": false,
+    "patch_0081_windows_regression_verified": true,
+    "patch_0082_windows_regression_verified": true,
+    "native_graphics_menu_verified": true,
+    "native_vulkan_fxaa_initialization_verified": true,
+    "native_d3d12_live_saved_scene_and_menu_verified": true,
+    "graphics_api_restart_required": true,
+    "draw_distance_controls_active": false,
+    "menu_background_blur_removed": false,
+    "high_frame_rate_full_game_compatibility_verified": false
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -407,5 +416,25 @@
     ]
   },
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified.",
-  "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately."
+  "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
+  "native_graphics_settings": {
+    "scope": "Native Graphics Settings with Off/FXAA, configurable frame limits and experimental restart-selected DirectX 12; 82 SDK patches and 72 passing Windows checks in Debug and Release. Short saved-scene timing probes exceed 30 completed frames/s without accelerating the sampled game clock. Draw distance, fog and clear menu preview remain pending.",
+    "preferences": "graphics-settings.ini beside the executable",
+    "primary_renderer": "Vulkan",
+    "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
+    "frame_limits": [
+      30,
+      40,
+      60,
+      120,
+      144,
+      "Unlocked"
+    ],
+    "anti_aliasing": [
+      "Off",
+      "FXAA"
+    ],
+    "counter_scope": "Completed guest presentations; does not establish unique animation states",
+    "output_resolution_scope": "Window/presentation size, not internal game render-target resolution"
+  }
 }
