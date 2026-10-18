@@ -11,7 +11,7 @@ upstream-status statements describe its author's earlier audit; this is not a
 new check of every upstream PR.
 
 The original 84-patch review was read-only. A follow-up implementation batch
-is recorded below; the current stack has **94 patches / 80 Windows tests**. The
+is recorded below; the current stack has **96 patches / 82 Windows tests**. The
 catalogue's tests and Killzone measurements have not been rerun here. A matching
 source defect does not establish the cause of WKC's lag or flicker.
 
@@ -24,8 +24,8 @@ source defect does not establish the cause of WKC's lag or flicker.
 | 3 | S7, S4 | 0093 adds tested byte-shift/rotate SIMD and scalar fallback; helper benchmark improves, native timing is mixed. Scalar host `fma`/`fms`, inlining and remaining shuffle work stay open; exact `fnms` is retained. |
 | 4 | S8, R1 | 0091 makes completion/scan updates coherent with SPU reservations; other producer RMW helpers remain to review. Global lock redesign/contention is separate. |
 | 5 | P8, P9 | HLE lookup is linear and per-read HOTREAD TLS diagnostics remain. Measure their current clang-cl cost and test indexed lookup equivalence. |
-| 6 | G3, V11 | Reports stay host-side and ZPASS is fixed-visible. Town logs contain type-1 GET_REPORT requests. Capture DMA context/render-enable use before implementing Vulkan queries. |
-| 7 | V1-V3, V5; polygon offset | Shared shader/AA gaps remain. The [RSX command cross-check](FINDINGS.md#rsx-command-reference-cross-check) found dropped town polygon-offset requests; 0094 now forwards them and passes GPU tests. Native flicker improvement remains unverified. FXAA does not implement RSX AA memory layout. |
+| 6 | G3, V11 | Reports stay host-side and ZPASS is fixed-visible. Town logs contain type-1 GET_REPORT requests. 0095 census finds reports but no conditional rendering in the sampled run. Trace requested publication before implementing Vulkan queries. |
+| 7 | V1-V3, V5; polygon offset | 0096 fixes arithmetic predication and TC0-7 overrides/perspective correction. Other shared shader/AA gaps remain. The [RSX command cross-check](FINDINGS.md#rsx-command-reference-cross-check) found dropped town polygon-offset requests; 0094 now forwards them and passes GPU tests. Native flicker improvement remains unverified. FXAA does not implement RSX AA memory layout. |
 | 8 | P6, G1, G5 | TLS sizing/exhaustion, 16 IO-mapping slots/count-based reuse, and ownership-blind FIFO wrapping remain. Add allocation/reuse/context regressions. |
 
 Generated SPU sources contain 18,216 byte-shift/rotate helper call sites and
@@ -83,7 +83,7 @@ means some pieces exist. Missing does not imply execution in the current scene.
 | G6 | Covered, coherence caveats | Patch 0052 implements NV0039 transfers/invalidation. Catalogue D3D12 surface writeback is additional coherence work, not a missing copy opcode. |
 | G7 | Missing docs fix | SDK comments/template name the wrong SetFlipMode NID. Current generated registration hashes names correctly; no dispatch failure established. |
 | V1 | Missing | Pack/unpack constants lack emission cases; PKG/UPG helpers absent in shared FP decompiler. Needs shader tests and WKC usage census. |
-| V2 | Missing | Predicated writes still emit `lerp`. Our CMP instruction's select fix is separate; raw-bit/NaN-safe predication remains. Shared with Vulkan. |
+| V2 | Fixed by 0096 | Component-wise conditional writes replace arithmetic `lerp`. Synthetic GPU tests cover NaN/inf, signed zero, masks and both condition registers; negative control fails. Native visual impact is unverified. |
 | V3 | Missing/partial | No FP `SV_Depth` export. D3D12 has depth snapshots but not the complete export/key/coordinate corrections. |
 | V4 | Partial; D3D12 | Per-zeta snapshots exist; their creation-time sizing remains. Growth, alias-preference and self-sampling cases are not independently covered. Vulkan has separate fixes. |
 | V5 | Missing shared semantics | Surface extraction ignores AA sample factors; corresponding viewport/scissor/sample-memory handling is missing. Post-process FXAA does not solve this. |

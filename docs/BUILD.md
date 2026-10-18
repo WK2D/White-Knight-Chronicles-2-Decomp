@@ -10,7 +10,7 @@ experimental DirectX 12 selector. Continue loads the verified Logic Stone save.
 See [menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
 and [settings and timing details](#native-graphics-settings-patches-0081-0082).
 
-The current stack contains 94 SDK patches. All 80 Windows checks pass in normal
+The current stack contains 96 SDK patches. All 82 Windows checks pass in normal
 Debug and optimized Release. Suite timings are not game performance. Reapplying
 the complete stack changes no SDK files. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain
@@ -113,6 +113,34 @@ in normal Debug and optimized Release; Wine's MinGW TLS workaround is not needed
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
+
+## RSX request audit and fragment inputs (patches 0095-0096)
+
+`tools/probe.ps1` now enables `RSX_ENGINE_AUDIT` by default. It writes a private
+`work/probes/<tag>.rsx-audit.tsv` and lists unresolved features in the result JSON
+and console output. Missing reports produce a warning rather than implying
+coverage. Use `-NoRsxAudit` for timing comparisons; keep diagnostic conditions
+consistent. Direct launches only enable the audit when that environment variable
+names a writable private file.
+
+The census records known feature names, method addresses and counts, without
+register values or game program/texture bytes. Method classification and active
+draw-time coverage are separate: an unclassified write may be handled elsewhere.
+This is a bounded set of checks, not a complete RSX conformance audit. Counts of
+backend submissions do not prove GPU completion or correct rendering.
+
+Patch 0096 applies TC0-7 2D overrides and per-instruction perspective correction
+before source modifiers, and includes the override mask in the pipeline key.
+Predicated writes now select components without `lerp`, preserving unselected
+signed zero and avoiding NaN contamination. TC8/9 remain unsupported.
+
+`wkc2_rsx_request_audit` checks feature gates, report contents and disabled mode.
+`wkc2_rsx_shader_requests_gpu` checks 512 synthetic GPU result lanes, plus fragment
+shader compilation; `wkc2_draw_engine` checks coordinate-state pipeline reuse.
+Negative controls fail for each old shader fault and an omitted cache-key field.
+All 82 checks pass in Debug and Release. A hidden/muted saved-town run exits
+normally, but establishes no FPS or flicker improvement. See
+[evidence and remaining gaps](FINDINGS.md#active-rsx-request-coverage-and-fragment-inputs-patches-0095-0096).
 
 ## SPURS job-queue physics (patch 0058)
 

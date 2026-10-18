@@ -605,6 +605,13 @@ if(WKC2_BUILD_TESTS)
     endif()
     add_test(NAME wkc2_fp_identity COMMAND wkc2_fp_identity_test)
     set_tests_properties(wkc2_fp_identity PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_rsx_request_audit_test tests/rsx_request_audit_test.c
+        "${PS3RECOMP_DIR}/libs/video/rsx_dispatch.c")
+    target_include_directories(wkc2_rsx_request_audit_test PRIVATE
+        "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_DIR}/include")
+    add_test(NAME wkc2_rsx_request_audit COMMAND wkc2_rsx_request_audit_test
+        "${CMAKE_CURRENT_BINARY_DIR}/rsx-audit-test.tsv")
+    set_tests_properties(wkc2_rsx_request_audit PROPERTIES TIMEOUT 10)
     add_executable(wkc2_draw_engine_test
         "${PS3RECOMP_DIR}/libs/video/tests/test_rsx_draw_engine.c"
         "${PS3RECOMP_DIR}/libs/video/rsx_draw_engine.c"
@@ -635,6 +642,12 @@ if(WKC2_BUILD_TESTS)
     # Synthetic producer handoffs through the actual SDK FIFO walker.
     add_executable(wkc2_gcm_producer_wake_test tests/gcm_producer_wake_test.c)
     if(WIN32 AND PS3RECOMP_RSX_VULKAN)
+        add_executable(wkc2_rsx_shader_requests_gpu_test tests/rsx_shader_requests_gpu_test.cpp)
+        target_include_directories(wkc2_rsx_shader_requests_gpu_test PRIVATE
+            "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_DIR}/include" "${PS3RECOMP_VULKAN_INCLUDE_DIR}")
+        target_link_libraries(wkc2_rsx_shader_requests_gpu_test PRIVATE ps3recomp_runtime)
+        add_test(NAME wkc2_rsx_shader_requests_gpu COMMAND wkc2_rsx_shader_requests_gpu_test)
+        set_tests_properties(wkc2_rsx_shader_requests_gpu PROPERTIES TIMEOUT 30)
         add_executable(wkc2_vk_polygon_offset_gpu_test tests/vk_polygon_offset_gpu_test.cpp)
         target_include_directories(wkc2_vk_polygon_offset_gpu_test PRIVATE
             "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_DIR}/include" "${PS3RECOMP_VULKAN_INCLUDE_DIR}")

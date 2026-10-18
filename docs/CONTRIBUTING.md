@@ -29,11 +29,14 @@ Use a project identity and a GitHub no-reply email for public commits when
 personal attribution is not desired. Configure them for this repository only.
 
 The runtime regressions run through `tools/build.ps1`; the current Windows Vulkan
-configuration passes 80 checks with 94 SDK patches in Debug and Release. See
+configuration passes 82 checks with 96 SDK patches in Debug and Release. See
 [BUILD.md](BUILD.md) for
 the pinned dependencies and regeneration workflow. When reporting a
 rendering improvement, inspect a real GPU readback; frame counters alone do not
-establish correct rendering. Keep full logs private and share only reviewed excerpts.
+establish correct rendering. Inspect the default probe RSX audit and resolve or
+explicitly document active missing/approximate/unverified features before claiming
+coverage. Use `-NoRsxAudit` for controlled timing probes. An empty feature list is
+not proof of complete command support. Keep full logs private and share only reviewed excerpts.
 
 For each new visible milestone, add a dated entry at the top of `docs/GALLERY.md`,
 a lossless capture under `verification/screenshots/`, and provenance hashes in

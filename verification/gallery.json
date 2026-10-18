@@ -4,6 +4,33 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "fragment_request_check",
+      "date": "2026-10-18",
+      "image": "screenshots/2026-10-18-native-fragment-request-check.png",
+      "width": 1280,
+      "height": 720,
+      "renderer": "Vulkan shared RSX draw engine",
+      "source_format": "Final swapchain GPU readback PPM",
+      "source_sha256": "d53e94457caecf645acbfba9b931dc3025454055bc174f4938625850592e53ae",
+      "png_sha256": "022f1cc033a047386b8642192ac6af15bab1eba3e6e00b499167aa9de596680a",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "native_probe": "20261018-212515",
+      "native_readback": "frame.ppm",
+      "sdk_patch_count_in_captured_run": 96,
+      "spu_image_inputs": 24,
+      "reload_verified": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false,
+      "performance_proven_by_still_image": false,
+      "capture_scope": "Unmodified final swapchain pixels after Continue and short town movement in the hidden/muted 96-patch candidate. This checks scene continuity, not a visible fix or speed gain."
+    },
+    {
       "milestone": "vulkan_polygon_offset_on",
       "date": "2026-10-18",
       "image": "screenshots/2026-10-18-native-polygon-offset-on.png",

@@ -8,8 +8,8 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 94 SDK patches / 80 Windows checks. The newest town captures
-compare polygon offset in the 94-patch candidate; the menu captures use 83 patches. They
+Current source: 96 SDK patches / 82 Windows checks. The newest town capture
+checks the 96-patch shader candidate; the menu captures use 83 patches. They
 are final Vulkan swapchain readbacks, including window scaling and FXAA.
 The earlier LOD comparison is captured before window scaling. Saving and Continue
 reload work; normal shadow polarity is restored. Foot/Logic Stone flicker,
@@ -20,6 +20,19 @@ Historical entries retain their original test conditions and patch counts.
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-18 - Fragment input and request coverage check
+
+The 96-patch candidate reloads Continue and moves through town after coordinate
+override, perspective correction and conditional shader-write fixes. All 82
+Windows checks pass in Debug and Release, including synthetic GPU shader checks.
+Diagnostic probes now list known active rendering gaps automatically.
+
+This unmodified final swapchain frame comes from the hidden/muted candidate after
+short movement. It checks scene continuity, not a visible improvement, smoothness
+or FPS gain. Foot/Logic Stone flicker and incomplete rendering fidelity remain open.
+
+![Saved town after fragment input and request coverage checks](../verification/screenshots/2026-10-18-native-fragment-request-check.png)
 
 ## 2026-10-18 - Vulkan polygon offset check
 

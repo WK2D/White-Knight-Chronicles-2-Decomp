@@ -4,10 +4,10 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-18",
-    "native_probe": "20261018-204430",
-    "sdk_patch_count": 94,
-    "summary": "Vulkan fill-polygon offset now reaches dynamic draw state. 94 SDK patches / 80 Windows checks in Debug and Release, including synthetic GPU bias direction/reset checks. Hidden/muted Continue reload and town comparison pass; no clear foot/Logic Stone flicker reduction or FPS gain established.",
-    "gallery_image": "screenshots/2026-10-18-native-polygon-offset-on.png",
+    "native_probe": "20261018-212515",
+    "sdk_patch_count": 96,
+    "summary": "Draw-time RSX coverage reporting and fragment coordinate/predication fixes. 96 SDK patches / 82 Windows checks in Debug and Release. Hidden/muted Continue reload and short town movement pass; no FPS or flicker improvement established.",
+    "gallery_image": "screenshots/2026-10-18-native-fragment-request-check.png",
     "remaining_limits": [
       "Town performance remains below the 30 fps target",
       "Black foot flicker and rotating Logic Stone light flicker remain open",
@@ -66,6 +66,13 @@
     "window_close_title_and_saved_town_settings": true
   },
   "captures": [
+    {
+      "file": "screenshots/2026-10-18-native-fragment-request-check.png",
+      "private_source_probe": "20261018-212515/frame.ppm",
+      "sha256": "022f1cc033a047386b8642192ac6af15bab1eba3e6e00b499167aa9de596680a",
+      "source_ppm_sha256": "d53e94457caecf645acbfba9b931dc3025454055bc174f4938625850592e53ae",
+      "scope": "Unmodified final swapchain pixels after Continue and short town movement in the hidden/muted 96-patch candidate. This checks scene continuity, not a visible fix or speed gain."
+    },
     {
       "file": "screenshots/2026-10-18-native-polygon-offset-on.png",
       "private_source_probe": "20261018-204430/feet-on-1792352976295306100.ppm",
@@ -299,19 +306,21 @@
       "wkc2_spu_async_lifetime",
       "wkc2_lfqueue",
       "wkc2_event_queue",
-      "wkc2_vk_polygon_offset_gpu"
+      "wkc2_vk_polygon_offset_gpu",
+      "wkc2_rsx_request_audit",
+      "wkc2_rsx_shader_requests_gpu"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 94,
-    "last_verified_sdk_patch_count": 94,
-    "current_passed_count": 80,
-    "record_scope": "Vulkan fill-polygon offset now reaches dynamic draw state. 94 SDK patches / 80 Windows checks in Debug and Release, including synthetic GPU bias direction/reset checks. Hidden/muted Continue reload and town comparison pass; no clear foot/Logic Stone flicker reduction or FPS gain established.",
-    "normal_debug_elapsed_seconds": 11.03,
-    "optimized_release_elapsed_seconds": 11.05,
+    "current_sdk_patch_count": 96,
+    "last_verified_sdk_patch_count": 96,
+    "current_passed_count": 82,
+    "record_scope": "Draw-time RSX coverage reporting and fragment coordinate/predication fixes. 96 SDK patches / 82 Windows checks in Debug and Release. Hidden/muted Continue reload and short town movement pass; no FPS or flicker improvement established.",
+    "normal_debug_elapsed_seconds": 11.21,
+    "optimized_release_elapsed_seconds": 11.21,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 94
+    "repeat_patch_application_verified_sdk_patch_count": 96
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -1565,7 +1574,7 @@
     "native_game_run_verified": true,
     "native_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
   },
-  "record_scope": "Current source checks are summarized in checks and frame_timeline_checkpoint. current_milestone retains the patch-0076 gallery capture provenance. Other probes and milestone_history keep their historical counts and limits.",
+  "record_scope": "Current source checks and gallery checkpoint are summarized in checks and current_milestone. Other probes and milestone records retain their historical counts and limits.",
   "host_runtime_review": {
     "audio_error_end_restart_regression_passed": true,
     "old_audio_implementation_fails_regression": true,
@@ -2731,7 +2740,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 94 SDK patches / 80 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 96 SDK patches / 82 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -2873,5 +2882,48 @@
     "other_backends_implemented": false,
     "scope": "Correctness change, not a visual-fix or performance claim. Private diagnostic controls are absent from the public source and clean playable binary.",
     "guest_z16_bias_precision_verified": false
+  },
+  "rsx_request_coverage": {
+    "sdk_patches": [
+      95,
+      96
+    ],
+    "native_probe": "20261018-212515",
+    "hidden": true,
+    "muted": true,
+    "exit_code": 0,
+    "save_reload_verified": true,
+    "short_movement_verified": true,
+    "draw_attempts": 6224730,
+    "backend_submissions": 6224730,
+    "gpu_completion_proven_by_counts": false,
+    "texcoord_override_events": 5335538,
+    "fill_offset_events": 395647,
+    "clip_range_unverified_events": 85021,
+    "visibility_report_approximate_events": 33950,
+    "shader_window_origin_unverified_events": 6224730,
+    "failed_pipeline_events": 0,
+    "old_predication_programs_before_fix": 13,
+    "old_predication_programs_after_fix": 0,
+    "scope": "Known active state and generated-program markers only. Default diagnostic probe, opt-out for timing. No full RSX coverage, FPS gain or flicker-fix claim."
+  },
+  "fragment_input_predication": {
+    "sdk_patch": 96,
+    "windows_regression_verified": true,
+    "synthetic_gpu_lanes_verified": 512,
+    "fragment_stage_compilation_verified": true,
+    "pipeline_key_state_regression_verified": true,
+    "negative_controls_failed_as_expected": [
+      "old arithmetic predication",
+      "ignored TC override",
+      "ignored perspective correction",
+      "omitted coordinate pipeline key"
+    ],
+    "tc0_7_override_implemented": true,
+    "perspective_correction_implemented": true,
+    "tc8_9_implemented": false,
+    "full_raster_interpolation_verified": false,
+    "native_visual_improvement_verified": false,
+    "fps_gain_verified": false
   }
 }

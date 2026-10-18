@@ -4,6 +4,7 @@ param(
     [ValidateRange(1,3600)][int]$Seconds = 15,
     [switch]$TraceCalls,
     [switch]$InterpProfile,
+    [switch]$NoRsxAudit,
     [string]$Executable,
     [switch]$CaptureFrames,
     [ValidateRange(1,128)][int]$CaptureFrameCount = 4,
@@ -37,6 +38,9 @@ $env:WKC2_PROGRESS = '1'
 if ($TraceCalls) { $env:WKC2_TRACE_CALLS = '1' } else { Remove-Item Env:WKC2_TRACE_CALLS -ErrorAction SilentlyContinue }
 $interpProfilePath = $null
 if ($InterpProfile) { $interpProfilePath = "$logRoot/$tag.spu-interp.tsv"; $env:SPU_INTERP_PROFILE = $interpProfilePath } else { Remove-Item Env:SPU_INTERP_PROFILE -ErrorAction SilentlyContinue }
+$rsxAuditPath = $null
+if (-not $NoRsxAudit) { $rsxAuditPath = "$logRoot/$tag.rsx-audit.tsv"; $env:RSX_ENGINE_AUDIT = $rsxAuditPath }
+else { Remove-Item Env:RSX_ENGINE_AUDIT -ErrorAction SilentlyContinue }
 $elf = Join-Path $Workspace 'work/wkc2-inspection/PS3_GAME/USRDIR/EBOOT.elf'
 $exe = Join-Path $Workspace 'work/build/wkc2/WKC2Native.exe'
 if ($Renderer -eq 'Vulkan') { $exe = Join-Path $Workspace 'work/build/wkc2-vulkan/WKC2Native.exe' }
@@ -57,5 +61,20 @@ if ($lastVerification) {
     $flips = [uint32]$lastVerification.Matches[0].Groups[1].Value
     $presented = [uint32]$lastVerification.Matches[0].Groups[2].Value
 }
-[ordered]@{pid=$p.Id; renderer=$Renderer; timed_out=$timedOut; exit_code=$p.ExitCode; seconds_limit=$Seconds; guest_present_only=($env:WKC2_GUEST_PRESENT_ONLY -eq '1'); capture_directory=$(if ($Renderer -eq 'Vulkan') { $env:RSX_ENGINE_SNAP_DIR } else { $env:CELLMARK_DUMP_DIR }); capture_count=$CaptureFrameCount; capture_every=$CaptureEvery; capture_skip=$CaptureSkip; controller_script=$env:PAD_SCRIPT; spu_interp_profile=$interpProfilePath; last_observed_guest_flips=$flips; last_observed_presented_frames=$presented; title_screen_verified=$false; gameplay_verified=$false} | ConvertTo-Json | Set-Content "$logRoot/$tag.result.json"
+$rsxReview = @()
+$rsxAuditProduced = $false
+if ($rsxAuditPath -and (Test-Path -LiteralPath $rsxAuditPath)) {
+    $rsxAuditProduced = $true
+    foreach ($row in (Import-Csv -LiteralPath $rsxAuditPath -Delimiter "`t")) {
+        if ($row.kind -eq 'feature' -and $row.status -ne 'implemented') {
+            $rsxReview += [ordered]@{feature=$row.name; status=$row.status; events=$row.events}
+        }
+    }
+    if ($rsxReview.Count) {
+        Write-Output ('RSX requests needing review: ' + (($rsxReview | ForEach-Object { $_.feature + ' (' + $_.status + ')' }) -join ', '))
+    }
+} elseif ($rsxAuditPath) {
+    Write-Warning 'RSX audit was requested but no report was produced; coverage is unknown.'
+}
+[ordered]@{pid=$p.Id; renderer=$Renderer; timed_out=$timedOut; exit_code=$p.ExitCode; seconds_limit=$Seconds; guest_present_only=($env:WKC2_GUEST_PRESENT_ONLY -eq '1'); capture_directory=$(if ($Renderer -eq 'Vulkan') { $env:RSX_ENGINE_SNAP_DIR } else { $env:CELLMARK_DUMP_DIR }); capture_count=$CaptureFrameCount; capture_every=$CaptureEvery; capture_skip=$CaptureSkip; controller_script=$env:PAD_SCRIPT; spu_interp_profile=$interpProfilePath; rsx_audit=$rsxAuditPath; rsx_audit_produced=$rsxAuditProduced; rsx_requests_needing_review=$rsxReview; last_observed_guest_flips=$flips; last_observed_presented_frames=$presented; title_screen_verified=$false; gameplay_verified=$false} | ConvertTo-Json | Set-Content "$logRoot/$tag.result.json"
 Write-Output "Probe logs: $logRoot/$tag.*"

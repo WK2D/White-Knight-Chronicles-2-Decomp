@@ -1,0 +1,275 @@
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -13,6 +13,7 @@
+ #include "rsx_draw_engine.h"
+ 
+ #include "rsx_fp_decompiler.h"
++#include "rsx_request_audit.h"
+ #include "rsx_primitives.h"
+ #include "rsx_restart_cuts.h"
+ #include "rsx_vertex_formats.h"
+@@ -91,6 +92,8 @@
+ #define M_ZSTENCIL_CLEAR      0x1D8C
+ 
+ /* ---- module state -------------------------------------------------------- */
++
++static rsx_request_audit* s_request_audit;
+ 
+ typedef struct {
+     u32 location, offset;
+@@ -1867,6 +1870,7 @@
+     if (vi > 0 && fi > 0)
+         handle = g.be->pipeline_create(g.be->user, s_vs_hlsl, s_ps_hlsl, rs,
+                                        layout, layout->stride, rt_fmt, rt_count);
++    if (s_request_audit) rsx_ra_program(s_request_audit, s_ps_hlsl, !handle);
+     /* RSX_ENGINE_SHADER_DUMP=<existing dir>: each new pipeline's two programs
+      * as <dir>/pipe<handle>.vs.hlsl and .ps.hlsl, the handle being the one
+      * RSX_ENGINE_PASS_DUMP's index names, and a guest fragment program's own
+@@ -2981,6 +2985,7 @@
+     const u32 pipeline = eng_pipeline_get(&layout, &rs,
+                                           eng_surface_format(sf.color_format),
+                                           n_targets, &pipeline_is_fixed, &tex_used);
++    if (s_request_audit) rsx_ra_draw(s_request_audit, &g.rsx, prim, tex_used, n_targets);
+     if (!pipeline) return;
+ 
+     /* Textures before any pipeline or target binding: a cache refresh can
+@@ -3109,6 +3114,7 @@
+      * the test hook means: a draw through the built-in pair is a draw, not
+      * evidence that the decompile-translate-compile path worked. */
+     if (!pipeline_is_fixed) g.guest_draws++;
++    if (s_request_audit) s_request_audit->submitted_draws++;
+ 
+     if (rs.color_mask) eng_surfaces_wrote(targets, n_targets);
+     if (zslot != ENG_INVALID && rs.depth_test && rs.depth_write) {
+@@ -3338,6 +3344,14 @@
+     sink.inline_array     = sink_inline_array;
+     sink.flip             = sink_flip;
+     rsx_dispatch_init(&g.rsx, &sink);
++    const char* audit_path = getenv("RSX_ENGINE_AUDIT");
++    if (audit_path && *audit_path) {
++        s_request_audit = (rsx_request_audit*)calloc(1, sizeof *s_request_audit);
++        if (s_request_audit && rsx_ra_init(s_request_audit, audit_path,
++                g.be->set_polygon_offset ? RSX_RA_CAP_FILL_OFFSET : 0) < 0) {
++            free(s_request_audit); s_request_audit = NULL;
++        }
++    }
+     g.ready = 1;
+     /* Display buffers the title registered before the backend came up. */
+     cellGcm_replay_display_buffers_to_engine();
+@@ -3365,6 +3379,10 @@
+     }
+     for (u32 i = 0; i < g.n_resolves; i++)
+         if (g.resolves[i].handle) g.be->color_target_release(g.be->user, g.resolves[i].handle);
++    if (s_request_audit) {
++        rsx_ra_flush(s_request_audit, &g.rsx, 1);
++        free(s_request_audit); s_request_audit = NULL;
++    }
+     if (g.ready && g.be->shutdown) g.be->shutdown(g.be->user);
+ 
+     rsx_draw_engine_set_guest_memory(NULL, NULL);
+@@ -3428,6 +3446,7 @@
+ 
+ void rsx_draw_engine_present(void)
+ {
++    if (s_request_audit) rsx_ra_flush(s_request_audit, &g.rsx, 0);
+     /* A host that drives the flip itself gets whichever buffer the guest's
+      * own last flip named, and display buffer 0 before there has been one:
+      * a runner that both consumes 0xE944 and calls here would otherwise
+@@ -3439,6 +3458,7 @@
+ 
+ void rsx_draw_engine_present_buffer(u32 buffer_id)
+ {
++    if (s_request_audit) rsx_ra_flush(s_request_audit, &g.rsx, 0);
+     g.last_flip_buffer = buffer_id & 7u;
+     eng_present(g.last_flip_buffer);
+ }
+diff --git a/libs/video/rsx_request_audit.h b/libs/video/rsx_request_audit.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_request_audit.h
+@@ -0,0 +1,184 @@
++/* Draw-time feature coverage, distinct from raw method classification.
++ * Explicit diagnostic mode: no allocations or register scans when disabled.
++ * The report contains counts/known feature names/method addresses only.
++ * Never write register values, inline vertices, programs or texture bytes. */
++#ifndef PS3RECOMP_RSX_REQUEST_AUDIT_H
++#define PS3RECOMP_RSX_REQUEST_AUDIT_H
++#include "rsx_dispatch.h"
++#include <stdio.h>
++#include <string.h>
++#include <time.h>
++
++enum rsx_ra_feature {
++    RSX_RA_TEXCOORD_2D, RSX_RA_TEXCOORD_89, RSX_RA_CLIP_RANGE,
++    RSX_RA_REPORTS, RSX_RA_CONDITIONAL, RSX_RA_AA_SURFACE,
++    RSX_RA_TEXTURE_GAMMA, RSX_RA_TEXTURE_ALPHA_KILL, RSX_RA_TEXTURE_3D,
++    RSX_RA_BLEND_CONSTANT, RSX_RA_MRT_MASK, RSX_RA_MRT_BLEND,
++    RSX_RA_BACK_STENCIL, RSX_RA_DEPTH_BOUNDS, RSX_RA_LOGIC_OP,
++    RSX_RA_DITHER, RSX_RA_WINDOW_ORIGIN, RSX_RA_PIXEL_CENTER,
++    RSX_RA_POINT_LINE_OFFSET, RSX_RA_FILL_OFFSET,
++    RSX_RA_FP_OPCODE, RSX_RA_FP_CALL_RETURN, RSX_RA_FP_PREDICATION,
++    RSX_RA_PIPELINE_FAILED, RSX_RA_COUNT
++};
++#define RSX_RA_CAP_TEXCOORD_2D 1u
++#define RSX_RA_CAP_BLEND_CONSTANT 2u
++#define RSX_RA_CAP_BACK_STENCIL 4u
++#define RSX_RA_CAP_FILL_OFFSET 8u
++
++typedef struct rsx_ra_description {
++    const char* name;
++    unsigned method;
++    const char* status;
++    unsigned capability;
++} rsx_ra_description;
++static const rsx_ra_description rsx_ra_features[RSX_RA_COUNT] = {
++    {"texcoord_2d_override",0x0B40,"missing",RSX_RA_CAP_TEXCOORD_2D},
++    {"texcoord_8_9_override",0x0B60,"missing",0},
++    {"clip_range",0x0394,"unverified",0},
++    {"visibility_reports",0x1800,"approximate",0},
++    {"conditional_render",0x1E98,"missing",0},
++    {"surface_multisampling",0x0208,"missing",0},
++    {"texture_gamma",0x1A08,"missing",0},
++    {"texture_alpha_kill",0x1A0C,"missing",0},
++    {"texture_3d",0x1A04,"missing",0},
++    {"blend_constant",0x031C,"missing",RSX_RA_CAP_BLEND_CONSTANT},
++    {"independent_mrt_masks",0x0370,"missing",0},
++    {"independent_mrt_blend",0x036C,"missing",0},
++    {"back_stencil_masks_reference",0x034C,"missing",RSX_RA_CAP_BACK_STENCIL},
++    {"depth_bounds",0x0380,"missing",0},
++    {"logic_operation",0x0374,"missing",0},
++    {"dither",0x0300,"missing",0},
++    {"shader_window_origin",0x1D88,"unverified",0},
++    {"integer_pixel_center",0x1D88,"missing",0},
++    {"point_line_offset",0x0A60,"missing",0},
++    {"fill_polygon_offset",0x0A68,"missing",RSX_RA_CAP_FILL_OFFSET},
++    {"fp_unhandled_opcode",0x08E4,"missing",0},
++    {"fp_call_return",0x08E4,"missing",0},
++    {"fp_arithmetic_predication",0x08E4,"incorrect",0},
++    {"pipeline_failed",0x08E4,"dropped",0}
++};
++typedef struct rsx_request_audit {
++    char path[1024];
++    u64 events[RSX_RA_COUNT];
++    unsigned reported[RSX_RA_COUNT];
++    unsigned capabilities;
++    u64 attempted_draws, submitted_draws;
++    time_t last_flush;
++    int dirty, fresh;
++} rsx_request_audit;
++
++static const char* rsx_ra_status(const rsx_request_audit* a, unsigned feature)
++{
++    const rsx_ra_description* d = &rsx_ra_features[feature];
++    return d->capability && (a->capabilities & d->capability) ? "implemented" : d->status;
++}
++static int rsx_ra_init(rsx_request_audit* a, const char* path, unsigned caps)
++{
++    if (!a || !path || !*path || strlen(path)>=sizeof a->path) return -1;
++    memset(a,0,sizeof *a);strcpy(a->path,path);a->capabilities=caps;
++    return 0;
++}
++static void rsx_ra_note(rsx_request_audit* a, unsigned feature)
++{
++    if (!a || feature>=RSX_RA_COUNT) return;
++    a->events[feature]++;a->dirty=1;
++    if (!a->reported[feature]) {
++        a->reported[feature]=1;a->fresh=1;
++        if (strcmp(rsx_ra_status(a,feature),"implemented"))
++            fprintf(stderr,"[RSX coverage] %s: %s (method 0x%04X)\n",
++                    rsx_ra_features[feature].name,rsx_ra_status(a,feature),rsx_ra_features[feature].method);
++    }
++}
++static int rsx_ra_constant_factor(u32 f)
++{ return f>=0x8001u && f<=0x8004u; }
++
++/* Successful and failed draw attempts are both sampled. A flag being written
++ * at boot is insufficient: enables and sampled texture units gate checks. */
++static void rsx_ra_draw(rsx_request_audit* a, const rsx_dispatch* r,
++                         u32 primitive, u32 sampled, u32 rt_count)
++{
++    if (!a) return;
++    a->attempted_draws++;a->dirty=1;
++#define R(m) rsx_dsp_reg(r,m)
++#define NOTE_IF(test,id) do { if(test)rsx_ra_note(a,id); } while(0)
++    unsigned tc=0;
++    for(unsigned u=0;u<10;u++)tc|=(R(0x0B40+u*4)&1u)<<u;
++    NOTE_IF(tc&255u,RSX_RA_TEXCOORD_2D);
++    NOTE_IF(tc&768u,RSX_RA_TEXCOORD_89);
++    NOTE_IF(r->seen[0x0394/4] && r->seen[0x0398/4] &&
++            (R(0x0394)!=0 || R(0x0398)!=0x3F800000u),RSX_RA_CLIP_RANGE);
++    NOTE_IF((R(0x1E98)>>24)==2u,RSX_RA_CONDITIONAL);
++    NOTE_IF(((R(0x0208)>>12)&15u)!=0,RSX_RA_AA_SURFACE);
++    NOTE_IF(R(0x0300)&1u,RSX_RA_DITHER);
++    NOTE_IF(R(0x0380)&1u,RSX_RA_DEPTH_BOUNDS);
++    NOTE_IF(R(0x0374)&1u,RSX_RA_LOGIC_OP);
++    /* Window origin is reported for review; the height itself is not a gap. */
++    NOTE_IF(r->seen[0x1D88/4] && ((R(0x1D88)>>12)&15u)!=0,RSX_RA_WINDOW_ORIGIN);
++    NOTE_IF(((R(0x1D88)>>16)&15u)!=0,RSX_RA_PIXEL_CENTER);
++    NOTE_IF((primitive==1 && (R(0x0A60)&1u)) ||
++            (primitive>=2 && primitive<=4 && (R(0x0A64)&1u)),RSX_RA_POINT_LINE_OFFSET);
++    NOTE_IF(primitive>=5 && (R(0x0A68)&1u) &&
++            ((R(0x0A78)&0x7FFFFFFFu)||(R(0x0A7C)&0x7FFFFFFFu)),RSX_RA_FILL_OFFSET);
++    if (R(0x0310)&1u) {
++        u32 sf=R(0x0314),df=R(0x0318);
++        NOTE_IF(rsx_ra_constant_factor(sf&65535)||rsx_ra_constant_factor(sf>>16)||
++                rsx_ra_constant_factor(df&65535)||rsx_ra_constant_factor(df>>16),RSX_RA_BLEND_CONSTANT);
++    }
++    if ((R(0x0328)&1u) && (R(0x0348)&1u)) {
++        NOTE_IF((R(0x034C)&255)!=(R(0x032C)&255) ||
++                (R(0x0354)&255)!=(R(0x0334)&255) ||
++                (R(0x0358)&255)!=(R(0x0338)&255),RSX_RA_BACK_STENCIL);
++    }
++    if (rt_count>1) {
++        /* NV4097 MRT masks: four bits per target; A is a byte per channel. */
++        u32 cm=R(0x0324),first=((cm&255)?8u:0u)|((cm&0xFF00)?4u:0u)|
++                            ((cm&0xFF0000)?2u:0u)|((cm&0xFF000000)?1u:0u);
++        int different=0;
++        for(unsigned i=1;i<rt_count;i++)different|=((R(0x0370)>>(i*4))&15)!=first;
++        NOTE_IF(different,RSX_RA_MRT_MASK);
++        NOTE_IF((R(0x036C)&0xEu)!=((R(0x0310)&1)?0xEu:0),RSX_RA_MRT_BLEND);
++    }
++    for(unsigned u=0;u<16;u++) {
++        unsigned b=0x1A00+u*32;
++        if (!(sampled&(1u<<u)) || !(R(b+12)&0x80000000u))continue;
++        NOTE_IF(R(b+8)&0x00F00000u,RSX_RA_TEXTURE_GAMMA);
++        NOTE_IF(R(b+12)&4u,RSX_RA_TEXTURE_ALPHA_KILL);
++        NOTE_IF(((R(b+4)>>4)&15u)==3,RSX_RA_TEXTURE_3D);
++    }
++#undef R
++#undef NOTE_IF
++}
++static void rsx_ra_program(rsx_request_audit* a, const char* hlsl, int failed)
++{
++    if (!a)return;
++    if(hlsl && strstr(hlsl,"TODO: unhandled FP opcode"))rsx_ra_note(a,RSX_RA_FP_OPCODE);
++    if(hlsl && strstr(hlsl,"TODO: CAL/RET"))rsx_ra_note(a,RSX_RA_FP_CALL_RETURN);
++    if(hlsl && strstr(hlsl,"float4 _p =") && strstr(hlsl,"= lerp("))rsx_ra_note(a,RSX_RA_FP_PREDICATION);
++    if(failed)rsx_ra_note(a,RSX_RA_PIPELINE_FAILED);
++}
++static void rsx_ra_flush(rsx_request_audit* a, const rsx_dispatch* r, int force)
++{
++    if (!a)return;
++    time_t now=time(NULL);
++    if(!force && !a->fresh && now==a->last_flush)return;
++    /* A requested report is itself evidence even without a subsequent draw. */
++    u64 reports=r->seen[0x1800/4];
++    if(reports>a->events[RSX_RA_REPORTS]) {
++        a->events[RSX_RA_REPORTS]=reports;
++        if(!a->reported[RSX_RA_REPORTS]) {a->reported[RSX_RA_REPORTS]=1;
++            fprintf(stderr,"[RSX coverage] visibility_reports: approximate (method 0x1800)\n");}
++    }
++    FILE* f=fopen(a->path,"w");
++    if(!f)return;
++    fputs("kind\tmethod\tname\tstatus\tevents\n",f);
++    fprintf(f,"summary\t0x0000\tattempted_draws\tcount\t%llu\n",(unsigned long long)a->attempted_draws);
++    fprintf(f,"summary\t0x0000\tsubmitted_draws\tcount\t%llu\n",(unsigned long long)a->submitted_draws);
++    for(unsigned i=0;i<RSX_RA_COUNT;i++)if(a->events[i])
++        fprintf(f,"feature\t0x%04X\t%s\t%s\t%llu\n",rsx_ra_features[i].method,
++                rsx_ra_features[i].name,rsx_ra_status(a,i),(unsigned long long)a->events[i]);
++    for(unsigned i=0;i<RSX_DSP_NUM_REGS;i++)if(r->seen[i])
++        fprintf(f,"method\t0x%04X\twrite_count\t%s\t%u\n",i*4,
++                r->klass[i]==RSX_DSP_CLASS_TODO?"unclassified":"classified",r->seen[i]);
++    fclose(f);a->last_flush=now;a->dirty=a->fresh=0;
++}
++#endif

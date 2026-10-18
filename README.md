@@ -23,6 +23,10 @@ helper microbenchmarks improve, while the town comparison remains mixed. See
 Vulkan now applies the requested fill-polygon offset, with GPU tests for
 constant/slope bias and reset. Saved-town comparisons have not established a
 foot/Logic Stone flicker improvement; see [offset validation](docs/FINDINGS.md#vulkan-polygon-offset-patch-0094).
+The renderer now honors texture-coordinate overrides and perspective correction,
+and shader predication preserves unselected values without arithmetic blending.
+Diagnostic probes automatically report known active rendering gaps; see
+[request coverage and shader checks](docs/FINDINGS.md#active-rsx-request-coverage-and-fragment-inputs-patches-0095-0096).
 Draw distance, fog and removing menu background blur remain pending.
 
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
@@ -60,7 +64,7 @@ Full rendering fidelity, sustained traversal and combat remain unverified.
 - [Progress gallery](docs/GALLERY.md): newest first
 - [Project icon](docs/ICON.md): approved WKCII artwork used by Windows builds
 
-The source stack contains **94 SDK patches** and passes **80 Windows regression
+The source stack contains **96 SDK patches** and passes **82 Windows regression
 checks** in normal Debug and optimized Release. The menus, preferences, Vulkan
 FXAA initialization and save loading have been exercised in native runs; the
 experimental DirectX 12 path also reaches the saved scene and settings menu.
@@ -82,8 +86,8 @@ See [batch scheduling and its measurement limits](docs/FINDINGS.md#vulkan-batch-
 
 [![Native in-game Graphics Settings menu](verification/screenshots/2026-10-18-native-graphics-panel.png)](docs/GALLERY.md)
 
-The latest captures show the native Graphics Settings list after Continue loaded
-the verified save. They show the menu, not animation smoothness or performance.
+The gallery includes the latest saved-town shader checks and the native Graphics
+Settings panel. These stills do not establish animation smoothness or performance.
 See the [newest-first gallery](docs/GALLERY.md) for the System entry, API selector
 and explicitly pending draw-distance controls.
 
@@ -144,7 +148,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **68 Windows runtime regression checks** with **80 SDK patches** applied.
+- passes **82 Windows runtime regression checks** with **96 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are

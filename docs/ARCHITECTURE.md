@@ -65,8 +65,8 @@ executing host thread while the depth value remains in its SPU context.
 The [Vulkan window-title counter](BUILD.md#vulkan-window-title-counter-patch-0065)
 reports accepted queue-presentation rate and the maximum interval. It measures
 host presentation timing; unique guest animation frames and display scanout are
-not counted. The current label is `Present/s`. Windows compilation and all 64
-checks pass with 76 patches in normal Debug and optimized Release; initial
+not counted. The current label is `Present/s`. At the 76-patch checkpoint, Windows
+compilation and all 64 checks passed in normal Debug and optimized Release; initial
 counter display validation is retained at its original
 65-patch scope. The [pacing changes](FINDINGS.md#frame-pacing-and-game-speed) honor
 real flip requests and the game's two-vblank semaphore gate; they do not divide

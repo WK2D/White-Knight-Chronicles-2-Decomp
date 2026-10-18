@@ -1,0 +1,249 @@
+diff --git a/libs/video/rsx_dispatch.c b/libs/video/rsx_dispatch.c
+--- a/libs/video/rsx_dispatch.c
++++ b/libs/video/rsx_dispatch.c
+@@ -203,6 +203,7 @@
+     mark_class(rsx, M_VP_UPLOAD_CONST_ID, 1, RSX_DSP_CLASS_STATE);
+     mark_class(rsx, M_FP_ACTIVE_PROGRAM, 1, RSX_DSP_CLASS_STATE);
+     mark_class(rsx, M_FP_CONTROL,        1, RSX_DSP_CLASS_STATE);
++    mark_class(rsx, 0x0B40,              8, RSX_DSP_CLASS_STATE); /* TC0..7 overrides */
+     mark_class(rsx, M_VP_START_FROM_ID,  1, RSX_DSP_CLASS_STATE);
+     mark_class(rsx, M_VTX_ATTR_4F,      64, RSX_DSP_CLASS_STATE);
+ 
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -1798,6 +1798,8 @@
+     const u32 cube_mask = eng_cube_mask();
+     const u32 shadow_mask = eng_shadow_mask();
+     const u32 vtex_mask = eng_vtex_mask();
++    u32 tc2d_mask = 0;
++    for (u32 u=0; u<8; u++) tc2d_mask |= (rsx_dsp_reg(&g.rsx,0x0B40+u*4)&1u)<<u;
+     u32 unnorm_dim[RSX_DSP_NUM_TEXTURES][2];
+     const u32 unnorm_mask = eng_unnorm_units(unnorm_dim);
+ 
+@@ -1827,6 +1829,7 @@
+         key = eng_fnv1a(&cube_mask, sizeof cube_mask, key);
+         key = eng_fnv1a(&shadow_mask, sizeof shadow_mask, key);
+         key = eng_fnv1a(&vtex_mask, sizeof vtex_mask, key);
++        key = eng_fnv1a(&tc2d_mask, sizeof tc2d_mask, key);
+         key = eng_fnv1a(&unnorm_mask, sizeof unnorm_mask, key);
+         if (unnorm_mask) key = eng_fnv1a(unnorm_dim, sizeof unnorm_dim, key);
+     }
+@@ -1856,8 +1859,8 @@
+         vi = rsx_vp_decompile_compact_ex(vp_uc, vp_instrs * 16u, vtex_mask,
+                                          layout->mask, s_vs_hlsl,
+                                          sizeof s_vs_hlsl);
+-        fi = rsx_fp_decompile_buffered_shadow_ex(fp_uc, fp_size, fp_ctrl, cube_mask,
+-                                                 shadow_mask, s_ps_hlsl, sizeof s_ps_hlsl, &nconst);
++        fi = rsx_fp_decompile_buffered_requests_ex(fp_uc, fp_size, fp_ctrl, cube_mask,
++                                                 shadow_mask, tc2d_mask, s_ps_hlsl, sizeof s_ps_hlsl, &nconst);
+         if (fi > 0 && nconst != g.fp_constants.count) fi = -1;
+         if (fi > 0 && rsx_fp_apply_unnorm_scale(s_ps_hlsl, sizeof s_ps_hlsl, unnorm_mask,
+                                                 (const u32 (*)[2])unnorm_dim, cube_mask) < 0)
+@@ -3348,7 +3351,7 @@
+     if (audit_path && *audit_path) {
+         s_request_audit = (rsx_request_audit*)calloc(1, sizeof *s_request_audit);
+         if (s_request_audit && rsx_ra_init(s_request_audit, audit_path,
+-                g.be->set_polygon_offset ? RSX_RA_CAP_FILL_OFFSET : 0) < 0) {
++                RSX_RA_CAP_TEXCOORD_2D | (g.be->set_polygon_offset ? RSX_RA_CAP_FILL_OFFSET : 0)) < 0) {
+             free(s_request_audit); s_request_audit = NULL;
+         }
+     }
+diff --git a/libs/video/rsx_fp_decompiler.c b/libs/video/rsx_fp_decompiler.c
+--- a/libs/video/rsx_fp_decompiler.c
++++ b/libs/video/rsx_fp_decompiler.c
+@@ -349,13 +349,24 @@
+ 
+ /* Build the swizzled/negated/abs'd HLSL for one source into `buf`. */
+ static void emit_src(const Src* s, u32 input_src, const float* k, int has_k,
+-                     int buffered, u32 constant_slot, char* buf, u32 bufsz)
++                     int buffered, u32 constant_slot, u32 tc2d_mask, int perspective,
++                     char* buf, u32 bufsz)
+ {
+     char base[96];
+     if (s->type == FP_REG_TYPE_TEMP) {
+         snprintf(base, sizeof(base), "%s[%u]", s->half ? "h" : "r", s->index);
+     } else if (s->type == FP_REG_TYPE_INPUT) {
+-        snprintf(base, sizeof(base), "%s", input_expr(input_src));
++        if (input_src >= 4 && input_src <= 11) {
++            const u32 coord = input_src - 4;
++            if ((tc2d_mask >> coord) & 1u) {
++                if (perspective)
++                    snprintf(base, sizeof base, "float4(input.tc%u.xy * input.position.w,0.0,1.0)", coord);
++                else
++                    snprintf(base, sizeof base, "float4(input.tc%u.xy,0.0,rcp(input.position.w))", coord);
++            } else if (perspective) {
++                snprintf(base, sizeof base, "(input.tc%u * input.position.w)", coord);
++            } else snprintf(base, sizeof base, "%s", input_expr(input_src));
++        } else snprintf(base, sizeof base, "%s", input_expr(input_src));
+     } else { /* CONST */
+         if (buffered && has_k)
+             snprintf(
+@@ -437,7 +448,7 @@
+ 
+ static int rsx_fp_decompile_internal(
+     const u8* ucode, u32 max_bytes, u32 ctrl, u32 tex_cube_mask,
+-    u32 tex_shadow_mask, int buffered, char* out, u32 out_size, u32* out_constant_count)
++    u32 tex_shadow_mask, u32 tc2d_mask, int buffered, char* out, u32 out_size, u32* out_constant_count)
+ {
+     if (!ucode || !out || out_size == 0 || (tex_cube_mask & tex_shadow_mask)) return -1;
+ 
+@@ -561,13 +572,13 @@
+ 
+         char a[288], b[288], c[288];
+         emit_src(
+-            &s0, input_src, k, has_k, buffered, constant_slot,
++            &s0, input_src, k, has_k, buffered, constant_slot, tc2d_mask, (w3 >> 31) & 1u,
+             a, sizeof(a));
+         emit_src(
+-            &s1, input_src, k, has_k, buffered, constant_slot,
++            &s1, input_src, k, has_k, buffered, constant_slot, tc2d_mask, (w3 >> 31) & 1u,
+             b, sizeof(b));
+         emit_src(
+-            &s2, input_src, k, has_k, buffered, constant_slot,
++            &s2, input_src, k, has_k, buffered, constant_slot, tc2d_mask, (w3 >> 31) & 1u,
+             c, sizeof(c));
+         if (has_k)
+             constant_slot++;
+@@ -799,14 +810,20 @@
+                         snprintf(buf, sizeof(buf),
+                                  "      /* exec_if=none: write suppressed */\n");
+                     } else {
+-                        /* Per-component select gated by the CC sign test.
+-                         * lerp(dst, _v, mask) == mask ? _v : dst since the
+-                         * mask is exactly 0.0/1.0 from the bool->float cast. */
+-                        snprintf(buf, sizeof(buf),
+-                                 "      float4 _p = (float4)((cc%u).%s %s (float4)0.0);\n"
+-                                 "      %s[%u].%s = lerp(%s[%u].%s, _v.%s, _p.%s);\n",
+-                                 cc_read, cswz, cmp_op,
+-                                 reg, dst_idx, m, reg, dst_idx, m, m, m);
++                        /* A false predicate preserves destination bits. Arithmetic
++                         * blending contaminates them with NaNs/infinities and loses
++                         * signed zero. Scalar branches do no unselected arithmetic. */
++                        snprintf(buf, sizeof buf,
++                                 "      bool4 _p = (cc%u).%s %s (float4)0.0;\n",
++                                 cc_read, cswz, cmp_op);
++                        out_puts(&o, buf);
++                        for (const char* lane=m; *lane; lane++) {
++                            snprintf(buf, sizeof buf,
++                                     "      if (_p.%c) %s[%u].%c = _v.%c;\n",
++                                     *lane, reg, dst_idx, *lane, *lane);
++                            out_puts(&o, buf);
++                        }
++                        buf[0] = '\0';
+                     }
+                     out_puts(&o, buf);
+                 }
+@@ -960,7 +977,7 @@
+                         u32 tex_cube_mask, char* out, u32 out_size)
+ {
+     return rsx_fp_decompile_internal(
+-        ucode, max_bytes, ctrl, tex_cube_mask, 0, 0, out, out_size, NULL);
++        ucode, max_bytes, ctrl, tex_cube_mask, 0, 0, 0, out, out_size, NULL);
+ }
+ 
+ int rsx_fp_decompile_buffered_ex(
+@@ -968,7 +985,7 @@
+     char* out, u32 out_size, u32* out_constant_count)
+ {
+     return rsx_fp_decompile_internal(
+-        ucode, max_bytes, ctrl, tex_cube_mask, 0, 1, out, out_size,
++        ucode, max_bytes, ctrl, tex_cube_mask, 0, 0, 1, out, out_size,
+         out_constant_count);
+ }
+ 
+@@ -977,7 +994,17 @@
+     u32 tex_shadow_mask, char* out, u32 out_size, u32* out_constant_count)
+ {
+     return rsx_fp_decompile_internal(
+-        ucode, max_bytes, ctrl, tex_cube_mask, tex_shadow_mask, 1,
++        ucode, max_bytes, ctrl, tex_cube_mask, tex_shadow_mask, 0, 1,
++        out, out_size, out_constant_count);
++}
++
++int rsx_fp_decompile_buffered_requests_ex(
++    const u8* ucode, u32 max_bytes, u32 ctrl, u32 tex_cube_mask,
++    u32 tex_shadow_mask, u32 tc2d_mask, char* out, u32 out_size, u32* out_constant_count)
++{
++    if (tc2d_mask & ~255u) return -1; /* TC8/9 are not plumbed. */
++    return rsx_fp_decompile_internal(
++        ucode, max_bytes, ctrl, tex_cube_mask, tex_shadow_mask, tc2d_mask, 1,
+         out, out_size, out_constant_count);
+ }
+ 
+diff --git a/libs/video/rsx_fp_decompiler.h b/libs/video/rsx_fp_decompiler.h
+--- a/libs/video/rsx_fp_decompiler.h
++++ b/libs/video/rsx_fp_decompiler.h
+@@ -146,6 +146,13 @@
+ u64 rsx_fp_literal_source_hash(
+     const u8* ucode, u32 max_bytes, u64 seed);
+ 
++/* Draw-state-aware buffered entry point. TC0..7 bit n replaces input Z/W
++ * with 0/clip-W; SRC2.perspective_corr then supplies reciprocal-W values.
++ * Older entry points use mask zero. TC8/9 remain unsupported. */
++int rsx_fp_decompile_buffered_requests_ex(
++    const u8* ucode, u32 max_bytes, u32 ctrl, u32 tex_cube_mask,
++    u32 tex_shadow_mask, u32 tc2d_mask, char* out, u32 out_size, u32* out_constant_count);
++
+ /* Buffered-alpha counterpart to rsx_fp_apply_alpha_test. It emits the compare
+  * against fp_alpha.x from PSConstants instead of embedding a numeric value. */
+ int rsx_fp_apply_alpha_test_buffered(
+diff --git a/libs/video/tests/test_rsx_draw_engine.c b/libs/video/tests/test_rsx_draw_engine.c
+--- a/libs/video/tests/test_rsx_draw_engine.c
++++ b/libs/video/tests/test_rsx_draw_engine.c
+@@ -109,6 +109,7 @@
+     u32 depth_stamp[STUB_MAX_OBJECTS];
+     u8 pipeline_depth_write[STUB_MAX_OBJECTS];
+     u8 pipeline_shadow[STUB_MAX_OBJECTS], bound_compare;
++    u8 pipeline_tc2d[STUB_MAX_OBJECTS];
+     u32 bound_compare_mask;
+     u32 pipeline_color_mask[STUB_MAX_OBJECTS];
+     u8  pipeline_blend[STUB_MAX_OBJECTS], pipeline_alpha_test[STUB_MAX_OBJECTS];
+@@ -214,6 +215,7 @@
+     const u32 handle = stub_handle();
+     stub.pipeline_color_mask[handle] = rs->color_mask;
+     stub.pipeline_shadow[handle] = strstr(ps, "SampleCmp") != NULL;
++    stub.pipeline_tc2d[handle] = strstr(ps,"float4(input.tc0.xy,0.0,rcp(input.position.w))") != NULL;
+     stub.pipeline_depth_write[handle] = (u8)(rs->depth_test && rs->depth_write);
+     stub.pipeline_blend[handle] = (u8)rs->blend_enable;
+     stub.pipeline_alpha_test[handle] = (u8)rs->alpha_test_enable;
+@@ -508,6 +510,31 @@
+     engine_down();
+ }
+ 
++static void test_texcoord_pipeline_key(void)
++{
++    printf("-- texture-coordinate control and pipeline identity\n");
++    engine_up();
++    u8 vp[16],fp[16];
++    rsx_test_vp_mov_out(vp,0,RSX_TEST_VP_SWZ_IDENT,0,1);
++    m(0x1E9C,0);
++    for(u32 i=0;i<4;i++){u32 word;memcpy(&word,vp+i*4,4);m(0x0B80+i*4,word);}
++    m(0x1EA0,0);
++    rsx_test_fp_instr(fp,RSX_TEST_FP_OPC(RSX_TEST_FP_OP_MOV)|RSX_TEST_FP_MASK_XYZW|
++        RSX_TEST_FP_INSRC_TC0|RSX_TEST_FP_END,RSX_TEST_FP_SRC_INPUT|RSX_TEST_FP_SWZ_IDENT);
++    memcpy(vm_base+0x300000,fp,sizeof fp);m(0x08E4,0x300002);m(0x1D60,0x40);
++    draw_triangle();const u32 original=stub.bound_pipeline;const int created=stub.n_pipeline_create;
++    CHECK(original && !stub.pipeline_tc2d[original],"default coordinate source remains unchanged");
++    m(0x0B40,1);draw_triangle();const u32 modified=stub.bound_pipeline;
++    CHECK(modified!=original && stub.pipeline_tc2d[modified] && stub.n_pipeline_create==created+1,
++          "2D control selects a new pipeline containing corrected Z/W");
++    draw_triangle();CHECK(stub.bound_pipeline==modified && stub.n_pipeline_create==created+1,
++          "unchanged coordinate control reuses that pipeline");
++    m(0x0B40,0);draw_triangle();
++    CHECK(stub.bound_pipeline==original && stub.n_pipeline_create==created+1,
++          "disabling coordinate override reuses the original pipeline");
++    engine_down();
++}
++
+ static void test_sampler_lod_bias(void)
+ {
+     printf("-- signed sampler LOD bias\n");
+@@ -1708,6 +1735,7 @@
+     }
+ 
+     test_polygon_offset();
++    test_texcoord_pipeline_key();
+     test_sampler_lod_bias();
+     test_surface_set();
+     test_surface_aliasing();

@@ -2,7 +2,7 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 94 SDK patches / 80 Windows checks in Debug and
+**Current source checkpoint:** 96 SDK patches / 82 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -13,6 +13,60 @@ fidelity remain open. Windows analogue mapping has a further diagonal-range and 
 physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
+
+## Active RSX request coverage and fragment inputs (patches 0095-0096)
+
+The draw-time audit found active TC0-7 2D coordinate overrides that were only
+stored, and 13 compiled fragment programs using arithmetic predication. The
+shared decompiler now implements coordinate overrides and instruction-level
+perspective correction, and emits conditional component writes instead of
+numeric `lerp`. The latter prevents unselected infinities/NaNs from contaminating
+results and preserves signed zero. Changing override state creates the correct
+pipeline variant and reuses it when unchanged.
+
+The input semantics were checked against RPCS3's
+[fragment decompiler](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp),
+[instruction fields](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/Program/RSXFragmentProgram.h)
+and [Vulkan fragment inputs](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp).
+For a pixel shader, position W is reciprocal clip W. A 2D override sets Z to zero
+and W to clip W before optional perspective correction. Source swizzles and
+modifiers apply afterward. TC8/9 still need implementation.
+
+The production decompiler passes 512 synthetic Vulkan GPU lane comparisons:
+all 16 component masks, two register banks and two condition registers, plus
+coordinate/perspective combinations. Generated programs also compile as fragment
+shaders. Independent negative controls restore the old predication, ignore
+coordinate overrides, ignore perspective correction, or omit the pipeline key;
+each fails its relevant regression. This does not verify full raster interpolation,
+all guest instructions or other renderer implementations. All **82 Windows
+checks** pass in normal Debug and optimized Release; all 96 patches reconstruct
+the SDK and reapply with zero changes.
+
+The hidden/muted candidate used Continue, moved briefly in town and closed with
+exit code 0 (probe `20261018-212515`). Its boot-plus-town census records:
+
+| Active feature | Events | Status |
+|---|---:|---|
+| TC0-7 2D override | 5,335,538 | Implemented by 0096; state presence does not prove each shader reads Z/W |
+| Fill polygon offset | 395,647 | Implemented by 0094 |
+| Nondefault clip range | 85,021 | Depth clipping semantics need verification |
+| Visibility reports | 33,950 | Approximate host-visible result; GPU queries/publication remain open |
+| Bottom shader-window origin | 6,224,730 | Input use and coordinate semantics need verification |
+
+The run reached 6,224,730 pipeline-stage draw attempts and the same number of
+backend submissions, with no recorded pipeline-creation failures. Submission
+counts are not GPU completion counts. No old arithmetic-predication pattern,
+unsupported-opcode marker or call/return marker was found in compiled programs.
+The checked multisample, conditional-render, gamma, alpha-kill, 3D-texture and
+independent-MRT states were not detected in this run; other scenes may use them.
+
+Probes now enable this census by default and summarize unresolved requests in
+their result files. Direct launches remain opt-in; `-NoRsxAudit` disables it for
+timing comparisons. It checks a known subset of active state and generated-shader
+markers, not every RSX command. Raw method classification is reported separately
+and does not establish feature support. Full logs and captures remain private.
+See the [latest frame](GALLERY.md#2026-10-18---fragment-input-and-request-coverage-check).
+No visible flicker fix or performance gain is established by this batch.
 
 ## Vulkan polygon offset (patch 0094)
 
