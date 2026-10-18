@@ -65,7 +65,7 @@ The [Vulkan window-title counter](BUILD.md#vulkan-window-title-counter-patch-006
 reports accepted queue-presentation rate and the maximum interval. It measures
 host presentation timing; unique guest animation frames and display scanout are
 not counted. The current label is `Present/s`. Windows compilation and all 63
-checks pass with 74 patches in normal Debug and optimized Release; initial
+checks pass with 75 patches in normal Debug and optimized Release; initial
 counter display validation is retained at its original
 65-patch scope. The [pacing changes](FINDINGS.md#frame-pacing-and-game-speed) honor
 real flip requests and the game's two-vblank semaphore gate; they do not divide
@@ -81,8 +81,10 @@ observed. Its 14.25 presentations/s average is not a matched speedup comparison
 because profiler settings differ and capture work remains enabled. Patches 0071
 and 0073 add current-generation depth snapshots and native depth comparison.
 The native run exposes a bright foot-shadow fault; patch 0074 corrects comparison
-operand order and passes the full Windows suites; its native shadow validation
-is pending.
+operand order and restores normal shadow polarity in the observed town. Black
+foot flicker remains. Patch 0075 routes consumed user interrupts to the registered
+native HLE callback. Logic Stone interaction, a local save write and
+restart/Continue reload into town are verified; other save compatibility is unverified.
 The earlier [starting-town timing comparison](FINDINGS.md#town-performance-after-the-physics-fix)
 uses hidden-window diagnostic runs; a separate visible 66-patch baseline is
 recorded with its own profiling limits.

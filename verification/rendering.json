@@ -4,14 +4,15 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-18",
-    "native_probe": "20261018-051954",
-    "sdk_patch_count": 73,
-    "summary": "Native town progress capture with known bright foot-shadow regression and black flicker; shadow fidelity remains unverified",
-    "gallery_image": "screenshots/2026-10-18-native-wkc1-town-shadow-regression.png",
+    "native_probe": "20261018-065701",
+    "sdk_patch_count": 75,
+    "summary": "Logic Stone proximity targeting, saving through its normal menu, and restart/Continue back into WKC1 town verified",
+    "gallery_image": "screenshots/2026-10-18-native-wkc1-save-reloaded.png",
     "remaining_limits": [
-      "Bright foot-shadow regression and black flicker",
-      "Town averages 14.25 Present/s in the ten-minute diagnostic idle test, below the 30 fps target",
-      "Sustained traversal, combat and save/load unverified",
+      "Town performance remains below the 30 fps target",
+      "Black foot flicker and rotating Logic Stone light flicker remain open",
+      "Inconsistent analogue walk/run response and slower loading/cutscenes than RPCS3 remain open reports",
+      "Sustained traversal, combat, other save slots/scenes and PS3/RPCS3 save interchange unverified",
       "SPU interpreter fallback remains enabled"
     ]
   },
@@ -22,7 +23,7 @@
     "startup_warning_rendered": true,
     "title_screen": true,
     "gameplay": false,
-    "save_load": false,
+    "save_load": true,
     "macOS_Apple_Silicon": false,
     "autosave_notice_rendered": true,
     "decoded_logo_frame_rendered": true,
@@ -50,7 +51,9 @@
     "npc_surface_full_fidelity": false,
     "avatar_material_and_face_shading_scope": "Face shading and textured clothing are visible on the inspected default male avatar; full material fidelity remains unverified.",
     "secondary_bone_town_strips_removed_in_inspected_views": true,
-    "physics_full_fidelity": false
+    "physics_full_fidelity": false,
+    "save_load_scope": "New local save from the starting-town Logic Stone, complete restart, Continue reads the saved data and returns to town in the same 75-patch native build. Other scenes, slots, cross-build and PS3/RPCS3 save interchange unverified.",
+    "logic_stone_proximity_target": true
   },
   "captures": [
     {
@@ -94,6 +97,18 @@
       "method": "Unchanged Vulkan GPU readback, lossless PNG with only IHDR/IDAT/IEND chunks",
       "sdk_patch_count": 73,
       "bright_foot_shadow_regression_visible": true
+    },
+    {
+      "file": "screenshots/2026-10-18-native-wkc1-logic-stone-save.png",
+      "sha256": "dd0cad57258aca618cf5ab512d1727221a404ac82e9d392c160e13f7684b8089",
+      "source_ppm_sha256": "2f283b811e28636f0cba2766a2bdc8f2c1f394e613221f10223a24f3c78f35bc",
+      "method": "Visually inspected Vulkan GPU readback, losslessly encoded as PNG; pixels checked against the source, with IHDR/IDAT/IEND chunks only."
+    },
+    {
+      "file": "screenshots/2026-10-18-native-wkc1-save-reloaded.png",
+      "sha256": "68cdbd699f5be3e2234efa5cdb48bc4ddfe9bd66363e0ed2e379c58a160bf7a2",
+      "source_ppm_sha256": "c0da043a3ab81947495b683b6b3c3718d47036949dbbc2eb3ce72d6775f0019b",
+      "method": "Visually inspected Vulkan GPU readback, losslessly encoded as PNG; pixels checked against the source, with IHDR/IDAT/IEND chunks only."
     }
   ],
   "checks": {
@@ -165,14 +180,14 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 74,
-    "last_verified_sdk_patch_count": 74,
+    "current_sdk_patch_count": 75,
+    "last_verified_sdk_patch_count": 75,
     "current_passed_count": 63,
-    "record_scope": "The 74-patch Windows Vulkan build passes all 63 runtime checks in normal Debug (22.40 seconds) and optimized Release (20.34 seconds). The preceding 73-patch ten-minute native town idle test shows no worker accumulation but retains bright and flickering foot-shadow faults. Native 74-patch shadow verification is pending. Earlier named records retain their original patch counts.",
-    "normal_debug_elapsed_seconds": 22.4,
-    "optimized_release_elapsed_seconds": 20.34,
+    "record_scope": "The 75-patch Windows Vulkan build passes all 63 runtime checks in normal Debug (23.61 seconds) and optimized Release (23.15 seconds). Reapplication changes no SDK files. The native Logic Stone highlights, its Save menu writes a new slot, and restart/Continue returns to town. Normal shadow polarity is confirmed; black foot flicker remains. Earlier named records retain their original patch counts.",
+    "normal_debug_elapsed_seconds": 23.61,
+    "optimized_release_elapsed_seconds": 23.15,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 73
+    "repeat_patch_application_verified_sdk_patch_count": 75
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2415,6 +2430,19 @@
       ],
       "latest_recheck_probe": "20261017-233136",
       "latest_recheck_sdk_patch_count": 64
+    },
+    {
+      "date": "2026-10-18",
+      "native_probe": "20261018-051954",
+      "sdk_patch_count": 73,
+      "summary": "Native town progress capture with known bright foot-shadow regression and black flicker; shadow fidelity remains unverified",
+      "gallery_image": "screenshots/2026-10-18-native-wkc1-town-shadow-regression.png",
+      "remaining_limits": [
+        "Bright foot-shadow regression and black flicker",
+        "Town averages 14.25 Present/s in the ten-minute diagnostic idle test, below the 30 fps target",
+        "Sustained traversal, combat and save/load unverified",
+        "SPU interpreter fallback remains enabled"
+      ]
     }
   ],
   "texture_comparison_operand_order": {
@@ -2436,8 +2464,8 @@
       14
     ],
     "full_windows_suite_verified": true,
-    "native_game_run_verified": false,
-    "bright_foot_shadow_regression_fixed_verified": false,
+    "native_game_run_verified": true,
+    "bright_foot_shadow_regression_fixed_verified": true,
     "foot_shadow_flicker_fixed_verified": false,
     "reference": "https://github.com/RPCS3/rpcs3/blob/e38d27157e3e683da4341bf530bdbbd41eb9239c/rpcs3/Emu/RSX/VK/VKDraw.cpp#L409",
     "full_windows_suite_check_count": 63
@@ -2450,5 +2478,20 @@
     "bright_inverted_shadow_resolved_in_observed_view": true,
     "black_foot_flicker_observed": true,
     "full_shadow_fidelity_verified": false
+  },
+  "gcm_user_command_delivery": {
+    "sdk_patch_count": 75,
+    "windows_regression_verified": true,
+    "baseline_regression_fails": true,
+    "actual_fifo_words_tested": true,
+    "zero_cause_tested": true,
+    "nonzero_cause_tested": true,
+    "deferred_exactly_once_delivery_tested": true,
+    "low_level_fallback_tested": true,
+    "native_callback_invocation_observed": true,
+    "native_proximity_highlighting_verified": true,
+    "save_reload_verified": true,
+    "visibility_sample_counts_measured_by_gpu": false,
+    "native_proximity_scope": "Logic Stone highlights on approach and opens with X; wider NPC/object coverage remains unverified."
   }
 }

@@ -1,12 +1,15 @@
 # Code review suggestions
 
-Updated 2026-10-18. The Windows Vulkan stack has 74 SDK patches and 63 passing
+Updated 2026-10-18. The Windows Vulkan stack has 75 SDK patches and 63 passing
 runtime checks in normal Debug and optimized Release. The preceding 70-patch
 visible town run exposes progressive slowdown from accumulating asynchronous
 SPU workers. The 73-patch ten-minute town test observes no worker accumulation
 with 58–59 host threads, but exposes a bright foot-shadow regression and black
 flicker. Patch 0074 corrects texture-comparison operand direction and its GPU
-oracle and passes both full Windows suites; the native shadow recheck is pending. See the
+oracle; normal shadow polarity is confirmed in the native town. Black foot flicker
+remains. Patch 0075 repairs the dropped native user-command interrupt route and
+passes all 63 checks in both builds. Logic Stone targeting, its local Save menu,
+and restart/Continue reload into town are verified. See the
 [current findings](FINDINGS.md#frame-pacing-and-game-speed).
 Earlier tracing located the long town strips in
 omitted secondary-bone physics jobs. Patch 0058 restores their queue execution

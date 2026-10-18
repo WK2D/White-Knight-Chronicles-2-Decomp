@@ -8,28 +8,42 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-**Current status:** the native Windows Vulkan build reaches the WKC1
-town after avatar acceptance and opening cutscene skips. Short analog movement,
-facing changes, walking animation and camera rotation respond to input.
-Patch 0058 restores secondary-bone physics; the long hair/clothing strips are
-gone in the inspected town views. Full material and rendering fidelity,
-sustained traversal, combat, save/load and full audio fidelity remain unverified.
-Linux and macOS execution have not been verified.
+**Current status:** the 75-patch native Windows Vulkan build verifies Logic Stone
+proximity targeting, X opening its menu, Save writing a new local slot, and
+Continue returning to town after a full restart. All 63 Windows tests pass in
+normal Debug and optimized Release. Other NPC/object coverage and wider save
+compatibility remain unverified.
 
-The visible 70-patch town run initially measures 16.57 presentations/s, then
-falls to about 7 while idle as asynchronous SPU workers accumulate. Foot shadows
-still flicker in that run. The 73-patch build passes 63 Windows checks; its
-worker-lifetime and shadow fixes still need native verification. Earlier
-64-patch timings used a hidden diagnostic window;
-[current timings and limits](FINDINGS.md#frame-pacing-and-game-speed) record both
-scopes. The latest capture below records the current shadow regression;
-the earlier physics milestone remains separately documented.
+The long hair/clothing strips are removed in inspected views, and normal shadow
+polarity is restored. Black foot flicker and the rotating Logic Stone light
+remain open. Lag is the next priority: presentation counts alone do not establish
+smooth animation, accurate cutscene speed or loading performance. The prior
+73-patch ten-minute town test averages 14.25 presentations/s without worker
+accumulation; [findings](FINDINGS.md) retain its conditions and limits.
+Full rendering fidelity, sustained traversal, combat, Linux and macOS remain unverified.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
 
-## 2026-10-18 — Current town build and remaining shadow fault
+## 2026-10-18 - Logic Stone saving and restart/Continue reload
+
+Patch 0075 delivers previously dropped FIFO user-command interrupts to the
+registered native callback. The Logic Stone now highlights on approach and
+opens with X. Save writes a new local slot; after fully restarting the program,
+Continue loads it and returns to town. Both Windows suites pass all 63 checks.
+This covers one starting-town save on the same build; wider save compatibility
+is unverified. Lag, analogue walk/run inconsistency and remaining flicker are open.
+
+The newest capture shows the reloaded town and selected Logic Stone:
+
+![Native WKC1 town after restart and Continue, with Logic Stone selected](../verification/screenshots/2026-10-18-native-wkc1-save-reloaded.png)
+
+The earlier capture shows its normal menu, opened with X before choosing Save:
+
+![Native Logic Stone menu with Save selected](../verification/screenshots/2026-10-18-native-wkc1-logic-stone-save.png)
+
+## 2026-10-18 - Earlier shadow regression (polarity fixed in patch 0074)
 
 The 73-patch native Vulkan build reaches the WKC1 town after character
 creation and the opening cutscenes. It passes 63 Windows regression checks.

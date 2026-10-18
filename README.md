@@ -1,7 +1,9 @@
 # White Knight Chronicles II native-port research
 
-**2026-10-18:** Patch 0074 restores normal shadow polarity in the native town,
-confirmed during testing. The black flicker at Leonard's feet remains unresolved.
+**2026-10-18:** Logic Stone targeting, saving, and loading back into WKC1 town
+through Continue after a full restart are verified. Patch 0075 restores the
+missing graphics user-command callback. Lag and game-speed fidelity are the
+next priority; normal shadow polarity is restored, while black foot flicker remains.
 
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
 through **static recompilation**, followed by Apple Silicon portability testing.
@@ -18,25 +20,28 @@ interpreter fallback, so these counts do not establish complete static coverage.
 See
 [execution architecture and modding scope](docs/ARCHITECTURE.md).
 
-**Current milestone (2026-10-18): the native Vulkan town build completes a
-ten-minute idle test with 58â€“59 host threads and no asynchronous SPU worker
-accumulation.** It presents 8,552 frames in 600 seconds, averaging 14.25
-presentations/s. The sampling profiler was off; five-second readbacks and a
-short capture burst remained enabled. This is not a matched speedup comparison
-with earlier profiled runs. A steady 30 fps is the next target, followed by
-validated 60 fps support; see [measurements and limits](docs/FINDINGS.md#frame-pacing-and-game-speed).
-Full material and rendering fidelity remain unverified. Sustained traversal,
-combat and save/load remain unverified, so this is not a playable port yet.
+**Current milestone (2026-10-18): native local save and reload.** Approaching the
+Logic Stone highlights it, X opens its menu, and Save writes a new slot. After
+restarting the program, Continue loads that slot and returns to town. This
+covers the starting-town save on the same native build; other scenes/slots,
+cross-build compatibility and PS3/RPCS3 save interchange remain unverified.
+
+The earlier ten-minute town idle test keeps 58–59 host threads without worker
+accumulation and averages 14.25 presentations/s under its recorded diagnostic
+conditions. A steady 30 fps and smooth game timing remain goals. The user reports
+slower loading and cutscenes, less smooth motion than RPCS3, and inconsistent
+analogue walk/run response. See [measurements and limits](docs/FINDINGS.md#frame-pacing-and-game-speed).
+Full rendering fidelity, sustained traversal and combat remain unverified.
 
 - [Build instructions](docs/BUILD.md)
 - [Contribution workflow](docs/CONTRIBUTING.md)
 - [Findings log](docs/FINDINGS.md): verified results, open issues and next steps
 - [Progress gallery](docs/GALLERY.md): newest first
 
-The source stack contains **74 SDK patches** and passes **63 Windows regression
-checks** in normal Debug and optimized Release builds. Patch 0074's
-texture-comparison direction fix passes the full suites; its native shadow
-recheck is pending. Depth sampling, flip
+The source stack contains **75 SDK patches** and passes **63 Windows regression
+checks** in normal Debug and optimized Release builds. Patch 0074's texture-comparison fix restores normal shadow polarity in the
+observed native town. Patch 0075 repairs dropped user-command callbacks;
+Logic Stone interaction and a restart/Continue save reload are verified. Depth sampling, flip
 completion and disabled PPU diagnostics have received further fixes. The latest
 patches add explicit asynchronous SPU worker ownership and native depth-comparison
 sampling. The combined 73-patch build reaches town and passes the idle worker
@@ -52,7 +57,7 @@ The visible town comparison initially rose from 12.28 to 16.57 presentations/s,
 then declined to 12.65 in the next minute and later about 7 while idle. A thread
 census found 2,636 asynchronous SPU workers still alive. With patch 0072's
 ownership fix, the later ten-minute run completes 17,104 task workers while
-keeping only 1â€“2 active and a process-lifetime peak of 3. The prior thread
+keeping only 1Ã¢â‚¬“2 active and a process-lifetime peak of 3. The prior thread
 accumulation is absent in that tested interval; sustained 30 fps remains unmet.
 The 70-patch run still showed flickering foot shadows. The observed cutscenes were
 reported in sync, but full audio synchronization remains unverified. See
@@ -60,7 +65,7 @@ reported in sync, but full audio synchronization remains unverified. See
 
 ## Progress
 
-[![Native WKC1 town with the current bright foot-shadow regression](verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png)](docs/GALLERY.md)
+[![Native WKC1 town after restarting and loading the Logic Stone save](verification/screenshots/2026-10-18-native-wkc1-save-reloaded.png)](docs/GALLERY.md)
 
 The latest capture shows the 73-patch native town build, including the known
 bright patch beneath Leonard's feet. Black foot flicker is also observed in
@@ -84,9 +89,9 @@ physics work and corrected by patch 0058. See the
 Verified progress, with the latest milestone first:
 
 - filters unchanged FIFO producer writes, accelerates SPU byte counts and
-  separates workers' recursion diagnostics (patches 0062â€“0064);
+  separates workers' recursion diagnostics (patches 0062Ã¢â‚¬“0064);
 - removes repeated SPU conversion-scale calls and shared MFC engine lookups
-  (patches 0060â€“0061); their hidden-window town samples measured 11.5â€“13.1 fps;
+  (patches 0060Ã¢â‚¬“0061); their hidden-window town samples measured 11.5Ã¢â‚¬“13.1 fps;
 - improves the hidden-window starting-town diagnostic benchmark by about 15%
   by caching launch-time diagnostic settings (patch 0059); visible gameplay
   performance still needs measurement;
@@ -112,12 +117,12 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **63 Windows runtime regression checks** with **74 SDK patches** applied.
+- passes **63 Windows runtime regression checks** with **75 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are
 removed in the inspected views; full material fidelity is unverified.
-Sustained traversal, combat and save/load remain unverified. This is not yet
+The starting-town local save/reload is verified. Sustained traversal and combat remain unverified. This is not yet
 a playable port.
 
 Vulkan is the primary Windows renderer. It now renders the avatar and room
@@ -201,7 +206,8 @@ coverage report distinguishes handler presence from verified implementation.
   removes the long strips in the inspected views.
 - **Initial town controls:** short analog movement, facing changes and camera
   rotation first observed on the 42-patch build and rechecked with all 64 patches.
-- **Sustained traversal, combat and save/load verification:** pending.
+- **Local save/reload:** starting-town Logic Stone save and restart/Continue verified.
+- **Sustained traversal and combat:** pending.
 - **In-game keyboard with gamepad navigation, shared across Windows and macOS:**
   planned. The current Windows text-entry window is temporary.
 - **Apple Silicon build and testing:** pending.
@@ -210,15 +216,17 @@ coverage report distinguishes handler presence from verified implementation.
 ## Current investigation
 
 Town performance is the immediate focus: a steady 30 fps first, followed by
-validated 60 fps support. The latest visible run slowed progressively while
+validated 60 fps support. The earlier 70-patch visible run slowed progressively while
 idle, with thousands of asynchronous SPU workers still alive. The 73-patch
 ten-minute idle test shows no worker accumulation. Texture-comparison operand
-order is corrected in patch 0074, with its native shadow comparison pending.
+order is corrected in patch 0074, with normal shadow polarity confirmed in the native town; black foot flicker remains.
 The completed passes avoid repeated SPU conversion-scale
 CRT calls and replace the fixed MFC registry with independent context-owned
 DMA state. They also filter unchanged producer writes, accelerate byte counts
 and keep recursion history per host thread. The window-title counter now shows
 average presentation rate and long intervals in the visible native window.
+New restarts can load the verified town save through Continue. The next investigation
+compares update timing, frame pacing, loading and cutscene speed with RPCS3.
 Frame pacing and distinct animation updates need further verification. The findings
 retain the measured frame counts and comparison limits.
 
@@ -227,7 +235,7 @@ never executed. Patch 0058 implements their queue/port calls and CRT handoff;
 the newly extracted job is compiled to native C/C++. The town recheck shows
 normal hair and clothing after short movement and camera rotation.
 Remaining work includes material fidelity, sustained traversal, combat and
-save/load. The SPU census also identifies static-entry candidates whose
+wider save compatibility. The SPU census also identifies static-entry candidates whose
 behavior still needs validation.
 
 See [the latest performance findings](docs/FINDINGS.md#town-performance-after-the-physics-fix)

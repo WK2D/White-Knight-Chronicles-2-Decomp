@@ -2,22 +2,26 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Latest verified town milestone:** the 73-patch native Windows Vulkan build
-completes a ten-minute idle test with 58–59 host threads, 1–2 active asynchronous
-SPU workers and no worker accumulation. It averages 14.25 presentations/s under
-the recorded diagnostic conditions. The long secondary-bone strips remain
-removed in inspected views, but bright and flickering foot shadows remain.
-All 63 runtime checks pass at that patch level. Full material/rendering fidelity,
-sustained traversal, combat and save/load remain unverified.
-See [frame pacing and worker stability](#frame-pacing-and-game-speed),
-[the physics trace](#secondary-bone-physics-and-town-stretching) and [gallery](GALLERY.md).
+**Latest verified milestone:** the 75-patch native Windows Vulkan build restores
+Logic Stone proximity targeting. X opens its normal menu; Save writes a new
+local slot. After a full program restart, Continue reads the saved data and
+returns to town. This verifies one starting-town slot on the same native build;
+other scenes/slots, cross-build and PS3/RPCS3 interchange remain unverified.
+All 63 runtime checks pass in normal Debug and optimized Release.
 
-Hidden-window starting-town diagnostic benchmarks measure 12.5–13.1 fps,
-compared with 8.1–8.3 fps before the performance passes. These runs do not
+The earlier 73-patch ten-minute idle test keeps 58–59 host threads without
+worker accumulation and averages 14.25 presentations/s under its diagnostic
+conditions. Normal shadow polarity is restored by patch 0074; black foot flicker
+remains. Lag and game-speed fidelity are the next priority, with future restarts
+loading the verified town save. See [interaction and saving](#proximity-interaction-and-saving-patch-0075),
+[frame pacing](#frame-pacing-and-game-speed) and [gallery](GALLERY.md).
+
+Hidden-window starting-town diagnostic benchmarks measure 12.5Ã¢â‚¬“13.1 fps,
+compared with 8.1Ã¢â‚¬“8.3 fps before the performance passes. These runs do not
 measure visible gameplay or character-rotation smoothness. A steady 30 fps is the immediate target,
 followed by validated 60 fps support. See [the comparison](#town-performance-after-the-physics-fix).
 
-The current 74-patch Windows Vulkan build passes all 63 regression checks in
+The current 75-patch Windows Vulkan build passes all 63 regression checks in
 normal Debug and optimized Release configurations. The preceding 73-patch town
 idle test completes
 17,104 task workers with no thread accumulation over ten minutes. Its new
@@ -33,6 +37,34 @@ its different profiler settings prevent a matched performance claim. Foot shadow
 in the 70-patch run. Selected cutscenes were reported in sync, but sustained
 performance and full audio sync
 remain unverified. Earlier hidden-window records retain their limits.
+
+## Proximity interaction and saving (patch 0075)
+
+The user reports that approaching NPCs or the Logic Stone does not highlight
+an interaction target, so X cannot start the normal interaction. The 74-patch
+native run reproduces this beside the stone. The target manager contains NPCs
+and the stone, but inspected entries are marked occluded and the game's cached
+visibility results remain zero. Its registered user-command callback reads
+those results, yet that callback is absent from the baseline run log.
+
+The production FIFO walker sends `0xEB00` to the low-level ISR event queue and
+continues before reaching the deferred HLE callback route. That queue is absent
+in this HLE run. Patch 0075 routes consumed user interrupts to the registered
+HLE callback, retaining low-level delivery when no HLE handler is registered.
+It preserves deferred delivery and a zero cause, without dispatching twice.
+The actual-FIFO regression fails before the fix and passes afterward, including
+the supported alias and low-level fallback. Both full Windows suites pass all
+63 checks. The native log now records callback invocation and the cached visibility results
+update. The Logic Stone highlights on approach, X opens its normal menu, and
+Save writes a new slot. A full restart followed by Continue reads the 6,815,744-byte
+save payload and returns to town; the user also confirms success. These checks
+cover the Logic Stone and one local slot, not all NPCs or save compatibility.
+
+The user also reports slower loading and slightly slower cutscenes than RPCS3,
+less smooth motion despite a nominal 30 reading, inconsistent analogue walk/run
+selection, and flicker in the Logic Stone's rotating inner light. The lag, stick response and flicker reports remain open; the Logic Stone
+interaction is verified above. These performance reports do not establish their causes. Presentation throughput alone
+does not verify game-clock progression or cutscene playback speed.
 
 ## Goal and reporting
 
@@ -64,7 +96,7 @@ do not establish interpreter-free execution.
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | 74-patch Clang build and 63 runtime regression checks in Debug and Release | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | 75-patch Clang build and 63 runtime regression checks in Debug and Release | Compilation alone does not verify gameplay |
 | Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | This colour-fix capture covers character creation; later town validation is recorded below; full visual fidelity remains unverified |
 | WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
 | WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | The long strips are removed with patch 0058 ([secondary-bone physics](#secondary-bone-physics-and-town-stretching)); NPC surfaces improve with patch 0052 ([NV0039 transfers](#nv0039-memory-transfers)); full material fidelity unverified; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
@@ -125,13 +157,13 @@ remaining validation work.
 - Preserve depth-only targets and reload GPU surfaces after video conversion
   writes; patch 0053 removes the observed cutscene red flashes.
 - Reduce SPURS dispatch/setup costs and avoid Vulkan mid-frame fence waits
-  with patches 0054–0057; town performance remains below the immediate 30 fps
+  with patches 0054Ã¢â‚¬“0057; town performance remains below the immediate 30 fps
   target and the later 60 fps goal.
 - Execute the statically compiled secondary-bone physics job through its
   SPURS queue/port imports; patch 0058 removes the long town strips in the
   inspected views.
 
-Patches 0059–0061 cache launch diagnostics, avoid repeated SPU conversion-scale
+Patches 0059Ã¢â‚¬“0061 cache launch diagnostics, avoid repeated SPU conversion-scale
 CRT calls and keep each logical SPU context's DMA engine independent. The
 [town measurements](#town-performance-after-the-physics-fix) record their scope.
 
@@ -458,7 +490,7 @@ does not verify full visual fidelity, completed character creation or gameplay.
 
 ## Avatar normals and fragment shading
 
-Historical checkpoint: patches 0029–0030, with 28 checks at that stage.
+Historical checkpoint: patches 0029Ã¢â‚¬“0030, with 28 checks at that stage.
 Completed character creation and town entry were verified later.
 
 The next captured face draw exposes two separate shading faults. Type-6 CMP
@@ -692,7 +724,7 @@ regression performs 1,024 reads, observes a producer update after read 768 and
 checks completion tags. Forcing the old cutoff fails the regression. Separate
 checks cover the absent setting and an explicit diagnostic cutoff.
 
-With patches 0001–0039, native execution now passes the previous stall, reaches
+With patches 0001Ã¢â‚¬“0039, native execution now passes the previous stall, reaches
 the following live cutscene and enters the WKC1 town after normal cutscene-skip
 inputs. Sixty-four sampled geometry-job dispatches from image 19 return without
 the old halt. Town GPU readbacks show Leonard, NPC names, the minimap and a save
@@ -987,7 +1019,7 @@ still enabled. Full gameplay, combat and save/load remain unverified.
 
 ## Cutscene red flash and frame rate
 
-Patches 0053–0057, before the secondary-bone physics milestone. The frame-rate
+Patches 0053Ã¢â‚¬“0057, before the secondary-bone physics milestone. The frame-rate
 figures below describe those measured builds and scenes; they are not a new
 benchmark of the 58-patch physics build.
 
@@ -1309,7 +1341,7 @@ Reading the sampler's full current-window maps through a private read-only tool
 reveals dispersed costs that this ranking hides. Actual executable instruction
 pointers are grouped by their PDB symbols; guessed callers from DLL stack scans
 are excluded. Two short town snapshots put image 19's skinning routine at
-`0xCE08` at about 20–24% of one critical worker's executable samples. This is
+`0xCE08` at about 20Ã¢â‚¬“24% of one critical worker's executable samples. This is
 neither a share of whole-frame time nor a whole-process CPU percentage.
 
 Its generated body contains frequent register-state moves, stack spills and
@@ -1383,7 +1415,7 @@ Generated game code, memory snapshots and raw captures remain private.
 
 ## Frame pacing and game speed
 
-Earlier creator counter readings around 37–60 counted host presentations,
+Earlier creator counter readings around 37Ã¢â‚¬“60 counted host presentations,
 including frames with repeated animation state. They did not establish 60
 unique animation updates per second or complete creator smoothness. The earlier
 avatar-turn comparisons are limited observations, not proof of full game-speed
@@ -1416,7 +1448,7 @@ The 70-patch normal Windows Vulkan build passed all 61 tests in 25.52 seconds.
 Its new regressions check production compute/graphics descriptor bindings and
 real flip completion, including the guest's two-vblank acquire. The current
 73-patch stack passed all 63 tests: 22.79 seconds in normal Debug and
-20.46 seconds in optimized Release. The current 74-patch stack passes all 63 in
+20.46 seconds in optimized Release. The current 75-patch stack passes all 63 in
 **22.40 seconds (normal Debug)** and **20.34 seconds (optimized Release)**.
 The two additional tests cover worker lifetime and depth-comparison shader
 translation; patch 0074 extends the latter with all comparison-direction mappings.
@@ -1426,7 +1458,7 @@ A separate **visible-window 66-patch baseline** reaches the starting town after
 the party and Travelogue dialogs are dismissed. It records 737 guest-boundary
 presentations in 60.000045 seconds: **12.283324 presentations/s**. The 2 ms
 sampling profiler and five-second readbacks were enabled, so this remains a
-diagnostic sample. Earlier patch-58–64 timing records used a hidden window and
+diagnostic sample. Earlier patch-58Ã¢â‚¬“64 timing records used a hidden window and
 are not a directly matched visible-play comparison.
 
 The visible 70-patch run uses the same starting view with `GCM_SEMA_ACQUIRE=1`
@@ -1490,9 +1522,9 @@ control independently fails three assertions when the old sampled-unit parser
 is restored.
 
 The **73-patch ten-minute idle test** presents 8,552 frames in 600.000104 seconds:
-**14.253331 presentations/s**. Host thread count stays at 58–59; asynchronous
+**14.253331 presentations/s**. Host thread count stays at 58Ã¢â‚¬“59; asynchronous
 workers start and end the interval with one active, with sampled active counts
-of 1–2 and a process-lifetime peak of 3. It completes 17,104 task runs during
+of 1Ã¢â‚¬“2 and a process-lifetime peak of 3. It completes 17,104 task runs during
 the interval. Private committed bytes are 1,462,337,536 at the start and
 1,460,867,072 at the end. No worker accumulation is observed in that tested
 window. This does not establish cancellation, later-game lifetime correctness
@@ -1715,8 +1747,8 @@ The town is reached with 73 patches; the 64-patch checkpoint retains the latest
 timed control recheck, with the long secondary-bone strips removed in inspected
 views. The 70-patch idle run exposes progressive slowdown; the 73-patch
 ten-minute idle test does not reproduce its accumulating SPU workers. Full rendering
-fidelity, broader gameplay, save/load and imports needed on untested paths
-remain unverified.
+fidelity, broader gameplay, wider save compatibility and imports needed on untested
+paths remain unverified. The current 75-patch starting-town local save/reload is verified above.
 
 ## Still unverified
 
@@ -1728,12 +1760,15 @@ The long-strip fix and NPC surface improvement establish specific rendering
 corrections. Full material, lighting and physics fidelity still need wider
 validation. The remaining work includes:
 
-- Sustained traversal, combat, later scenes and verified save/load.
+- Sustained traversal, combat, later scenes and broader save compatibility.
+  Starting-town local save/reload is verified on the 75-patch build.
 - Sustained visible performance: the 73-patch ten-minute town test averages
   14.25 presentations/s without worker accumulation. Different profiler settings
   and capture work prevent a matched speedup comparison with the earlier run.
   The immediate 30 fps target and later 60 fps goal remain unverified.
-- Flickering foot shadows and complete in-engine audio/animation synchronization.
+- Flickering foot shadows, the rotating Logic Stone light, and complete in-engine
+  audio/animation synchronization.
+- Inconsistent analogue walk/run response and loading/cutscene speed compared with RPCS3.
 - All character-creation options and an in-game keyboard usable by gamepad.
 - Complete static SPU coverage, including the six observed image-17 fallback
   fingerprints; source-level reconstruction and a supported modding framework.

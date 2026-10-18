@@ -8,13 +8,13 @@
   "native_gameplay_verified": false,
   "native_startup_ui_verified": true,
   "native_title_screen_verified": true,
-  "native_save_load_verified": false,
+  "native_save_load_verified": true,
   "progress_reporting": {
     "findings_log": "docs/FINDINGS.md",
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "74-patch Windows Vulkan build passes 63 checks; native town shadow polarity corrected, black foot flicker remains",
+    "current_milestone": "75-patch Windows Vulkan build: Logic Stone targeting, local save and restart/Continue into town verified; all 63 checks pass in Debug and Release.",
     "updated": "2026-10-18"
   },
   "native_data_installation_verified": true,
@@ -153,9 +153,9 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 74,
+    "sdk_patch_count": 75,
     "runtime_checks_passed": 63,
-    "town_native_run_sdk_patch_count": 73,
+    "town_native_run_sdk_patch_count": 75,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
     "patch_0042_native_game_run_verified": true,
@@ -226,7 +226,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 74,
+    "runtime_checks_verified_sdk_patch_count": 75,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -236,8 +236,8 @@
       "GCM_SEMA_ACQUIRE": "1",
       "RSX_ENGINE_ZTEX_GPU": "1"
     },
-    "normal_debug_checks_elapsed_seconds": 22.4,
-    "optimized_release_checks_elapsed_seconds": 20.34,
+    "normal_debug_checks_elapsed_seconds": 23.61,
+    "optimized_release_checks_elapsed_seconds": 23.15,
     "repeat_patch_application_files_changed": 0,
     "patch_0071_windows_regression_verified": true,
     "patch_0072_windows_regression_verified": true,
@@ -250,10 +250,21 @@
     "patch_0072_native_idle_worker_accumulation_absent_in_tested_window": true,
     "patch_0072_native_idle_worker_stability_test_seconds": 600.000104,
     "patch_0074_windows_regression_verified": true,
-    "patch_0074_native_game_run_verified": false,
+    "patch_0074_native_game_run_verified": true,
     "patch_0074_texture_compare_direction_gpu_verified": true,
     "patch_0074_foot_shadow_flicker_fixed_verified": false,
-    "repeat_patch_application_verified_sdk_patch_count": 73
+    "repeat_patch_application_verified_sdk_patch_count": 75,
+    "patch_0075_windows_regression_verified": true,
+    "patch_0075_native_interaction_verified": true,
+    "patch_0075_save_load_verified": true,
+    "current_gameplay_reports": {
+      "proximity_target_highlighting_missing": false,
+      "stick_walk_run_magnitude_inconsistent": true,
+      "cutscenes_slower_than_rpcs3_reported": true,
+      "loading_slower_than_rpcs3_reported": true,
+      "presentations_per_second_establishes_game_speed": false,
+      "proximity_target_highlighting_scope": "Logic Stone retested; wider NPC/object interactions need coverage."
+    }
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -268,7 +279,7 @@
     "recorded_entry_count": 6,
     "baseline_comparison_method": "64-byte FNV-1a entry fingerprints; not a whole-function comparison"
   },
-  "native_movement_and_camera_control_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified.",
+  "native_movement_and_camera_control_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat unverified; starting-town local save/reload now verified.",
   "graphics_copy_research": {
     "nv0039_use_confirmed_in_native_town": true,
     "nv0039_transfer_handler_implemented": true,
@@ -335,20 +346,24 @@
     "scope": "73-patch visible ten-minute idle test: 8552 presentations/600.000104 seconds, sampling profiler off, five-second readbacks and a 24-frame capture burst. No worker accumulation observed; no matched code-only speedup or steady 30 fps. 74-patch native comparison pending.",
     "latest_visible_baseline_sdk_patch_count": 66,
     "latest_visible_baseline_presentations_per_second": 12.283324,
-    "latest_candidate_sdk_patch_count": 74,
+    "latest_candidate_sdk_patch_count": 75,
     "latest_candidate_town_comparison_verified": false,
     "latest_candidate_sustained_gain_verified": false,
     "later_idle_presentations_per_second_approximate": 7,
-    "pending_native_sdk_patch_count": 74,
+    "pending_native_sdk_patch_count": 75,
     "latest_native_idle_worker_stability_verified": true
   },
   "current_native_observation": {
-    "sdk_patch_count": 74,
-    "probe": "20261018-054301",
+    "sdk_patch_count": 75,
+    "probe": "20261018-065701",
     "town_reached": true,
     "normal_shadow_polarity_user_confirmed": true,
     "bright_inverted_shadow_resolved_in_observed_view": true,
     "black_foot_flicker_observed": true,
-    "full_shadow_fidelity_verified": false
-  }
+    "full_shadow_fidelity_verified": false,
+    "logic_stone_target_verified": true,
+    "logic_stone_save_written_verified": true,
+    "restart_continue_load_verified": true
+  },
+  "native_save_load_scope": "Starting-town Logic Stone: proximity highlighting, X opens its menu, Save writes a new local slot, full process restart and Continue return to town on the same native build. Other scenes/slots, cross-build and PS3/RPCS3 interchange unverified."
 }

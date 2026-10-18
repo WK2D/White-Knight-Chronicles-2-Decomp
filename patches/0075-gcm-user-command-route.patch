@@ -1,0 +1,26 @@
+Route consumed user interrupts to the registered HLE callback pump, preserving the low-level ISR route when no HLE handler is installed. Cause zero remains valid.
+
+diff --git a/libs/video/cellGcmSys.c b/libs/video/cellGcmSys.c
+--- a/libs/video/cellGcmSys.c
++++ b/libs/video/cellGcmSys.c
+@@ -2299,9 +2299,17 @@
+                   if (sd && subch == 7 && (s7++ < 16))
+                       fprintf(stderr, "[subch7] method=0x%04X data=0x%08X\n",
+                               m, vm_read32(dea)); }
+-                if (subch == 7 && m == 0x0B00u) {
+-                    extern void rsx_raise_user_cmd(u32 arg);
+-                    rsx_raise_user_cmd(vm_read32(dea));
++                if (subch == 7 && (m == 0x0B00u || m == 0x0B04u)) {
++                    /* HLE registration has no libgcm ISR queue. Route its
++                     * interrupt through the deferred guest callback pump;
++                     * otherwise preserve the low-level driver event path.
++                     * Cause zero is a real command, not an empty marker. */
++                    if (s_user_handler_opd)
++                        cellGcmQueueUserCommand(vm_read32(dea));
++                    else {
++                        extern void rsx_raise_user_cmd(u32 arg);
++                        rsx_raise_user_cmd(vm_read32(dea));
++                    }
+                     continue;
+                 }
+                 /* GCM_SUBCH1_3D=1: treat subchannel 1 as the 3D object too.

@@ -51,14 +51,17 @@ void rsx_live_draw_method(u32 method, u32 arg) { (void)method; (void)arg; ++lega
 void rsx_live_draw_set_display_buffer(u32 b, u32 l, u32 o, u32 p, u32 w, u32 h)
 { (void)b; (void)l; (void)o; (void)p; (void)w; (void)h; }
 int rsx_process_method(rsx_state* state, u32 method, u32 data) { (void)state; (void)method; (void)data; ++methods; return 0; }
-void rsx_raise_user_cmd(u32 arg) { (void)arg; abort(); }
+static unsigned lle_user_calls;
+static u32 lle_user_arg;
+void rsx_raise_user_cmd(u32 arg) { ++lle_user_calls; lle_user_arg=arg; }
 void rsx_state_init(rsx_state* state) { memset(state, 0, sizeof(*state)); }
 
 
 
 static void test_after_arm(uint32_t ea) { (void)ea; }
 enum { FIFO_EA=0x400000, LABEL=0x49 };
-static unsigned flips, blanks, since_flip;
+static unsigned flips, blanks, since_flip, user_calls;
+static u32 user_arg;
 static void guest(uint32_t opd, uint64_t a, uint64_t b, uint64_t c,
                   uint64_t d, uint64_t e, uint64_t f, uint64_t g0, uint64_t h) {
     (void)a;(void)b;(void)c;(void)d;(void)e;(void)f;(void)g0;(void)h;
@@ -66,7 +69,8 @@ static void guest(uint32_t opd, uint64_t a, uint64_t b, uint64_t c,
     else if(opd==0x1020) {
         ++blanks;
         if(++since_flip>=2) vm_write32(GCM_LABEL_GUEST_BASE+LABEL*16,0);
-    } else abort();
+    } else if(opd==0x1040) { ++user_calls; user_arg=(u32)a; }
+    else abort();
 }
 static void tick(void) { cellGcmTickVBlank();cellGcmTickFlip();ppu_gcm_pump(); }
 static void fifo(u32 bytes,u32 get) {
@@ -116,6 +120,24 @@ int main(void) {
     assert(cellGcmSetFlipCommand(0)==CELL_OK);
     cellGcm_request_tick();ppu_gcm_pump();assert(flips==4);
     cellGcm_request_tick();ppu_gcm_pump();assert(flips==4);
+    /* Real user-interrupt FIFO words must reach the HLE callback, including
+     * cause zero. Merely testing QueueUserCommand bypasses the faulty walker. */
+    cellGcmSetUserHandler((CellGcmUserHandler)(uintptr_t)0x1040);
+    vm_write32(FIFO_EA+0x300,(1u<<18)|0xEB00u);
+    vm_write32(FIFO_EA+0x304,0);
+    fifo(0x308,0x300);cellGcm_rsx_process_fifo();
+    assert(user_calls==0&&lle_user_calls==0); /* deferred, one delivery path */
+    ppu_gcm_pump();assert(user_calls==1&&user_arg==0);
+    ppu_gcm_pump();assert(user_calls==1);
+    vm_write32(FIFO_EA+0x310,(1u<<18)|0xEB04u);
+    vm_write32(FIFO_EA+0x314,0x1234);
+    fifo(0x318,0x310);cellGcm_rsx_process_fifo();
+    assert(user_calls==1&&lle_user_calls==0);
+    ppu_gcm_pump();assert(user_calls==2&&user_arg==0x1234);
+    cellGcmSetUserHandler(NULL);
+    fifo(0x308,0x300);cellGcm_rsx_process_fifo();
+    assert(lle_user_calls==1&&lle_user_arg==0);
+    ppu_gcm_pump();assert(user_calls==2);
     cellGcmTerminate();cellGcmTickFlip();ppu_gcm_pump();assert(flips==4);
     free(vm_base);puts("Real flip completion and two-vblank acquire passed");return 0;
 }
