@@ -1,0 +1,42 @@
+Correct RSX texture comparison operand order when creating Vulkan comparison samplers.
+Stored texel ZFUNC reference reverses the host sampler ordering; framebuffer depth/stencil tests stay unchanged.
+
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -52,6 +52,7 @@
+ #include "rsx_fp_decompiler.h"
+ #include "rsx_shader_spirv.h"
+ #include "rsx_draw_engine.h"
++#include "rsx_texture_compare.h"
+ #include "vulkan/rsx_vk_fallback_vert.spv.h"
+ #include "vulkan/rsx_vk_fallback_frag.spv.h"
+ 
+@@ -3713,7 +3714,7 @@
+         .addressModeW = vk_gcm_wrap(d->wrap_r),
+         .minLod = min_lod, .maxLod = max_lod,
+         .compareEnable = d->compare_func ? VK_TRUE : VK_FALSE,
+-        .compareOp = vk_gcm_compare(0x0200u + d->compare_func),
++        .compareOp = vk_gcm_compare(rsx_texture_compare_host_func(d->compare_func)),
+         .borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK };
+     VkSampler smp;
+     if (pvkCreateSampler(s_vk.device, &sci, NULL, &smp) != VK_SUCCESS)
+diff --git a/libs/video/rsx_texture_compare.h b/libs/video/rsx_texture_compare.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_texture_compare.h
+@@ -0,0 +1,14 @@
++/* RSX texture ZFUNC compares the stored texel against the reference.
++ * Vulkan/D3D comparison samplers compare the reference against the texel,
++ * so reverse ordered operators when selecting the host sampler function.
++ * This conversion must never be applied to ordinary depth/stencil tests. */
++#ifndef PS3RECOMP_RSX_TEXTURE_COMPARE_H
++#define PS3RECOMP_RSX_TEXTURE_COMPARE_H
++#include <stdint.h>
++
++static inline uint32_t rsx_texture_compare_host_func(uint32_t zfunc)
++{
++    static const uint8_t reversed[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
++    return zfunc < 8u ? 0x0200u + reversed[zfunc] : 0x0207u;
++}
++#endif

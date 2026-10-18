@@ -13,13 +13,17 @@ Full material/rendering fidelity, sustained traversal, combat and save/load
 remain unverified. See the
 [latest gallery entry](GALLERY.md).
 
-The source stack contains 73 SDK patches. All 63 Windows Vulkan regression
-checks pass in normal Debug (22.79 seconds) and optimized Release (20.46 seconds).
-Reapplying the full stack changes no SDK files. The preceding 70-patch visible town run
+The source stack contains 74 SDK patches. All 63 Windows Vulkan checks pass in
+normal Debug (22.40 seconds) and optimized Release (20.34 seconds). Reapplying the
+earlier 73-patch stack changed no SDK files. The 74-patch native shadow recheck
+is pending. The preceding 70-patch visible town run
 initially reaches 16.57 presentations/s, then falls to about 7 while idle as
-asynchronous SPU workers accumulate. Patches 0071–0073 address depth snapshot
-reuse, asynchronous ownership and depth-comparison sampling; their native town
-and idle-soak validation are pending. A sustained gain is not established.
+asynchronous SPU workers accumulate. The 73-patch ten-minute idle test completes
+17,104 task workers with 58–59 host threads and no worker accumulation. It
+averages 14.25 presentations/s with the sampling profiler off, five-second
+readbacks and a short capture burst; this is not a matched performance comparison.
+Its new shadow path still has a bright pool and black foot flicker; patch 0074's
+comparison-direction correction awaits native validation.
 Earlier native records retain their original scope.
 
 The port sets frame-pacing defaults at startup, each overridable by setting it
@@ -102,14 +106,14 @@ It also covers persistent DMA label polling, reuse of freed memory ranges and
 finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts and host-thread recursion diagnostics. The current
-build contains 73 numbered SDK patches. The newest published town
+source stack contains 74 numbered SDK patches, all covered by the current suites. The newest published town
 captures use 58; the NPC-surface checkpoint used 52 and the first town-controls
 capture used 42; the earlier town world-view capture used 39. Patch 0043 passed
 the earlier 43-check Windows suite and remains covered by the current suite;
 its town-rendering comparison is recorded separately.
 Patch 0045's three float-mode checks and patches 0046-0051's new and extended
 checks pass in the native Windows clang-cl build. All 63 checks pass with
-73 patches in normal Debug and optimized Release; Wine's MinGW TLS workaround is not needed here.
+74 patches in normal Debug and optimized Release; Wine's MinGW TLS workaround is not needed here.
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
@@ -295,7 +299,7 @@ Patch 0069 moves disabled PPU memory-watch formatting and stack setup behind a
 cached launch-option guard. Live store hooks and self-arming barrier watches
 remain checked. Patch 0070 changes the title label to `Present/s` without dividing
 or otherwise changing its counter. The 70-patch stack passed all 61 normal
-Windows regressions; the 73-patch stack passes all 63 in Debug and Release. Its starting-town run initially improves, then progressively
+Windows regressions; the 74-patch stack passes all 63 in Debug and Release. Its starting-town run initially improves, then progressively
 slows while idle; see the [timings and worker census](FINDINGS.md#frame-pacing-and-game-speed).
 
 ## Depth snapshot generations (patch 0071)
@@ -304,8 +308,8 @@ Every sampled depth snapshot must match its source target's latest write or
 clear generation, including when a later pass has bound a different target.
 Patch 0071 moves that validation into the shared snapshot helper, preventing
 stale shadow-depth reuse across target switches. Four synthetic regression
-assertions fail without the change and pass with it. Native visual validation is
-pending; the preceding 70-patch town run still has flickering foot shadows.
+assertions fail without the change and pass with it. The 73-patch native town run
+includes this change but still shows foot-shadow faults.
 
 ## Asynchronous SPU worker ownership (patch 0072)
 
@@ -320,7 +324,9 @@ arbitrary unowned diagnostic dispatch.
 completed-slot reuse, duplicate/stale cleanup and more than eight tasksets. The
 extended SPURS production-dispatch regression checks claim-before-create and
 ownership through delayed cleanup; the reversed claim order and stale-cleanup
-negative controls fail. Native town stability still requires the idle soak.
+negative controls fail. The 73-patch ten-minute native idle test completes
+17,104 task workers while keeping host thread count at 58–59 and observing no
+worker accumulation. Wider gameplay and cancellation remain unverified.
 
 ## Vulkan depth comparison (patch 0073)
 
@@ -335,11 +341,24 @@ comparison capability retain the earlier shader path.
 production decompiler and SPIR-V compiler. It checks comparison instructions,
 descriptor bindings, mixed sampling, unnormalized coordinates and legacy API
 compatibility. The draw-engine regression covers mixed sampled units too.
-Private headless production GPU checks pass 37/37 on each of the RTX 3090 and
-Intel UHD 770. The D32 snapshot-to-byte path also matches the CPU for all
+The initial headless GPU comparison checks passed with an incorrect ordered
+comparison oracle; the 73-patch native run exposes a bright foot-shadow fault.
+Patch 0074 corrects that oracle and the sampler direction. The D32 snapshot-to-byte path also matches the CPU for all
 16,777,216 normalized D24 values on both devices and both `TEX_RGBA` settings.
-These checks establish the tested synthetic semantics; native foot-shadow
-flicker and sustained town performance remain unverified.
+The depth-byte checks remain valid; comparison results are superseded below.
+Native foot-shadow correctness and a steady 30 fps remain unverified.
+
+## Texture-comparison direction (patch 0074)
+
+RSX texture ZFUNC compares stored texel depth against the reference. Host
+comparison samplers reverse those operands, so ordered operators must reverse
+when selecting the sampler function. A dedicated helper implements all eight
+mappings without changing framebuffer depth or stencil tests.
+
+The corrected production GPU oracle passes 37/37 checks on each of the RTX 3090
+and Intel UHD 770. The 73-patch sampler fails 14 checks on each device. The public
+shadow regression covers all eight mappings. Both full Windows suites pass all
+63 checks with 74 patches; the native town shadow comparison is pending.
 
 ## Windows renderer
 

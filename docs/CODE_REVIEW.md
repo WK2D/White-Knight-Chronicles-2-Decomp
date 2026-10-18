@@ -1,11 +1,12 @@
 # Code review suggestions
 
-Updated 2026-10-18. The Windows Vulkan stack has 73 SDK patches and 63 passing
+Updated 2026-10-18. The Windows Vulkan stack has 74 SDK patches and 63 passing
 runtime checks in normal Debug and optimized Release. The preceding 70-patch
 visible town run exposes progressive slowdown from accumulating asynchronous
-SPU workers; foot shadows still flicker.
-Patches 0071–0073 address snapshot reuse, worker ownership and depth comparison;
-their native town recheck is pending. See the
+SPU workers. The 73-patch ten-minute town test observes no worker accumulation
+with 58–59 host threads, but exposes a bright foot-shadow regression and black
+flicker. Patch 0074 corrects texture-comparison operand direction and its GPU
+oracle and passes both full Windows suites; the native shadow recheck is pending. See the
 [current findings](FINDINGS.md#frame-pacing-and-game-speed).
 Earlier tracing located the long town strips in
 omitted secondary-bone physics jobs. Patch 0058 restores their queue execution

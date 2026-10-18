@@ -2,30 +2,34 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Latest verified town milestone:** the 64-patch native Windows Vulkan build runs the
-missing secondary-bone physics job. The long stretched hair/clothing strips
-are gone in the inspected WKC1 town views, including after short movement and
-camera rotation. All 63 current runtime checks pass. Full material/rendering
-fidelity, sustained traversal, combat and save/load remain unverified.
-See [the physics trace and native recheck](#secondary-bone-physics-and-town-stretching)
-and [gallery](GALLERY.md).
+**Latest verified town milestone:** the 73-patch native Windows Vulkan build
+completes a ten-minute idle test with 58–59 host threads, 1–2 active asynchronous
+SPU workers and no worker accumulation. It averages 14.25 presentations/s under
+the recorded diagnostic conditions. The long secondary-bone strips remain
+removed in inspected views, but bright and flickering foot shadows remain.
+All 63 runtime checks pass at that patch level. Full material/rendering fidelity,
+sustained traversal, combat and save/load remain unverified.
+See [frame pacing and worker stability](#frame-pacing-and-game-speed),
+[the physics trace](#secondary-bone-physics-and-town-stretching) and [gallery](GALLERY.md).
 
 Hidden-window starting-town diagnostic benchmarks measure 12.5–13.1 fps,
 compared with 8.1–8.3 fps before the performance passes. These runs do not
 measure visible gameplay or character-rotation smoothness. A steady 30 fps is the immediate target,
 followed by validated 60 fps support. See [the comparison](#town-performance-after-the-physics-fix).
 
-The 73-patch Windows Vulkan build passes all 63 regression checks in normal
-Debug and optimized Release configurations. It reaches the native town; the
-idle stability test is ongoing. The new depth-comparison path currently shows
-a bright pool beneath Leonard and remaining black foot flicker. This is a known
-visual regression despite passing the synthetic GPU checks, and needs further
-investigation before any shadow-fix claim.
+The current 74-patch Windows Vulkan build passes all 63 regression checks in
+normal Debug and optimized Release configurations. The preceding 73-patch town
+idle test completes
+17,104 task workers with no thread accumulation over ten minutes. Its new
+depth-comparison path shows a bright pool beneath Leonard and black foot
+flicker. The initial GPU oracle assumed the wrong comparison direction;
+patch 0074 corrects that direction and its oracle. The full 74-patch builds pass;
+the user confirms normal shadow polarity in the native town. Black foot flicker remains unresolved.
 The preceding 70-patch visible town comparison initially measures 16.57
 presentations/s against 12.28 for the 66-patch baseline, then declines to 12.65 in the next minute and
 later about 7 while idle. A census finds 2,636 asynchronous SPU workers still
-alive. Patches 0071–0073 address snapshot reuse, worker ownership and depth
-comparison; their native effects remain unverified. Foot shadows still flickered
+alive. The later 73-patch idle test does not reproduce that worker accumulation;
+its different profiler settings prevent a matched performance claim. Foot shadows still flickered
 in the 70-patch run. Selected cutscenes were reported in sync, but sustained
 performance and full audio sync
 remain unverified. Earlier hidden-window records retain their limits.
@@ -60,7 +64,7 @@ do not establish interpreter-free execution.
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | 73-patch Clang build and 63 runtime regression checks in Debug and Release | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | 74-patch Clang build and 63 runtime regression checks in Debug and Release | Compilation alone does not verify gameplay |
 | Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | This colour-fix capture covers character creation; later town validation is recorded below; full visual fidelity remains unverified |
 | WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
 | WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | The long strips are removed with patch 0058 ([secondary-bone physics](#secondary-bone-physics-and-town-stretching)); NPC surfaces improve with patch 0052 ([NV0039 transfers](#nv0039-memory-transfers)); full material fidelity unverified; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
@@ -1411,10 +1415,12 @@ also keeps disabled PPU memory-watch diagnostics off the hot path.
 The 70-patch normal Windows Vulkan build passed all 61 tests in 25.52 seconds.
 Its new regressions check production compute/graphics descriptor bindings and
 real flip completion, including the guest's two-vblank acquire. The current
-73-patch stack passes all 63 tests: **22.79 seconds in normal Debug** and
-**20.46 seconds in optimized Release**. The two additional tests cover worker
-lifetime and depth-comparison shader translation. Reapplying all 73 patches
-changes no SDK files.
+73-patch stack passed all 63 tests: 22.79 seconds in normal Debug and
+20.46 seconds in optimized Release. The current 74-patch stack passes all 63 in
+**22.40 seconds (normal Debug)** and **20.34 seconds (optimized Release)**.
+The two additional tests cover worker lifetime and depth-comparison shader
+translation; patch 0074 extends the latter with all comparison-direction mappings.
+Reapplying the earlier 73-patch stack changed no SDK files.
 
 A separate **visible-window 66-patch baseline** reaches the starting town after
 the party and Travelogue dialogs are dismissed. It records 737 guest-boundary
@@ -1436,8 +1442,9 @@ A read-only thread census near the end finds 2,702 live host threads, of which
 observed runtime fault, separate from a static low frame rate. Patch 0072 adds
 explicit ownership before host-thread creation and retains it through runner
 and stack cleanup. A post-fix native soak is required before calling the
-progressive slowdown fixed. Raw thread records
-and host addresses remain private.
+progressive slowdown fixed across wider gameplay. In the later ten-minute
+73-patch town test, worker accumulation is absent. Raw thread records and host
+addresses remain private.
 
 The user reports that the selected cutscenes are now in sync, while the shadow
 at Leonard's feet still flickers. This is useful route-specific evidence, not
@@ -1448,8 +1455,9 @@ real-time mixer or scene timing fidelity.
 Patch 0071 also fixes stale depth snapshots after their source is rewritten and
 another depth target is bound. Snapshot reuse now requires the source generation
 to match for every sampled depth target. Four synthetic regression assertions
-fail without the change and pass with it. Its effect on the flickering foot shadow has not been
-verified in a native run.
+fail without the change and pass with it. The later 73-patch native run includes this change but
+still shows foot-shadow faults; this snapshot change alone is not a verified
+shadow fix.
 
 Patch 0072 keys asynchronous task workers by their guest taskset and slot, and
 workload workers by their SPURS owner and workload ID. Claims occur before
@@ -1473,14 +1481,44 @@ their existing path.
 
 The public `wkc2_shadow_compare` test checks actual SPIR-V from synthetic
 TEX/TXP/TXB/TXL instructions, mixed sampler bindings, coordinate scaling and
-legacy compatibility. Private production Vulkan fixtures pass **37/37 checks on
-each of the RTX 3090 and Intel UHD 770**, including comparison functions, PCF,
-projective sampling and mixed ordinary/depth sampling. The old renderer fails
-all 28 original comparison checks while its four raw-depth controls pass.
-An engine-only negative control also fails three assertions when the old sampler
-parser is restored. These synthetic tests validate the tested behavior; they do
-not establish that Leonard's flickering foot shadow is fixed. The 73-patch
-native town and idle-soak validation remain pending.
+legacy compatibility. The initial private production Vulkan fixtures pass
+37/37 checks on each of the RTX 3090 and Intel UHD 770, but assume the wrong
+operand direction for ordered comparisons. The native 73-patch town run exposes
+the resulting bright foot-shadow regression. Those initial comparison results
+are superseded by the corrected patch-0074 oracle below. An engine-only negative
+control independently fails three assertions when the old sampled-unit parser
+is restored.
+
+The **73-patch ten-minute idle test** presents 8,552 frames in 600.000104 seconds:
+**14.253331 presentations/s**. Host thread count stays at 58–59; asynchronous
+workers start and end the interval with one active, with sampled active counts
+of 1–2 and a process-lifetime peak of 3. It completes 17,104 task runs during
+the interval. Private committed bytes are 1,462,337,536 at the start and
+1,460,867,072 at the end. No worker accumulation is observed in that tested
+window. This does not establish cancellation, later-game lifetime correctness
+or a steady 30 fps.
+
+This visible run has the sampling profiler disabled, unlike the 66/70-patch
+timing samples. Five-second GPU readbacks remain enabled, and a 24-frame capture
+burst occurs within the interval. Its average includes that capture work; it is
+not a pure performance benchmark or a matched code-only speedup comparison.
+
+Patch 0074 corrects **texture-comparison operand order**. RSX compares the stored
+texel depth against the reference, while a host comparison sampler compares the
+reference against the stored texel. The ordered functions must be reversed when
+creating that sampler; equality functions retain their direction. The change
+uses a texture-specific helper, leaving framebuffer depth/stencil tests unchanged.
+This distinction was checked against the actually used
+[RPCS3 Vulkan texture-sampler call](https://github.com/RPCS3/rpcs3/blob/e38d27157e3e683da4341bf530bdbbd41eb9239c/rpcs3/Emu/RSX/VK/VKDraw.cpp#L409),
+which requests the reversed comparison direction for texture ZFUNC.
+
+The corrected private production GPU oracle passes **37/37 checks on each of
+the RTX 3090 and Intel UHD 770**. The preceding 73-patch sampler fails 14 checks
+on each device under that oracle. The public regression also checks all eight
+comparison mappings. Both full 74-patch Windows suites pass all 63 checks.
+The user confirms normal shadows in the 74-patch native town: the bright/inverted
+shadow is gone. Black flicker at Leonard's feet remains unresolved. This confirms
+the polarity correction in this view, not complete shadow or rendering fidelity.
 
 ## Update 1.01 and DLC integration
 
@@ -1673,9 +1711,10 @@ animation program; eight dispatch/return pairs have been observed after lifting
 it. FIFO consumption continues through a later timeout. A subsequent vertex-shader
 cache fix revealed avatar-customization menus. At this checkpoint, the model
 was still missing. Later SPU arithmetic and renderer fixes restored the avatar.
-The town is reached with 70 patches; the 64-patch checkpoint retains the latest
+The town is reached with 73 patches; the 64-patch checkpoint retains the latest
 timed control recheck, with the long secondary-bone strips removed in inspected
-views. The later 70-patch idle run exposes progressive slowdown. Full rendering
+views. The 70-patch idle run exposes progressive slowdown; the 73-patch
+ten-minute idle test does not reproduce its accumulating SPU workers. Full rendering
 fidelity, broader gameplay, save/load and imports needed on untested paths
 remain unverified.
 
@@ -1690,10 +1729,10 @@ corrections. Full material, lighting and physics fidelity still need wider
 validation. The remaining work includes:
 
 - Sustained traversal, combat, later scenes and verified save/load.
-- Sustained visible performance: the 70-patch town run falls from an initial
-  16.57 presentations/s to about 7 while idle, with asynchronous SPU workers
-  accumulating. A post-fix native soak is required. The immediate 30 fps target
-  and later 60 fps goal remain unverified.
+- Sustained visible performance: the 73-patch ten-minute town test averages
+  14.25 presentations/s without worker accumulation. Different profiler settings
+  and capture work prevent a matched speedup comparison with the earlier run.
+  The immediate 30 fps target and later 60 fps goal remain unverified.
 - Flickering foot shadows and complete in-engine audio/animation synchronization.
 - All character-creation options and an in-game keyboard usable by gamepad.
 - Complete static SPU coverage, including the six observed image-17 fallback

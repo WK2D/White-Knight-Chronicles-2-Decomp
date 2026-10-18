@@ -1,5 +1,8 @@
 # White Knight Chronicles II native-port research
 
+**2026-10-18:** Patch 0074 restores normal shadow polarity in the native town,
+confirmed during testing. The black flicker at Leonard's feet remains unresolved.
+
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
 through **static recompilation**, followed by Apple Silicon portability testing.
 The game's PS3 machine code is translated to C/C++ ahead of time and compiled
@@ -15,14 +18,13 @@ interpreter fallback, so these counts do not establish complete static coverage.
 See
 [execution architecture and modding scope](docs/ARCHITECTURE.md).
 
-**Current milestone (2026-10-17): the native Vulkan build runs the missing
-secondary-bone physics job, removing the long stretched strips in the tested
-WKC1 town views. Short movement and camera rotation are rechecked.**
-Hidden-window starting-town diagnostic benchmarks measure 12.5–13.1 fps,
-compared with 8.1–8.3 fps before the performance passes. These runs do not
-measure visible gameplay or character-rotation smoothness. A steady 30 fps is the next target,
-followed by
-validated 60 fps support; see [measurements and limits](docs/FINDINGS.md#town-performance-after-the-physics-fix).
+**Current milestone (2026-10-18): the native Vulkan town build completes a
+ten-minute idle test with 58â€“59 host threads and no asynchronous SPU worker
+accumulation.** It presents 8,552 frames in 600 seconds, averaging 14.25
+presentations/s. The sampling profiler was off; five-second readbacks and a
+short capture burst remained enabled. This is not a matched speedup comparison
+with earlier profiled runs. A steady 30 fps is the next target, followed by
+validated 60 fps support; see [measurements and limits](docs/FINDINGS.md#frame-pacing-and-game-speed).
 Full material and rendering fidelity remain unverified. Sustained traversal,
 combat and save/load remain unverified, so this is not a playable port yet.
 
@@ -31,12 +33,15 @@ combat and save/load remain unverified, so this is not a playable port yet.
 - [Findings log](docs/FINDINGS.md): verified results, open issues and next steps
 - [Progress gallery](docs/GALLERY.md): newest first
 
-The source stack contains **73 SDK patches** and passes **63 Windows regression
-checks** in normal Debug and optimized Release builds. Depth sampling, flip
+The source stack contains **74 SDK patches** and passes **63 Windows regression
+checks** in normal Debug and optimized Release builds. Patch 0074's
+texture-comparison direction fix passes the full suites; its native shadow
+recheck is pending. Depth sampling, flip
 completion and disabled PPU diagnostics have received further fixes. The latest
 patches add explicit asynchronous SPU worker ownership and native depth-comparison
-sampling. The combined build reaches town; its idle stability test is ongoing.
-**Known visual regression:** the new shadow path produces a bright pool under
+sampling. The combined 73-patch build reaches town and passes the idle worker
+stability test.
+**Earlier 73-patch visual regression:** the shadow path produced a bright pool under
 Leonard, and black flickering at his feet remains. Synthetic GPU tests do not
 establish correct game rendering. The window title now says **Present/s**: it counts
 accepted presentations, including repeated animation states. Earlier creator
@@ -45,10 +50,11 @@ The candidate uses the game's two-vblank semaphore pacing and completes flips
 only after real display requests; no host 30 fps cap or counter division is added.
 The visible town comparison initially rose from 12.28 to 16.57 presentations/s,
 then declined to 12.65 in the next minute and later about 7 while idle. A thread
-census found 2,636 asynchronous SPU workers still alive. Patch 0072 addresses
-worker ownership; a native soak is required before claiming the slowdown fixed
-or a sustained performance gain.
-The same run still showed flickering foot shadows. The observed cutscenes were
+census found 2,636 asynchronous SPU workers still alive. With patch 0072's
+ownership fix, the later ten-minute run completes 17,104 task workers while
+keeping only 1â€“2 active and a process-lifetime peak of 3. The prior thread
+accumulation is absent in that tested interval; sustained 30 fps remains unmet.
+The 70-patch run still showed flickering foot shadows. The observed cutscenes were
 reported in sync, but full audio synchronization remains unverified. See
 [frame pacing and measurement limits](docs/FINDINGS.md#frame-pacing-and-game-speed).
 
@@ -78,9 +84,9 @@ physics work and corrected by patch 0058. See the
 Verified progress, with the latest milestone first:
 
 - filters unchanged FIFO producer writes, accelerates SPU byte counts and
-  separates workers' recursion diagnostics (patches 0062–0064);
+  separates workers' recursion diagnostics (patches 0062â€“0064);
 - removes repeated SPU conversion-scale calls and shared MFC engine lookups
-  (patches 0060–0061); their hidden-window town samples measured 11.5–13.1 fps;
+  (patches 0060â€“0061); their hidden-window town samples measured 11.5â€“13.1 fps;
 - improves the hidden-window starting-town diagnostic benchmark by about 15%
   by caching launch-time diagnostic settings (patch 0059); visible gameplay
   performance still needs measurement;
@@ -106,7 +112,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **63 Windows runtime regression checks** with **73 SDK patches** applied.
+- passes **63 Windows runtime regression checks** with **74 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are
@@ -205,9 +211,10 @@ coverage report distinguishes handler presence from verified implementation.
 
 Town performance is the immediate focus: a steady 30 fps first, followed by
 validated 60 fps support. The latest visible run slowed progressively while
-idle, with thousands of asynchronous SPU workers still alive. The worker-lifetime
-and depth-comparison fixes pass their regressions; a native soak and shadow
-comparison remain pending. The completed passes avoid repeated SPU conversion-scale
+idle, with thousands of asynchronous SPU workers still alive. The 73-patch
+ten-minute idle test shows no worker accumulation. Texture-comparison operand
+order is corrected in patch 0074, with its native shadow comparison pending.
+The completed passes avoid repeated SPU conversion-scale
 CRT calls and replace the fixed MFC registry with independent context-owned
 DMA state. They also filter unchanged producer writes, accelerate byte counts
 and keep recursion history per host thread. The window-title counter now shows

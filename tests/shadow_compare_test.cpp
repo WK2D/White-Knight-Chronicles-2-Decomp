@@ -3,6 +3,7 @@
 #include "rsx_fp_decompiler.h"
 #include "rsx_shader_spirv.h"
 #include "rsx_test_programs.h"
+#include "rsx_texture_compare.h"
 #include <cstdio>
 #include <cstring>
 #include <set>
@@ -61,6 +62,12 @@ static bool compile(const char* hlsl, bool explicit_lod, bool mixed)
 
 int main()
 {
+    /* Texture ZFUNC is storedDepth OP reference; host samplers evaluate
+     * reference OP storedDepth. Equality and raw-mode endpoints do not flip. */
+    const u32 expected_functions[8] = {0x200,0x204,0x202,0x206,0x201,0x205,0x203,0x207};
+    for (u32 func = 0; func < 8; ++func)
+        if (!require(rsx_texture_compare_host_func(func) == expected_functions[func],
+                "Texture comparison operand direction is wrong")) return 7;
     static char hlsl[RSX_FP_HLSL_BUFFER_SIZE], legacy[RSX_FP_HLSL_BUFFER_SIZE];
     for (u32 opcode : {0x17u,0x18u,0x2fu,0x31u}) {
         for (bool mixed : {false,true}) {

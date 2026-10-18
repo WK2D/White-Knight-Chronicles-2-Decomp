@@ -446,7 +446,7 @@
   },
   "candidate_0073_town_comparison": {
     "sdk_patch_count": 73,
-    "status": "town_reached_idle_soak_ongoing_shadow_regression_observed",
+    "status": "ten_minute_idle_complete_no_worker_accumulation_shadow_regression_observed",
     "probe": "20261018-051954",
     "native_binary_sha256": "d3f384daa313346c5fb8bb179dee09fcd8e5b2119a55498e181edd1bf4621c4e",
     "conditions": {
@@ -455,7 +455,8 @@
       "sampling_profiler_enabled": false,
       "gpu_readback_interval_seconds": 5,
       "gcm_sema_acquire": 1,
-      "rsx_engine_ztex_gpu": 1
+      "rsx_engine_ztex_gpu": 1,
+      "capture_burst_frames_during_interval": 24
     },
     "normal_debug_checks_passed": 63,
     "normal_debug_checks_elapsed_seconds": 22.79,
@@ -467,6 +468,53 @@
     "comparison_limit": "The 66/70-patch timing samples used the 2 ms sampling profiler; this candidate has it disabled, so a difference cannot be attributed solely to code changes.",
     "native_town_reached": true,
     "bright_foot_shadow_regression_observed": true,
+    "black_foot_flicker_observed": true,
+    "seconds": 600.000104,
+    "presented_frames": 8552,
+    "average_presentations_per_second": 14.253331,
+    "worker_accumulation_absent_in_tested_interval": true,
+    "private_counter_record_sha256": "a5c44ba0386985a129bb6df10bc73031eba0ca98d6bd8e5326d62ddbe8b9847f",
+    "private_stability_record_sha256": "dcd9a0c55647736298d892a28f1390a30deae6749aff499f5b6fd22bfa61b2d7",
+    "stability": {
+      "host_thread_count_range": [
+        58,
+        59
+      ],
+      "async_active_start_end": [
+        1,
+        1
+      ],
+      "async_sampled_active_range": [
+        1,
+        2
+      ],
+      "async_process_lifetime_peak": 3,
+      "completed_task_runs_during_interval": 17104,
+      "private_committed_bytes_start_end": [
+        1462337536,
+        1460867072
+      ]
+    },
+    "performance_claim_limit": "Visible idle town only; sampler off unlike 66/70, five-second readbacks and a 24-frame capture burst inside the interval. No matched code-only speedup or pure performance claim."
+  },
+  "candidate_0074_town_comparison": {
+    "sdk_patch_count": 74,
+    "status": "native_normal_shadow_polarity_user_confirmed_black_foot_flicker_remains",
+    "foot_shadow_flicker_fixed_verified": false,
+    "bright_foot_shadow_regression_fixed_verified": false,
+    "probe": "20261018-054301",
+    "native_binary_sha256": "dcdf254b70c944cce2dd9205250d4165a5750c2629b6dea4e9f0d580b011d648",
+    "conditions": {
+      "window_visible": true,
+      "renderer": "Vulkan",
+      "sampling_profiler_enabled": false,
+      "gpu_readback_interval_seconds": 5
+    },
+    "normal_debug_checks_passed": 63,
+    "normal_debug_checks_elapsed_seconds": 22.4,
+    "optimized_release_checks_passed": 63,
+    "optimized_release_checks_elapsed_seconds": 20.34,
+    "normal_shadow_polarity_user_confirmed": true,
     "black_foot_flicker_observed": true
   }
 }

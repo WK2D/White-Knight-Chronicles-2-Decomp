@@ -10,7 +10,7 @@
     "gallery_image": "screenshots/2026-10-18-native-wkc1-town-shadow-regression.png",
     "remaining_limits": [
       "Bright foot-shadow regression and black flicker",
-      "Sustained town frame rate below target and still under test",
+      "Town averages 14.25 Present/s in the ten-minute diagnostic idle test, below the 30 fps target",
       "Sustained traversal, combat and save/load unverified",
       "SPU interpreter fallback remains enabled"
     ]
@@ -165,13 +165,14 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 73,
-    "last_verified_sdk_patch_count": 73,
+    "current_sdk_patch_count": 74,
+    "last_verified_sdk_patch_count": 74,
     "current_passed_count": 63,
-    "record_scope": "The 73-patch Windows Vulkan build passes all 63 runtime checks in normal Debug (22.79 seconds) and optimized Release (20.46 seconds). Native town and idle-soak verification of patches 0071\u00e2\u20ac\u201c0073 is pending. Earlier named records retain their original patch counts.",
-    "normal_debug_elapsed_seconds": 22.79,
-    "optimized_release_elapsed_seconds": 20.46,
-    "repeat_patch_application_files_changed": 0
+    "record_scope": "The 74-patch Windows Vulkan build passes all 63 runtime checks in normal Debug (22.40 seconds) and optimized Release (20.34 seconds). The preceding 73-patch ten-minute native town idle test shows no worker accumulation but retains bright and flickering foot-shadow faults. Native 74-patch shadow verification is pending. Earlier named records retain their original patch counts.",
+    "normal_debug_elapsed_seconds": 22.4,
+    "optimized_release_elapsed_seconds": 20.34,
+    "repeat_patch_application_files_changed": 0,
+    "repeat_patch_application_verified_sdk_patch_count": 73
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2311,7 +2312,7 @@
     "scope": "Snapshot generation must match source depth target after writes and target switches",
     "synthetic_cases_passed": true,
     "old_runtime_negative_control_failed": true,
-    "native_game_run_verified": false,
+    "native_game_run_verified": true,
     "foot_shadow_flicker_fixed_verified": false,
     "full_windows_suite_verified_sdk_patch_count": 73,
     "old_runtime_failed_assertions": 4
@@ -2336,8 +2337,18 @@
     "repeated_active_submission_checks": 10000,
     "claim_after_create_negative_control_failed": true,
     "stale_cleanup_negative_control_failed": true,
-    "native_town_verification_complete": false,
-    "progressive_idle_slowdown_fixed_verified": false
+    "native_town_verification_complete": true,
+    "progressive_idle_slowdown_fixed_verified": false,
+    "native_idle_test_sdk_patch_count": 73,
+    "native_idle_test_seconds": 600.000104,
+    "worker_accumulation_absent_in_tested_interval": true,
+    "native_host_thread_count_range": [
+      58,
+      59
+    ],
+    "native_async_peak": 3,
+    "native_completed_task_runs_during_interval": 17104,
+    "native_validation_scope": "One ten-minute idle starting-town test; no cancellation or later-game lifetime proof"
   },
   "vulkan_depth_comparison": {
     "date": "2026-10-18",
@@ -2380,9 +2391,10 @@
           ]
         ],
         "other_devices_verified": false
-      }
+      },
+      "comparison_oracle_scope": "Initial 73-patch ordered comparisons assumed the wrong RSX operand direction; those comparison results are superseded by patch 0074. D32 depth-to-byte checks are unaffected."
     },
-    "native_town_verification_complete": false,
+    "native_town_verification_complete": true,
     "foot_shadow_flicker_fixed_verified": false,
     "full_native_depth_fidelity_verified": false,
     "native_town_reached": true,
@@ -2404,5 +2416,39 @@
       "latest_recheck_probe": "20261017-233136",
       "latest_recheck_sdk_patch_count": 64
     }
-  ]
+  ],
+  "texture_comparison_operand_order": {
+    "date": "2026-10-18",
+    "sdk_patch_count": 74,
+    "texture_compare_operand_order": "Stored texel ZFUNC reference; host sampler ordered operations reversed",
+    "all_eight_comparison_mappings_covered": true,
+    "framebuffer_depth_stencil_comparison_unchanged": true,
+    "gpu_devices": [
+      "NVIDIA GeForce RTX 3090",
+      "Intel UHD Graphics 770"
+    ],
+    "corrected_gpu_oracle_checks_passed_per_device": [
+      37,
+      37
+    ],
+    "preceding_73_patch_sampler_failed_checks_per_device": [
+      14,
+      14
+    ],
+    "full_windows_suite_verified": true,
+    "native_game_run_verified": false,
+    "bright_foot_shadow_regression_fixed_verified": false,
+    "foot_shadow_flicker_fixed_verified": false,
+    "reference": "https://github.com/RPCS3/rpcs3/blob/e38d27157e3e683da4341bf530bdbbd41eb9239c/rpcs3/Emu/RSX/VK/VKDraw.cpp#L409",
+    "full_windows_suite_check_count": 63
+  },
+  "vulkan_texture_compare_direction": {
+    "sdk_patch_count": 74,
+    "native_probe": "20261018-054301",
+    "native_town_reached": true,
+    "normal_shadow_polarity_user_confirmed": true,
+    "bright_inverted_shadow_resolved_in_observed_view": true,
+    "black_foot_flicker_observed": true,
+    "full_shadow_fidelity_verified": false
+  }
 }
