@@ -7,7 +7,7 @@ coverage. See [architecture and modding scope](ARCHITECTURE.md).
 **Latest checkpoint (2026-10-18):** Triangle -> System -> Graphics Settings
 is available in the native game, including Off/FXAA, frame-rate limits and an
 experimental DirectX 12 selector. Continue loads the verified Logic Stone save.
-See [menu screenshots](GALLERY.md#2026-10-18---native-graphics-settings)
+See [menu screenshots](GALLERY.md#2026-10-18---one-scrolling-graphics-settings-list)
 and [settings and timing details](#native-graphics-settings-patches-0081-0082).
 
 The current stack contains 82 SDK patches. All 72 Windows checks pass in normal
@@ -431,7 +431,7 @@ separate matching Release-CRT dependencies; the two ABIs must not be mixed.
 A Vulkan-capable driver and its loader are runtime requirements.
 
 The normal Vulkan-enabled Windows build also offers an experimental DirectX 12
-path through Graphics Settings -> More Settings -> Graphics API. Save the
+path through Graphics Settings -> Graphics API. Save the
 selection, exit, and restart. It uses the SDK live-draw engine and does not yet
 share Vulkan's display preferences, FXAA or FPS overlay. The menu remains
 accessible to switch back. This is a comparison path, with visible differences
@@ -1397,11 +1397,23 @@ visual parity with RPCS3 or a speed improvement attributable to patch 0080.
 Open Triangle -> System -> Graphics Settings. The original game widgets and
 controller navigation are reused. X cycles an option; Circle goes back.
 
-| Page | Options |
+All controls share one scrolling list. Eight native rows are visible at a time;
+the heading shows their range out of twelve items, including Back. Up/Down moves
+through the list and scrolls at its edges; the first and last item wrap. X cycles
+the selected option, and Circle returns directly to System. Changing a value
+keeps the viewport and selection. No More Settings or Draw Distance subpage is needed.
+
+| Control | Options |
 |---|---|
-| Graphics Settings | Windowed / Borderless / Fullscreen; 720p / 1080p / 1440p / 2160p output; VSync; anisotropic filtering Off / 2x / 4x / 8x / 16x; Off / FXAA; 30 / 40 / 60 / 120 / 144 / Unlocked |
-| More Settings | Graphics API Vulkan / DirectX 12; Draw Distance submenu; FPS Counter Off / On |
-| Draw Distance | World distance, NPC distance and fog placeholders, explicitly pending and inactive |
+| Graphics API | Vulkan / DirectX 12 (restart required) |
+| Window Mode | Windowed / Borderless / Fullscreen |
+| Output Resolution | 720p / 1080p / 1440p / 2160p |
+| VSync | Off / On |
+| Frame Rate Limit | 30 / 40 / 60 / 120 / 144 / Unlocked |
+| Anisotropic Filtering | Off / 2x / 4x / 8x / 16x |
+| Anti-Aliasing | Off / FXAA |
+| World Distance, NPC Distance, Distance Fog | Pending; inactive placeholders |
+| FPS Counter | Off / On |
 
 Output resolution controls the window/presentation size, not the game's internal
 render-target resolution. Borderless uses the desktop mode. Unsupported fullscreen
@@ -1435,7 +1447,7 @@ with approximately one game-clock second per real second; see
 They do not prove full-game high-FPS compatibility or unique animation per frame.
 
 `wkc2_graphics_menu`, `wkc2_graphics_settings`, `wkc2_graphics_timing` and
-`wkc2_vk_graphics` cover row transitions, persistence, interval restoration,
+`wkc2_vk_graphics` cover scrolling in both directions, wrap, selection/bar alignment, persistence, interval restoration,
 window/sampler configuration and the overlay without a black background.
 `wkc2_depth_shader_binding` also compiles the production FXAA shader and verifies
 its descriptor bindings. The full Windows suite passes 72 checks in Debug and

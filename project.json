@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Native Graphics Settings with Off/FXAA, configurable frame limits and experimental restart-selected DirectX 12; 82 SDK patches and 72 passing Windows checks in Debug and Release. Short saved-scene timing probes exceed 30 completed frames/s without accelerating the sampled game clock. Draw distance, fog and clear menu preview remain pending.",
+    "current_milestone": "Graphics Settings now uses one scrolling list for all controls, with eight visible native rows and twelve logical items including Back. Native scrolling, selection alignment and a setting change after scrolling are verified. All 72 Windows tests pass in Debug and Release; 82 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
     "updated": "2026-10-18"
   },
   "native_data_installation_verified": true,
@@ -236,8 +236,8 @@
       "GCM_SEMA_ACQUIRE": "1",
       "RSX_ENGINE_ZTEX_GPU": "1"
     },
-    "normal_debug_checks_elapsed_seconds": 12.63,
-    "optimized_release_checks_elapsed_seconds": 12.61,
+    "normal_debug_checks_elapsed_seconds": 12.51,
+    "optimized_release_checks_elapsed_seconds": 12.68,
     "repeat_patch_application_files_changed": 0,
     "patch_0071_windows_regression_verified": true,
     "patch_0072_windows_regression_verified": true,
@@ -418,7 +418,7 @@
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Native Graphics Settings with Off/FXAA, configurable frame limits and experimental restart-selected DirectX 12; 82 SDK patches and 72 passing Windows checks in Debug and Release. Short saved-scene timing probes exceed 30 completed frames/s without accelerating the sampled game clock. Draw distance, fog and clear menu preview remain pending.",
+    "scope": "Graphics Settings now uses one scrolling list for all controls, with eight visible native rows and twelve logical items including Back. Native scrolling, selection alignment and a setting change after scrolling are verified. All 72 Windows tests pass in Debug and Release; 82 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -435,6 +435,8 @@
       "FXAA"
     ],
     "counter_scope": "Completed guest presentations; does not establish unique animation states",
-    "output_resolution_scope": "Window/presentation size, not internal game render-target resolution"
+    "output_resolution_scope": "Window/presentation size, not internal game render-target resolution",
+    "layout": "One scrolling list, eight visible native rows, eleven options plus Back; Up/Down scrolls and wraps; Circle returns to System",
+    "scrolling_and_post_scroll_change_verified": true
   }
 }

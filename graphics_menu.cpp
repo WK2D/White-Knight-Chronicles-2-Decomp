@@ -13,33 +13,48 @@ extern void func_0004EB10(ppu_context*);
 extern void func_0065D0B4(ppu_context*);
 extern void func_0004DFB8(ppu_context*);
 extern void func_0004FE84(ppu_context*);
+extern void func_0065F9A0(ppu_context*);
+extern "C" PPU_THREAD_LOCAL void (*g_trampoline_fn)(void*);
 
 namespace {
 constexpr uint32_t marker = 0x574B4700;
-enum class Page { system, graphics, more, distance };
+enum class Page { system, graphics };
 Page page = Page::system;
 uint32_t owner = 0, labels = 0;
 std::array<uint8_t,192> system_rows{};
 uint32_t system_count = 0;
 int restore_cursor = -1;
-constexpr wkc::GraphicsOption primary[] = {
-    wkc::GraphicsOption::window_mode, wkc::GraphicsOption::output_resolution,
-    wkc::GraphicsOption::vsync, wkc::GraphicsOption::anisotropy,
-    wkc::GraphicsOption::anti_aliasing, wkc::GraphicsOption::frame_limit,
-    wkc::GraphicsOption::count
+constexpr wkc::GraphicsOption options[] = {
+    wkc::GraphicsOption::renderer, wkc::GraphicsOption::window_mode,
+    wkc::GraphicsOption::output_resolution, wkc::GraphicsOption::vsync,
+    wkc::GraphicsOption::frame_limit, wkc::GraphicsOption::anisotropy,
+    wkc::GraphicsOption::anti_aliasing, wkc::GraphicsOption::world_distance,
+    wkc::GraphicsOption::npc_distance, wkc::GraphicsOption::distance_fog,
+    wkc::GraphicsOption::fps_counter
 };
-constexpr wkc::GraphicsOption extra[] = {
-    wkc::GraphicsOption::renderer, wkc::GraphicsOption::count, wkc::GraphicsOption::fps_counter
-};
-constexpr wkc::GraphicsOption distances[] = {
-    wkc::GraphicsOption::world_distance, wkc::GraphicsOption::npc_distance,
-    wkc::GraphicsOption::distance_fog
-};
+constexpr unsigned visible_rows=8, option_count=sizeof(options)/sizeof(options[0]);
+constexpr unsigned item_count=option_count+1, max_first=item_count-visible_rows;
+unsigned first=0;
+int last_cursor=-1;
+int highlight_from=-1;
+bool pending(wkc::GraphicsOption option) {
+    return option==wkc::GraphicsOption::world_distance ||
+        option==wkc::GraphicsOption::npc_distance || option==wkc::GraphicsOption::distance_fog;
+}
+bool available(wkc::GraphicsOption option) {
+    return !pending(option) && (!wkc::graphics_active_renderer() ||
+        option==wkc::GraphicsOption::renderer || option==wkc::GraphicsOption::frame_limit);
+}
 uint32_t call(ppu_context* source, void (*function)(ppu_context*),
               uint32_t a=0,uint32_t b=0,uint32_t c=0,uint32_t d=0,uint32_t e=0) {
     ppu_context nested=*source;
     nested.gpr[3]=a; nested.gpr[4]=b; nested.gpr[5]=c; nested.gpr[6]=d; nested.gpr[7]=e;
-    function(&nested); return uint32_t(nested.gpr[3]);
+    // Tail calls belong to this nested context; preserve any outer pending call.
+    const auto outer=g_trampoline_fn;g_trampoline_fn=nullptr;
+    function(&nested);
+    while(g_trampoline_fn) { const auto next=g_trampoline_fn;g_trampoline_fn=nullptr;next(&nested); }
+    g_trampoline_fn=outer;
+    return uint32_t(nested.gpr[3]);
 }
 bool pool(ppu_context* source) {
     if (labels) return true;
@@ -74,10 +89,12 @@ void heading(ppu_context* ctx,uint32_t render) {
     call(ctx,func_0004DFB8,render,resource,0x8e,1,1);
     ppu_context alpha=*ctx;alpha.gpr[3]=render;alpha.gpr[4]=resource;
     alpha.gpr[5]=0x8e;alpha.fpr[1]=1.0;func_0004FE84(&alpha);
-    widget_text(ctx,render,0x90,text(ctx,16,page==Page::distance ? "Draw Distance" : page==Page::more ? "More Graphics Settings" : "Graphics Settings"));
+    const auto title="Graphics Settings ("+std::to_string(first+1)+"-"+
+        std::to_string(first+visible_rows)+"/"+std::to_string(item_count)+")";
+    widget_text(ctx,render,0x90,text(ctx,16,title));
 }
 void rows(uint32_t object) {
-    const unsigned count=page==Page::graphics ? 8 : 4;
+    const unsigned count=visible_rows;
     uint32_t placeholder=0;
     std::memcpy(&placeholder,system_rows.data(),4);
     for(unsigned i=0;i<8;++i) {
@@ -85,7 +102,7 @@ void rows(uint32_t object) {
         std::memset(vm_base+row,0,24);
         // Existing text key is a safe placeholder until the widget hook runs.
         std::memcpy(vm_base+row,&placeholder,4);
-        vm_write32(row+4,marker+i);
+        vm_write32(row+4,marker+first+i);
         // The original input handler accepts only rows with an action.
         // Keep this nonzero; the finish hook handles our marker before dispatch.
         std::memcpy(vm_base+row+12,system_rows.data()+12,4);
@@ -119,35 +136,59 @@ extern "C" void wkc2_graphics_menu_labels(ppu_context* ctx,uint32_t object,uint3
         return;
     }
     const auto settings=wkc::graphics_snapshot();
-    const unsigned count=page==Page::graphics ? 8 : 4;
-    for(unsigned i=0;i<count;++i) {
-        std::string label;
-        if (i==count-1) label="Back";
-        else if (page==Page::graphics && i==6) label="More Settings";
-        else if (page==Page::more && i==1) label="Draw Distance";
-        else {
-            const auto option=page==Page::distance ? distances[i] : page==Page::more ? extra[i] : primary[i];
-            label=std::string(wkc::graphics_option_label(option))+": "+
+    for(unsigned i=0;i<visible_rows;++i) {
+        const unsigned logical=first+i;
+        std::string label="Back";
+        if(logical<option_count) {
+            const auto option=options[logical];
+            label=std::string(wkc::graphics_option_label(option))+": ";
+            label+=pending(option) ? "Pending" :
                 wkc::graphics_choice_label(option,wkc::graphics_value(settings,option));
-            if (page==Page::distance) label+=" (pending)";
-            if (option==wkc::GraphicsOption::renderer && settings.renderer!=wkc::graphics_active_renderer()) label+=" *";
+            if(option==wkc::GraphicsOption::renderer && settings.renderer!=wkc::graphics_active_renderer()) label+=" *";
         }
         widget_text(ctx,render,base+i,text(ctx,i+1,label));
     }
     heading(ctx,render);
-    const char* help="X: Change setting. Circle: Back.";
-    if (page==Page::distance || (page==Page::more && cursor==1)) help="Draw distance and fog controls are not active yet. Circle: Back.";
-    else if (page==Page::graphics && cursor==5) help="X: Change game frame-rate limit. Higher rates need more performance.";
-    else if (page==Page::graphics && cursor==4) help="X: Off / FXAA. FXAA smooths the completed picture, including menus.";
-    else if (page==Page::more && cursor==0) help="Restart required. DirectX 12 is experimental and may render incorrectly.";
-    else if (page==Page::more && cursor==2) help="X: Show or hide the completed-frame FPS counter. Circle: Back.";
-    else if (cursor==count-1) help="X: Return to the previous page.";
-    if(wkc::graphics_active_renderer() && page==Page::graphics && cursor!=5 && cursor!=6 && cursor!=7)
-        help="This display option currently applies to Vulkan. Switch API and restart.";
-    if(wkc::graphics_active_renderer() && page==Page::more && cursor==2)
-        help="The in-game FPS overlay currently applies to Vulkan.";
+    if(highlight_from>=0 && cursor<visible_rows) {
+        call(ctx,func_0065F9A0,object,render,unsigned(highlight_from),0,0);
+        call(ctx,func_0065F9A0,object,render,cursor,1,0);
+        highlight_from=-1;
+    }
+    const unsigned logical=first+cursor;
+    const char* help="Up/Down: Scroll. X: Change setting. Circle: Back.";
+    if(logical==option_count) help="X: Return to System. Circle: Back.";
+    else if(logical<option_count) {
+        const auto option=options[logical];
+        if(pending(option)) help="Draw distance and fog controls are not active yet. Circle: Back.";
+        else if(option==wkc::GraphicsOption::renderer) help="Restart required. DirectX 12 is experimental and may render incorrectly.";
+        else if(!available(option)) help="This option currently applies to Vulkan. Switch API and restart.";
+        else if(option==wkc::GraphicsOption::frame_limit) help="X: Change game frame-rate limit. Higher rates need more performance.";
+        else if(option==wkc::GraphicsOption::anti_aliasing) help="X: Off / FXAA. FXAA smooths the completed picture, including menus.";
+        else if(option==wkc::GraphicsOption::fps_counter) help="X: Show or hide the completed-frame FPS counter. Circle: Back.";
+    }
     footer(ctx,render,help);
+    last_cursor=int(cursor);
 }
+// Run after the game's row update and before it positions the selection hand.
+// Native input still provides repeat timing, sounds and physical row movement.
+extern "C" void wkc2_graphics_menu_scroll(ppu_context*,uint32_t object) {
+    if(page!=Page::graphics || object!=owner || vm_read32(object+0x1cc)!=3 || restore_cursor>=0) return;
+    unsigned cursor=vm_read16(object+0x102);
+    const unsigned native_cursor=cursor;
+    if(cursor>=visible_rows) return;
+    if(last_cursor==int(visible_rows-1) && cursor==0) {
+        if(first<max_first) { ++first;cursor=visible_rows-1; }
+        else first=0; // Back -> first item.
+    } else if(last_cursor==0 && cursor==visible_rows-1) {
+        if(first>0) { --first;cursor=0; }
+        else first=max_first; // First item -> Back.
+    }
+    if(cursor!=native_cursor) highlight_from=int(native_cursor);
+    vm_write16(object+0x102,uint16_t(cursor));
+    rows(object);
+    last_cursor=int(cursor);
+}
+
 extern "C" int wkc2_graphics_menu_finish(ppu_context* ctx) {
     const uint32_t object=uint32_t(ctx->gpr[3]);
     if(object!=owner || vm_read32(object+0x1cc)!=3) return 0;
@@ -159,19 +200,17 @@ extern "C" int wkc2_graphics_menu_finish(ppu_context* ctx) {
     const bool native=selected>=0 && unsigned(selected)<count &&
         (vm_read32(object+0x208+selected*24+4)&0xffffff00u)==marker;
     if(page==Page::system && !native) return 0;
-    const auto previous=page;
-    if(page==Page::system) page=Page::graphics;
-    else if(selected<0 || unsigned(selected)==count-1) {
-        page=page==Page::distance ? Page::more : page==Page::more ? Page::graphics : Page::system;
-    } else if(page==Page::graphics && selected==6) page=Page::more;
-    else if(page==Page::more && selected==1) page=Page::distance;
-    else if(page!=Page::distance) {
-        const auto option=page==Page::more ? extra[selected] : primary[selected];
-        const bool available=!wkc::graphics_active_renderer() || option==wkc::GraphicsOption::renderer || option==wkc::GraphicsOption::frame_limit;
-        if(available && !wkc::graphics_change(option,1)) std::fprintf(stderr,"[graphics-menu] preference write failed\n");
+    if(page==Page::system) {
+        page=Page::graphics;first=0;last_cursor=-1;restore_cursor=0;
+    } else if(selected<0 || first+unsigned(selected)==option_count) {
+        page=Page::system;restore_cursor=int(system_count);last_cursor=-1;
+    } else {
+        const auto option=options[first+unsigned(selected)];
+        if(available(option) && !wkc::graphics_change(option,1))
+            std::fprintf(stderr,"[graphics-menu] preference write failed\n");
+        restore_cursor=selected;
     }
-    restore_cursor=page==previous ? selected : page==Page::system ? int(system_count) :
-        previous==Page::distance ? 1 : previous==Page::more ? 6 : 0;
+    if(page==Page::graphics) highlight_from=0;
     call(ctx,func_0004DFB8,uint32_t(ctx->gpr[5]),vm_read32(uint32_t(ctx->gpr[5])+0x194),0x8e,1,0);
     // Close the old widgets, then return the original create state. This
     // lets the game rebuild rows and enter with the correct previous state.

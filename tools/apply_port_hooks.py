@@ -48,6 +48,14 @@ else:
 # The eight-slot native System submenu reuses the original widgets and input.
 # Generated code and proprietary menu resources remain private.
 menu_hooks = {
+    '0065F120': '''extern "C" void wkc2_graphics_menu_scroll(ppu_context*, uint32_t);
+static void func_0065F120_original(ppu_context*);
+void func_0065F120(ppu_context* ctx) {
+    const uint32_t object=(uint32_t)ctx->gpr[3];
+    func_0065F120_original(ctx);
+    wkc2_graphics_menu_scroll(ctx,object);
+}
+static void func_0065F120_original(ppu_context* ctx) {''',
     '0065D798': '''extern "C" void wkc2_graphics_menu_rows(ppu_context*, uint32_t);
 static void func_0065D798_original(ppu_context*);
 void func_0065D798(ppu_context* ctx) {

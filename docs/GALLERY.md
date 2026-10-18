@@ -20,6 +20,24 @@ Newest milestones appear first. Future captures will be added at the top of the 
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
 
+## 2026-10-18 - One scrolling Graphics Settings list
+
+All graphics controls now share one scrolling list. The original eight visible
+rows show a moving window over twelve items, including Back. Up/Down scrolls
+at the edges and wraps between first and last; Circle returns directly to System.
+The heading shows the visible range. There is no More Settings page.
+
+These final Vulkan swapchain readbacks show the top and bottom of the list.
+Native checks cover scrolling, selection alignment and changing the FPS overlay
+after scrolling. All 72 tests pass in Debug and Release. The 82 SDK patches,
+rendering options and timing implementation are unchanged. The display is still
+blurred behind the menu; world/NPC distance and fog remain inactive and labelled
+Pending. Neither these screenshots nor their counters prove game performance.
+
+![Top of the single Graphics Settings list](../verification/screenshots/2026-10-18-native-graphics-scroll-top.png)
+
+![Bottom of the same scrolling list, including the FPS counter and Back](../verification/screenshots/2026-10-18-native-graphics-scroll-bottom.png)
+
 ## 2026-10-18 - Native Graphics Settings
 
 The native System menu now has a Graphics Settings entry. These 82-patch captures

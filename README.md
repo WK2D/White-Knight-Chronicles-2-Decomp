@@ -2,8 +2,9 @@
 
 **2026-10-18:** Triangle -> System now has its own **Graphics Settings** page:
 window mode, named output resolution, VSync, anisotropic filtering, Off/FXAA,
-and 30/40/60/120/144/Unlocked frame limits. More Settings contains the FPS overlay
-and an experimental Vulkan / DirectX 12 selector (restart required).
+and 30/40/60/120/144/Unlocked frame limits. All controls now share one scrolling
+list, including the FPS overlay and experimental Vulkan / DirectX 12 selector
+(restart required); there is no More Settings page.
 The previous 30 FPS timing gate is now adjustable: short saved-scene probes
 reach roughly 37-38 completed frames/s with game time tracking real time.
 This is not a locked 60 FPS or full-game compatibility claim. Vulkan remains
@@ -65,9 +66,9 @@ See [batch scheduling and its measurement limits](docs/FINDINGS.md#vulkan-batch-
 
 ## Progress
 
-[![Native in-game Graphics Settings menu](verification/screenshots/2026-10-18-native-graphics-settings.png)](docs/GALLERY.md)
+[![Native in-game Graphics Settings menu](verification/screenshots/2026-10-18-native-graphics-scroll-top.png)](docs/GALLERY.md)
 
-The latest captures show the native Graphics Settings pages after Continue loaded
+The latest captures show the native Graphics Settings list after Continue loaded
 the verified save. They show the menu, not animation smoothness or performance.
 See the [newest-first gallery](docs/GALLERY.md) for the System entry, API selector
 and explicitly pending draw-distance controls.

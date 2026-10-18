@@ -13,16 +13,37 @@ inconsistency and broader game-speed fidelity remain open. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
+## One scrolling Graphics Settings list
+
+The extra More Settings and Draw Distance pages have been removed. The native
+menu still owns eight physical row slots; the port maps those onto twelve logical
+items (eleven options plus Back). Up/Down scrolls by one item at the edges and
+wraps from first to last. X resolves the logical item after scrolling, and Circle
+returns directly to System. The heading shows the visible range. Value changes
+preserve the viewport and cursor; reopening starts at the first setting.
+
+The original input update moved the gold selection bar before the viewport was
+remapped, so an initial native check showed it on the wrong row at a boundary.
+The port now invokes the native selection update for the corrected physical row.
+Nested game calls drain their own tail calls on their own register context,
+while preserving any outer pending tail call. A synthetic tail-call fixture
+checks that isolation. Native checks
+cover down-scrolling, first/last wrap, and toggling the FPS counter after scrolling.
+The expanded `wkc2_graphics_menu` regression covers both edges, both wrap
+orientations, the bar position, X mapping, inactive controls and reopening.
+Settings, rendering and pacing behavior are otherwise unchanged.
+
 ## Native graphics settings and frame-rate control
 
 The native game now has a separate Triangle -> System -> Graphics Settings page,
 using the game's own widgets, input and text. It contains window mode, named
 output resolution, VSync, anisotropic filtering, anti-aliasing and frame limit.
-More Settings contains the renderer selector, FPS overlay and draw-distance
-submenu. World/NPC distance and fog are visibly pending and do not change the game.
+All controls, including the renderer selector and FPS overlay, now share one
+scrolling list. Eight native rows are visible; the title shows their range.
+World/NPC distance and fog are visibly pending and do not change the game.
 The background blur has not been removed. Output size does not alter internal
 render-target resolution. See [controls and limitations](BUILD.md#native-graphics-settings-patches-0081-0082)
-and [actual menu captures](GALLERY.md#2026-10-18---native-graphics-settings).
+and [actual menu captures](GALLERY.md#2026-10-18---one-scrolling-graphics-settings-list).
 
 Patch 0081 adds Vulkan preferences and a transparent text FPS overlay. Patch
 0082 adds a project-written FXAA compute pass over the completed image, before
