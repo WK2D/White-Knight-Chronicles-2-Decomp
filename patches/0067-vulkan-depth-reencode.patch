@@ -1,0 +1,187 @@
+Fix Vulkan compute bindings and depth-byte re-encoding.
+
+Compute helpers use explicit Vulkan bindings. The graphics register shifts
+moved the depth shader's source image from binding 0 to binding 16 while its
+descriptor layout still bound 0. Leave compute bindings unchanged.
+
+Mask the high depth byte just as the CPU guest-memory conversion's u8 cast
+does. At depth 1.0 the rounded float can become 0x1000000; an unmasked UNORM
+store clamped its high byte to 255 where the CPU path stored zero.
+
+Order each reuse of the shared depth-snapshot transfer buffer after the
+previous snapshot's read. Multiple snapshots can share a command batch.
+
+The GPU re-encoding path remains opt-in pending native visual comparison.
+
+diff --git a/libs/video/rsx_shader_spirv.cpp b/libs/video/rsx_shader_spirv.cpp
+--- a/libs/video/rsx_shader_spirv.cpp
++++ b/libs/video/rsx_shader_spirv.cpp
+@@ -85,8 +85,13 @@
+     shader.setEntryPoint("main");
+     shader.setAutoMapBindings(true);
+     shader.setAutoMapLocations(true);
+-    shader.setShiftBinding(glslang::EResTexture, RSX_SPIRV_TEXTURE_BINDING);
+-    shader.setShiftBinding(glslang::EResSampler, RSX_SPIRV_SAMPLER_BINDING);
++    /* Compute helpers declare their Vulkan bindings explicitly. Applying the
++     * graphics register shifts moved the depth conversion's sampled image
++     * from binding 0 to 16 while its descriptor layout still named 0. */
++    if (lang != EShLangCompute) {
++        shader.setShiftBinding(glslang::EResTexture, RSX_SPIRV_TEXTURE_BINDING);
++        shader.setShiftBinding(glslang::EResSampler, RSX_SPIRV_SAMPLER_BINDING);
++    }
+     if (lang == EShLangVertex) shader.setInvertY(true);
+ 
+     if (!shader.parse(GetDefaultResources(), 100, false, msgs)) {
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -2940,6 +2940,20 @@
+     if (!rc) {
+         vk_barrier_image(z->im.img, s_vk.depth_aspect, VK_IMAGE_LAYOUT_GENERAL);
+         vk_barrier_image(t->im.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
++        /* The staging buffer is shared by every snapshot in the batch: the
++         * previous snapshot's copy out of it must finish before this one
++         * overwrites it. Without this, two snapshots in one batch (WKC2's
++         * shadow map and its scene depth) raced and corrupted the second. */
++        {
++            VkBufferMemoryBarrier war = {
++                .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
++                .srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
++                .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
++                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                .buffer = st.buf, .offset = 0, .size = VK_WHOLE_SIZE };
++            pvkCmdPipelineBarrier(s_vk.cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
++                                  0, 0, NULL, 1, &war, 0, NULL);
++        }
+         VkBufferImageCopy out = { .imageSubresource = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 0, 1 },
+                                   .imageExtent = { w, h, 1 } };
+         pvkCmdCopyImageToBuffer(s_vk.cmd, z->im.img, VK_IMAGE_LAYOUT_GENERAL, st.buf, 1, &out);
+@@ -2970,7 +2984,7 @@
+     "    float d = zsrc.Load(int3(id.xy, 0));\n"
+     "    d = (d > 0.0) ? min(d, 1.0) : 0.0;\n"
+     "    uint v = (uint)(d * 16777215.0 + 0.5);\n"
+-    "    float a = float(v >> 16), r = float((v >> 8) & 255u), g = float(v & 255u), b = 0.0;\n"
++    "    float a = float((v >> 16) & 255u), r = float((v >> 8) & 255u), g = float(v & 255u), b = 0.0;\n"
+     "    zdst[id.xy] = ZCONV_STORE / 255.0;\n"
+     "}\n";
+ #define VK_ZCONV_MAX 8
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -2127,7 +2127,15 @@
+               const eng_zdepth* zz = &g.zdepths[zsrc];
+               if (on && base_fmt == RSX_TEX_FMT_A8R8G8B8 && (t.remap & 0xFFFFu) == 0xAAE4u &&
+                   zz->zfmt == 2u && g.be->depth_to_argb8 && zz->had_write &&
+-                  zz->w == t.width && zz->h == t.height && !t.cubemap) {
++                  zz->w == t.width && zz->h == t.height && !t.cubemap &&
++                  /* The compute result is one linear 2D image. Other byte
++                   * layouts must retain guest-memory decoding, including
++                   * swizzled images, different row strides and mip chains. */
++                  (t.format & RSX_TEX_FMT_LINEAR) && t.dimension == 2u &&
++                  t.depth <= 1u && t.mipmaps <= 1u &&
++                  (t.pitch ? t.pitch : t.width * 4u) == zz->pitch &&
++                  zz->pitch >= zz->w * 4u &&
++                  zz->used_w >= zz->w && zz->used_h >= zz->h) {
+                   /* The bound depth is read through a copy, so no feedback; the
+                    * copy must postdate the last depth write, though, which the
+                    * clear-only invalidation does not ensure for a bound target. */
+diff --git a/libs/video/tests/test_rsx_draw_engine.c b/libs/video/tests/test_rsx_draw_engine.c
+--- a/libs/video/tests/test_rsx_draw_engine.c
++++ b/libs/video/tests/test_rsx_draw_engine.c
+@@ -1294,6 +1294,74 @@
+     engine_down();
+ }
+ 
++/* Depth-byte conversion may replace only the CPU decoder's equivalent
++ * one-level linear 2D layout. Exercise real texture routing through draws. */
++static int zconv_calls, zconv_fail;
++static u32 stub_depth_to_argb8(void* user, u32 snapshot, u32 w, u32 h,
++                               u32 remap, u32 format)
++{
++    (void)user; (void)snapshot; (void)w; (void)h; (void)remap; (void)format;
++    ++zconv_calls;
++    return zconv_fail ? 0 : stub_handle();
++}
++
++static void test_depth_conversion_layout(u32 format, u32 dimension, u32 levels,
++                                        u32 pitch, u32 depth, int cube,
++                                        u32 remap, u32 width, int fail,
++                                        int eligible, const char* label)
++{
++    engine_up();
++    m(M_SURFACE_CLIP_H, 1280u << 16);
++    m(M_SURFACE_CLIP_V, 720u << 16);
++    rsx_draw_backend backend = g_stub_backend;
++    backend.depth_to_argb8 = stub_depth_to_argb8;
++    rsx_draw_engine_set_backend(&backend);
++    m(M_CONTEXT_DMA_ZETA, DMA_LOCAL);
++    m(M_SURFACE_FORMAT, 8u | (2u << 5));
++    m(M_ZETA_OFFSET, ZETA_OFFSET);
++    m(M_ZETA_PITCH, 1280u * 4u);
++    m(M_COLOR_A_OFFSET, ZETA_OFFSET);
++    m(M_COLOR_MASK, 0u);
++    m(M_DEPTH_TEST, 1u);
++    m(M_DEPTH_WRITE, 1u);
++    draw_triangle();
++    m(M_COLOR_MASK, 0x01010101u);
++    m(M_DEPTH_TEST, 0u);
++    m(M_DEPTH_WRITE, 0u);
++    m(M_COLOR_A_OFFSET, 0x90000u);
++    bind_texture_unit(RSX_LOCATION_LOCAL, ZETA_OFFSET);
++    m(M_TEX_UNIT + 0x04, 1u | (dimension << 4) | (format << 8) |
++                            (levels << 16) | (cube ? 4u : 0u));
++    m(M_TEX_UNIT + 0x10, remap);
++    m(M_TEX_UNIT + 0x18, (width << 16) | 720u);
++    m(0x1840u, (depth << 20) | pitch);
++    zconv_calls = 0;
++    zconv_fail = fail;
++    draw_triangle();
++    CHECK(zconv_calls == eligible, "%s: GPU conversion eligibility (%d)", label, zconv_calls);
++    CHECK(stub.n_depth_readback == (!eligible || fail),
++          "%s: incompatible/failed conversion retains CPU fallback (%d)", label, stub.n_depth_readback);
++    engine_down();
++}
++
++static void test_depth_conversion_layouts(void)
++{
++    test_depth_conversion_layout(0xA5u,2,1,5120,1,0,0xAAE4u,1280,0,1,"matching linear 2D");
++    test_depth_conversion_layout(0xA5u,2,1,0,0,0,0xAAE4u,1280,0,1,"implicit tight pitch");
++    test_depth_conversion_layout(0xE5u,2,1,5120,1,0,0xAAE4u,1280,0,1,"unnormalized coordinates");
++    test_depth_conversion_layout(0xA5u,2,1,5120,1,0,0xAAE4u,1280,1,1,"backend failure");
++    test_depth_conversion_layout(0x85u,2,1,5120,1,0,0xAAE4u,1280,0,0,"swizzled bytes");
++    test_depth_conversion_layout(0xA5u,2,2,5120,1,0,0xAAE4u,1280,0,0,"mip chain");
++    test_depth_conversion_layout(0xA5u,2,1,10240,1,0,0xAAE4u,1280,0,0,"different row pitch");
++    test_depth_conversion_layout(0xA5u,2,1,2560,1,0,0xAAE4u,1280,0,0,"short row pitch");
++    test_depth_conversion_layout(0xA5u,1,1,5120,1,0,0xAAE4u,1280,0,0,"one-dimensional image");
++    test_depth_conversion_layout(0xA5u,3,1,5120,2,0,0xAAE4u,1280,0,0,"three-dimensional image");
++    test_depth_conversion_layout(0xA5u,2,1,5120,2,0,0xAAE4u,1280,0,0,"depth slices");
++    test_depth_conversion_layout(0xA5u,2,1,5120,1,1,0xAAE4u,1280,0,0,"cube image");
++    test_depth_conversion_layout(0xA5u,2,1,5120,1,0,0xA9E4u,1280,0,0,"different remap");
++    test_depth_conversion_layout(0xA5u,2,1,5120,1,0,0xAAE4u,640,0,0,"different dimensions");
++}
++
+ static void test_color_read_as_float(void)
+ {
+     printf("-- colour target read as X32_FLOAT\n");
+@@ -1380,6 +1448,13 @@
+ 
+ int main(void)
+ {
++    /* Launch-selected option: run routing checks with the GPU helper enabled.
++     * Existing tests have no conversion callback and retain their old path. */
++#ifdef _WIN32
++    _putenv_s("RSX_ENGINE_ZTEX_GPU", "1");
++#else
++    setenv("RSX_ENGINE_ZTEX_GPU", "1", 1);
++#endif
+     vm_base = (u8*)calloc(1, GUEST_BYTES);
+     if (!vm_base) { printf("[FAIL] guest memory\n"); return 1; }
+     ppu_vm_size = GUEST_BYTES;
+@@ -1407,6 +1482,7 @@
+     test_inline_array();
+     test_depth_clear_value();
+     test_depth_read_as_color();
++    test_depth_conversion_layouts();
+     test_color_read_as_float();
+     test_depth_only_target();
+     test_host_write_reload();

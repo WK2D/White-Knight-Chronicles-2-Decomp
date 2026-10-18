@@ -822,16 +822,17 @@ int main(int argc, char** argv)
      * inflates every shorter wait the title makes and throttles the whole
      * thing. POSIX timers are already fine-grained. */
     timeBeginPeriod(1);
-    /* WKC2's frame pacing defaults, each overridable by setting it first:
-     *  - GCM_FLIPCB_ONTICK=1: the flip handler runs when the flip is shown (at
-     *    vblank), not also when it is requested. With the early call the game
-     *    believed every frame was on screen at once, rendered flat out, and its
-     *    logic ran about 4x slow (avatar turn 49 deg/s; RPCS3 200; paced, 195).
-     *  - RSX_VK_PRESENT_MODE=mailbox: presenting never blocks on the monitor,
-     *    so the thread that times the vblanks is not stalled by it.
-     * Flips themselves wait for vblank by default (WKC2_FLIP_ON_VBLANK). */
+    /* Preserve the game's frame pacing: its flip callback resets the vblank
+     * counter and its vblank callback releases the FIFO semaphore after two
+     * ticks. Only a consumed flip may arm that callback (SDK patch 0068).
+     * Mailbox avoids FIFO presentation's refresh wait when supported; the
+     * backend falls back to FIFO where necessary. The depth conversion keeps
+     * equivalent one-level linear layouts on the GPU (patch 0067).
+     * Each setting remains overridable by setting it before launch. */
     if (!getenv("GCM_FLIPCB_ONTICK")) _putenv("GCM_FLIPCB_ONTICK=1");
+    if (!getenv("GCM_SEMA_ACQUIRE")) _putenv("GCM_SEMA_ACQUIRE=1");
     if (!getenv("RSX_VK_PRESENT_MODE")) _putenv("RSX_VK_PRESENT_MODE=mailbox");
+    if (!getenv("RSX_ENGINE_ZTEX_GPU")) _putenv("RSX_ENGINE_ZTEX_GPU=1");
     SetUnhandledExceptionFilter(wkc2_crash_filter);
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     SymInitialize(GetCurrentProcess(), NULL, TRUE);

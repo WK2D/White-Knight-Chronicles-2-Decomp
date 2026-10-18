@@ -31,13 +31,26 @@ combat and save/load remain unverified, so this is not a playable port yet.
 - [Findings log](docs/FINDINGS.md): verified results, open issues and next steps
 - [Progress gallery](docs/GALLERY.md): newest first
 
-The source stack now contains **66 SDK patches**. The Windows build and all 59
-regression checks pass. Game speed now matches RPCS3 in the character creator:
-the port paces flips like the RSX (see
-[frame pacing](docs/FINDINGS.md#frame-pacing-and-game-speed)), and patch 0066
-keeps sampled depth on the GPU, taking the creator from about 37 to a steady
-60 fps. The town (about 15-20 fps) and heavy cutscene shots (dips below 30 fps,
-so their animation trails the audio) are still too slow.
+The source stack contains **73 SDK patches** and passes **63 Windows regression
+checks** in normal Debug and optimized Release builds. Depth sampling, flip
+completion and disabled PPU diagnostics have received further fixes. The latest
+patches add explicit asynchronous SPU worker ownership and native depth-comparison
+sampling. The combined build reaches town; its idle stability test is ongoing.
+**Known visual regression:** the new shadow path produces a bright pool under
+Leonard, and black flickering at his feet remains. Synthetic GPU tests do not
+establish correct game rendering. The window title now says **Present/s**: it counts
+accepted presentations, including repeated animation states. Earlier creator
+readings near 60 did not establish 60 distinct animation updates per second.
+The candidate uses the game's two-vblank semaphore pacing and completes flips
+only after real display requests; no host 30 fps cap or counter division is added.
+The visible town comparison initially rose from 12.28 to 16.57 presentations/s,
+then declined to 12.65 in the next minute and later about 7 while idle. A thread
+census found 2,636 asynchronous SPU workers still alive. Patch 0072 addresses
+worker ownership; a native soak is required before claiming the slowdown fixed
+or a sustained performance gain.
+The same run still showed flickering foot shadows. The observed cutscenes were
+reported in sync, but full audio synchronization remains unverified. See
+[frame pacing and measurement limits](docs/FINDINGS.md#frame-pacing-and-game-speed).
 
 ## Progress
 
@@ -91,7 +104,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **59 Windows runtime regression checks** with **66 SDK patches** applied.
+- passes **63 Windows runtime regression checks** with **73 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are
@@ -189,12 +202,16 @@ coverage report distinguishes handler presence from verified implementation.
 ## Current investigation
 
 Town performance is the immediate focus: a steady 30 fps first, followed by
-validated 60 fps support. The completed passes avoid repeated SPU conversion-scale
+validated 60 fps support. The latest visible run slowed progressively while
+idle, with thousands of asynchronous SPU workers still alive. The worker-lifetime
+and depth-comparison fixes pass their regressions; a native soak and shadow
+comparison remain pending. The completed passes avoid repeated SPU conversion-scale
 CRT calls and replace the fixed MFC registry with independent context-owned
 DMA state. They also filter unchanged producer writes, accelerate byte counts
 and keep recursion history per host thread. The window-title counter now shows
 average presentation rate and long intervals in the visible native window.
-Character-rotation stutter remains unresolved. The findings retain the measured frame counts and comparison limits.
+Frame pacing and distinct animation updates need further verification. The findings
+retain the measured frame counts and comparison limits.
 
 The long town strips came from secondary-bone physics jobs that the runtime
 never executed. Patch 0058 implements their queue/port calls and CRT handoff;

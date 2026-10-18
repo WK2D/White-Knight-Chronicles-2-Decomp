@@ -1,0 +1,972 @@
+Add native single-level 2D depth comparison sampling and per-unit mixed sampler bindings.
+Preserve legacy shader APIs and backend behavior when comparison capability is absent.
+
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -1557,6 +1557,7 @@
+     out->wrap_s = (u8)(wrap & 0xFu);
+     out->wrap_t = (u8)((wrap >> 8) & 0xFu);
+     out->wrap_r = (u8)((wrap >> 16) & 0xFu);
++    out->compare_func = 0;
+     out->min_lod = (float)((control0 >> 19) & 0xFFFu) / 256.0f;
+     out->max_lod = out->mip_present ? (float)((control0 >> 7) & 0xFFFu) / 256.0f
+                                     : 0.0f;
+@@ -1592,6 +1593,27 @@
+         mask |= 1u << u;
+         dim[u][0] = t.width;
+         dim[u][1] = t.height;
++    }
++    return mask;
++}
++
++/* Depth texture ZFUNC 1..6 requests a comparison, not a raw depth fetch.
++ * NEVER/ALWAYS are the RSX raw-depth modes; alpha kill disables comparison.
++ * This path is opt-in per backend because a color R32 snapshot cannot be
++ * used as a Vulkan comparison image. */
++static u32 eng_shadow_mask(void)
++{
++    if (!g.be->depth_compare) return 0;
++    u32 mask = 0;
++    for (u32 u = 0; u < RSX_DSP_NUM_TEXTURES; u++) {
++        rsx_dsp_texture t;
++        rsx_dsp_get_texture(&g.rsx, u, &t);
++        const u32 fmt = t.format & RSX_TEX_FMT_BASE_MASK;
++        const u32 cmp = (t.wrap >> 28) & 0xFu;
++        if (t.enabled && t.dimension == 2u && !t.cubemap && t.mipmaps <= 1u &&
++            (fmt == RSX_TEX_FMT_DEPTH24_D8 || fmt == 0x92u) &&
++            !(t.control0 & 4u) && cmp >= 1u && cmp <= 6u)
++            mask |= 1u << u;
+     }
+     return mask;
+ }
+@@ -1732,16 +1754,20 @@
+ "};\n"
+ "float4 main(PSInput input) : SV_TARGET { return input.col0; }\n";
+ 
+-/* The texture units a translated pixel program samples. Every sampling call
+- * the decompiler emits names its unit's sampler, rsx_samp[N], whatever the
+- * texture's own spelling (rsx_tex[N] or, with a cube unit, rsx_texN); the
+- * declaration's rsx_samp[16] is out of range and so not counted. */
++/* Sampling calls name either rsx_samp[N] or rsx_sampN (mixed ordinary
++ * and comparison samplers). Inspect the delimiter too: a per-unit sampler
++ * declaration must not make an otherwise-unused unit appear sampled. */
+ static u32 eng_sampled_units(const char* ps)
+ {
+     u32 mask = 0;
+-    for (const char* q = ps; (q = strstr(q, "rsx_samp[")) != NULL; q += 9) {
+-        const unsigned long u = strtoul(q + 9, NULL, 10);
+-        if (u < RSX_BE_MAX_TEXTURES) mask |= 1u << u;
++    for (const char* q = ps; (q = strstr(q, "rsx_samp")) != NULL; q += 8) {
++        const char* number = q + 8;
++        const int array = *number == '[';
++        if (array) number++;
++        char* end;
++        const unsigned long u = strtoul(number, &end, 10);
++        if (end != number && *end == (array ? ']' : ',') && u < RSX_BE_MAX_TEXTURES)
++            mask |= 1u << u;
+     }
+     return mask;
+ }
+@@ -1766,6 +1792,7 @@
+ 
+     const u32 fp_ctrl  = rsx_dsp_shader_control(&g.rsx);
+     const u32 cube_mask = eng_cube_mask();
++    const u32 shadow_mask = eng_shadow_mask();
+     const u32 vtex_mask = eng_vtex_mask();
+     u32 unnorm_dim[RSX_DSP_NUM_TEXTURES][2];
+     const u32 unnorm_mask = eng_unnorm_units(unnorm_dim);
+@@ -1794,6 +1821,7 @@
+         const u32 fp_ctrl_key = fp_ctrl & 0x40u;
+         key = eng_fnv1a(&fp_ctrl_key, sizeof fp_ctrl_key, key);
+         key = eng_fnv1a(&cube_mask, sizeof cube_mask, key);
++        key = eng_fnv1a(&shadow_mask, sizeof shadow_mask, key);
+         key = eng_fnv1a(&vtex_mask, sizeof vtex_mask, key);
+         key = eng_fnv1a(&unnorm_mask, sizeof unnorm_mask, key);
+         if (unnorm_mask) key = eng_fnv1a(unnorm_dim, sizeof unnorm_dim, key);
+@@ -1824,8 +1852,8 @@
+         vi = rsx_vp_decompile_compact_ex(vp_uc, vp_instrs * 16u, vtex_mask,
+                                          layout->mask, s_vs_hlsl,
+                                          sizeof s_vs_hlsl);
+-        fi = rsx_fp_decompile_buffered_ex(fp_uc, fp_size, fp_ctrl, cube_mask,
+-                                          s_ps_hlsl, sizeof s_ps_hlsl, &nconst);
++        fi = rsx_fp_decompile_buffered_shadow_ex(fp_uc, fp_size, fp_ctrl, cube_mask,
++                                                 shadow_mask, s_ps_hlsl, sizeof s_ps_hlsl, &nconst);
+         if (fi > 0 && nconst != g.fp_constants.count) fi = -1;
+         if (fi > 0 && rsx_fp_apply_unnorm_scale(s_ps_hlsl, sizeof s_ps_hlsl, unnorm_mask,
+                                                 (const u32 (*)[2])unnorm_dim, cube_mask) < 0)
+@@ -2080,6 +2108,7 @@
+                               rsx_be_sampler_desc samplers[RSX_BE_MAX_TEXTURES])
+ {
+     u32 mask = 0;
++    const u32 shadow_mask = eng_shadow_mask();
+     for (u32 u = 0; u < RSX_BE_MAX_TEXTURES; u++) {
+         rsx_dsp_texture t;
+         rsx_dsp_get_texture(&g.rsx, u, &t);
+@@ -2089,6 +2118,8 @@
+         if (!t.enabled || !((tex_used >> u) & 1u)) continue;
+         mask |= 1u << u;
+         eng_decode_sampler(t.filter, t.wrap, t.control0, &samplers[u]);
++        if ((shadow_mask >> u) & 1u)
++            samplers[u].compare_func = (u8)((t.wrap >> 28) & 0xFu);
+ 
+         int sampled = -1, own = 0, surface_at = -1;
+         for (u32 i = 0; i < g.n_surfaces; i++) {
+diff --git a/libs/video/rsx_draw_engine.h b/libs/video/rsx_draw_engine.h
+--- a/libs/video/rsx_draw_engine.h
++++ b/libs/video/rsx_draw_engine.h
+@@ -65,6 +65,7 @@
+ typedef struct rsx_be_sampler_desc {
+     u8  min_linear, mag_linear, mip_linear, mip_present;
+     u8  wrap_s, wrap_t, wrap_r;
++    u8  compare_func; /* 0 = ordinary sample; guest ZFUNC 1..6 = depth comparison */
+     float min_lod, max_lod;
+ } rsx_be_sampler_desc;
+ 
+@@ -236,6 +237,9 @@
+      * engine then goes through guest memory as before. Optional. */
+     u32  (*depth_to_argb8)(void* user, u32 snapshot, u32 w, u32 h,
+                            u32 remap, u32 rsx_fmt);
++    /* Nonzero only when depth snapshots AND uploaded depth textures support
++     * comparison samplers. Older backends retain their existing HLSL path. */
++    u32 depth_compare;
+ } rsx_draw_backend;
+ 
+ /* ---- the engine --------------------------------------------------------- */
+diff --git a/libs/video/rsx_fp_decompiler.c b/libs/video/rsx_fp_decompiler.c
+--- a/libs/video/rsx_fp_decompiler.c
++++ b/libs/video/rsx_fp_decompiler.c
+@@ -437,9 +437,9 @@
+ 
+ static int rsx_fp_decompile_internal(
+     const u8* ucode, u32 max_bytes, u32 ctrl, u32 tex_cube_mask,
+-    int buffered, char* out, u32 out_size, u32* out_constant_count)
+-{
+-    if (!ucode || !out || out_size == 0) return -1;
++    u32 tex_shadow_mask, int buffered, char* out, u32 out_size, u32* out_constant_count)
++{
++    if (!ucode || !out || out_size == 0 || (tex_cube_mask & tex_shadow_mask)) return -1;
+ 
+     u32 buffered_constant_count = 0;
+     if (buffered) {
+@@ -691,43 +691,36 @@
+         case OP_SGT: snprintf(rhs, sizeof(rhs), "(float4)((%s) >  (%s))", a, b); break;
+         case OP_SNE: snprintf(rhs, sizeof(rhs), "(float4)((%s) != (%s))", a, b); break;
+         case OP_SEQ: snprintf(rhs, sizeof(rhs), "(float4)((%s) == (%s))", a, b); break;
+-        case OP_TEX:
+-            if ((tex_cube_mask >> tex_unit) & 1u)
+-                /* Cubemap: sample with the full 3-component direction vector. */
+-                snprintf(rhs, sizeof(rhs),
+-                         "rsx_tex%u.Sample(rsx_samp[%u], (%s).xyz)", tex_unit, tex_unit, a);
+-            else if (tex_cube_mask)
+-                snprintf(rhs, sizeof(rhs),
+-                         "rsx_tex%u.Sample(rsx_samp[%u], (%s).xy)", tex_unit, tex_unit, a);
+-            else
+-                snprintf(rhs, sizeof(rhs),
+-                         "rsx_tex[%u].Sample(rsx_samp[%u], (%s).xy)", tex_unit, tex_unit, a);
+-            break;
+-        case OP_TXP:
+-            if ((tex_cube_mask >> tex_unit) & 1u)
+-                /* Projective divide is meaningless for a cube lookup; sample
+-                 * the direction directly. */
+-                snprintf(rhs, sizeof(rhs),
+-                         "rsx_tex%u.Sample(rsx_samp[%u], (%s).xyz)", tex_unit, tex_unit, a);
+-            else if (tex_cube_mask)
+-                snprintf(rhs, sizeof(rhs),
+-                         "rsx_tex%u.Sample(rsx_samp[%u], (%s).xy / (%s).w)",
+-                         tex_unit, tex_unit, a, a);
+-            else
+-                snprintf(rhs, sizeof(rhs),
+-                         "rsx_tex[%u].Sample(rsx_samp[%u], (%s).xy / (%s).w)",
+-                         tex_unit, tex_unit, a, a);
+-            break;
+-        case OP_TXB: case OP_TXL: {
+-            /* Biased / explicit-LOD sample; bias or LOD is src1.x (RPCS3
+-             * TEXTURE_SAMPLE2D_BIAS / _LOD). GH3's fret buttons and fret lines
+-             * are TXB: unhandled, they sampled nothing and output alpha 0. */
++        case OP_TEX: case OP_TXP: case OP_TXB: case OP_TXL: {
+             const int cube = (tex_cube_mask >> tex_unit) & 1u;
+-            char tn[32];
+-            snprintf(tn, sizeof(tn), tex_cube_mask ? "rsx_tex%u" : "rsx_tex[%u]", tex_unit);
+-            snprintf(rhs, sizeof(rhs), "%s.%s(rsx_samp[%u], (%s).%s, (%s).x)", tn,
+-                     opcode == OP_TXB ? "SampleBias" : "SampleLevel", tex_unit, a,
+-                     cube ? "xyz" : "xy", b);
++            const int shadow = (tex_shadow_mask >> tex_unit) & 1u;
++            char tn[32], sn[32];
++            snprintf(tn, sizeof tn, (tex_cube_mask || tex_shadow_mask) ? "rsx_tex%u" : "rsx_tex[%u]", tex_unit);
++            snprintf(sn, sizeof sn, tex_shadow_mask ? "rsx_samp%u" : "rsx_samp[%u]", tex_unit);
++            if (shadow) {
++                /* The sampler compares each fetched depth BEFORE filtering.
++                 * Comparing an ordinary bilinear depth sample is not PCF.
++                 * The caller enables this path only for single-level maps,
++                 * where TXB/TXL necessarily sample level zero.
++                 * A projected lookup divides the reference along with x/y. */
++                if (opcode == OP_TXP)
++                    snprintf(rhs, sizeof rhs,
++                             "%s.SampleCmp(%s, (%s).xy / (%s).w, (%s).z / (%s).w).xxxx",
++                             tn, sn, a, a, a, a);
++                else
++                    snprintf(rhs, sizeof rhs, "%s.%s(%s, (%s).xy, (%s).z).xxxx",
++                             tn, (opcode == OP_TEX) ? "SampleCmp" : "SampleCmpLevelZero", sn, a, a);
++            } else if (opcode == OP_TXB || opcode == OP_TXL) {
++                snprintf(rhs, sizeof rhs, "%s.%s(%s, (%s).%s, (%s).x)", tn,
++                         opcode == OP_TXB ? "SampleBias" : "SampleLevel", sn, a,
++                         cube ? "xyz" : "xy", b);
++            } else if (cube) {
++                snprintf(rhs, sizeof rhs, "%s.Sample(%s, (%s).xyz)", tn, sn, a);
++            } else if (opcode == OP_TXP) {
++                snprintf(rhs, sizeof rhs, "%s.Sample(%s, (%s).xy / (%s).w)", tn, sn, a, a);
++            } else {
++                snprintf(rhs, sizeof rhs, "%s.Sample(%s, (%s).xy)", tn, sn, a);
++            }
+             break;
+         }
+         case OP_KIL:
+@@ -897,7 +890,7 @@
+     /* Preamble: PSInput matches the backend's placeholder layout; temp/half
+      * register files; texture+sampler banks for TEX. Built here, in front of
+      * the body, now that the return type is known. */
+-    char preamble[2048];
++    char preamble[4096];
+     Out p = { preamble, sizeof(preamble), 0, 1 };
+     preamble[0] = '\0';
+     out_puts(&p,
+@@ -911,7 +904,7 @@
+      * array declaration so 2D-only programs are byte-identical. When any unit
+      * is a cubemap, declare each unit individually at its t-register so the
+      * cube units can be TextureCube while the rest stay Texture2D. */
+-    if (tex_cube_mask == 0) {
++    if (tex_cube_mask == 0 && tex_shadow_mask == 0) {
+         out_puts(&p, "Texture2D    rsx_tex[16] : register(t0);\n");
+     } else {
+         char decl[64];
+@@ -921,9 +914,16 @@
+             out_puts(&p, decl);
+         }
+     }
+-    out_puts(&p,
+-        "SamplerState rsx_samp[16] : register(s0);\n"
+-    );
++    if (!tex_shadow_mask) {
++        out_puts(&p, "SamplerState rsx_samp[16] : register(s0);\n");
++    } else {
++        char decl[96];
++        for (u32 u = 0; u < 16; u++) {
++            snprintf(decl, sizeof decl, "%s rsx_samp%u : register(s%u);\n",
++                     ((tex_shadow_mask >> u) & 1u) ? "SamplerComparisonState" : "SamplerState", u, u);
++            out_puts(&p, decl);
++        }
++    }
+     if (buffered) {
+         char constants_decl[192];
+         snprintf(
+@@ -960,7 +960,7 @@
+                         u32 tex_cube_mask, char* out, u32 out_size)
+ {
+     return rsx_fp_decompile_internal(
+-        ucode, max_bytes, ctrl, tex_cube_mask, 0, out, out_size, NULL);
++        ucode, max_bytes, ctrl, tex_cube_mask, 0, 0, out, out_size, NULL);
+ }
+ 
+ int rsx_fp_decompile_buffered_ex(
+@@ -968,8 +968,17 @@
+     char* out, u32 out_size, u32* out_constant_count)
+ {
+     return rsx_fp_decompile_internal(
+-        ucode, max_bytes, ctrl, tex_cube_mask, 1, out, out_size,
++        ucode, max_bytes, ctrl, tex_cube_mask, 0, 1, out, out_size,
+         out_constant_count);
++}
++
++int rsx_fp_decompile_buffered_shadow_ex(
++    const u8* ucode, u32 max_bytes, u32 ctrl, u32 tex_cube_mask,
++    u32 tex_shadow_mask, char* out, u32 out_size, u32* out_constant_count)
++{
++    return rsx_fp_decompile_internal(
++        ucode, max_bytes, ctrl, tex_cube_mask, tex_shadow_mask, 1,
++        out, out_size, out_constant_count);
+ }
+ 
+ static float fp_half_to_float(u16 h)
+@@ -1259,11 +1268,15 @@
+         if (!w || !h) continue;
+ 
+         /* Both spellings the emitter produces for a 2D unit. */
+-        char needles[2][40];
++        char needles[5][80];
+         snprintf(needles[0], sizeof needles[0], "rsx_tex[%u].Sample(rsx_samp[%u],", u, u);
+         snprintf(needles[1], sizeof needles[1], "rsx_tex%u.Sample(rsx_samp[%u],", u, u);
+-
+-        for (int nidx = 0; nidx < 2; nidx++) {
++        snprintf(needles[2], sizeof needles[2], "rsx_tex%u.Sample(rsx_samp%u,", u, u);
++        snprintf(needles[3], sizeof needles[3], "rsx_tex%u.SampleCmp(rsx_samp%u,", u, u);
++
++        snprintf(needles[4], sizeof needles[4], "rsx_tex%u.SampleCmpLevelZero(rsx_samp%u,", u, u);
++
++        for (int nidx = 0; nidx < 5; nidx++) {
+             const char* needle = needles[nidx];
+             const u32 nlen = (u32)strlen(needle);
+             for (;;) {
+@@ -1281,6 +1294,19 @@
+                 }
+                 if (*p != ')') break;
+ 
++                if (nidx >= 3) {
++                    /* Insert before the reference argument, scaling only xy. */
++                    int nesting = 0;
++                    char* q = at + nlen;
++                    for (; q < p; q++) {
++                        if (*q == '(') nesting++;
++                        else if (*q == ')') nesting--;
++                        else if (*q == ',' && !nesting) break;
++                    }
++                    if (q == p) return -1;
++                    p = q;
++                }
++
+                 char scale[80];
+                 snprintf(scale, sizeof scale, " * float2(%.9g, %.9g)",
+                          1.0 / (double)w, 1.0 / (double)h);
+diff --git a/libs/video/rsx_fp_decompiler.h b/libs/video/rsx_fp_decompiler.h
+--- a/libs/video/rsx_fp_decompiler.h
++++ b/libs/video/rsx_fp_decompiler.h
+@@ -121,6 +121,15 @@
+     const u8* ucode, u32 max_bytes, u32 ctrl, u32 tex_cube_mask,
+     char* out, u32 out_size, u32* out_constant_count);
+ 
++/* Buffered variant with native single-level 2D depth comparison. A shadow unit uses a
++ * comparison sampler (ZFUNC 1..6) and returns the comparison result in every
++ * component; TXP divides both texture coordinates and reference depth by w.
++ * Shadow units must not also be cube units. A zero mask produces exactly
++ * the legacy buffered output. The caller keys shaders on tex_shadow_mask. */
++int rsx_fp_decompile_buffered_shadow_ex(
++    const u8* ucode, u32 max_bytes, u32 ctrl, u32 tex_cube_mask,
++    u32 tex_shadow_mask, char* out, u32 out_size, u32* out_constant_count);
++
+ /* Extract the exact runtime inline-CONST payload. Returns the slot count on
+  * success or -1 for an unterminated/truncated/oversized program. */
+ int rsx_fp_collect_constants(
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -2419,11 +2419,17 @@
+     memset(&s_eb, 0, sizeof s_eb);
+ }
+ 
++static VkImageAspectFlags vk_eng_texture_aspect(VkFormat fmt)
++{
++    return (fmt == VK_FORMAT_D16_UNORM || fmt == VK_FORMAT_D32_SFLOAT)
++        ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
++}
++
+ /* Copy `rows` rows of `w` texels from host memory into a w x h rectangle at
+  * (x, y) of one level / layer of an image that is in GENERAL. */
+ static int vk_eng_upload_region(VkImage img, u32 layer, u32 mip, u32 x, u32 y,
+                                 u32 w, u32 h, size_t tight, u32 rows,
+-                                const void* src, u32 row_bytes)
++                                const void* src, u32 row_bytes, VkImageAspectFlags aspect)
+ {
+     if (tight > row_bytes) tight = row_bytes;
+     /* Staged in the batch's upload arena and recorded into the batch: the copy runs before every later draw. */
+@@ -2437,10 +2443,10 @@
+         memcpy((u8*)s_eb.stage.ptr + off + (size_t)r * tight, (const u8*)src + (size_t)r * row_bytes, tight);
+     s_eb.spos = off + bytes;
+     if (vk_rec_begin()) return -1;
+-    vk_barrier_image(img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
++    vk_barrier_image(img, aspect, VK_IMAGE_LAYOUT_GENERAL);
+     VkBufferImageCopy region = {
+         .bufferOffset = off,
+-        .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, mip, layer, 1 },
++        .imageSubresource = { aspect, mip, layer, 1 },
+         .imageOffset = { (int32_t)x, (int32_t)y, 0 },
+         .imageExtent = { w, h, 1 },
+     };
+@@ -2450,15 +2456,17 @@
+ 
+ /* The same into the whole of a level, from its origin. */
+ static int vk_eng_upload_rows(VkImage img, u32 layer, u32 mip, u32 w, u32 h,
+-                              size_t tight, u32 rows, const void* src, u32 row_bytes)
+-{
+-    return vk_eng_upload_region(img, layer, mip, 0, 0, w, h, tight, rows, src, row_bytes);
++                              size_t tight, u32 rows, const void* src, u32 row_bytes,
++                              VkImageAspectFlags aspect)
++{
++    return vk_eng_upload_region(img, layer, mip, 0, 0, w, h, tight, rows, src, row_bytes, aspect);
+ }
+ 
+ static int vk_eng_upload(VkImage img, u32 layer, u32 mip, u32 w, u32 h, u32 bpp,
+                          const void* src, u32 row_bytes)
+ {
+-    return vk_eng_upload_rows(img, layer, mip, w, h, (size_t)w * bpp, h, src, row_bytes);
++    return vk_eng_upload_rows(img, layer, mip, w, h, (size_t)w * bpp, h, src, row_bytes,
++                              VK_IMAGE_ASPECT_COLOR_BIT);
+ }
+ 
+ /* NV4097 TEXTURE_CONTROL1 crossbar as a Vulkan component mapping: the shared
+@@ -2491,8 +2499,11 @@
+         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, .image = img,
+         .viewType = cube ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D,
+         .format = fmt, .components = map,
+-        .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, levels ? levels : 1, 0, cube ? 6u : 1u },
++        .subresourceRange = { vk_eng_texture_aspect(fmt), 0, levels ? levels : 1, 0, cube ? 6u : 1u },
+     };
++    /* Depth comparison views must use identity component mapping. */
++    if (vk_eng_texture_aspect(fmt) == VK_IMAGE_ASPECT_DEPTH_BIT)
++        memset(&vci.components, 0, sizeof vci.components);
+     return pvkCreateImageView(s_vk.device, &vci, NULL, out) == VK_SUCCESS ? 0 : -1;
+ }
+ 
+@@ -2737,7 +2748,8 @@
+     vk_eng_obj* o = vk_eng_get(surface, VK_ENG_COLOR);
+     if (!o || o->fmt != VK_FORMAT_R8G8B8A8_UNORM) return;   /* rows are R,G,B,A */
+     if (!rows || !w || !h || x + w > o->w || y + h > o->h) return;
+-    vk_eng_upload_region(o->im.img, 0, 0, x, y, w, h, (size_t)w * o->bpp, h, rows, row_bytes);
++    vk_eng_upload_region(o->im.img, 0, 0, x, y, w, h, (size_t)w * o->bpp, h, rows, row_bytes,
++                         VK_IMAGE_ASPECT_COLOR_BIT);
+ }
+ 
+ static void vk_eng_readback(void* user, u32 surface, u32 x, u32 y, u32 w, u32 h,
+@@ -2805,7 +2817,14 @@
+ {
+     (void)user;
+     u32 bpp;
+-    const VkFormat vf = vk_eng_format(fmt, &bpp);
++    VkFormat vf = vk_eng_format(fmt, &bpp);
++    /* The decoder already supplies float32 depth or UNORM16 depth rows.
++     * Keep their depth aspect so native comparison sampling is legal. */
++    const u32 base_fmt = rsx_fmt & RSX_TEX_FMT_BASE_MASK;
++    if (base_fmt == RSX_TEX_FMT_DEPTH24_D8 && fmt == RSX_BE_FMT_R32F)
++        vf = VK_FORMAT_D32_SFLOAT;
++    else if (base_fmt == 0x92u && fmt == RSX_BE_FMT_R16)
++        vf = VK_FORMAT_D16_UNORM;
+     const int bc = (fmt == RSX_BE_FMT_BC1 || fmt == RSX_BE_FMT_BC2 || fmt == RSX_BE_FMT_BC3);
+     if (vf == VK_FORMAT_UNDEFINED || !w || !h || w > vk_max_dim() || h > vk_max_dim() ||
+         (bc && !s_vk.bc_ok))
+@@ -2839,7 +2858,7 @@
+     o->bpp = bc ? 0 : bpp; o->block = bc ? bpp : 0;
+     /* UNDEFINED -> GENERAL for every level and face before the uploads arrive. */
+     if (vk_rec_begin()) goto fail;
+-    vk_barrier_image(o->im.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED);
++    vk_barrier_image(o->im.img, vk_eng_texture_aspect(vf), VK_IMAGE_LAYOUT_UNDEFINED);
+     return hd;
+ fail:
+     vk_destroy_image(&o->im);
+@@ -2855,7 +2874,8 @@
+     if (!o || !src || !row_bytes || !rows || face >= (o->cube ? 6u : 1u)) return;
+     /* A BC row is a row of 4x4 blocks; the engine's `rows` already counts them. */
+     const size_t tight = o->block ? (size_t)((w + 3u) / 4u) * o->block : (size_t)w * o->bpp;
+-    vk_eng_upload_rows(o->im.img, face, mip, w, h, tight, rows, src, row_bytes);
++    vk_eng_upload_rows(o->im.img, face, mip, w, h, tight, rows, src, row_bytes,
++                       vk_eng_texture_aspect(o->fmt));
+ }
+ 
+ /* A colour target sampled with a unit's crossbar: an extra view of the same
+@@ -2883,7 +2903,7 @@
+  * A depth target read as a texture, which the engine asks for only after a
+  * depth-writing draw. Metal resolves it with a fullscreen pass into R32Float;
+  * Vulkan can do it with two copies on the GPU, since a D32_SFLOAT depth
+- * aspect copies out as 32-bit floats: depth -> buffer -> an R32_SFLOAT
++ * aspect copies out as 32-bit floats: depth -> buffer -> a D32_SFLOAT
+  * texture. Other depth formats would need a conversion pass: they report 0.
+  *
+  * Each depth target keeps ONE snapshot texture (its handle in `surface`),
+@@ -2912,16 +2932,16 @@
+         snap = vk_eng_alloc();
+         if (!snap) return 0;
+         t = &s_eobj[snap];
+-        if (vk_create_image(&t->im, VK_FORMAT_R32_SFLOAT, w, h,
++        if (vk_create_image(&t->im, VK_FORMAT_D32_SFLOAT, w, h,
+                             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+-                            VK_IMAGE_ASPECT_COLOR_BIT)) {
++                            VK_IMAGE_ASPECT_DEPTH_BIT)) {
+             vk_destroy_image(&t->im); memset(t, 0, sizeof *t); return 0;
+         }
+-        t->kind = VK_ENG_TEXTURE; t->fmt = VK_FORMAT_R32_SFLOAT; t->bpp = 4; t->w = w; t->h = h;
++        t->kind = VK_ENG_TEXTURE; t->fmt = VK_FORMAT_D32_SFLOAT; t->bpp = 4; t->w = w; t->h = h;
+         z = vk_eng_get(depth, VK_ENG_DEPTH);          /* same slot; reload for clarity */
+         z->surface = snap;
+         if (vk_rec_begin()) return 0;
+-        vk_barrier_image(t->im.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED);
++        vk_barrier_image(t->im.img, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_UNDEFINED);
+     }
+ 
+     /* Recorded into the batch like the draws around it, through one buffer the batch reuses (the barriers order
+@@ -2939,7 +2959,7 @@
+     int rc = vk_rec_begin();
+     if (!rc) {
+         vk_barrier_image(z->im.img, s_vk.depth_aspect, VK_IMAGE_LAYOUT_GENERAL);
+-        vk_barrier_image(t->im.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
++        vk_barrier_image(t->im.img, VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_LAYOUT_GENERAL);
+         /* The staging buffer is shared by every snapshot in the batch: the
+          * previous snapshot's copy out of it must finish before this one
+          * overwrites it. Without this, two snapshots in one batch (WKC2's
+@@ -2964,7 +2984,7 @@
+             .buffer = st.buf, .offset = 0, .size = VK_WHOLE_SIZE };
+         pvkCmdPipelineBarrier(s_vk.cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                               0, 0, NULL, 1, &bb, 0, NULL);
+-        VkBufferImageCopy in = { .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
++        VkBufferImageCopy in = { .imageSubresource = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 0, 1 },
+                                  .imageExtent = { w, h, 1 } };
+         pvkCmdCopyBufferToImage(s_vk.cmd, st.buf, t->im.img, VK_IMAGE_LAYOUT_GENERAL, 1, &in);
+     }
+@@ -3053,7 +3073,8 @@
+ {
+     (void)user;
+     vk_eng_obj* src = vk_eng_get(snapshot, VK_ENG_TEXTURE);
+-    if (!src || src->fmt != VK_FORMAT_R32_SFLOAT || src->w != w || src->h != h || vk_zconv_init())
++    if (!src || (src->fmt != VK_FORMAT_R32_SFLOAT && src->fmt != VK_FORMAT_D32_SFLOAT) ||
++        src->w != w || src->h != h || vk_zconv_init())
+         return 0;
+     u32 i = 0;
+     for (; i < s_zc.n; i++)
+@@ -3126,7 +3147,7 @@
+         s_zc.e[i].src_view = src->im.view;
+     }
+     if (vk_rec_begin()) return 0;
+-    vk_barrier_image(src->im.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
++    vk_barrier_image(src->im.img, vk_eng_texture_aspect(src->fmt), VK_IMAGE_LAYOUT_GENERAL);
+     vk_barrier_image(dst->im.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
+     pvkCmdBindPipeline(s_vk.cmd, VK_PIPELINE_BIND_POINT_COMPUTE, s_zc.pipe);
+     pvkCmdBindDescriptorSets(s_vk.cmd, VK_PIPELINE_BIND_POINT_COMPUTE, s_zc.pl, 0, 1, &s_zc.e[i].set, 0, NULL);
+@@ -3195,6 +3216,7 @@
+     u32                 nslots, stride, rt_count;
+     VkFormat            rt_fmt;          /* picks the render pass it is built against */
+     u32                 cube_mask;       /* TextureCube units: the split set layout */
++    u32                 shadow_mask;     /* comparison units: individual sampler bindings */
+     VkPipeline          variant[VK_ENG_TOPOLOGIES];
+ } vk_eng_pipe;
+ 
+@@ -3222,9 +3244,12 @@
+     VkDescriptorSetLayout split_layout;
+     VkPipelineLayout      split_pipe_layout;
+     u32                   dummy_cube;
++    u32                   dummy_depth;
++    VkDescriptorSetLayout shadow_layout;
++    VkPipelineLayout      shadow_pipe_layout;
+ } s_e2;
+ 
+-#define VK_ENG_SAMP_CACHE 64
++#define VK_ENG_SAMP_CACHE 256
+ static struct { u64 key; VkSampler s; } s_esamp[VK_ENG_SAMP_CACHE];
+ static u32 s_esamp_count;
+ 
+@@ -3347,30 +3372,40 @@
+  * (rsx_shader_spirv.h): sixteen single bindings, where the shared layout has
+  * one binding of sixteen. Those pipelines use this layout, made on first use
+  * so a title without cube maps never builds it. */
+-static VkPipelineLayout vk_eng_split_layout(void)
+-{
+-    if (s_e2.split_pipe_layout) return s_e2.split_pipe_layout;
++static VkPipelineLayout vk_eng_split_layout(int shadow)
++{
++    VkDescriptorSetLayout* dsl = shadow ? &s_e2.shadow_layout : &s_e2.split_layout;
++    VkPipelineLayout* pl = shadow ? &s_e2.shadow_pipe_layout : &s_e2.split_pipe_layout;
++    if (*pl) return *pl;
+     const VkShaderStageFlags both = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+-    VkDescriptorSetLayoutBinding b[3 + RSX_MAX_TEXTURES];
+-    b[0] = (VkDescriptorSetLayoutBinding){ RSX_SPIRV_VPCONST_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, both, NULL };
+-    b[1] = (VkDescriptorSetLayoutBinding){ RSX_SPIRV_PSCONST_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, both, NULL };
+-    b[2] = (VkDescriptorSetLayoutBinding){ RSX_SPIRV_SAMPLER_BINDING, VK_DESCRIPTOR_TYPE_SAMPLER,
+-                                           RSX_MAX_TEXTURES, VK_SHADER_STAGE_FRAGMENT_BIT, NULL };
+-    for (u32 u = 0; u < RSX_MAX_TEXTURES; u++)
+-        b[3 + u] = (VkDescriptorSetLayoutBinding){ RSX_SPIRV_TEXTURE_BINDING + u,
+-                                                   VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1,
++    VkDescriptorSetLayoutBinding b[2 + RSX_MAX_TEXTURES * 2];
++    u32 n = 0;
++    b[n++] = (VkDescriptorSetLayoutBinding){ RSX_SPIRV_VPCONST_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, both, NULL };
++    b[n++] = (VkDescriptorSetLayoutBinding){ RSX_SPIRV_PSCONST_BINDING, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, both, NULL };
++    if (!shadow)
++        b[n++] = (VkDescriptorSetLayoutBinding){ RSX_SPIRV_SAMPLER_BINDING, VK_DESCRIPTOR_TYPE_SAMPLER,
++                                               RSX_MAX_TEXTURES, VK_SHADER_STAGE_FRAGMENT_BIT, NULL };
++    for (u32 u = 0; u < RSX_MAX_TEXTURES; u++) {
++        b[n++] = (VkDescriptorSetLayoutBinding){ RSX_SPIRV_TEXTURE_BINDING + u,
++                                               VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1,
++                                               VK_SHADER_STAGE_FRAGMENT_BIT, NULL };
++        if (shadow)
++            b[n++] = (VkDescriptorSetLayoutBinding){ RSX_SPIRV_SAMPLER_BINDING + u,
++                                                   VK_DESCRIPTOR_TYPE_SAMPLER, 1,
+                                                    VK_SHADER_STAGE_FRAGMENT_BIT, NULL };
++    }
+     VkDescriptorSetLayoutCreateInfo lci = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+-                                            .bindingCount = 3 + RSX_MAX_TEXTURES, .pBindings = b };
+-    if (pvkCreateDescriptorSetLayout(s_vk.device, &lci, NULL, &s_e2.split_layout) != VK_SUCCESS)
++                                            .bindingCount = n, .pBindings = b };
++    if (pvkCreateDescriptorSetLayout(s_vk.device, &lci, NULL, dsl) != VK_SUCCESS)
+         return VK_NULL_HANDLE;
+     VkPipelineLayoutCreateInfo plci = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+-                                        .setLayoutCount = 1, .pSetLayouts = &s_e2.split_layout };
+-    if (pvkCreatePipelineLayout(s_vk.device, &plci, NULL, &s_e2.split_pipe_layout) != VK_SUCCESS) {
+-        s_e2.split_pipe_layout = VK_NULL_HANDLE;
++                                        .setLayoutCount = 1, .pSetLayouts = dsl };
++    if (pvkCreatePipelineLayout(s_vk.device, &plci, NULL, pl) != VK_SUCCESS) {
++        pvkDestroyDescriptorSetLayout(s_vk.device, *dsl, NULL);
++        *dsl = VK_NULL_HANDLE;
+         return VK_NULL_HANDLE;
+     }
+-    return s_e2.split_pipe_layout;
++    return *pl;
+ }
+ 
+ /* Which units a pixel program declares as TextureCube. */
+@@ -3415,6 +3450,11 @@
+     P->rt_count = rt_count;
+     P->rt_fmt = cf;
+     P->cube_mask = vk_eng_cube_units(ps_hlsl);
++    for (u32 u = 0; u < RSX_MAX_TEXTURES; u++) {
++        char decl[64];
++        snprintf(decl, sizeof decl, "SamplerComparisonState rsx_samp%u ", u);
++        if (strstr(ps_hlsl, decl)) P->shadow_mask |= 1u << u;
++    }
+     P->used = 1;
+     return slot + 1u;
+ }
+@@ -3442,7 +3482,8 @@
+     if (P->variant[topo_idx]) return P->variant[topo_idx];
+     VkRenderPass rp = vk_eng_render_pass(P->rt_fmt, P->rt_count);
+     if (!rp || P->nslots > VK_GUEST_ATTRS) return VK_NULL_HANDLE;
+-    const VkPipelineLayout layout = P->cube_mask ? vk_eng_split_layout() : s_g.pipe_layout;
++    const VkPipelineLayout layout = (P->cube_mask || P->shadow_mask)
++        ? vk_eng_split_layout(P->shadow_mask != 0) : s_g.pipe_layout;
+     if (!layout) return VK_NULL_HANDLE;
+     const rsx_be_render_state* rs = &P->rs;
+ 
+@@ -3546,6 +3587,8 @@
+     vk_eb_shutdown();
+     vk_destroy_image(&s_e2.scratch_depth);
+     if (s_e2.split_pipe_layout) pvkDestroyPipelineLayout(s_vk.device, s_e2.split_pipe_layout, NULL);
++    if (s_e2.shadow_pipe_layout) pvkDestroyPipelineLayout(s_vk.device, s_e2.shadow_pipe_layout, NULL);
++    if (s_e2.shadow_layout) pvkDestroyDescriptorSetLayout(s_vk.device, s_e2.shadow_layout, NULL);
+     if (s_e2.split_layout)      pvkDestroyDescriptorSetLayout(s_vk.device, s_e2.split_layout, NULL);
+     memset(&s_e2, 0, sizeof s_e2);
+     for (u32 i = 0; i < s_esamp_count; i++) pvkDestroySampler(s_vk.device, s_esamp[i].s, NULL);
+@@ -3655,9 +3698,10 @@
+     const u64 key = (u64)d->min_linear | ((u64)d->mag_linear << 1) | ((u64)d->mip_linear << 2)
+                   | ((u64)d->mip_present << 3) | ((u64)(d->wrap_s & 0xF) << 4)
+                   | ((u64)(d->wrap_t & 0xF) << 8) | ((u64)(d->wrap_r & 0xF) << 12)
+-                  | ((u64)(lo >> 16) << 16) | ((u64)(hi >> 16) << 32);
++                  | ((u64)(lo >> 16) << 16) | ((u64)(hi >> 16) << 32)
++                  | ((u64)d->compare_func << 48);
+     for (u32 i = 0; i < s_esamp_count; i++) if (s_esamp[i].key == key) return s_esamp[i].s;
+-    if (s_esamp_count >= VK_ENG_SAMP_CACHE) return s_vk.sampler;
++    if (s_esamp_count >= VK_ENG_SAMP_CACHE) return d->compare_func ? VK_NULL_HANDLE : s_vk.sampler;
+     float min_lod = d->min_lod, max_lod = d->mip_present ? d->max_lod : d->min_lod;
+     if (max_lod < min_lod) max_lod = min_lod;
+     VkSamplerCreateInfo sci = {
+@@ -3668,9 +3712,12 @@
+         .addressModeU = vk_gcm_wrap(d->wrap_s), .addressModeV = vk_gcm_wrap(d->wrap_t),
+         .addressModeW = vk_gcm_wrap(d->wrap_r),
+         .minLod = min_lod, .maxLod = max_lod,
++        .compareEnable = d->compare_func ? VK_TRUE : VK_FALSE,
++        .compareOp = vk_gcm_compare(0x0200u + d->compare_func),
+         .borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK };
+     VkSampler smp;
+-    if (pvkCreateSampler(s_vk.device, &sci, NULL, &smp) != VK_SUCCESS) return s_vk.sampler;
++    if (pvkCreateSampler(s_vk.device, &sci, NULL, &smp) != VK_SUCCESS)
++        return d->compare_func ? VK_NULL_HANDLE : s_vk.sampler;
+     s_esamp[s_esamp_count].key = key;
+     s_esamp[s_esamp_count++].s = smp;
+     return smp;
+@@ -3705,12 +3752,26 @@
+     return s_eobj[s_e2.dummy_cube].im.view;
+ }
+ 
++/* A missing comparison texture still needs a depth-format view. The ordinary
++ * magenta color dummy would make a Dref sample invalid. */
++static VkImageView vk_eng_dummy_depth_view(void)
++{
++    vk_eng_obj* o = vk_eng_get(s_e2.dummy_depth, VK_ENG_TEXTURE);
++    if (o) return o->im.view;
++    const u32 h = vk_eng_texture_create(NULL, RSX_BE_FMT_R32F, 1, 1, 1, 1, 0xAAE4u, 0xB0u);
++    if (!h) return VK_NULL_HANDLE;
++    const float depth = 0.0f;
++    vk_eng_texture_upload(NULL, h, 0, 0, 1, 1, &depth, sizeof depth, 1);
++    s_e2.dummy_depth = h;
++    return s_eobj[h].im.view;
++}
++
+ /* Fill the set the bound pipeline uses: the shared one (sixteen textures in
+  * one binding), or for a pipeline with cube units the split one (one binding
+  * per unit). Returns the set, or VK_NULL_HANDLE. */
+ static VkDescriptorSet vk_eng_write_descriptors(const vk_eng_pipe* P, VkDeviceSize vs_off, VkDeviceSize ps_off)
+ {
+-    const int split = P->cube_mask != 0;
++    const int split = (P->cube_mask || P->shadow_mask) != 0;
+     /* The draw made the dummy cube before it took arena space: making it uploads, which can flush the batch. */
+     const VkImageView dummy_cube = split ? s_eobj[s_e2.dummy_cube].im.view : VK_NULL_HANDLE;
+     if (split && !dummy_cube) return VK_NULL_HANDLE;
+@@ -3718,7 +3779,8 @@
+     VkDescriptorSetAllocateInfo dai = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+                                         .descriptorPool = split ? s_eb.split_pool : s_eb.pool,
+                                         .descriptorSetCount = 1,
+-                                        .pSetLayouts = split ? &s_e2.split_layout : &s_g.set_layout };
++                                        .pSetLayouts = P->shadow_mask ? &s_e2.shadow_layout
++                                                     : split ? &s_e2.split_layout : &s_g.set_layout };
+     if (pvkAllocateDescriptorSets(s_vk.device, &dai, &set) != VK_SUCCESS) return VK_NULL_HANDLE;
+     if (split) s_eb.nsplit++; else s_eb.nsets++;
+     VkDescriptorBufferInfo bi[2] = {
+@@ -3730,13 +3792,20 @@
+         const int cube = (P->cube_mask >> u) & 1u;
+         VkImageView v = ((s_e2.tex_mask >> u) & 1u) ? vk_eng_sample_view(s_e2.tex[u], cube)
+                                                      : VK_NULL_HANDLE;
+-        VkSampler smp = v ? vk_eng_sampler(&s_e2.samp[u]) : s_vk.sampler;
++        const int shadow = (P->shadow_mask >> u) & 1u;
++        if (shadow && (!v || vk_eng_texture_aspect(s_eobj[s_e2.tex[u]].fmt) != VK_IMAGE_ASPECT_DEPTH_BIT))
++            v = s_eobj[s_e2.dummy_depth].im.view;
++        rsx_be_sampler_desc desc = s_e2.samp[u];
++        if (!shadow) desc.compare_func = 0;
++        else if (!desc.compare_func) desc.compare_func = 1;
++        VkSampler smp = v ? vk_eng_sampler(&desc) : s_vk.sampler;
++        if (!smp) return VK_NULL_HANDLE;
+         ii[u] = (VkDescriptorImageInfo){ VK_NULL_HANDLE,
+                                          v ? v : (cube ? dummy_cube : s_vk.dummy.view),
+                                          VK_IMAGE_LAYOUT_GENERAL };
+         si[u] = (VkDescriptorImageInfo){ smp, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED };
+     }
+-    VkWriteDescriptorSet w[3 + RSX_MAX_TEXTURES];
++    VkWriteDescriptorSet w[2 + RSX_MAX_TEXTURES * 2];
+     u32 n = 0;
+     w[n++] = (VkWriteDescriptorSet){ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = set,
+           .dstBinding = RSX_SPIRV_VPCONST_BINDING, .descriptorCount = 1,
+@@ -3744,9 +3813,16 @@
+     w[n++] = (VkWriteDescriptorSet){ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = set,
+           .dstBinding = RSX_SPIRV_PSCONST_BINDING, .descriptorCount = 1,
+           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .pBufferInfo = &bi[1] };
+-    w[n++] = (VkWriteDescriptorSet){ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = set,
+-          .dstBinding = RSX_SPIRV_SAMPLER_BINDING, .descriptorCount = RSX_MAX_TEXTURES,
+-          .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER, .pImageInfo = si };
++    if (P->shadow_mask) {
++        for (u32 u = 0; u < RSX_MAX_TEXTURES; u++)
++            w[n++] = (VkWriteDescriptorSet){ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
++                  .dstSet = set, .dstBinding = RSX_SPIRV_SAMPLER_BINDING + u, .descriptorCount = 1,
++                  .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER, .pImageInfo = &si[u] };
++    } else {
++        w[n++] = (VkWriteDescriptorSet){ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = set,
++              .dstBinding = RSX_SPIRV_SAMPLER_BINDING, .descriptorCount = RSX_MAX_TEXTURES,
++              .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER, .pImageInfo = si };
++    }
+     if (split) {
+         for (u32 u = 0; u < RSX_MAX_TEXTURES; u++)
+             w[n++] = (VkWriteDescriptorSet){ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+@@ -3796,7 +3872,9 @@
+     if (!pipe || !rp || !fb) return;
+ 
+     /* Everything that can flush the batch comes before the draw takes arena space. */
+-    if (P->cube_mask && (!vk_eng_split_layout() || !vk_eng_dummy_cube_view())) return;
++    if ((P->cube_mask || P->shadow_mask) &&
++        (!vk_eng_split_layout(P->shadow_mask != 0) || !vk_eng_dummy_cube_view())) return;
++    if (P->shadow_mask && !vk_eng_dummy_depth_view()) return;
+     if (!s_eb.ubo_align) {
+         VkPhysicalDeviceProperties props;
+         pvkGetPhysicalDeviceProperties(s_vk.phys, &props);
+@@ -3806,7 +3884,7 @@
+     const VkDeviceSize ibytes = (indices && index_count) ? (VkDeviceSize)index_count * 4u : 0;
+     const VkDeviceSize vsb = s_e2.vs_bytes ? s_e2.vs_bytes : 16u, psb = s_e2.ps_bytes ? s_e2.ps_bytes : 16u;
+     const VkDeviceSize ubytes = vk_eb_align(vsb, s_eb.ubo_align) + psb + s_eb.ubo_align;
+-    if (vk_eb_reserve(vbytes, ibytes, ubytes, P->cube_mask != 0)) return;
++    if (vk_eb_reserve(vbytes, ibytes, ubytes, (P->cube_mask || P->shadow_mask) != 0)) return;
+     const VkDeviceSize voff = vk_eb_take(&s_eb.verts, &s_eb.vpos, vertices, vbytes, 16);
+     const VkDeviceSize ioff = ibytes ? vk_eb_take(&s_eb.idx, &s_eb.ipos, indices, ibytes, 4) : 0;
+     const VkDeviceSize vsoff = vk_eb_take(&s_eb.ubo, &s_eb.upos, s_e2.vs_bytes ? s_eb.vsc : NULL, vsb, s_eb.ubo_align);
+@@ -3849,7 +3927,8 @@
+     pvkCmdSetScissor(s_vk.cmd, 0, 1, &sc);
+     pvkCmdSetStencilReference(s_vk.cmd, VK_STENCIL_FACE_FRONT_AND_BACK, s_e2.stencil_ref & 0xFFu);
+     pvkCmdBindDescriptorSets(s_vk.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+-                             P->cube_mask ? s_e2.split_pipe_layout : s_g.pipe_layout,
++                             P->shadow_mask ? s_e2.shadow_pipe_layout
++                                            : P->cube_mask ? s_e2.split_pipe_layout : s_g.pipe_layout,
+                              0, 1, &set, 0, NULL);
+     pvkCmdBindVertexBuffers(s_vk.cmd, 0, 1, &s_eb.verts.buf, &voff);
+     if (ibytes) {
+@@ -3874,6 +3953,7 @@
+     .depth_target_create  = vk_eng_depth_target_create,
+     .depth_target_release = vk_eng_release,
+     .depth_snapshot       = vk_eng_depth_snapshot,
++    .depth_compare        = 1,
+     .pipeline_create      = vk_eng_pipeline_create,
+     .pipeline_release     = vk_eng_pipeline_release,
+     .bind_targets         = vk_eng_bind_targets,
+diff --git a/libs/video/tests/test_rsx_draw_engine.c b/libs/video/tests/test_rsx_draw_engine.c
+--- a/libs/video/tests/test_rsx_draw_engine.c
++++ b/libs/video/tests/test_rsx_draw_engine.c
+@@ -13,6 +13,7 @@
+  * Builds and runs on Linux as well as macOS; nothing in it is Apple-specific.
+  */
+ #include "rsx_draw_engine.h"
++#include "rsx_test_programs.h"
+ #include "rsx_primitives.h"   /* RSX_PRIMITIVE_* */
+ 
+ #include <stdio.h>
+@@ -104,6 +105,8 @@
+     u32 color_stamp[STUB_MAX_OBJECTS], sampled_stamp;
+     u32 depth_stamp[STUB_MAX_OBJECTS];
+     u8 pipeline_depth_write[STUB_MAX_OBJECTS];
++    u8 pipeline_shadow[STUB_MAX_OBJECTS], bound_compare;
++    u32 bound_compare_mask;
+     u32 pipeline_color_mask[STUB_MAX_OBJECTS];
+     u8  pipeline_blend[STUB_MAX_OBJECTS], pipeline_alpha_test[STUB_MAX_OBJECTS];
+     u32 last_view_surface, last_view_remap;
+@@ -207,6 +210,7 @@
+     stub.pipeline_rt_count = rt_count;
+     const u32 handle = stub_handle();
+     stub.pipeline_color_mask[handle] = rs->color_mask;
++    stub.pipeline_shadow[handle] = strstr(ps, "SampleCmp") != NULL;
+     stub.pipeline_depth_write[handle] = (u8)(rs->depth_test && rs->depth_write);
+     stub.pipeline_blend[handle] = (u8)rs->blend_enable;
+     stub.pipeline_alpha_test[handle] = (u8)rs->alpha_test_enable;
+@@ -234,6 +238,11 @@
+     (void)u; (void)smp;
+     memcpy(stub.bound_tex, tex, sizeof stub.bound_tex);
+     stub.bound_mask = mask;
++    stub.bound_compare = smp ? smp[0].compare_func : 0;
++    stub.bound_compare_mask = 0;
++    for (u32 i = 0; smp && i < RSX_BE_MAX_TEXTURES; i++)
++        if (((mask >> i) & 1u) && smp[i].compare_func)
++            stub.bound_compare_mask |= 1u << i;
+ }
+ 
+ static void stub_bind_vtextures(void* u, const u32* tex,
+@@ -1358,6 +1367,103 @@
+     engine_down();
+ }
+ 
++/* Changing a texture from raw depth to comparison sampling changes HLSL,
++ * so the shadow mask belongs in the real pipeline key. The comparison op
++ * itself belongs in the sampler and must not multiply shader variants. */
++static void test_depth_comparison_pipeline_key(void)
++{
++    printf("-- depth comparison shader and sampler identity\n");
++    engine_up();
++    rsx_draw_backend backend = g_stub_backend;
++    backend.depth_compare = 1;
++    rsx_draw_engine_set_backend(&backend);
++    u8 vp[16], fp[16];
++    rsx_test_vp_mov_out(vp, 0, RSX_TEST_VP_SWZ_IDENT, 0, 1);
++    m(0x1E9Cu, 0u);
++    for (u32 i = 0; i < 4; i++) {
++        u32 word; memcpy(&word, vp + 4u * i, 4);
++        m(0x0B80u + 4u * i, word);
++    }
++    m(0x1EA0u, 0u);
++    rsx_test_fp_instr(fp, RSX_TEST_FP_OPC(RSX_TEST_FP_OP_TEX) |
++        RSX_TEST_FP_MASK_XYZW | RSX_TEST_FP_INSRC_TC0 | RSX_TEST_FP_END,
++        RSX_TEST_FP_SRC_INPUT | RSX_TEST_FP_SWZ_IDENT);
++    memcpy(vm_base + 0x300000u, fp, sizeof fp);
++    m(0x08E4u, 0x300002u); /* main-memory program */
++    m(0x1D60u, 0x40u);
++    bind_texture_unit(RSX_LOCATION_MAIN, TEX_OFFSET);
++    m(M_TEX_UNIT + 0x04, 2u | (2u << 4) | (0xB0u << 8) | (1u << 16));
++    m(M_TEX_UNIT + 0x08, 0u);
++    draw_triangle();
++    const u32 raw = stub.bound_pipeline;
++    CHECK(raw && !stub.pipeline_shadow[raw] && !stub.bound_compare,
++          "ZFUNC NEVER retains raw depth sampling");
++    const int count = stub.n_pipeline_create;
++    m(M_TEX_UNIT + 0x08, 1u << 28);
++    draw_triangle();
++    const u32 compared = stub.bound_pipeline;
++    CHECK(compared != raw && stub.n_pipeline_create == count + 1 &&
++          stub.pipeline_shadow[compared] && stub.bound_compare == 1u &&
++          stub.bound_mask == 1u && stub.bound_tex[0] != 0,
++          "ZFUNC LESS selects a comparison shader and sampler");
++    m(M_TEX_UNIT + 0x08, 3u << 28);
++    draw_triangle();
++    CHECK(stub.bound_pipeline == compared && stub.n_pipeline_create == count + 1 &&
++          stub.bound_compare == 3u, "comparison function changes only sampler state");
++    m(M_TEX_UNIT + 0x08, 7u << 28);
++    draw_triangle();
++    CHECK(stub.bound_pipeline == raw && !stub.bound_compare,
++          "ZFUNC ALWAYS reuses the raw-depth shader");
++    m(M_TEX_UNIT + 0x08, 1u << 28);
++    m(M_TEX_UNIT + 0x0C, 0x80000004u);
++    draw_triangle();
++    CHECK(stub.bound_pipeline == raw && !stub.bound_compare,
++          "texture alpha kill disables depth comparison");
++    m(M_TEX_UNIT + 0x0C, 0x80000000u);
++    m(M_TEX_UNIT + 0x04, 2u | (2u << 4) | (0xA5u << 8) | (1u << 16));
++    draw_triangle();
++    CHECK(stub.bound_pipeline == raw && !stub.bound_compare,
++          "a color texture with ZFUNC LESS remains an ordinary sample");
++    m(M_TEX_UNIT + 0x04, 2u | (2u << 4) | (0xB0u << 8) | (1u << 16));
++    m(M_TEX_UNIT + 0x04, 2u | (2u << 4) | (0xB0u << 8) | (2u << 16));
++    draw_triangle();
++    CHECK(stub.bound_pipeline == raw && !stub.bound_compare,
++          "multiple mip levels retain the legacy path instead of forcing TXB/TXL to level zero");
++    m(M_TEX_UNIT + 0x04, 2u | (2u << 4) | (0xB0u << 8) | (1u << 16));
++    backend.depth_compare = 0;
++    draw_triangle();
++    CHECK(stub.bound_pipeline == raw && !stub.bound_compare,
++          "a backend without depth-comparison capability retains its old shader path");
++    backend.depth_compare = 1;
++    u8 mixed[48];
++    rsx_test_fp_instr(mixed, RSX_TEST_FP_OPC(RSX_TEST_FP_OP_TEX) |
++        RSX_TEST_FP_MASK_XYZW | RSX_TEST_FP_OUTREG(1) |
++        RSX_TEST_FP_INSRC_TC0 | RSX_TEST_FP_TEXU(3),
++        RSX_TEST_FP_SRC_INPUT | RSX_TEST_FP_SWZ_IDENT);
++    rsx_test_fp_instr(mixed + 16, RSX_TEST_FP_OPC(RSX_TEST_FP_OP_TEX) |
++        RSX_TEST_FP_MASK_XYZW | RSX_TEST_FP_INSRC_TC0 | RSX_TEST_FP_TEXU(4),
++        RSX_TEST_FP_SRC_INPUT | RSX_TEST_FP_SWZ_IDENT);
++    rsx_test_fp_instr(mixed + 32, RSX_TEST_FP_OPC(RSX_TEST_FP_OP_MOV) |
++        (2u << 9) | RSX_TEST_FP_END, (1u << 2) | RSX_TEST_FP_SWZ_IDENT);
++    memcpy(vm_base + 0x300000u, mixed, sizeof mixed);
++    m(0x08E4u, 0x300002u);
++    for (u32 unit = 3; unit <= 4; unit++) {
++        const u32 base = M_TEX_UNIT + unit * 0x20u;
++        m(base, TEX_OFFSET);
++        m(base + 0x04, 2u | (2u << 4) | (0xB0u << 8) | (1u << 16));
++        m(base + 0x08, (unit == 4 ? 1u : 0u) << 28);
++        m(base + 0x0C, 0x80000000u);
++        m(base + 0x10, 0xAAE4u);
++        m(base + 0x18, (4u << 16) | 4u);
++    }
++    draw_triangle();
++    CHECK(stub.bound_mask == ((1u << 3) | (1u << 4)) &&
++          stub.bound_compare_mask == (1u << 4) &&
++          stub.bound_tex[3] && stub.bound_tex[4],
++          "mixed raw/comparison calls bind only sampled units, ignoring enabled unit 0 and unused declarations");
++    engine_down();
++}
++
+ /* Depth-byte conversion may replace only the CPU decoder's equivalent
+  * one-level linear 2D layout. Exercise real texture routing through draws. */
+ static int zconv_calls, zconv_fail;
+@@ -1547,6 +1653,7 @@
+     test_depth_clear_value();
+     test_depth_read_as_color();
+     test_depth_snapshot_generation();
++    test_depth_comparison_pipeline_key();
+     test_depth_conversion_layouts();
+     test_color_read_as_float();
+     test_depth_only_target();
+diff --git a/libs/video/tests/test_fp_decompiler.c b/libs/video/tests/test_fp_decompiler.c
+--- a/libs/video/tests/test_fp_decompiler.c
++++ b/libs/video/tests/test_fp_decompiler.c
+@@ -327,6 +327,29 @@
+         check("large_program_return", backend_hlsl, "return (_o == _o) ? _o");
+     }
+ 
++    /* Native 2D depth comparison must preserve projective reference z/w,
++     * return the comparison in every lane, and coexist with ordinary units. */
++    {
++        u8 prog[16]; char legacy[16384]; u32 constants = 99;
++        put_word(prog + 0, OPC(0x18) | OUTMASK_ALL | INSRC(4) | TEXU(4) | END);
++        put_word(prog + 4, T_INPUT | SWZ_IDENT | EXEC_ALWAYS);
++        put_word(prog + 8, 0); put_word(prog + 12, 0);
++        check_true("shadow_txp_decodes", rsx_fp_decompile_buffered_shadow_ex(
++            prog, sizeof prog, CTRL_32BIT, 0, 1u << 4, hlsl, sizeof hlsl, &constants) == 1);
++        check_true("shadow_no_inline_constants", constants == 0);
++        check("shadow_sampler_type", hlsl, "SamplerComparisonState rsx_samp4 : register(s4)");
++        check("ordinary_sampler_type", hlsl, "SamplerState rsx_samp3 : register(s3)");
++        check("shadow_projected_reference", hlsl,
++              "SampleCmp(rsx_samp4, ((input.tc0).xyzw).xy / ((input.tc0).xyzw).w, ((input.tc0).xyzw).z / ((input.tc0).xyzw).w).xxxx");
++        check_true("legacy_buffered_decodes", rsx_fp_decompile_buffered_ex(
++            prog, sizeof prog, CTRL_32BIT, 0, legacy, sizeof legacy, NULL) == 1);
++        check_true("zero_shadow_mask_decodes", rsx_fp_decompile_buffered_shadow_ex(
++            prog, sizeof prog, CTRL_32BIT, 0, 0, hlsl, sizeof hlsl, NULL) == 1);
++        check_true("zero_shadow_mask_legacy_identical", !strcmp(hlsl, legacy));
++        check_true("shadow_cube_overlap_rejected", rsx_fp_decompile_buffered_shadow_ex(
++            prog, sizeof prog, CTRL_32BIT, 1u << 4, 1u << 4, hlsl, sizeof hlsl, NULL) < 0);
++    }
++
+     printf("\n===========================================\n");
+     printf("Results: %d passed, %d failed\n", g_pass, g_fail);
+     return g_fail ? 1 : 0;

@@ -16,9 +16,14 @@ gone in the inspected town views. Full material and rendering fidelity,
 sustained traversal, combat, save/load and full audio fidelity remain unverified.
 Linux and macOS execution have not been verified.
 
-Latest 64-patch performance samples measure 12.5–13.1 fps in the profiled starting
-view, compared with 8.1–8.3 fps before the performance passes; [conditions and limits](FINDINGS.md#town-performance-after-the-physics-fix).
-This is a timing result, so the existing physics captures remain the newest images.
+The visible 70-patch town run initially measures 16.57 presentations/s, then
+falls to about 7 while idle as asynchronous SPU workers accumulate. Foot shadows
+still flicker in that run. The 73-patch build passes 63 Windows checks; its
+worker-lifetime and shadow fixes still need native verification. Earlier
+64-patch timings used a hidden diagnostic window;
+[current timings and limits](FINDINGS.md#frame-pacing-and-game-speed) record both
+scopes. No new visual milestone is established, so the physics captures remain
+the newest images.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries

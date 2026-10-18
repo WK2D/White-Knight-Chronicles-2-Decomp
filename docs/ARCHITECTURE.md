@@ -64,11 +64,24 @@ executing host thread while the depth value remains in its SPU context.
 The [Vulkan window-title counter](BUILD.md#vulkan-window-title-counter-patch-0065)
 reports accepted queue-presentation rate and the maximum interval. It measures
 host presentation timing; unique guest animation frames and display scanout are
-not counted. Windows compilation and all 59 checks pass; counter updates are
-verified in the visible title menu and initial character creator. Reported
-rotation stutter remains unresolved.
-The [starting-town timing comparison](FINDINGS.md#town-performance-after-the-physics-fix)
-uses hidden-window diagnostic runs and does not establish visible gameplay FPS.
+not counted. The current label is `Present/s`. Windows compilation and all 63
+checks pass with 73 patches in normal Debug and optimized Release; initial
+counter display validation is retained at its original
+65-patch scope. The [pacing changes](FINDINGS.md#frame-pacing-and-game-speed) honor
+real flip requests and the game's two-vblank semaphore gate; they do not divide
+the counter or add a host 30 fps cap. The visible 70-patch town run initially
+reaches 16.57 presentations/s, then slows to about 7 while idle as asynchronous
+SPU workers accumulate. Patch 0072 claims each asynchronous task/workload by
+its guest owner before creating a host thread and retains ownership through
+cleanup, so duplicate active submissions coalesce. Active owner reuse/removal
+returns `BUSY`; cancellation and arbitrary unowned diagnostic dispatch are not
+implemented by this change. Its native soak is pending, so this is not a verified
+sustained gain. Patches 0071 and 0073 add current-generation depth snapshots and
+native depth-comparison sampling; the tested GPU behavior is recorded separately
+from the still-unverified foot-shadow outcome.
+The earlier [starting-town timing comparison](FINDINGS.md#town-performance-after-the-physics-fix)
+uses hidden-window diagnostic runs; a separate visible 66-patch baseline is
+recorded with its own profiling limits.
 The immediate 30 fps target and later 60 fps support remain unverified.
 
 Generated game sources and game inputs remain private. The public repository

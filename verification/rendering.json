@@ -148,15 +148,22 @@
       "wkc2_memory",
       "wkc2_ppu_thread_lifetime",
       "wkc2_lfqueue",
-      "wkc2_event_queue"
+      "wkc2_event_queue",
+      "wkc2_depth_shader_binding",
+      "wkc2_gcm_flip_completion",
+      "wkc2_spu_async_lifetime",
+      "wkc2_shadow_compare"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 66,
-    "last_verified_sdk_patch_count": 65,
-    "current_passed_count": 59,
-    "record_scope": "The 65-patch Windows Vulkan build passes all 59 checks in the normal build. The private optimized Release-CRT build passes 54 non-media checks and all five media checks when rerun with their decoder-library environment. Earlier named records, including the 64-patch town run, retain their original counts."
+    "current_sdk_patch_count": 73,
+    "last_verified_sdk_patch_count": 73,
+    "current_passed_count": 63,
+    "record_scope": "The 73-patch Windows Vulkan build passes all 63 runtime checks in normal Debug (22.79 seconds) and optimized Release (20.46 seconds). Native town and idle-soak verification of patches 0071\u00e2\u20ac\u201c0073 is pending. Earlier named records retain their original patch counts.",
+    "normal_debug_elapsed_seconds": 22.79,
+    "optimized_release_elapsed_seconds": 20.46,
+    "repeat_patch_application_files_changed": 0
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2244,5 +2251,134 @@
     "stalled_title_updates_on_rendering_resume": true,
     "performance_improvement_claimed": false
   },
-  "performance_record": "performance.json"
+  "performance_record": "performance.json",
+  "depth_reencode_and_flip_pacing": {
+    "date": "2026-10-18",
+    "sdk_patch_count": 70,
+    "normal_windows_checks_passed": 61,
+    "normal_windows_checks_elapsed_seconds": 25.52,
+    "new_regressions": [
+      "wkc2_depth_shader_binding",
+      "wkc2_gcm_flip_completion"
+    ],
+    "compute_bindings": [
+      0,
+      1
+    ],
+    "graphics_descriptor_shifts_preserved": true,
+    "depth_high_byte_mask_matches_cpu": true,
+    "shared_depth_staging_reuse_ordered": true,
+    "gpu_depth_conversion": {
+      "device": "NVIDIA GeForce RTX 3090",
+      "d24_values_per_mode": 16777216,
+      "tex_rgba_modes": [
+        0,
+        1
+      ],
+      "cpu_gpu_byte_mismatches": [
+        0,
+        0
+      ],
+      "cross_vendor_verified": false,
+      "full_native_visual_fidelity_verified": false,
+      "enabled_by_default": true,
+      "default_scope": "Project startup defaults; the SDK retains RSX_ENGINE_ZTEX_GPU as an opt-in switch"
+    },
+    "flip_completion_scope": "Consumed FIFO FEAD marker or immediate display request; reset-only status does not manufacture a completion callback",
+    "candidate_gcm_sema_acquire": 1,
+    "candidate_guest_gate_vblanks": 2,
+    "host_30_fps_cap_added": false,
+    "presentation_counter_divided": false,
+    "window_title_unit": "Present/s",
+    "unique_animation_updates_counted": false,
+    "candidate_town_performance_comparison_verified": true,
+    "in_engine_voice_sync_fixed": false,
+    "candidate_sustained_town_gain_verified": false,
+    "selected_cutscenes_in_sync_user_report": true,
+    "foot_shadow_flicker_observed": true
+  },
+  "depth_snapshot_generation": {
+    "date": "2026-10-18",
+    "sdk_patch_count": 71,
+    "scope": "Snapshot generation must match source depth target after writes and target switches",
+    "synthetic_cases_passed": true,
+    "old_runtime_negative_control_failed": true,
+    "native_game_run_verified": false,
+    "foot_shadow_flicker_fixed_verified": false,
+    "full_windows_suite_verified_sdk_patch_count": 73,
+    "old_runtime_failed_assertions": 4
+  },
+  "spu_async_worker_lifetime": {
+    "date": "2026-10-18",
+    "sdk_patch_count": 72,
+    "windows_regression_verified": true,
+    "full_windows_suite_verified_sdk_patch_count": 73,
+    "new_regression": "wkc2_spu_async_lifetime",
+    "task_ownership": "Guest taskset and task slot",
+    "workload_ownership": "Guest SPURS owner and workload ID",
+    "claim_before_host_thread_creation": true,
+    "claim_retained_through_runner_and_stack_cleanup": true,
+    "duplicate_active_submissions_coalesced": true,
+    "stale_cleanup_rejected": true,
+    "thread_creation_failure_releases_claim": true,
+    "active_owner_reuse_or_removal_result": "BUSY",
+    "worker_cancellation_implemented": false,
+    "unowned_diagnostic_dispatch_bounded": false,
+    "registry_competing_threads": 16,
+    "repeated_active_submission_checks": 10000,
+    "claim_after_create_negative_control_failed": true,
+    "stale_cleanup_negative_control_failed": true,
+    "native_town_verification_complete": false,
+    "progressive_idle_slowdown_fixed_verified": false
+  },
+  "vulkan_depth_comparison": {
+    "date": "2026-10-18",
+    "sdk_patch_count": 73,
+    "windows_regression_verified": true,
+    "new_regression": "wkc2_shadow_compare",
+    "supported_scope": "Single-level 2D depth textures on comparison-capable Vulkan backend",
+    "native_comparison_before_linear_filtering": true,
+    "projective_reference_depth_divided_by_w": true,
+    "mixed_ordinary_and_comparison_units_supported": true,
+    "snapshot_format": "D32_SFLOAT",
+    "legacy_zero_comparison_mask_preserved": true,
+    "gpu_validation": {
+      "devices": [
+        "NVIDIA GeForce RTX 3090",
+        "Intel UHD Graphics 770"
+      ],
+      "synthetic_comparison_checks_per_device": 37,
+      "synthetic_comparison_checks_passed_per_device": [
+        37,
+        37
+      ],
+      "old_renderer_comparison_checks_failed": 28,
+      "old_renderer_raw_depth_controls_passed": 4,
+      "old_sampled_units_parser_negative_control_failed_assertions": 3,
+      "d32_snapshot_depth_reencode": {
+        "d24_values_per_device_and_mode": 16777216,
+        "tex_rgba_modes": [
+          0,
+          1
+        ],
+        "cpu_gpu_byte_mismatches_by_device": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "other_devices_verified": false
+      }
+    },
+    "native_town_verification_complete": false,
+    "foot_shadow_flicker_fixed_verified": false,
+    "full_native_depth_fidelity_verified": false,
+    "native_town_reached": true,
+    "native_bright_foot_shadow_regression_observed": true,
+    "native_black_foot_flicker_observed": true
+  }
 }

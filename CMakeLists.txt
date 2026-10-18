@@ -558,6 +558,38 @@ if(WKC2_BUILD_TESTS)
     set_tests_properties(wkc2_nv3089_blit PROPERTIES TIMEOUT 10)
     # Synthetic producer handoffs through the actual SDK FIFO walker.
     add_executable(wkc2_gcm_producer_wake_test tests/gcm_producer_wake_test.c)
+    if(WIN32 AND PS3RECOMP_RSX_VULKAN)
+        set(DEPTH_SHADER_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/depth-shader-fixture.inc")
+        add_custom_command(OUTPUT "${DEPTH_SHADER_FIXTURE}"
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_depth_shader_fixture.py"
+                --source "${PS3RECOMP_DIR}/libs/video/rsx_vulkan_backend.c"
+                --output "${DEPTH_SHADER_FIXTURE}"
+            DEPENDS "${PS3RECOMP_DIR}/libs/video/rsx_vulkan_backend.c"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_depth_shader_fixture.py"
+            VERBATIM)
+        add_executable(wkc2_depth_shader_binding_test tests/depth_shader_binding_test.cpp "${DEPTH_SHADER_FIXTURE}")
+        target_include_directories(wkc2_depth_shader_binding_test PRIVATE
+            "${CMAKE_CURRENT_BINARY_DIR}" "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_DIR}/include")
+        target_link_libraries(wkc2_depth_shader_binding_test PRIVATE ps3recomp_runtime)
+        add_test(NAME wkc2_depth_shader_binding COMMAND wkc2_depth_shader_binding_test)
+        set_tests_properties(wkc2_depth_shader_binding PROPERTIES TIMEOUT 15)
+        add_executable(wkc2_shadow_compare_test tests/shadow_compare_test.cpp)
+        target_include_directories(wkc2_shadow_compare_test PRIVATE
+            "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_DIR}/include")
+        target_link_libraries(wkc2_shadow_compare_test PRIVATE ps3recomp_runtime)
+        add_test(NAME wkc2_shadow_compare COMMAND wkc2_shadow_compare_test)
+        set_tests_properties(wkc2_shadow_compare PROPERTIES TIMEOUT 20)
+    endif()
+    if(WIN32)
+        add_executable(wkc2_gcm_flip_completion_test tests/gcm_flip_completion_test.c)
+        target_include_directories(wkc2_gcm_flip_completion_test PRIVATE
+            "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_DIR}/runtime/ppu")
+        if(MSVC)
+            target_compile_options(wkc2_gcm_flip_completion_test PRIVATE /experimental:c11atomics)
+        endif()
+        add_test(NAME wkc2_gcm_flip_completion COMMAND wkc2_gcm_flip_completion_test)
+        set_tests_properties(wkc2_gcm_flip_completion PROPERTIES TIMEOUT 10)
+    endif()
     if(MSVC)
         target_compile_options(wkc2_gcm_producer_wake_test PRIVATE /experimental:c11atomics)
     endif()
@@ -689,6 +721,22 @@ if(WKC2_BUILD_TESTS)
     target_link_libraries(wkc2_ppu_thread_lifetime_test PRIVATE Threads::Threads)
     add_test(NAME wkc2_ppu_thread_lifetime COMMAND wkc2_ppu_thread_lifetime_test)
     set_tests_properties(wkc2_ppu_thread_lifetime PROPERTIES TIMEOUT 30)
+    set(SPU_ASYNC_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/spu_async_fixture.inc")
+    add_custom_command(OUTPUT "${SPU_ASYNC_FIXTURE}"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spu_async_fixture.py"
+            "${PS3RECOMP_DIR}" "${SPU_ASYNC_FIXTURE}"
+        DEPENDS "${PS3RECOMP_DIR}/runtime/spu/spu_workload.c"
+            "${PS3RECOMP_DIR}/runtime/spu/spu_async_lifetime.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spu_async_fixture.py"
+        VERBATIM)
+    add_executable(wkc2_spu_async_lifetime_test tests/spu_async_lifetime_test.c "${SPU_ASYNC_FIXTURE}")
+    target_include_directories(wkc2_spu_async_lifetime_test PRIVATE
+        "${CMAKE_CURRENT_BINARY_DIR}" "${PS3RECOMP_DIR}/runtime/spu")
+    if(MSVC)
+        target_compile_options(wkc2_spu_async_lifetime_test PRIVATE /experimental:c11atomics)
+    endif()
+    add_test(NAME wkc2_spu_async_lifetime COMMAND wkc2_spu_async_lifetime_test)
+    set_tests_properties(wkc2_spu_async_lifetime PROPERTIES TIMEOUT 15)
     add_executable(wkc2_lfqueue_test tests/lfqueue_test.cpp lfqueue.cpp)
     target_include_directories(wkc2_lfqueue_test PRIVATE "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include")
     target_link_libraries(wkc2_lfqueue_test PRIVATE Threads::Threads)

@@ -1,0 +1,162 @@
+Require every depth snapshot to match the depth target generation, including after a zeta switch.
+
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -1181,10 +1181,8 @@
+     return slot;
+ }
+ 
+-/* A depth target read back as a texture, but only once the pass has executed
+- * a depth-WRITING draw: a write-enable bit alone does not prove the pass
+- * produced a usable depth map, and a clear-only zeta falls through to guest
+- * memory instead (rsx_live_draw.c:6016-6018, 6265-6269). */
++/* A defined depth target read through a copy of its current generation.
++ * The target need not still be bound when a later pass samples it. */
+ static u32 eng_zdepth_snapshot(u32 slot)
+ {
+     eng_zdepth* z = &g.zdepths[slot];
+@@ -1192,7 +1190,8 @@
+      * sampled, just-cleared depth through guest memory (a GPU wait and a full
+      * readback) every frame of WKC2's character creator. */
+     if (!z->handle || !(z->had_write || z->cleared)) return 0;
+-    if (z->snapshot_valid && z->snapshot) return z->snapshot;
++    if (z->snapshot_valid && z->snapshot && z->snapshot_serial == z->depth_serial)
++        return z->snapshot;
+     if (!g.be->depth_snapshot) return 0;
+     const u32 tex = g.be->depth_snapshot(g.be->user, z->handle, z->w, z->h);
+     if (!tex) return 0;
+@@ -2136,11 +2135,6 @@
+                   (t.pitch ? t.pitch : t.width * 4u) == zz->pitch &&
+                   zz->pitch >= zz->w * 4u &&
+                   zz->used_w >= zz->w && zz->used_h >= zz->h) {
+-                  /* The bound depth is read through a copy, so no feedback; the
+-                   * copy must postdate the last depth write, though, which the
+-                   * clear-only invalidation does not ensure for a bound target. */
+-                  if (g.zdepths[zsrc].snapshot_serial != g.zdepths[zsrc].depth_serial)
+-                      g.zdepths[zsrc].snapshot_valid = 0;
+                   const u32 snap = eng_zdepth_snapshot((u32)zsrc);
+                   const u32 tex = snap ? g.be->depth_to_argb8(g.be->user, snap, t.width, t.height,
+                                                                   t.remap & 0xFFFFu, t.format) : 0;
+@@ -2152,9 +2146,6 @@
+                 /* The bound depth too, through a copy taken after its last
+                  * write: it went through guest memory, a GPU wait and a 26 MB
+                  * readback per frame for WKC2's 2560x2560 shadow map. */
+-                if (current_zslot == (u32)zsrc &&
+-                    g.zdepths[zsrc].snapshot_serial != g.zdepths[zsrc].depth_serial)
+-                    g.zdepths[zsrc].snapshot_valid = 0;
+                 const u32 snap = eng_zdepth_snapshot((u32)zsrc);
+                 if (snap) { textures[u] = snap; continue; }
+             }
+diff --git a/libs/video/tests/test_rsx_draw_engine.c b/libs/video/tests/test_rsx_draw_engine.c
+--- a/libs/video/tests/test_rsx_draw_engine.c
++++ b/libs/video/tests/test_rsx_draw_engine.c
+@@ -102,6 +102,8 @@
+     int n_color_copy, copy_failure, n_color_readback;
+     u32 copied_src, copied_dst, copied_w, copied_h;
+     u32 color_stamp[STUB_MAX_OBJECTS], sampled_stamp;
++    u32 depth_stamp[STUB_MAX_OBJECTS];
++    u8 pipeline_depth_write[STUB_MAX_OBJECTS];
+     u32 pipeline_color_mask[STUB_MAX_OBJECTS];
+     u8  pipeline_blend[STUB_MAX_OBJECTS], pipeline_alpha_test[STUB_MAX_OBJECTS];
+     u32 last_view_surface, last_view_remap;
+@@ -186,7 +188,13 @@
+ { (void)u; (void)w; (void)h; stub.n_depth_create++; return stub_handle(); }
+ 
+ static u32 stub_depth_snapshot(void* u, u32 d, u32 w, u32 h)
+-{ (void)u; (void)d; (void)w; (void)h; stub.n_depth_snapshot++; return stub_handle(); }
++{
++    (void)u; (void)w; (void)h;
++    stub.n_depth_snapshot++;
++    const u32 snapshot = stub_handle();
++    stub.depth_stamp[snapshot] = stub.depth_stamp[d];
++    return snapshot;
++}
+ 
+ static u32 stub_pipeline_create(void* u, const char* vs, const char* ps,
+                                 const rsx_be_render_state* rs,
+@@ -199,6 +207,7 @@
+     stub.pipeline_rt_count = rt_count;
+     const u32 handle = stub_handle();
+     stub.pipeline_color_mask[handle] = rs->color_mask;
++    stub.pipeline_depth_write[handle] = (u8)(rs->depth_test && rs->depth_write);
+     stub.pipeline_blend[handle] = (u8)rs->blend_enable;
+     stub.pipeline_alpha_test[handle] = (u8)rs->alpha_test_enable;
+     return handle;
+@@ -259,6 +268,8 @@
+     stub.sampled_stamp = stub.color_stamp[stub.bound_tex[0]];
+     if (stub.bound_surface && stub.pipeline_color_mask[stub.bound_pipeline])
+         stub.color_stamp[stub.bound_surface]++;
++    if (stub.bound_depth && stub.pipeline_depth_write[stub.bound_pipeline])
++        stub.depth_stamp[stub.bound_depth]++;
+ }
+ 
+ static void stub_clear_color(void* u, u32 s, const float rgba[4])
+@@ -1294,6 +1305,59 @@
+     engine_down();
+ }
+ 
++/* A depth image can be rewritten after its snapshot was published and then
++ * sampled while another zeta is bound. Its generation, not the current
++ * attachment, determines whether that snapshot is still usable. */
++static void test_depth_snapshot_generation(void)
++{
++    printf("-- depth snapshot generations across zeta switches\n");
++    engine_up();
++    m(M_CONTEXT_DMA_ZETA, DMA_LOCAL);
++    m(M_SURFACE_FORMAT, 8u | (2u << 5));
++    m(M_ZETA_OFFSET, ZETA_OFFSET);
++    m(M_ZETA_PITCH, 256u * 4u);
++    m(M_DEPTH_TEST, 1u);
++    m(M_DEPTH_WRITE, 1u);
++    draw_triangle();
++    const u32 depth_a = stub.bound_depth;
++    CHECK(stub.depth_stamp[depth_a] == 1u, "first draw writes depth A generation 1");
++
++    m(M_DEPTH_TEST, 0u);
++    m(M_DEPTH_WRITE, 0u);
++    bind_texture_unit(RSX_LOCATION_LOCAL, ZETA_OFFSET);
++    m(M_TEX_UNIT + 0x04, 1u | (2u << 4) | (0xB0u << 8) | (1u << 16));
++    draw_triangle();
++    const u32 first = stub.bound_tex[0];
++    CHECK(first && stub.n_depth_snapshot == 1 && stub.depth_stamp[first] == 1u,
++          "first sample copies depth A generation 1");
++
++    /* Rewrite A without a depth clear (which already invalidates snapshots).
++     * Unit 0 is off so this write does not itself refresh the snapshot. */
++    m(M_TEX_UNIT + 0x0C, 0u);
++    m(M_DEPTH_TEST, 1u);
++    m(M_DEPTH_WRITE, 1u);
++    draw_triangle();
++    CHECK(stub.depth_stamp[depth_a] == 2u && stub.n_depth_snapshot == 1,
++          "second depth A write leaves its published copy at generation 1");
++
++    m(M_ZETA_OFFSET, ZETA_OFFSET + 0x200000u);
++    m(M_DEPTH_TEST, 0u);
++    m(M_DEPTH_WRITE, 0u);
++    m(M_TEX_UNIT + 0x0C, 0x80000000u);
++    draw_triangle();
++    const u32 refreshed = stub.bound_tex[0];
++    CHECK(stub.bound_depth != depth_a && refreshed != first && stub.n_depth_snapshot == 2,
++          "sampling rewritten A with depth B bound refreshes the snapshot");
++    CHECK(stub.depth_stamp[refreshed] == 2u,
++          "the bound snapshot contains depth A generation 2, not stale generation 1");
++    CHECK(!stub.alive[first], "refresh releases the replaced snapshot handle");
++
++    draw_triangle();
++    CHECK(stub.bound_tex[0] == refreshed && stub.n_depth_snapshot == 2,
++          "unchanged depth A reuses its current snapshot while B remains bound");
++    engine_down();
++}
++
+ /* Depth-byte conversion may replace only the CPU decoder's equivalent
+  * one-level linear 2D layout. Exercise real texture routing through draws. */
+ static int zconv_calls, zconv_fail;
+@@ -1482,6 +1546,7 @@
+     test_inline_array();
+     test_depth_clear_value();
+     test_depth_read_as_color();
++    test_depth_snapshot_generation();
+     test_depth_conversion_layouts();
+     test_color_read_as_float();
+     test_depth_only_target();

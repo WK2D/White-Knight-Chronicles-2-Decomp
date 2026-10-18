@@ -1,7 +1,13 @@
 # Code review suggestions
 
-Updated 2026-10-17. The current Windows Vulkan build has 64 SDK patches and
-59 passing runtime checks. Later tracing located the long town strips in
+Updated 2026-10-18. The Windows Vulkan stack has 73 SDK patches and 63 passing
+runtime checks in normal Debug and optimized Release. The preceding 70-patch
+visible town run exposes progressive slowdown from accumulating asynchronous
+SPU workers; foot shadows still flicker.
+Patches 0071–0073 address snapshot reuse, worker ownership and depth comparison;
+their native town recheck is pending. See the
+[current findings](FINDINGS.md#frame-pacing-and-game-speed).
+Earlier tracing located the long town strips in
 omitted secondary-bone physics jobs. Patch 0058 restores their queue execution
 and CRT handoff; see the
 [native recheck](FINDINGS.md#secondary-bone-physics-and-town-stretching).

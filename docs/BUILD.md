@@ -7,23 +7,34 @@ coverage. See [architecture and modding scope](ARCHITECTURE.md).
 **Verified on 2026-10-17:** the 64-patch Windows Vulkan build reaches the live
 WKC1 town with the long stretched hair/clothing strips removed in the inspected
 views. Short movement and camera rotation are rechecked. Earlier town testing
-also verified pause/resume input. All 59 current runtime checks pass with
-64 SDK patches in normal Debug and private optimized Release-CRT builds.
+also verified pause/resume input. At that checkpoint, all 59 runtime checks
+passed with 64 SDK patches in normal Debug and private optimized Release-CRT builds.
 Full material/rendering fidelity, sustained traversal, combat and save/load
 remain unverified. See the
 [latest gallery entry](GALLERY.md).
 
-The source stack now contains 66 SDK patches. Its Windows Vulkan build and all
-59 regression checks pass. The verified 64-patch town results above retain their
-original scope.
+The source stack contains 73 SDK patches. All 63 Windows Vulkan regression
+checks pass in normal Debug (22.79 seconds) and optimized Release (20.46 seconds).
+Reapplying the full stack changes no SDK files. The preceding 70-patch visible town run
+initially reaches 16.57 presentations/s, then falls to about 7 while idle as
+asynchronous SPU workers accumulate. Patches 0071–0073 address depth snapshot
+reuse, asynchronous ownership and depth-comparison sampling; their native town
+and idle-soak validation are pending. A sustained gain is not established.
+Earlier native records retain their original scope.
 
-The port sets two frame-pacing defaults at startup, each overridable by setting
-it first: `GCM_FLIPCB_ONTICK=1` (the game's flip handler runs only when a flip is
-shown, at vblank) and `RSX_VK_PRESENT_MODE=mailbox` (presenting never blocks on
-the monitor). Flips wait for the next vblank (`WKC2_FLIP_ON_VBLANK=0` turns that
-off). Vblanks are timed on the high-resolution counter at 59.94 Hz. Note that the
-window-title FPS counts presents; a frame the game repeats still counts, so it
-can read higher than the game's own update rate.
+The port sets frame-pacing defaults at startup, each overridable by setting it
+first: `GCM_FLIPCB_ONTICK=1` delivers flip callbacks at vblank after a real flip
+request, and `RSX_VK_PRESENT_MODE=mailbox` prefers mailbox presentation when the
+device supports it, with FIFO fallback. Flips wait for the next vblank
+(`WKC2_FLIP_ON_VBLANK=0` turns that off). Vblanks are timed on the high-resolution
+counter at 59.94 Hz. Note that the
+window title labels the counter `Present/s`; repeated animation states still
+count, so this can exceed the game's own update rate. The startup defaults also
+set `GCM_SEMA_ACQUIRE=1` to honor the game's two-vblank semaphore gate and
+`RSX_ENGINE_ZTEX_GPU=1` for supported GPU depth re-encoding. Patch
+0068 allows flip completion only after an actual FIFO or immediate flip request;
+`ResetFlipStatus` by itself does not create a completion. This uses the guest
+pacing mechanism rather than adding a host 30 fps limit.
 
 The source checkout and private working directory can be separate. Pass the
 private workspace with `-Workspace`; the build script gets project sources from
@@ -78,7 +89,7 @@ and save/load remain unverified, and rendering faults remain.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies the numbered runtime patches idempotently
-and runs 59 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs 63 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
@@ -91,14 +102,14 @@ It also covers persistent DMA label polling, reuse of freed memory ranges and
 finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts and host-thread recursion diagnostics. The current
-build contains 65 numbered SDK patches. The newest published town
+build contains 73 numbered SDK patches. The newest published town
 captures use 58; the NPC-surface checkpoint used 52 and the first town-controls
 capture used 42; the earlier town world-view capture used 39. Patch 0043 passed
 the earlier 43-check Windows suite and remains covered by the current suite;
 its town-rendering comparison is recorded separately.
 Patch 0045's three float-mode checks and patches 0046-0051's new and extended
-checks pass in the native Windows clang-cl build. All 59 checks also pass with
-65 patches; Wine's MinGW TLS workaround is not needed here.
+checks pass in the native Windows clang-cl build. All 63 checks pass with
+73 patches in normal Debug and optimized Release; Wine's MinGW TLS workaround is not needed here.
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
@@ -257,6 +268,78 @@ binary. These observations verify the counter display and shortcut target;
 they are not a quantified character-creator benchmark or a rotation-smoothness
 fix. The exact scripted rotation gesture was not confidently verified, and the
 reported stutter remains unresolved.
+
+## Depth sampling and real flip completion (patches 0067–0070)
+
+Patch 0067 keeps the compute depth shader's explicit source/output bindings at
+0 and 1; graphics texture/sampler shifts still apply to graphics shaders. It
+masks the high depth byte to match the CPU byte conversion at the depth-1.0
+rounding edge, and orders reuse of the shared transfer staging buffer after the
+previous snapshot read. `RSX_ENGINE_ZTEX_GPU=1` selects GPU depth re-encoding
+and is a project startup default. The SDK retains the opt-in switch. Wider
+visual and cross-vendor comparisons remain required.
+
+`wkc2_depth_shader_binding` compiles the extracted production compute shader
+and a graphics control shader, then checks their SPIR-V descriptor bindings.
+A separate private Vulkan comparison checked all 16,777,216 D24 depth values
+on an RTX 3090 with `TEX_RGBA=0` and `TEX_RGBA=1`, finding zero CPU/GPU byte
+mismatches. This verifies the tested conversion on that device, not cross-vendor
+GPU behavior or complete depth-of-field fidelity.
+
+Patch 0068 separates a real outstanding display request from polling status.
+The `wkc2_gcm_flip_completion` fixture exercises consumed FIFO markers,
+immediate requests, reset-only and unconsumed requests, no duplicate completion,
+termination reset and the guest's two-vblank semaphore release before a flip.
+
+Patch 0069 moves disabled PPU memory-watch formatting and stack setup behind a
+cached launch-option guard. Live store hooks and self-arming barrier watches
+remain checked. Patch 0070 changes the title label to `Present/s` without dividing
+or otherwise changing its counter. The 70-patch stack passed all 61 normal
+Windows regressions; the 73-patch stack passes all 63 in Debug and Release. Its starting-town run initially improves, then progressively
+slows while idle; see the [timings and worker census](FINDINGS.md#frame-pacing-and-game-speed).
+
+## Depth snapshot generations (patch 0071)
+
+Every sampled depth snapshot must match its source target's latest write or
+clear generation, including when a later pass has bound a different target.
+Patch 0071 moves that validation into the shared snapshot helper, preventing
+stale shadow-depth reuse across target switches. Four synthetic regression
+assertions fail without the change and pass with it. Native visual validation is
+pending; the preceding 70-patch town run still has flickering foot shadows.
+
+## Asynchronous SPU worker ownership (patch 0072)
+
+The dispatcher claims each guest task/workload before creating a detached host
+thread and holds that claim through runner and stack cleanup. Duplicate active
+submissions coalesce. Generation and claim tickets reject stale cleanup, while
+host-thread creation failures release their claims. Active taskset/workload
+reuse or removal returns `BUSY`; this does not add worker cancellation or bound
+arbitrary unowned diagnostic dispatch.
+
+`wkc2_spu_async_lifetime` covers competing claims, 10,000 duplicate submissions,
+completed-slot reuse, duplicate/stale cleanup and more than eight tasksets. The
+extended SPURS production-dispatch regression checks claim-before-create and
+ownership through delayed cleanup; the reversed claim order and stale-cleanup
+negative controls fail. Native town stability still requires the idle soak.
+
+## Vulkan depth comparison (patch 0073)
+
+Supported single-level 2D depth textures now use the guest comparison function
+and native comparison samplers. Linear filtering compares depths before blending
+the results (PCF). Projective instructions divide coordinates and reference
+depth by w. D32 snapshots and per-unit bindings permit ordinary and comparison
+samplers in one fragment shader. Multilevel/cube textures and backends without
+comparison capability retain the earlier shader path.
+
+`wkc2_shadow_compare` compiles synthetic TEX/TXP/TXB/TXL programs through the
+production decompiler and SPIR-V compiler. It checks comparison instructions,
+descriptor bindings, mixed sampling, unnormalized coordinates and legacy API
+compatibility. The draw-engine regression covers mixed sampled units too.
+Private headless production GPU checks pass 37/37 on each of the RTX 3090 and
+Intel UHD 770. The D32 snapshot-to-byte path also matches the CPU for all
+16,777,216 normalized D24 values on both devices and both `TEX_RGBA` settings.
+These checks establish the tested synthetic semantics; native foot-shadow
+flicker and sustained town performance remain unverified.
 
 ## Windows renderer
 
@@ -631,7 +714,7 @@ reservation notifications and separation from both 3D renderers.
 `wkc2_nv0039_routing_3d` checks the SDK compatibility override. The extended
 `wkc2_draw_engine` verifies an unaligned partial-pixel update preserves adjacent
 GPU-owned bytes. All passed in the 50-check checkpoint and remain covered by
-the current 59-check Windows Vulkan suite.
+the current 63-check Windows Vulkan suite.
 
 Set `GCM_M2MF_VERIFY=1` before a private run to compare copied destination bytes
 against the staged source. This re-read confirms the writes landed at the

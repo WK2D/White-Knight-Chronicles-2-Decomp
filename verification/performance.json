@@ -272,7 +272,8 @@
     "Profiler and readbacks affect timing. No profiler-off gameplay benchmark.",
     "A read-only guest-context census also ran during part of the first 59-patch sample.",
     "No sustained traversal, combat, save/load or full rendering/physics fidelity validation.",
-    "Raw counters, profiles, game data, generated code, host identifiers and local paths remain private."
+    "Raw counters, profiles, game data, generated code, host identifiers and local paths remain private.",
+    "The visible 70-patch candidate initially improves, then progressively slows while idle; a short-window gain is not sustained gameplay performance."
   ],
   "findings": "../docs/FINDINGS.md#town-performance-after-the-physics-fix",
   "approximate_improvement_percent_scope": "Historical comparison: patch 0058 to 0059 with Debug /MDd; not the latest patch comparison",
@@ -377,5 +378,95 @@
       "town61-camera": "9f937ded6d2121efc5076784658f0f50baff4de9048f69ae0d99cb805da238dc"
     }
   },
-  "producer_signal_interpretation": "For patch 0064, overlap signals count successful SetEvent calls only after observing a changed parked word; they do not count distinct consumed wakes. Unchanged overlaps are counted separately."
+  "producer_signal_interpretation": "For patch 0064, overlap signals count successful SetEvent calls only after observing a changed parked word; they do not count distinct consumed wakes. Unchanged overlaps are counted separately.",
+  "visible_window_baseline": {
+    "date": "2026-10-18",
+    "sdk_patch_count": 66,
+    "probe": "20261018-043014",
+    "scene": "Initial WKC1 town after dismissing party and Travelogue dialogs",
+    "conditions": {
+      "window_visible": true,
+      "renderer": "Vulkan",
+      "sampling_profiler_enabled": true,
+      "sampling_profiler_interval_ms": 2,
+      "gpu_readback_interval_seconds": 5,
+      "movement_or_camera_input_during_sample": false
+    },
+    "seconds": 60.000045,
+    "presented_frames": 737,
+    "average_presentations_per_second": 12.283324,
+    "private_counter_record_sha256": "f1d67a82fa3b3f1a1811f53be4d594d6c41c7ea5f7a0ff5bb969d67309363717",
+    "scope": "One visible-window diagnostic sample, not distinct animation frames or a profiler-off gameplay benchmark; historical patch58-64 hidden-window timings are not a directly matched comparison"
+  },
+  "candidate_0070_town_comparison": {
+    "sdk_patch_count": 70,
+    "status": "measured_initial_gain_followed_by_progressive_idle_slowdown",
+    "frame_rate_gain_verified": false,
+    "sustained_frame_rate_gain_verified": false,
+    "probe": "20261018-044637",
+    "conditions": {
+      "window_visible": true,
+      "renderer": "Vulkan",
+      "sampling_profiler_enabled": true,
+      "sampling_profiler_interval_ms": 2,
+      "gpu_readback_interval_seconds": 5,
+      "movement_or_camera_input_during_sample": false,
+      "gcm_sema_acquire": 1,
+      "rsx_engine_ztex_gpu": 1
+    },
+    "samples": [
+      {
+        "window": "town70-counters-A",
+        "seconds": 60.000396,
+        "presented_frames": 994,
+        "average_presentations_per_second": 16.566557,
+        "private_counter_record_sha256": "7efb160448958762803f535e55d3f771a03085bbcfe6747392d04b6f705c61d6"
+      },
+      {
+        "window": "town70-counters-B",
+        "seconds": 60.000218000000004,
+        "presented_frames": 759,
+        "average_presentations_per_second": 12.649954,
+        "private_counter_record_sha256": "01cfaaf65fc2b520124ce1e32241f12dfd83d4f6c07ecc3f987958c214dbbf8f"
+      }
+    ],
+    "later_idle_presentations_per_second_approximate": 7,
+    "later_rate_scope": "Observed window-title rate and user report; not another timed one-minute counter sample",
+    "initial_gain_over_baseline_percent_approximate": 34.9,
+    "initial_gain_scope": "First one-minute sample only; combined runtime changes, no per-patch attribution or sustained performance claim",
+    "live_thread_census": {
+      "total": 2702,
+      "asynchronous_spu_worker_entry": 2636,
+      "private_record_sha256": "598915351c457199d46c52e94bf077ac9601cc20040cb69cf99b41e6267bf89b",
+      "fix_verified_in_native_run": false
+    },
+    "foot_shadow_flicker_observed": true,
+    "selected_cutscenes_in_sync_user_report": true,
+    "full_in_engine_audio_sync_verified": false
+  },
+  "candidate_0073_town_comparison": {
+    "sdk_patch_count": 73,
+    "status": "town_reached_idle_soak_ongoing_shadow_regression_observed",
+    "probe": "20261018-051954",
+    "native_binary_sha256": "d3f384daa313346c5fb8bb179dee09fcd8e5b2119a55498e181edd1bf4621c4e",
+    "conditions": {
+      "window_visible": true,
+      "renderer": "Vulkan",
+      "sampling_profiler_enabled": false,
+      "gpu_readback_interval_seconds": 5,
+      "gcm_sema_acquire": 1,
+      "rsx_engine_ztex_gpu": 1
+    },
+    "normal_debug_checks_passed": 63,
+    "normal_debug_checks_elapsed_seconds": 22.79,
+    "optimized_release_checks_passed": 63,
+    "optimized_release_checks_elapsed_seconds": 20.46,
+    "sustained_frame_rate_gain_verified": false,
+    "progressive_idle_slowdown_fixed_verified": false,
+    "foot_shadow_flicker_fixed_verified": false,
+    "comparison_limit": "The 66/70-patch timing samples used the 2 ms sampling profiler; this candidate has it disabled, so a difference cannot be attributed solely to code changes.",
+    "native_town_reached": true,
+    "bright_foot_shadow_regression_observed": true,
+    "black_foot_flicker_observed": true
+  }
 }

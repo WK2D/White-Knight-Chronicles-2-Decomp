@@ -1,0 +1,70 @@
+Keep disabled PPU memory-watch formatting and prologues off the hot path.
+
+Launch-selected environment watches retain their parsers,
+and live store hooks and self-arming barrier watches remain checked.
+
+diff --git a/runtime/ppu/ppu_loader.cpp b/runtime/ppu/ppu_loader.cpp
+--- a/runtime/ppu/ppu_loader.cpp
++++ b/runtime/ppu/ppu_loader.cpp
+@@ -1451,7 +1451,13 @@
+ 
+ extern "C" {
+ /* PPU_RWATCH=<hex>[,len] -- see the note in vm_read8. */
+-static inline void ppu_rwatch_hit(uint32_t a, int width, void* ra)
++/* Keep diagnostic formatting and stack setup off ordinary memory accesses. */
++#if defined(_MSC_VER)
++#define PPU_WATCH_NOINLINE __declspec(noinline)
++#else
++#define PPU_WATCH_NOINLINE __attribute__((noinline))
++#endif
++static PPU_WATCH_NOINLINE void ppu_rwatch_hit_slow(uint32_t a, int width, void* ra)
+ {
+     static int64_t s_lo = -2; static uint32_t s_len = 0x10;
+     if (s_lo == -2) {
+@@ -1483,6 +1489,15 @@
+      * makes ambiguous, and it names the reading function but never who called
+      * it -- which is the question whenever a field reads as garbage. */
+     if (rn == 1 && g_active_ctx) ppu_dump_guest_stack(g_active_ctx, "rw");
++}
++
++static inline void ppu_rwatch_hit(uint32_t a, int width, void* ra)
++{
++    /* Like the parser below, options are selected once at launch. Presence
++     * includes empty and "0" values; the original parser decides their effect.
++     * C++ local-static initialization is synchronized between guest threads. */
++    static const bool enabled = getenv("PPU_RWATCH") != nullptr;
++    if (enabled) ppu_rwatch_hit_slow(a, width, ra);
+ }
+ /* Report a guest read through a NULL-ish pointer.
+  *
+@@ -1746,9 +1761,8 @@
+ }
+ /* Optional observation only; installed before guest threads start. */
+ extern "C" void (*g_ppu_store_trace_hook)(uint32_t, uint32_t, int, void*) = nullptr;
+-static inline void barrier_watch_hit(uint32_t a, uint32_t v, int width, void* ra)
+-{
+-    if (g_ppu_store_trace_hook) g_ppu_store_trace_hook(a, v, width, ra);
++static PPU_WATCH_NOINLINE void barrier_watch_hit_slow(uint32_t a, uint32_t v, int width, void* ra)
++{
+     /* PPU_WVAL=<hexvalue>: log every PPU store that WRITES this value, wherever
+      * it lands. PPU_WWATCH answers "who writes this address"; when a bad value is
+      * copied from node to node down a list, that only ever catches the copy.
+@@ -1867,6 +1881,18 @@
+                     a - b, v, width, ppu_prof_resolve_host(ra));
+     }
+ }
++
++static inline void barrier_watch_hit(uint32_t a, uint32_t v, int width, void* ra)
++{
++    /* These two observers may arm after the launch-option cache is initialized.
++     * Keep the hook before option initialization, as in the original path. */
++    if (g_ppu_store_trace_hook) g_ppu_store_trace_hook(a, v, width, ra);
++    static const bool enabled = getenv("PPU_WVAL") != nullptr ||
++                                getenv("PPU_WWATCH") != nullptr;
++    if (enabled || g_barrier_sync_watch) barrier_watch_hit_slow(a, v, width, ra);
++}
++
++#undef PPU_WATCH_NOINLINE
+ 
+ /* See the note on the forward declaration above ppu_stwcx32. */
+ extern "C" void ppu_ww_note_atomic(uint32_t ea, uint32_t val, int width, void* ra)

@@ -1,0 +1,23 @@
+Label the window presentation counter explicitly; it does not count unique guest animation frames.
+
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -1788,7 +1788,7 @@
+         const double fps = (double)s_vk.title_frames * (double)s_vk.title_frequency / (double)elapsed;
+         const double worst_ms = 1000.0 * (double)s_vk.title_max_interval / (double)s_vk.title_frequency;
+         char title[sizeof s_vk.window_title + 96];
+-        snprintf(title, sizeof title, "%s | FPS: %.1f | max: %.1f ms", s_vk.window_title, fps, worst_ms);
++        snprintf(title, sizeof title, "%s | Present/s: %.1f | max: %.1f ms", s_vk.window_title, fps, worst_ms);
+         SDL_SetWindowTitle(s_vk.window, title);
+         s_vk.title_epoch = now;
+         s_vk.title_frames = s_vk.title_max_interval = 0;
+@@ -1848,7 +1848,7 @@
+     s_vk.title_frequency = SDL_GetPerformanceFrequency();
+     if (s_vk.title_frequency) {
+         char caption[sizeof s_vk.window_title + 96];
+-        snprintf(caption, sizeof caption, "%s | FPS: -- | max: -- ms", s_vk.window_title);
++        snprintf(caption, sizeof caption, "%s | Present/s: -- | max: -- ms", s_vk.window_title);
+         SDL_SetWindowTitle(s_vk.window, caption);
+     }
+     unsigned n = 0;

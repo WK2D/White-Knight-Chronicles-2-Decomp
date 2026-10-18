@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Normal hair/clothing retained after limited town controls; hidden-window starting-town diagnostic samples measure 12.5\u201313.1 fps, with visible interactive performance unverified",
+    "current_milestone": "73-patch Windows Vulkan build passes 63 checks and reaches town; idle stability test ongoing; bright foot-shadow regression remains",
     "updated": "2026-10-18"
   },
   "native_data_installation_verified": true,
@@ -153,9 +153,9 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 66,
-    "runtime_checks_passed": 59,
-    "town_native_run_sdk_patch_count": 64,
+    "sdk_patch_count": 73,
+    "runtime_checks_passed": 63,
+    "town_native_run_sdk_patch_count": 70,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
     "patch_0042_native_game_run_verified": true,
@@ -217,7 +217,36 @@
     "patch_0065_native_title_counter_verified": true,
     "patch_0065_creator_rotation_rechecked": false,
     "patch_0066_windows_regression_verified": true,
-    "creator_speed_matches_rpcs3": true
+    "creator_speed_matches_rpcs3": false,
+    "patches_0067_0070_windows_regression_verified": true,
+    "patch_0067_depth_conversion_all_d24_values_gpu_verified": true,
+    "patch_0067_cross_vendor_depth_conversion_verified": true,
+    "patch_0068_real_flip_completion_regression_verified": true,
+    "patch_0069_disabled_ppu_watch_fast_path_implemented": true,
+    "patch_0070_presentation_label_implemented": true,
+    "patches_0067_0070_town_performance_comparison_verified": true,
+    "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
+    "runtime_checks_verified_sdk_patch_count": 73,
+    "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
+    "patch_0071_depth_snapshot_generation_regression_verified": true,
+    "patch_0071_native_game_run_verified": false,
+    "foot_shadow_flicker_fixed": false,
+    "progressive_idle_slowdown_fixed_in_native_run": false,
+    "startup_defaults": {
+      "GCM_SEMA_ACQUIRE": "1",
+      "RSX_ENGINE_ZTEX_GPU": "1"
+    },
+    "normal_debug_checks_elapsed_seconds": 22.79,
+    "optimized_release_checks_elapsed_seconds": 20.46,
+    "repeat_patch_application_files_changed": 0,
+    "patch_0071_windows_regression_verified": true,
+    "patch_0072_windows_regression_verified": true,
+    "patch_0073_windows_regression_verified": true,
+    "patch_0072_native_game_run_verified": false,
+    "patch_0073_native_game_run_verified": false,
+    "patch_0072_progressive_slowdown_fixed_verified": false,
+    "patch_0073_foot_shadow_flicker_fixed_verified": false,
+    "depth_conversion_cross_vendor_scope": "73-patch D32 snapshot path: all 16777216 normalized D24 values, TEX_RGBA 0 and 1, RTX 3090 and Intel UHD 770; other devices unverified"
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -272,13 +301,16 @@
     "unique_guest_animation_frames_counted": false,
     "exact_display_scanout_counted": false,
     "stalled_title_updates_on_rendering_resume": true,
-    "windows_and_native_validation": "Windows build and all 59 regressions pass; counter updates verified in visible title menu and initial creator; rotation stutter unresolved",
+    "windows_and_native_validation": "73-patch Windows build passes 63 regressions in normal Debug and optimized Release; native title validation retained at patch 0065 and town presentation counts sampled at patch 0070; current native town recheck pending",
     "native_probe": "20261018-001428",
     "native_window_visible": true,
     "native_sampling_profiler_enabled": false,
     "native_gpu_readback_interval_seconds": 5,
     "desktop_shortcut_same_binary_verified": true,
-    "creator_rotation_smoothness_fixed": false
+    "creator_rotation_smoothness_fixed": false,
+    "label": "Present/s",
+    "label_patch": 70,
+    "current_windows_runtime_checks_passed": 63
   },
   "performance": {
     "record": "verification/performance.json",
@@ -286,13 +318,29 @@
     "later_target_fps": 60,
     "steady_30_fps_verified": false,
     "60_fps_verified": false,
-    "latest_measured_sdk_patch_count": 64,
-    "diagnostic_window_visible": false,
+    "latest_measured_sdk_patch_count": 70,
+    "diagnostic_window_visible": true,
     "visible_gameplay_fps_verified": false,
     "latest_profiled_starting_town_fps_range": [
-      12.5,
-      13.1
+      12.649954,
+      16.566557
     ],
-    "scope": "Two one-minute hidden-window idle starting-town diagnostic samples with physics enabled, optimized Release-CRT /MD, sampler, producer counters and five-second readbacks. These are not visible-gameplay FPS or a profiler-off benchmark. Combined patches 0062\u20130064, no isolated per-patch FPS attribution."
+    "scope": "Two one-minute visible idle starting-town diagnostic samples; sampler and five-second readbacks enabled. Rate later falls to about 7 Present/s as asynchronous SPU workers accumulate. No sustained gain or per-patch FPS attribution.",
+    "latest_visible_baseline_sdk_patch_count": 66,
+    "latest_visible_baseline_presentations_per_second": 12.283324,
+    "latest_candidate_sdk_patch_count": 70,
+    "latest_candidate_town_comparison_verified": true,
+    "latest_candidate_sustained_gain_verified": false,
+    "later_idle_presentations_per_second_approximate": 7,
+    "pending_native_sdk_patch_count": 73
+  },
+  "current_native_observation": {
+    "sdk_patch_count": 73,
+    "probe": "20261018-051954",
+    "town_reached": true,
+    "idle_stability_test_complete": false,
+    "bright_pool_under_leonard_observed": true,
+    "black_foot_flicker_observed": true,
+    "shadow_fix_verified": false
   }
 }

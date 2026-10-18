@@ -1,0 +1,491 @@
+Claim detached SPU workers by explicit guest owner before host-thread creation; retain ownership through runner and stack cleanup.
+
+diff --git a/runtime/spu/spu_workload.c b/runtime/spu/spu_workload.c
+--- a/runtime/spu/spu_workload.c
++++ b/runtime/spu/spu_workload.c
+@@ -6,6 +6,7 @@
+  * spu_workload_dispatch(); the registry is populated by the title's lifted set.
+  */
+ #include "spu_workload.h"
++#include "spu_async_lifetime.h"
+ #include "spu_lifted_job.h"   /* spu_run_lifted_job */
+ #include "../ps3_log.h"      /* ps3_log_verbose */
+ #include <stdio.h>
+@@ -24,6 +25,12 @@
+  * as opposed to the 64-byte context handshake DMAs. The dispatcher's
+  * YDKJ_CRI_RESUME poll-loop watches this to know real work arrived. */
+ int g_cri_video_dma = 0;
++/* Process-lifetime detached-worker census; no instruction-level accounting or
++ * file output. Active includes queued starts and all runner/stack cleanup. */
++atomic_ullong g_spu_async_active, g_spu_async_peak, g_spu_async_started;
++atomic_ullong g_spu_async_completed, g_spu_async_coalesced, g_spu_async_rejected;
++atomic_ullong g_spu_async_task_started, g_spu_async_workload_started, g_spu_async_unowned_started;
++
+ 
+ /* Launch-time diagnostic state is private to each dispatching host thread.
+  * Test _MSC_VER rather than _WIN32: MinGW supports __thread. */
+@@ -304,6 +311,7 @@
+     int                 have_r3;
+     uint32_t            taskset_ea;   /* captured race-free at dispatch (globals get clobbered) */
+     uint32_t            taskid;
++    spu_async_ticket    lifetime;
+ } spu_async_job;
+ 
+ /* ---- Persistent per-taskset local store (LBP_PERSIST_LS) ------------------
+@@ -421,67 +429,56 @@
+  * Taskset layout: bitsets of 16 bytes at +0x10 ready, +0x20 pending,
+  * +0x30 enabled (task 0 = MSB of byte 0); task_info[t] at +0x80 + 0x30*t with
+  * the ELF EA at +0x14 and the context save EA at +0x1C. */
+-#define TS_TRACK 8
+-static struct { uint32_t ea; uint8_t running[16]; } s_ts_run[TS_TRACK];
+ static volatile LONG s_ts_lock;
+-static uint8_t* ts_running(uint32_t taskset_ea)
+-{
+-    for (int i = 0; i < TS_TRACK; i++) if (s_ts_run[i].ea == taskset_ea) return s_ts_run[i].running;
+-    for (int i = 0; i < TS_TRACK; i++) if (!s_ts_run[i].ea) { s_ts_run[i].ea = taskset_ea; return s_ts_run[i].running; }
+-    return NULL;
+-}
+ static void ts_lock(void)   { while (InterlockedExchange(&s_ts_lock, 1)) Sleep(0); }
+ static void ts_unlock(void) { InterlockedExchange(&s_ts_lock, 0); }
+ 
+-static void spu_taskset_mark(uint32_t taskset_ea, uint32_t t, int on)
+-{
+-    if (!taskset_ea || t >= 128) return;
++void spu_workload_taskset_create_lock(void) { ts_lock(); }
++void spu_workload_taskset_create_unlock(void) { ts_unlock(); }
++int spu_workload_task_active(uint32_t ea,uint32_t task) { return async_owner_active(SPU_ASYNC_TASK,ea,0,task); }
++int spu_workload_taskset_begin(uint32_t ea) { ts_lock(); int ok=async_owner_begin(SPU_ASYNC_TASK,ea,0); ts_unlock(); return ok; }
++int spu_workload_taskset_close(uint32_t ea) { ts_lock(); int ok=async_owner_close(SPU_ASYNC_TASK,ea,0); ts_unlock(); return ok; }
++int spu_workload_workload_begin(uint32_t ea,uint32_t wid) { return async_owner_begin(SPU_ASYNC_WORKLOAD,ea,wid); }
++int spu_workload_workload_close(uint32_t ea,uint32_t wid) { return async_owner_close(SPU_ASYNC_WORKLOAD,ea,wid); }
++
++static void spu_taskset_task_exited(spu_async_job* j)
++{
++    extern uint8_t* vm_base;
++    const uint32_t taskset_ea=j->taskset_ea, done_task=j->taskid;
+     ts_lock();
+-    uint8_t* r = ts_running(taskset_ea);
+-    uint8_t m = (uint8_t)(0x80u >> (t & 7));
+-    if (r) { if (on) r[t / 8] |= m; else r[t / 8] &= (uint8_t)~m; }
+-    ts_unlock();
+-}
+-
+-static void spu_taskset_task_exited(uint32_t taskset_ea, uint32_t done_task)
+-{
+-    extern uint8_t* vm_base;
+-    extern uint32_t g_ydkj_real_taskset_ea, g_ydkj_real_taskid;
+-    ts_lock();
++    /* A duplicate/stale cleanup must not retire a newer guest slot. */
++    if (!async_owner_finish(&j->lifetime)) { ts_unlock(); return; }
+     uint8_t* ts = vm_base + taskset_ea;
+-    uint8_t* run = ts_running(taskset_ea);
+     if (done_task < 128) {
+         uint8_t m = (uint8_t)(0x80u >> (done_task & 7));
+         ts[0x10 + done_task / 8] &= (uint8_t)~m;
+         ts[0x20 + done_task / 8] &= (uint8_t)~m;
+         ts[0x30 + done_task / 8] &= (uint8_t)~m;
+-        if (run) run[done_task / 8] &= (uint8_t)~m;
+-    }
+-    for (uint32_t t = 0; t < 128 && run; t++) {
++    }
++    for (uint32_t t = 0; t < 128; t++) {
+         uint8_t m = (uint8_t)(0x80u >> (t & 7));
+-        if (!(ts[0x30 + t / 8] & m) || (run[t / 8] & m)) continue;
++        if (!(ts[0x30 + t / 8] & m) || async_owner_active(SPU_ASYNC_TASK,taskset_ea,0,t)) continue;
+         if (!((ts[0x10 + t / 8] | ts[0x20 + t / 8]) & m)) continue;
+         const uint8_t* ti = ts + 0x80 + 0x30 * t;
+         uint32_t elf = ((uint32_t)ti[0x14] << 24) | ((uint32_t)ti[0x15] << 16) |
+                        ((uint32_t)ti[0x16] << 8) | ti[0x17];
+-        uint32_t ctx = ((uint32_t)ti[0x1C] << 24) | ((uint32_t)ti[0x1D] << 16) |
+-                       ((uint32_t)ti[0x1E] << 8) | ti[0x1F];
++        uint32_t args = ((uint32_t)ti[0x1C] << 24) | ((uint32_t)ti[0x1D] << 16) |
++                        ((uint32_t)ti[0x1E] << 8) | ti[0x1F];
+         if (!elf) continue;
+         size_t sz = spu_elf_image_size(vm_base + elf, 2u * 1024 * 1024);
+         if (!sz) continue;
+-        ts[0x20 + t / 8] &= (uint8_t)~m;                 /* pending -> started */
+-        run[t / 8] |= m;
+-        fprintf(stderr, "[taskset] start task %u of taskset 0x%08X elf=0x%08X "
+-                        "(after task %u exited)\n", t, taskset_ea, elf, done_task);
+-        g_ydkj_real_taskset_ea = taskset_ea; g_ydkj_real_taskid = t;
+-        spu_workload_dispatch_async(vm_base + elf, (uint32_t)sz, ctx);
++        /* Claim and launch before releasing the descriptor lifetime lock, as
++         * CreateTask does. CreateThread does not wait for the new worker; its
++         * eventual exit can safely wait on this lock. No other creator may
++         * destroy/reuse this taskset between reading the descriptor and claim. */
++        if (spu_workload_dispatch_task_async(vm_base+elf,(uint32_t)sz,args,taskset_ea,t))
++            ts[0x20+t/8] &= (uint8_t)~m;  /* pending -> started */
+     }
+     ts_unlock();
+ }
+ 
+ static void spu_async_run(spu_async_job* j)
+ {
+-    spu_taskset_mark(j->taskset_ea, j->taskid, 1);
+     /* Persistent per-taskset LS: acquire (+serialize) the taskset's LS, or fall
+      * back to a fresh per-dispatch LS when disabled / no taskset. */
+     spu_ts_ls_slot* ts_slot = NULL;
+@@ -556,7 +553,7 @@
+                                                      j->args_ea, 23, 1, j->have_r3 ? j->r3 : 0, 0);
+                 fprintf(stderr, "[cri] taskset policy RETURNED rc=%d\n", prc);
+                 fflush(stderr);
+-                free(ls); free(j); return;
++                free(ls); return;  /* caller retains the lifetime ticket until stack cleanup */
+             }
+             /* YDKJ HLE cri-task path (image 22, cri_mpvps3spurs.elf): the real
+              * SPURS kernel/policy would build the task's SpursTasksetContext (LS
+@@ -821,7 +818,6 @@
+             fprintf(stderr, "[spu_workload] async image=%d RETURNED rc=%d "
+                     "(job ran to completion, did not loop)\n", j->image_id, rc);
+             spu_serial_release();
+-            if (j->taskset_ea) spu_taskset_task_exited(j->taskset_ea, j->taskid);
+         }
+         /* Persistent LS is retained in its taskset slot for the next task; a
+          * per-dispatch LS is freed. */
+@@ -834,6 +830,17 @@
+         pthread_mutex_unlock(&ts_slot->lock);
+ #endif
+     }
++}
++
++static void spu_async_finished(spu_async_job* j)
++{
++    /* Keep the ownership claim until the lifted runner and stack reservation
++     * cleanup have returned. Release before retiring the guest enabled bit:
++     * a newly created generation cannot be mistaken for this worker. */
++    if (j->taskset_ea) spu_taskset_task_exited(j);
++    else async_owner_finish(&j->lifetime);
++    atomic_fetch_sub_explicit(&g_spu_async_active,1,memory_order_relaxed);
++    atomic_fetch_add_explicit(&g_spu_async_completed,1,memory_order_relaxed);
+     free(j);
+ }
+ 
+@@ -848,10 +855,11 @@
+     { ULONG_PTR lo, hi; GetCurrentThreadStackLimits(&lo, &hi);
+       extern void spu_coh_forget_range(uintptr_t, uintptr_t);
+       spu_coh_forget_range((uintptr_t)lo, (uintptr_t)hi); }
++    spu_async_finished((spu_async_job*)p);
+     return 0;
+ }
+ #else
+-static void* spu_async_thread(void* p) { spu_async_run((spu_async_job*)p); return NULL; }
++static void* spu_async_thread(void* p) { spu_async_run((spu_async_job*)p); spu_async_finished((spu_async_job*)p); return NULL; }
+ #endif
+ 
+ int spu_workload_dispatch_job(const uint8_t* image, uint32_t image_size,
+@@ -1231,8 +1239,9 @@
+     return 0;
+ }
+ 
+-int spu_workload_dispatch_async(const uint8_t* image, uint32_t image_size,
+-                                uint32_t args_ea)
++static int spu_dispatch_async_owned(const uint8_t* image, uint32_t image_size,
++                                    uint32_t args_ea,uint32_t kind,
++                                    uint32_t owner_ea,uint32_t instance,uint32_t slot)
+ {
+     if (!image || image_size == 0) return 0;
+ 
+@@ -1272,12 +1281,16 @@
+     if (!j) return 0;
+     j->image = image; j->image_size = image_size; j->args_ea = args_ea;
+     j->fn = fn; j->image_id = image_id;
+-    /* Capture the taskset+taskid NOW (PPU thread, right after cellSpursCreateTask
+-     * set the globals for THIS task). Reading them later in the async thread races
+-     * the next CreateTask overwriting the single-slot globals -- with two audio
+-     * tasks that made both run task 1's descriptor. */
+-    { extern uint32_t g_ydkj_real_taskset_ea, g_ydkj_real_taskid;
+-      j->taskset_ea = g_ydkj_real_taskset_ea; j->taskid = g_ydkj_real_taskid; }
++    memset(&j->lifetime,0,sizeof j->lifetime);
++    j->taskset_ea=kind==SPU_ASYNC_TASK ? owner_ea : 0;
++    j->taskid=slot;
++    if (kind) {
++        int claimed=async_owner_claim(kind,owner_ea,instance,slot,&j->lifetime);
++        if (claimed<=0) {
++            atomic_fetch_add_explicit(claimed==0 ? &g_spu_async_coalesced : &g_spu_async_rejected,1,memory_order_relaxed);
++            free(j); return claimed==0 ? 1 : 0;
++        }
++    }
+     /* Capture the SPURS task r3 NOW (PPU thread, synchronous) from the game's
+      * descriptor at eaContext+0x10 = {0x40-marker handle, workload EAs}; the
+      * async SPU thread reading it later would race the PPU stack. word1 is
+@@ -1321,6 +1334,11 @@
+                 fprintf(stderr, "\n");
+             } } }
+ 
++    unsigned long long active=atomic_fetch_add_explicit(&g_spu_async_active,1,memory_order_relaxed)+1;
++    unsigned long long peak=atomic_load_explicit(&g_spu_async_peak,memory_order_relaxed);
++    while (peak<active && !atomic_compare_exchange_weak_explicit(&g_spu_async_peak,&peak,active,
++                                                    memory_order_relaxed,memory_order_relaxed)) { }
++    atomic_fetch_add_explicit(&g_spu_async_started,1,memory_order_relaxed);
+ #ifdef _WIN32
+     /* 256MB RESERVE (not commit): the Bink SPU decoder's per-macroblock brsl
+      * chains are deep host call chains with fat lifted frames -- a 1MB stack
+@@ -1328,7 +1346,9 @@
+      * process death) the moment the real decode path first executed. */
+     HANDLE th = CreateThread(NULL, 256u << 20, spu_async_thread, j,
+                              STACK_SIZE_PARAM_IS_A_RESERVATION, NULL);
+-    if (!th) { free(j); return 0; }
++    if (!th) { async_owner_finish(&j->lifetime); atomic_fetch_sub_explicit(&g_spu_async_active,1,memory_order_relaxed);
++        atomic_fetch_sub_explicit(&g_spu_async_started,1,memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_spu_async_rejected,1,memory_order_relaxed); free(j); return 0; }
+     CloseHandle(th);   /* detached */
+ #else
+     /* Same 256 MB reservation, for the same reason: pthread stacks are
+@@ -1347,8 +1367,24 @@
+      * beats never dispatching at all. */
+     if (prc != 0)
+         prc = pthread_create(&th, NULL, spu_async_thread, j);
+-    if (prc != 0) { free(j); return 0; }
++    if (prc != 0) { async_owner_finish(&j->lifetime); atomic_fetch_sub_explicit(&g_spu_async_active,1,memory_order_relaxed);
++        atomic_fetch_sub_explicit(&g_spu_async_started,1,memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_spu_async_rejected,1,memory_order_relaxed); free(j); return 0; }
+     pthread_detach(th);
+ #endif
++    atomic_fetch_add_explicit(kind==SPU_ASYNC_TASK ? &g_spu_async_task_started :
++        kind==SPU_ASYNC_WORKLOAD ? &g_spu_async_workload_started : &g_spu_async_unowned_started,
++        1,memory_order_relaxed);
+     return 1;
+ }
++
++/* Unowned async services never inherit the last-created task's diagnostic
++ * globals. Callers with a real owner must use one of the keyed APIs below. */
++int spu_workload_dispatch_async(const uint8_t* image,uint32_t size,uint32_t args)
++{ return spu_dispatch_async_owned(image,size,args,0,0,0,0); }
++int spu_workload_dispatch_task_async(const uint8_t* image,uint32_t size,uint32_t args,
++                                    uint32_t taskset,uint32_t task)
++{ return spu_dispatch_async_owned(image,size,args,SPU_ASYNC_TASK,taskset,0,task); }
++int spu_workload_dispatch_workload_async(const uint8_t* image,uint32_t size,uint32_t args,
++                                        uint32_t spurs,uint32_t workload)
++{ return spu_dispatch_async_owned(image,size,args,SPU_ASYNC_WORKLOAD,spurs,workload,0); }
+diff --git a/runtime/spu/spu_workload.h b/runtime/spu/spu_workload.h
+--- a/runtime/spu/spu_workload.h
++++ b/runtime/spu/spu_workload.h
+@@ -126,6 +126,19 @@
+ int spu_workload_dispatch_async(const uint8_t* image, uint32_t image_size,
+                                 uint32_t args_ea);
+ 
++/* Explicit guest ownership: repeated dispatch of an active key coalesces;
++ * a finished task may reuse its slot. Begin/close refuse live owner reuse
++ * instead of overwriting memory still used by detached workers. */
++int spu_workload_dispatch_task_async(const uint8_t*,uint32_t,uint32_t,uint32_t,uint32_t);
++int spu_workload_dispatch_workload_async(const uint8_t*,uint32_t,uint32_t,uint32_t,uint32_t);
++void spu_workload_taskset_create_lock(void);
++void spu_workload_taskset_create_unlock(void);
++int spu_workload_task_active(uint32_t taskset_ea,uint32_t task_id);
++int spu_workload_taskset_begin(uint32_t taskset_ea);
++int spu_workload_taskset_close(uint32_t taskset_ea);
++int spu_workload_workload_begin(uint32_t spurs_ea,uint32_t workload_id);
++int spu_workload_workload_close(uint32_t spurs_ea,uint32_t workload_id);
++
+ /* Number of currently registered lifted SPU binaries (diagnostics/tests). */
+ unsigned spu_workload_count(void);
+ 
+diff --git a/libs/spurs/cellSpurs.c b/libs/spurs/cellSpurs.c
+--- a/libs/spurs/cellSpurs.c
++++ b/libs/spurs/cellSpurs.c
+@@ -769,6 +769,7 @@
+         return CELL_SPURS_CORE_ERROR_STAT;
+     }
+ 
++    if (!spu_workload_taskset_begin(taskset_ea)) return CELL_SPURS_TASK_ERROR_BUSY;
+     memset(taskset, 0, sizeof(CellSpursTaskset));
+     taskset->initialized = 1;
+     taskset->spurs = spurs;
+@@ -795,29 +796,38 @@
+ 
+ s32 cellSpursDestroyTaskset(CellSpursTaskset* taskset)
+ {
++    uint32_t owner_ea=(uint32_t)(uintptr_t)taskset;
+     taskset = GUEST_PTR(taskset, CellSpursTaskset*);
+     if (!taskset)
+         return CELL_SPURS_TASK_ERROR_NULL_POINTER;
+ 
++    if (!spu_workload_taskset_close(owner_ea)) return CELL_SPURS_TASK_ERROR_BUSY;
++
+     printf("[cellSpurs] DestroyTaskset()\n");
+     return CELL_OK;
+ }
+ 
+ s32 cellSpursShutdownTaskset(CellSpursTaskset* taskset)
+ {
++    uint32_t owner_ea=(uint32_t)(uintptr_t)taskset;
+     taskset = GUEST_PTR(taskset, CellSpursTaskset*);
+     if (!taskset)
+         return CELL_SPURS_TASK_ERROR_NULL_POINTER;
+ 
++    if (!spu_workload_taskset_close(owner_ea)) return CELL_SPURS_TASK_ERROR_BUSY;
++
+     printf("[cellSpurs] ShutdownTaskset()\n");
+     return CELL_OK;
+ }
+ 
+ s32 cellSpursJoinTaskset(CellSpursTaskset* taskset)
+ {
++    uint32_t owner_ea=(uint32_t)(uintptr_t)taskset;
+     taskset = GUEST_PTR(taskset, CellSpursTaskset*);
+     if (!taskset)
+         return CELL_SPURS_TASK_ERROR_NULL_POINTER;
++
++    if (!spu_workload_taskset_close(owner_ea)) return CELL_SPURS_TASK_ERROR_BUSY;
+ 
+     printf("[cellSpurs] JoinTaskset()\n");
+     /* In a full implementation, wait for all tasks to complete */
+@@ -899,9 +909,11 @@
+      * ponytail: s_tasks[] is shared by every taskset and now only records the
+      * last task per slot id -- enough for JoinTask2's lookup; key it by
+      * (taskset, id) if a title joins tasks in two tasksets at once. */
++    spu_workload_taskset_create_lock();
+     u32 free_slot = CELL_SPURS_MAX_TASK;
+     for (u32 t = 0; t < CELL_SPURS_MAX_TASK; t++)
+-        if (!(vm_read8(taskset_ea + 0x30 + t / 8) & (0x80u >> (t % 8)))) { free_slot = t; break; }
++        if (!(vm_read8(taskset_ea + 0x30 + t / 8) & (0x80u >> (t % 8))) &&
++            !spu_workload_task_active(taskset_ea,t)) { free_slot = t; break; }
+     if (free_slot < CELL_SPURS_MAX_TASK) {
+         u32 i = free_slot;
+         {
+@@ -1010,13 +1022,21 @@
+                 if (sz)
+                     /* Async: SPURS tasks are persistent workers — running them
+                      * inline would block this PPU thread forever (deadlock). */
+-                    spu_workload_dispatch_async(host_elf, (uint32_t)sz,
+-                                                (uint32_t)(uintptr_t)context);
++                    if (!spu_workload_dispatch_task_async(host_elf,(uint32_t)sz,
++                             (uint32_t)(uintptr_t)context,taskset_ea,i)) {
++                        uint8_t mask=(uint8_t)(0x80u>>(i&7));
++                        vm_base[taskset_ea+0x10+i/8]&=(uint8_t)~mask;
++                        vm_base[taskset_ea+0x30+i/8]&=(uint8_t)~mask;
++                        spu_workload_taskset_create_unlock();
++                        return CELL_SPURS_TASK_ERROR_NOMEM;
++                    }
+             }
++            spu_workload_taskset_create_unlock();
+             return CELL_OK;
+         }
+     }
+ 
++    spu_workload_taskset_create_unlock();
+     fprintf(stderr, "[cellSpurs] CreateTask: taskset 0x%08X has no free task id (all 128 enabled)\n",
+             taskset_ea);
+     return CELL_SPURS_TASK_ERROR_NOMEM;
+@@ -1221,6 +1241,8 @@
+ 
+     for (u32 i = 0; i < CELL_SPURS_MAX_WORKLOAD; i++) {
+         if (!s_workloads[i].in_use) {
++            if (!spu_workload_workload_begin(spurs_ea,i)) return CELL_SPURS_CORE_ERROR_BUSY;
++            s_workloads[i].started=0;
+             s_workloads[i].in_use = 1;
+             s_workloads[i].pm = pm;
+             s_workloads[i].sizePm = sizePm;
+@@ -1428,6 +1450,7 @@
+     if (wid >= CELL_SPURS_MAX_WORKLOAD) return CELL_SPURS_CORE_ERROR_INVAL;
+     if (!s_workloads[wid].in_use) return CELL_SPURS_CORE_ERROR_SRCH;
+ 
++    if (!spu_workload_workload_close((u32)(uintptr_t)spurs,wid)) return CELL_SPURS_CORE_ERROR_BUSY;
+     s_workloads[wid].in_use = 0;
+     printf("[cellSpurs] RemoveWorkload(wid=%u)\n", wid);
+     return CELL_OK;
+@@ -1816,7 +1839,7 @@
+          * and running 2 or 4 changes nothing for the title this was written
+          * against -- measured, not assumed -- so the conservative reading
+          * stands until a title needs otherwise. */
+-        spu_workload_dispatch_async(host, w->sizePm, (uint32_t)w->data);
++        if (!spu_workload_dispatch_workload_async(host,w->sizePm,(uint32_t)w->data,spurs_ea,i)) w->started=0;
+     }
+     return CELL_OK;
+ }
+diff --git a/runtime/spu/spu_async_lifetime.h b/runtime/spu/spu_async_lifetime.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/spu/spu_async_lifetime.h
+@@ -0,0 +1,91 @@
++/* Host lifetime claims for detached SPU tasks/workloads. A claim precedes
++ * thread creation and stays active through all runner/stack cleanup. The key
++ * is an explicit guest owner plus task/workload id, never an image pointer or
++ * the process-global last-task diagnostic variables. */
++#ifndef SPU_ASYNC_LIFETIME_H
++#define SPU_ASYNC_LIFETIME_H
++#include <stdint.h>
++#include <stdlib.h>
++#include <stdatomic.h>
++
++enum { SPU_ASYNC_TASK = 1, SPU_ASYNC_WORKLOAD = 2 };
++typedef struct spu_async_owner {
++    uint32_t kind, ea, instance, generation, active;
++    int closed;
++    uint64_t serial;
++    uint64_t slots[128];
++    struct spu_async_owner* next;
++} spu_async_owner;
++typedef struct {
++    spu_async_owner* owner;
++    uint32_t generation, slot;
++    uint64_t serial;
++} spu_async_ticket;
++static atomic_flag s_async_owner_lock = ATOMIC_FLAG_INIT;
++static spu_async_owner* s_async_owners;
++static void async_owner_lock(void) {
++    while (atomic_flag_test_and_set_explicit(&s_async_owner_lock, memory_order_acquire)) { }
++}
++static void async_owner_unlock(void) {
++    atomic_flag_clear_explicit(&s_async_owner_lock, memory_order_release);
++}
++static spu_async_owner* async_owner_find(uint32_t kind, uint32_t ea, uint32_t instance, int create) {
++    for (spu_async_owner* p=s_async_owners; p; p=p->next)
++        if (p->kind==kind && p->ea==ea && p->instance==instance) return p;
++    if (!create) return NULL;
++    spu_async_owner* p=(spu_async_owner*)calloc(1,sizeof(*p));
++    if (!p) return NULL;
++    p->kind=kind; p->ea=ea; p->instance=instance; p->generation=1;
++    p->next=s_async_owners; s_async_owners=p; return p;
++}
++/* A new guest lifetime may replace only a quiescent owner. No live worker can
++ * have its descriptor/bitsets overwritten by an address-reused owner. */
++static int async_owner_begin(uint32_t kind, uint32_t ea, uint32_t instance) {
++    if (!ea) return 0;
++    async_owner_lock();
++    spu_async_owner* p=async_owner_find(kind,ea,instance,1);
++    int ok=p && !p->active;
++    if (ok) { if (++p->generation==0) ++p->generation; p->closed=0; }
++    async_owner_unlock(); return ok;
++}
++static int async_owner_close(uint32_t kind, uint32_t ea, uint32_t instance) {
++    async_owner_lock();
++    spu_async_owner* p=async_owner_find(kind,ea,instance,0);
++    int ok=!p || !p->active;
++    if (ok && p) p->closed=1;
++    async_owner_unlock(); return ok;
++}
++/* 1=new claim, 0=already active, -1=closed/invalid/allocation failure. */
++static int async_owner_claim(uint32_t kind, uint32_t ea, uint32_t instance,
++                             uint32_t slot, spu_async_ticket* out) {
++    out->owner=NULL;
++    if (!ea || slot>=128) return -1;
++    async_owner_lock();
++    spu_async_owner* p=async_owner_find(kind,ea,instance,1);
++    int result=-1;
++    if (p && !p->closed) {
++        if (p->slots[slot]) result=0;
++        else { if (++p->serial==0) ++p->serial; p->slots[slot]=p->serial;
++               ++p->active; out->owner=p; out->serial=p->serial;
++               out->generation=p->generation; out->slot=slot; result=1; }
++    }
++    async_owner_unlock(); return result;
++}
++/* Ignore an already-released or stale-generation ticket. The production
++ * runner owns one ticket; this makes duplicate cleanup safe to detect. */
++static int async_owner_finish(spu_async_ticket* ticket) {
++    if (!ticket->owner) return 0;
++    async_owner_lock();
++    spu_async_owner* p=ticket->owner;
++    int released=p->generation==ticket->generation && p->slots[ticket->slot]==ticket->serial;
++    if (released) { p->slots[ticket->slot]=0; --p->active; }
++    ticket->owner=NULL;
++    async_owner_unlock(); return released;
++}
++static int async_owner_active(uint32_t kind, uint32_t ea, uint32_t instance, uint32_t slot) {
++    async_owner_lock();
++    spu_async_owner* p=async_owner_find(kind,ea,instance,0);
++    int active=p && slot<128 && p->slots[slot];
++    async_owner_unlock(); return active;
++}
++#endif

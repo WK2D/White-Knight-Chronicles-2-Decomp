@@ -5,7 +5,9 @@ conversion and a texture re-upload whenever the depth was the bound target
 or had only been cleared. WKC2 does both every frame (its 2560x2560 shadow
 map and a cleared depth in the character creator). DEPTH24_D8 reads now use a
 snapshot retaken after the last depth write, and a cleared target can be
-snapshotted; the creator went from ~37 to a steady 60 fps.
+snapshotted. The earlier creator measurement rose from about 37 to 60
+presentations per second; it did not establish a 60 Hz game update rate.
+Patch 0068 subsequently restores the game's two-vblank semaphore pacing.
 
 Also added, off by default:
 - RSX_ENGINE_ZTEX_GPU=1: re-encode a Z24S8 depth read as A8R8G8B8 on the GPU
