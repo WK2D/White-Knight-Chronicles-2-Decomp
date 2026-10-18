@@ -2,7 +2,7 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 82 SDK patches / 72 Windows checks in Debug and
+**Current source checkpoint:** 83 SDK patches / 72 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -13,37 +13,41 @@ inconsistency and broader game-speed fidelity remain open. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
-## One scrolling Graphics Settings list
+## Full Graphics Settings panel and window close
 
-The extra More Settings and Draw Distance pages have been removed. The native
-menu still owns eight physical row slots; the port maps those onto twelve logical
-items (eleven options plus Back). Up/Down scrolls by one item at the edges and
-wraps from first to last. X resolves the logical item after scrolling, and Circle
-returns directly to System. The heading shows the visible range. Value changes
-preserve the viewport and cursor; reopening starts at the first setting.
+Graphics Settings now opens the game's full Game Settings panel rather than
+reusing the narrow eight-slot System list. The appended System action preserves
+the original callback and object adjustment. Hooks scope the port's labels and
+preferences to this entry; ordinary Game Settings keeps its original behavior.
+All eleven options and Back fit together, with the native frame, scrollbar,
+selection arrows, highlight, hand and exit transition. Up/Down selects;
+Left/Right changes a value, X advances it, and Circle or Back returns to System.
+Nested widget calls retain their own register context and tail-call chain.
 
-The original input update moved the gold selection bar before the viewport was
-remapped, so an initial native check showed it on the wrong row at a boundary.
-The port now invokes the native selection update for the corrected physical row.
-Nested game calls drain their own tail calls on their own register context,
-while preserving any outer pending tail call. A synthetic tail-call fixture
-checks that isolation. Native checks
-cover down-scrolling, first/last wrap, and toggling the FPS counter after scrolling.
-The expanded `wkc2_graphics_menu` regression covers both edges, both wrap
-orientations, the bar position, X mapping, inactive controls and reopening.
-Settings, rendering and pacing behavior are otherwise unchanged.
+Native controller checks verify opening the panel, moving the highlight,
+changing 30 to 40 and back to 30, returning with Back, and reopening the regular
+Game Settings panel with its original labels and values. The menu regression
+checks routing, values, pending controls, persistence and original-panel isolation.
+The requested clear background preview and distance controls remain pending.
+
+The window-close hang was caused by the runner disabling RSX but leaving the
+process alive. Patch 0083 also recognizes the SDL window-close event explicitly.
+The runner now takes the normal exit path, invoking registered media cleanup.
+Private title and saved-town settings tests deliver that event through the
+production SDL queue and exit with code 0, without forced termination.
+The window-event regression also verifies unrelated events leave the game open.
 
 ## Native graphics settings and frame-rate control
 
 The native game now has a separate Triangle -> System -> Graphics Settings page,
 using the game's own widgets, input and text. It contains window mode, named
 output resolution, VSync, anisotropic filtering, anti-aliasing and frame limit.
-All controls, including the renderer selector and FPS overlay, now share one
-scrolling list. Eight native rows are visible; the title shows their range.
+All controls, including the renderer selector and FPS overlay, now appear
+together in the full native settings panel.
 World/NPC distance and fog are visibly pending and do not change the game.
 The background blur has not been removed. Output size does not alter internal
 render-target resolution. See [controls and limitations](BUILD.md#native-graphics-settings-patches-0081-0082)
-and [actual menu captures](GALLERY.md#2026-10-18---one-scrolling-graphics-settings-list).
+and [actual menu captures](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close).
 
 Patch 0081 adds Vulkan preferences and a transparent text FPS overlay. Patch
 0082 adds a project-written FXAA compute pass over the completed image, before
@@ -77,16 +81,21 @@ show that the previous hard ceiling is removed and the sampled game clock
 stays close to wall time. The later menu screenshots use diagnostic readbacks;
 their displayed counters are not performance benchmarks.
 
+One later diagnostic menu run stopped advancing frames after a live change from
+30 to Unlocked with VSync on. The earlier Unlocked measurement used VSync off;
+the live Unlocked/VSync combination needs follow-up. The full-panel 30/40 checks
+above remained responsive. No general high-frame-rate stability claim is made.
+
 An end-to-end check on the final 82-patch menu build changed 30 -> 40 -> 60
 using the native menu, returned to the scene, and sampled 385 completed frames
 in 10.002 seconds (38.49/s). Game-clock time advanced 9.989 seconds and vblanks
 ran at 119.97 Hz. FXAA was enabled. This verifies live menu application; it is
 not a comparison with the earlier FXAA-off samples or a traversal benchmark.
 
-All 72 checks pass in normal Debug (12.63 s) and optimized Release (12.61 s).
-The complete 82-patch stack reconstructs 69 SDK files from the pinned baseline.
+All 72 checks pass in normal Debug (12.63 s) and optimized Release (12.66 s).
+The complete 83-patch stack reconstructs 69 SDK files from the pinned baseline.
 The new timing regression covers removing/restoring interval and wait state;
-menu tests cover nested pages and restart-only API persistence. The FXAA shader
+menu tests cover full-panel routing, input and restart-only API persistence. The FXAA shader
 compiles through the production compiler and its descriptor bindings match the
 pipeline. Native Vulkan initializes the compute pipeline and displays the menu;
 DirectX 12 reaches the same saved scene and menu. Full AA quality and API parity

@@ -7,10 +7,10 @@ coverage. See [architecture and modding scope](ARCHITECTURE.md).
 **Latest checkpoint (2026-10-18):** Triangle -> System -> Graphics Settings
 is available in the native game, including Off/FXAA, frame-rate limits and an
 experimental DirectX 12 selector. Continue loads the verified Logic Stone save.
-See [menu screenshots](GALLERY.md#2026-10-18---one-scrolling-graphics-settings-list)
+See [menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
 and [settings and timing details](#native-graphics-settings-patches-0081-0082).
 
-The current stack contains 82 SDK patches. All 72 Windows checks pass in normal
+The current stack contains 83 SDK patches. All 72 Windows checks pass in normal
 Debug and optimized Release. Suite timings are not game performance. Reapplying
 the complete stack changes no SDK files. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain
@@ -100,8 +100,8 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 82 numbered SDK patches, and all 72 checks
-pass in both Windows suites. The graphics menu captures use 82 patches; saving
+The current source stack contains 83 numbered SDK patches, and all 72 checks
+pass in both Windows suites. The latest graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
 52- and 42-patch provenance; the first town world-view capture used 39. Patch 0043 passed
@@ -1397,11 +1397,11 @@ visual parity with RPCS3 or a speed improvement attributable to patch 0080.
 Open Triangle -> System -> Graphics Settings. The original game widgets and
 controller navigation are reused. X cycles an option; Circle goes back.
 
-All controls share one scrolling list. Eight native rows are visible at a time;
-the heading shows their range out of twelve items, including Back. Up/Down moves
-through the list and scrolls at its edges; the first and last item wrap. X cycles
-the selected option, and Circle returns directly to System. Changing a value
-keeps the viewport and selection. No More Settings or Draw Distance subpage is needed.
+All eleven options and Back appear together in the original full Game Settings
+panel, including its frame, native scrollbar, row highlight and selection hand.
+Up/Down selects a row; Left/Right changes its value, and X advances it.
+Circle or Back returns to System with the original transition. The regular
+Game Settings page remains separate and retains its original controls.
 
 | Control | Options |
 |---|---|
@@ -1445,11 +1445,29 @@ Short hidden/muted, log-free saved-scene probes exceed 30 completed frames/s
 with approximately one game-clock second per real second; see
 [measured scope](FINDINGS.md#native-graphics-settings-and-frame-rate-control).
 They do not prove full-game high-FPS compatibility or unique animation per frame.
+A diagnostic live change to Unlocked with VSync on stopped advancing frames;
+that combination remains under investigation. The earlier short Unlocked sample
+used VSync off.
 
 `wkc2_graphics_menu`, `wkc2_graphics_settings`, `wkc2_graphics_timing` and
-`wkc2_vk_graphics` cover scrolling in both directions, wrap, selection/bar alignment, persistence, interval restoration,
+`wkc2_vk_graphics` cover full-panel routing, original-panel isolation, Left/Right and X changes,
+persistence, interval restoration,
 window/sampler configuration and the overlay without a black background.
 `wkc2_depth_shader_binding` also compiles the production FXAA shader and verifies
 its descriptor bindings. The full Windows suite passes 72 checks in Debug and
 Release. Native runs verify menu navigation and saved-scene rendering in both
 APIs, with FXAA initialization on Vulkan; not every display mode or monitor is tested.
+
+## Window close (patch 0083 and native runner)
+
+The Vulkan event pump now accepts `SDL_WINDOWEVENT_CLOSE` as well as `SDL_QUIT`.
+The runner responds to a close result with normal process exit. Previously it
+disabled RSX and continued running, leaving guest threads waiting for rendering
+work that could no longer complete. Standard exit invokes the existing media
+worker cleanup handlers.
+
+The recording-API regression feeds close, quit, Escape and unrelated window
+events through the production pump. Private native integration tests inject the
+same SDL close event into the real event queue: title and saved-town settings
+runs exit with code 0 without an external forced termination. This tests event
+handling and process exit; it is not a physical mouse-click automation test.

@@ -4,10 +4,10 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-18",
-    "native_probe": "20261018-162159",
-    "sdk_patch_count": 82,
-    "summary": "Graphics Settings now uses one scrolling list for all controls, with eight visible native rows and twelve logical items including Back. Native scrolling, selection alignment and a setting change after scrolling are verified. All 72 Windows tests pass in Debug and Release; 82 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
-    "gallery_image": "screenshots/2026-10-18-native-graphics-scroll-top.png",
+    "native_probe": "20261018-180818",
+    "sdk_patch_count": 83,
+    "summary": "Graphics Settings opens the full native settings panel with all eleven options and Back, native frame, scrollbar, arrows and row highlight. Controller changes, Back, ordinary Game Settings isolation and FPS toggle verified. Window-close integration exits normally from title and saved-town settings. All 72 Windows tests pass in Debug and Release with 83 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
+    "gallery_image": "screenshots/2026-10-18-native-graphics-panel.png",
     "remaining_limits": [
       "Town performance remains below the 30 fps target",
       "Black foot flicker and rotating Logic Stone light flicker remain open",
@@ -61,7 +61,9 @@
     "higher_frame_limits_exceed_30_in_short_saved_scene_probes": true,
     "high_fps_full_game_compatibility": false,
     "draw_distance_controls_active": false,
-    "menu_background_blur_removed": false
+    "menu_background_blur_removed": false,
+    "native_full_graphics_settings_panel": true,
+    "window_close_title_and_saved_town_settings": true
   },
   "captures": [
     {
@@ -174,6 +176,20 @@
       "sha256": "51ce10a476b58463a3333f98d3cff5a8311ddeb880e3a06338cabec83684dd59",
       "source_ppm_sha256": "9a62d4ee5212017d76c4b6bfca8b39f5e2a11f5b39b700e3e93f007de0c7fe85",
       "method": "Single scrolling native Graphics Settings list, bottom viewport. FXAA enabled; original window pixels, no image edits."
+    },
+    {
+      "file": "screenshots/2026-10-18-native-graphics-panel.png",
+      "private_source_probe": "20261018-180818/full-panel.ppm",
+      "sha256": "68c4f9edc910e466353537d9a3e18fc88fd25d8399c9e05ec228ea2acd1ead7c",
+      "source_ppm_sha256": "dd1a0d5a84630e7d4c18a440450ad93f87fc97a94617005faf2014112a02d074",
+      "scope": "Full native Graphics Settings panel, all eleven options and Back visible together. FXAA enabled; original window pixels, no image edits."
+    },
+    {
+      "file": "screenshots/2026-10-18-native-graphics-panel-fps.png",
+      "private_source_probe": "20261018-180818/full-panel-fps.ppm",
+      "sha256": "8e1da0973fed028968cd920f261fa43c62fab13b8cef363d21f78a6cb3a42aad",
+      "source_ppm_sha256": "b47b928b930a10e2b2cf1648e29c172b1bfec6cee15a1196534b160e62b4fb6c",
+      "scope": "FPS toggle selected and switched Off after moving through full native panel. FXAA enabled; original window pixels, no image edits."
     }
   ],
   "checks": {
@@ -254,14 +270,14 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 82,
-    "last_verified_sdk_patch_count": 82,
+    "current_sdk_patch_count": 83,
+    "last_verified_sdk_patch_count": 83,
     "current_passed_count": 72,
-    "record_scope": "Graphics Settings now uses one scrolling list for all controls, with eight visible native rows and twelve logical items including Back. Native scrolling, selection alignment and a setting change after scrolling are verified. All 72 Windows tests pass in Debug and Release; 82 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
-    "normal_debug_elapsed_seconds": 12.51,
-    "optimized_release_elapsed_seconds": 12.68,
+    "record_scope": "Graphics Settings opens the full native settings panel with all eleven options and Back, native frame, scrollbar, arrows and row highlight. Controller changes, Back, ordinary Game Settings isolation and FPS toggle verified. Window-close integration exits normally from title and saved-town settings. All 72 Windows tests pass in Debug and Release with 83 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
+    "normal_debug_elapsed_seconds": 12.63,
+    "optimized_release_elapsed_seconds": 12.66,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 82
+    "repeat_patch_application_verified_sdk_patch_count": 83
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2681,7 +2697,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Graphics Settings now uses one scrolling list for all controls, with eight visible native rows and twelve logical items including Back. Native scrolling, selection alignment and a setting change after scrolling are verified. All 72 Windows tests pass in Debug and Release; 82 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
+    "scope": "Graphics Settings opens the full native settings panel with all eleven options and Back, native frame, scrollbar, arrows and row highlight. Controller changes, Back, ordinary Game Settings isolation and FPS toggle verified. Window-close integration exits normally from title and saved-town settings. All 72 Windows tests pass in Debug and Release with 83 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -2699,7 +2715,31 @@
     ],
     "counter_scope": "Completed guest presentations; does not establish unique animation states",
     "output_resolution_scope": "Window/presentation size, not internal game render-target resolution",
-    "layout": "One scrolling list, eight visible native rows, eleven options plus Back; Up/Down scrolls and wraps; Circle returns to System",
-    "scrolling_and_post_scroll_change_verified": true
+    "layout": "Full native Game Settings panel: eleven options plus Back visible together, native frame/scrollbar/highlight; Up/Down selects, Left/Right or X changes, Circle or Back returns to System",
+    "full_native_panel_verified": true,
+    "left_right_and_x_changes_verified": true,
+    "back_returns_to_system_verified": true,
+    "original_game_settings_isolated_verified": true,
+    "live_unlocked_vsync_on_stall_observed": true
+  },
+  "window_close": {
+    "sdk_patch": 83,
+    "native_runner_normal_exit": true,
+    "event": "SDL_WINDOWEVENT_CLOSE through production SDL queue",
+    "native_integration": [
+      {
+        "context": "title",
+        "exit_code": 0,
+        "external_force_termination": false
+      },
+      {
+        "context": "saved town, full Graphics Settings panel",
+        "exit_code": 0,
+        "elapsed_ms": 173,
+        "external_force_termination": false
+      }
+    ],
+    "physical_mouse_click_automated": false,
+    "scope": "Normal exit invokes existing registered media-worker cleanup; does not establish every possible blocked-worker exit condition."
   }
 }

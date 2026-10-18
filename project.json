@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Graphics Settings now uses one scrolling list for all controls, with eight visible native rows and twelve logical items including Back. Native scrolling, selection alignment and a setting change after scrolling are verified. All 72 Windows tests pass in Debug and Release; 82 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
+    "current_milestone": "Graphics Settings opens the full native settings panel with all eleven options and Back, native frame, scrollbar, arrows and row highlight. Controller changes, Back, ordinary Game Settings isolation and FPS toggle verified. Window-close integration exits normally from title and saved-town settings. All 72 Windows tests pass in Debug and Release with 83 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
     "updated": "2026-10-18"
   },
   "native_data_installation_verified": true,
@@ -153,7 +153,7 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 82,
+    "sdk_patch_count": 83,
     "runtime_checks_passed": 72,
     "town_native_run_sdk_patch_count": 76,
     "patches_0040_0041_native_game_run_verified": true,
@@ -226,7 +226,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 82,
+    "runtime_checks_verified_sdk_patch_count": 83,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -236,8 +236,8 @@
       "GCM_SEMA_ACQUIRE": "1",
       "RSX_ENGINE_ZTEX_GPU": "1"
     },
-    "normal_debug_checks_elapsed_seconds": 12.51,
-    "optimized_release_checks_elapsed_seconds": 12.68,
+    "normal_debug_checks_elapsed_seconds": 12.63,
+    "optimized_release_checks_elapsed_seconds": 12.66,
     "repeat_patch_application_files_changed": 0,
     "patch_0071_windows_regression_verified": true,
     "patch_0072_windows_regression_verified": true,
@@ -253,7 +253,7 @@
     "patch_0074_native_game_run_verified": true,
     "patch_0074_texture_compare_direction_gpu_verified": true,
     "patch_0074_foot_shadow_flicker_fixed_verified": false,
-    "repeat_patch_application_verified_sdk_patch_count": 82,
+    "repeat_patch_application_verified_sdk_patch_count": 83,
     "patch_0075_windows_regression_verified": true,
     "patch_0075_native_interaction_verified": true,
     "patch_0075_save_load_verified": true,
@@ -299,7 +299,11 @@
     "graphics_api_restart_required": true,
     "draw_distance_controls_active": false,
     "menu_background_blur_removed": false,
-    "high_frame_rate_full_game_compatibility_verified": false
+    "high_frame_rate_full_game_compatibility_verified": false,
+    "patch_0083_windows_regression_verified": true,
+    "native_window_close_title_verified": true,
+    "native_window_close_saved_town_settings_verified": true,
+    "native_full_graphics_panel_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -418,7 +422,7 @@
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Graphics Settings now uses one scrolling list for all controls, with eight visible native rows and twelve logical items including Back. Native scrolling, selection alignment and a setting change after scrolling are verified. All 72 Windows tests pass in Debug and Release; 82 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
+    "scope": "Graphics Settings opens the full native settings panel with all eleven options and Back, native frame, scrollbar, arrows and row highlight. Controller changes, Back, ordinary Game Settings isolation and FPS toggle verified. Window-close integration exits normally from title and saved-town settings. All 72 Windows tests pass in Debug and Release with 83 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -436,7 +440,11 @@
     ],
     "counter_scope": "Completed guest presentations; does not establish unique animation states",
     "output_resolution_scope": "Window/presentation size, not internal game render-target resolution",
-    "layout": "One scrolling list, eight visible native rows, eleven options plus Back; Up/Down scrolls and wraps; Circle returns to System",
-    "scrolling_and_post_scroll_change_verified": true
+    "layout": "Full native Game Settings panel: eleven options plus Back visible together, native frame/scrollbar/highlight; Up/Down selects, Left/Right or X changes, Circle or Back returns to System",
+    "full_native_panel_verified": true,
+    "left_right_and_x_changes_verified": true,
+    "back_returns_to_system_verified": true,
+    "original_game_settings_isolated_verified": true,
+    "live_unlocked_vsync_on_stall_observed": true
   }
 }

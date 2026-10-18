@@ -87,6 +87,62 @@ void func_0065E300(ppu_context* ctx) {
 }
 static void func_0065E300_original(ppu_context* ctx) {''',
 }
+# Reuse the full Game Settings panel only when opened by Graphics Settings.
+menu_hooks.update({
+    '006176D4': '''extern "C" void wkc2_graphics_panel_begin(uint32_t);
+extern "C" void wkc2_graphics_panel_labels(ppu_context*,uint32_t,uint32_t);
+static void func_006176D4_original(ppu_context*);
+void func_006176D4(ppu_context* ctx) {
+    const auto object=(uint32_t)ctx->gpr[3],render=(uint32_t)ctx->gpr[5];
+    wkc2_graphics_panel_begin(object);
+    func_006176D4_original(ctx);
+    wkc2_graphics_panel_labels(ctx,object,render);
+}
+static void func_006176D4_original(ppu_context* ctx) {''',
+    '00615AA8': '''extern "C" void wkc2_graphics_panel_selection(uint32_t);
+static void func_00615AA8_original(ppu_context*);
+void func_00615AA8(ppu_context* ctx) {
+    const auto object=(uint32_t)ctx->gpr[3];
+    func_00615AA8_original(ctx);
+    wkc2_graphics_panel_selection(object);
+}
+static void func_00615AA8_original(ppu_context* ctx) {''',
+    '00615BA0': '''extern "C" int wkc2_graphics_panel_owns(uint32_t);
+static void func_00615BA0_original(ppu_context*);
+void func_00615BA0(ppu_context* ctx) {
+    if(!wkc2_graphics_panel_owns((uint32_t)ctx->gpr[3])) func_00615BA0_original(ctx);
+}
+static void func_00615BA0_original(ppu_context* ctx) {''',
+    '006163F4': '''extern "C" int wkc2_graphics_panel_input(ppu_context*);
+extern "C" void wkc2_graphics_panel_labels(ppu_context*,uint32_t,uint32_t);
+static void func_006163F4_original(ppu_context*);
+void func_006163F4(ppu_context* ctx) {
+    const auto object=(uint32_t)ctx->gpr[3],render=(uint32_t)ctx->gpr[5],input=(uint32_t)ctx->gpr[7];
+    const auto buttons=input?vm_read32(input+4):0;
+    if(!wkc2_graphics_panel_input(ctx)) func_006163F4_original(ctx);
+    if(input) vm_write32(input+4,buttons);
+    wkc2_graphics_panel_labels(ctx,object,render);
+}
+static void func_006163F4_original(ppu_context* ctx) {''',
+    '00615DD4': '''extern "C" void wkc2_graphics_panel_end(uint32_t);
+static void func_00615DD4_original(ppu_context*);
+void func_00615DD4(ppu_context* ctx) {
+    const auto object=(uint32_t)ctx->gpr[3];
+    func_00615DD4_original(ctx);
+    if(ctx->gpr[3]==5) wkc2_graphics_panel_end(object);
+}
+static void func_00615DD4_original(ppu_context* ctx) {''',
+})
+for address, render_register in [('006156AC',4),('00616088',4)]:
+    menu_hooks[address]=f'''extern "C" int wkc2_graphics_panel_owns(uint32_t);
+extern "C" void wkc2_graphics_panel_labels(ppu_context*,uint32_t,uint32_t);
+static void func_{address}_original(ppu_context*);
+void func_{address}(ppu_context* ctx) {{
+    const auto object=(uint32_t)ctx->gpr[3];
+    if(wkc2_graphics_panel_owns(object)) wkc2_graphics_panel_labels(ctx,object,(uint32_t)ctx->gpr[{render_register}]);
+    else func_{address}_original(ctx);
+}}
+static void func_{address}_original(ppu_context* ctx) {{'''
 for address, wrapper in menu_hooks.items():
     signature = f'void func_{address}(ppu_context* ctx) {{'
     for path in sorted(args.generated.glob('ppu_recomp_*.cpp')):

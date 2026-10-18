@@ -8,7 +8,7 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 82 SDK patches / 72 Windows checks. The current menu captures
+Current source: 83 SDK patches / 72 Windows checks. The current menu captures
 are final Vulkan swapchain readbacks, including window scaling and FXAA.
 The earlier LOD comparison is captured before window scaling. Saving and Continue
 reload work; normal shadow polarity is restored. Foot/Logic Stone flicker,
@@ -20,7 +20,27 @@ Newest milestones appear first. Future captures will be added at the top of the 
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
 
+## 2026-10-18 - Full Graphics Settings panel and window close
+
+Graphics Settings now uses the game's full settings box, with its native frame,
+scrollbar, selection arrows and highlight. All eleven options and Back fit in
+one panel. Up/Down selects, Left/Right or X changes a value, and Circle or Back
+returns to System. The normal Game Settings page retains its original controls.
+
+These final Vulkan swapchain readbacks show the panel and the FPS toggle after
+moving through its rows. The window close event now exits normally; title and
+saved-town settings integration tests end with code 0 without forced termination.
+All 72 Windows checks pass in Debug and Release with 83 SDK patches.
+Distance/fog controls and menu background blur removal remain pending.
+Diagnostic screenshots and their counters are not performance benchmarks.
+
+![Full native Graphics Settings panel](../verification/screenshots/2026-10-18-native-graphics-panel.png)
+
+![FPS counter switched off in the full panel](../verification/screenshots/2026-10-18-native-graphics-panel-fps.png)
+
 ## 2026-10-18 - One scrolling Graphics Settings list
+
+Historical layout, superseded by the full panel above.
 
 All graphics controls now share one scrolling list. The original eight visible
 rows show a moving window over twelve items, including Back. Up/Down scrolls

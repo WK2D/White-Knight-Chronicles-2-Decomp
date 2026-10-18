@@ -2,9 +2,10 @@
 
 **2026-10-18:** Triangle -> System now has its own **Graphics Settings** page:
 window mode, named output resolution, VSync, anisotropic filtering, Off/FXAA,
-and 30/40/60/120/144/Unlocked frame limits. All controls now share one scrolling
-list, including the FPS overlay and experimental Vulkan / DirectX 12 selector
-(restart required); there is no More Settings page.
+and 30/40/60/120/144/Unlocked frame limits. All controls now appear together in the game's full settings panel, with its
+native frame, selection arrows and scrollbar. This includes the FPS overlay and
+experimental Vulkan / DirectX 12 selector (restart required).
+The window close button now exits the process instead of leaving game threads waiting.
 The previous 30 FPS timing gate is now adjustable: short saved-scene probes
 reach roughly 37-38 completed frames/s with game time tracking real time.
 This is not a locked 60 FPS or full-game compatibility claim. Vulkan remains
@@ -46,7 +47,7 @@ Full rendering fidelity, sustained traversal and combat remain unverified.
 - [Progress gallery](docs/GALLERY.md): newest first
 - [Project icon](docs/ICON.md): approved WKCII artwork used by Windows builds
 
-The source stack contains **82 SDK patches** and passes **72 Windows regression
+The source stack contains **83 SDK patches** and passes **72 Windows regression
 checks** in normal Debug and optimized Release. The menus, preferences, Vulkan
 FXAA initialization and save loading have been exercised in native runs; the
 experimental DirectX 12 path also reaches the saved scene and settings menu.
@@ -66,7 +67,7 @@ See [batch scheduling and its measurement limits](docs/FINDINGS.md#vulkan-batch-
 
 ## Progress
 
-[![Native in-game Graphics Settings menu](verification/screenshots/2026-10-18-native-graphics-scroll-top.png)](docs/GALLERY.md)
+[![Native in-game Graphics Settings menu](verification/screenshots/2026-10-18-native-graphics-panel.png)](docs/GALLERY.md)
 
 The latest captures show the native Graphics Settings list after Continue loaded
 the verified save. They show the menu, not animation smoothness or performance.

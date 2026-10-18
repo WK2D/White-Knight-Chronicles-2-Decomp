@@ -58,6 +58,15 @@ static void pvkDestroySampler(VkDevice d,VkSampler s,const VkAllocationCallbacks
 static int SDL_SetWindowFullscreen(void* w,u32 f) { (void)w;fullscreen=f;return 0; }
 static void SDL_SetWindowSize(void* w,int x,int y) { (void)w;width=x;height=y; }
 static void vk_swapchain_lost(void) { rebuilds++; }
+#define SDL_QUIT 0x100
+#define SDL_WINDOWEVENT 0x200
+#define SDL_WINDOWEVENT_CLOSE 14
+#define SDL_KEYDOWN 0x300
+#define SDLK_ESCAPE 27
+typedef struct { unsigned type; struct { unsigned event; } window; struct { struct { int sym; } keysym; } key; } SDL_Event;
+static SDL_Event queued_event;
+static int event_pending;
+static int SDL_PollEvent(SDL_Event* e) { if(!event_pending)return 0;*e=queued_event;event_pending=0;return 1; }
 #include "graphics-fixture.inc"
 int main(void) {
     s_vk.device=(VkDevice)(uintptr_t)1;s_vk.windowed=1;s_vk.sc_extent=(VkExtent2D){1280,720};
@@ -79,5 +88,12 @@ int main(void) {
     assert(!s_counter_ready && uploads==30 && blits==1);
     config.window_mode=1;rsx_vulkan_backend_configure(&config);vk_apply_graphics();assert(fullscreen==SDL_WINDOW_FULLSCREEN_DESKTOP);
     config.window_mode=2;rsx_vulkan_backend_configure(&config);vk_apply_graphics();assert(fullscreen==SDL_WINDOW_FULLSCREEN && width==1920 && height==1080);
+    queued_event.type=SDL_WINDOWEVENT;queued_event.window.event=SDL_WINDOWEVENT_CLOSE;event_pending=1;
+    assert(rsx_vulkan_backend_pump_messages()==-1); // Window X reaches the host exit path.
+    assert(rsx_vulkan_backend_pump_messages()==0);
+    queued_event.window.event=5;event_pending=1;assert(rsx_vulkan_backend_pump_messages()==0);
+    queued_event.type=SDL_QUIT;event_pending=1;assert(rsx_vulkan_backend_pump_messages()==-1);
+    queued_event.type=SDL_KEYDOWN;queued_event.key.keysym.sym=SDLK_ESCAPE;event_pending=1;
+    assert(rsx_vulkan_backend_pump_messages()==-1);
     puts("Settings changes, sampler retirement, completed-frame HUD, upload and Off pass.");
 }

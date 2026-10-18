@@ -727,7 +727,7 @@ static DWORD WINAPI frame_clock(LPVOID)
         if (rsx_ok && hold_for_vblank) {
             /* A flip is waiting for its vblank: like the RSX in vsync flip
              * mode, run no further commands until it is shown. */
-            if (rsx_backend_pump() != 0) { rsx_ok = 0; continue; }
+            if (rsx_backend_pump() != 0) std::exit(EXIT_SUCCESS);
         } else if (rsx_ok) {
             if (cellGcm_take_flip_pending()) {
                 present_guest_frame();
@@ -736,8 +736,9 @@ static DWORD WINAPI frame_clock(LPVOID)
             cellGcm_rsx_process_fifo();
 
             if (rsx_backend_pump() != 0) {
-                rsx_ok = 0;              /* window closed */
-                continue;
+                // A host close ends the process, including media-worker cleanup.
+                // Merely disabling RSX leaves guest threads waiting on its fences.
+                std::exit(EXIT_SUCCESS);
             }
             /* A drain can decode a flip. With flips on vblank it waits for the
              * next tick; otherwise consume that pending boundary here --
