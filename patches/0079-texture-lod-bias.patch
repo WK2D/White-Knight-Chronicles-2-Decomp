@@ -1,0 +1,167 @@
+Honor signed RSX texture LOD bias in the Vulkan draw engine.
+Preserve exact sampler identity, clamp to device bias limits, and cover decode/cache boundaries.
+
+diff --git a/libs/video/rsx_draw_engine.h b/libs/video/rsx_draw_engine.h
+--- a/libs/video/rsx_draw_engine.h
++++ b/libs/video/rsx_draw_engine.h
+@@ -67,6 +67,7 @@
+     u8  wrap_s, wrap_t, wrap_r;
+     u8  compare_func; /* 0 = ordinary sample; guest ZFUNC 1..6 = depth comparison */
+     float min_lod, max_lod;
++    float lod_bias;  /* signed 4.8 SET_TEXTURE_FILTER[12:0] */
+ } rsx_be_sampler_desc;
+ 
+ /* The NV4097 render state a pipeline is built from: rsx_live_draw.c's
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -1543,8 +1543,7 @@
+  * the four combinations of a nearest/linear minification with a
+  * nearest/linear mip filter) and mag [26:24]; SET_TEXTURE_CONTROL0 carries
+  * max LOD at [18:7] and min LOD at [30:19], both 4.8 fixed point. RSX's LOD
+- * bias, SET_TEXTURE_FILTER [12:0], is not applied: the reference engine
+- * leaves it at zero too. */
++ * bias, SET_TEXTURE_FILTER [12:0], is signed 4.8 fixed point. */
+ static void eng_decode_sampler(u32 filter, u32 wrap, u32 control0,
+                                rsx_be_sampler_desc* out)
+ {
+@@ -1558,6 +1557,8 @@
+     out->wrap_t = (u8)((wrap >> 8) & 0xFu);
+     out->wrap_r = (u8)((wrap >> 16) & 0xFu);
+     out->compare_func = 0;
++    const u32 raw_bias = filter & 0x1FFFu;
++    out->lod_bias = (float)((int)raw_bias - ((raw_bias & 0x1000u) ? 0x2000 : 0)) / 256.0f;
+     out->min_lod = (float)((control0 >> 19) & 0xFFFu) / 256.0f;
+     out->max_lod = out->mip_present ? (float)((control0 >> 7) & 0xFFFu) / 256.0f
+                                     : 0.0f;
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -171,6 +171,7 @@
+     VkQueue          queue;
+     u32              queue_family;
+     VkPhysicalDeviceMemoryProperties memprops;
++    float            max_sampler_lod_bias;
+ 
+     u32              width, height;
+     vk_image         color;           /* R8G8B8A8_UNORM                 */
+@@ -396,6 +397,7 @@
+     /* Vulkan guarantees 4096; the engine's targets and textures may use what
+      * the device really has (a title's 4608-wide target on RADV). */
+     s_vk.max_dim = p.limits.maxImageDimension2D >= 4096u ? p.limits.maxImageDimension2D : 4096u;
++    s_vk.max_sampler_lod_bias = p.limits.maxSamplerLodBias;
+     VK_LOG("using device %d: %s\n", best, p.deviceName);
+     return 0;
+ }
+@@ -3271,7 +3273,7 @@
+ } s_e2;
+ 
+ #define VK_ENG_SAMP_CACHE 256
+-static struct { u64 key; VkSampler s; } s_esamp[VK_ENG_SAMP_CACHE];
++static struct { rsx_be_sampler_desc desc; VkSampler s; } s_esamp[VK_ENG_SAMP_CACHE];
+ static u32 s_esamp_count;
+ 
+ static void vk_eng_drop_framebuffers(void)
+@@ -3714,17 +3716,23 @@
+  * stay the guest's 1..8, which vk_gcm_wrap already translates. */
+ static VkSampler vk_eng_sampler(const rsx_be_sampler_desc* d)
+ {
+-    u32 lo, hi;
+-    memcpy(&lo, &d->min_lod, 4); memcpy(&hi, &d->max_lod, 4);
+-    const u64 key = (u64)d->min_linear | ((u64)d->mag_linear << 1) | ((u64)d->mip_linear << 2)
+-                  | ((u64)d->mip_present << 3) | ((u64)(d->wrap_s & 0xF) << 4)
+-                  | ((u64)(d->wrap_t & 0xF) << 8) | ((u64)(d->wrap_r & 0xF) << 12)
+-                  | ((u64)(lo >> 16) << 16) | ((u64)(hi >> 16) << 32)
+-                  | ((u64)d->compare_func << 48);
+-    for (u32 i = 0; i < s_esamp_count; i++) if (s_esamp[i].key == key) return s_esamp[i].s;
++    /* Compare fields rather than truncating float bits or hashing struct
++     * padding: distinct bias and 1/256 LOD steps must not alias. */
++    for (u32 i = 0; i < s_esamp_count; i++) {
++        const rsx_be_sampler_desc* c = &s_esamp[i].desc;
++        if (c->min_linear == d->min_linear && c->mag_linear == d->mag_linear &&
++            c->mip_linear == d->mip_linear && c->mip_present == d->mip_present &&
++            c->wrap_s == d->wrap_s && c->wrap_t == d->wrap_t && c->wrap_r == d->wrap_r &&
++            c->compare_func == d->compare_func && c->min_lod == d->min_lod &&
++            c->max_lod == d->max_lod && c->lod_bias == d->lod_bias)
++            return s_esamp[i].s;
++    }
+     if (s_esamp_count >= VK_ENG_SAMP_CACHE) return d->compare_func ? VK_NULL_HANDLE : s_vk.sampler;
+     float min_lod = d->min_lod, max_lod = d->mip_present ? d->max_lod : d->min_lod;
+     if (max_lod < min_lod) max_lod = min_lod;
++    float bias = d->lod_bias;
++    if (bias > s_vk.max_sampler_lod_bias) bias = s_vk.max_sampler_lod_bias;
++    if (bias < -s_vk.max_sampler_lod_bias) bias = -s_vk.max_sampler_lod_bias;
+     VkSamplerCreateInfo sci = {
+         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+         .magFilter = d->mag_linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST,
+@@ -3732,14 +3740,14 @@
+         .mipmapMode = d->mip_linear ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST,
+         .addressModeU = vk_gcm_wrap(d->wrap_s), .addressModeV = vk_gcm_wrap(d->wrap_t),
+         .addressModeW = vk_gcm_wrap(d->wrap_r),
+-        .minLod = min_lod, .maxLod = max_lod,
++        .minLod = min_lod, .maxLod = max_lod, .mipLodBias = bias,
+         .compareEnable = d->compare_func ? VK_TRUE : VK_FALSE,
+         .compareOp = vk_gcm_compare(rsx_texture_compare_host_func(d->compare_func)),
+         .borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK };
+     VkSampler smp;
+     if (pvkCreateSampler(s_vk.device, &sci, NULL, &smp) != VK_SUCCESS)
+         return d->compare_func ? VK_NULL_HANDLE : s_vk.sampler;
+-    s_esamp[s_esamp_count].key = key;
++    s_esamp[s_esamp_count].desc = *d;
+     s_esamp[s_esamp_count++].s = smp;
+     return smp;
+ }
+diff --git a/libs/video/tests/test_rsx_draw_engine.c b/libs/video/tests/test_rsx_draw_engine.c
+--- a/libs/video/tests/test_rsx_draw_engine.c
++++ b/libs/video/tests/test_rsx_draw_engine.c
+@@ -87,6 +87,7 @@
+     /* the last draw's bindings */
+     u32 bound_tex[RSX_BE_MAX_TEXTURES];
+     u32 bound_mask;
++    float bound_lod_bias;
+     u32 bound_rt[RSX_BE_MAX_COLOR_TARGETS];
+     u32 bound_rt_count;
+     u32 pipeline_rt_count;
+@@ -238,6 +239,7 @@
+     (void)u; (void)smp;
+     memcpy(stub.bound_tex, tex, sizeof stub.bound_tex);
+     stub.bound_mask = mask;
++    stub.bound_lod_bias = smp ? smp[0].lod_bias : 0.0f;
+     stub.bound_compare = smp ? smp[0].compare_func : 0;
+     stub.bound_compare_mask = 0;
+     for (u32 i = 0; smp && i < RSX_BE_MAX_TEXTURES; i++)
+@@ -456,6 +458,26 @@
+ 
+ /* ---- 1. the surface set -------------------------------------------------- */
+ 
++static void test_sampler_lod_bias(void)
++{
++    printf("-- signed sampler LOD bias\n");
++    engine_up();
++    bind_texture_unit(RSX_LOCATION_LOCAL, 0x40000u);
++    const struct { u32 bits; float expected; } cases[] = {
++        {0x0000u, 0.0f}, {0x1E80u, -1.5f}, {0x0180u, 1.5f},
++        {0x1FFFu, -1.0f/256.0f}, {0x1000u, -16.0f},
++        {0x0FFFu, 16.0f-1.0f/256.0f}, {0x0000u, 0.0f}
++    };
++    for (u32 i = 0; i < sizeof cases / sizeof cases[0]; i++) {
++        m(M_TEX_UNIT + 0x14, (2u << 24) | (6u << 16) | cases[i].bits);
++        draw_triangle();
++        CHECK((stub.bound_mask & 1u) && stub.bound_lod_bias == cases[i].expected,
++              "sampler bias 0x%04x reaches backend as %.8g (got %.8g)",
++              cases[i].bits, cases[i].expected, stub.bound_lod_bias);
++    }
++    engine_down();
++}
++
+ static void test_surface_set(void)
+ {
+     printf("-- surface set\n");
+@@ -1635,6 +1657,7 @@
+         p[0] = 0x3F; p[1] = 0x80; p[2] = 0; p[3] = 0;    /* 1.0f big-endian */
+     }
+ 
++    test_sampler_lod_bias();
+     test_surface_set();
+     test_surface_aliasing();
+     test_2d_subchannels();

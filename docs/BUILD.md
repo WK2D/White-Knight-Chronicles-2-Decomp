@@ -12,12 +12,12 @@ game-speed equivalence remain unverified. See the
 [latest gallery entry](GALLERY.md#2026-10-18---vulkan-batch-scheduling-in-the-saved-town)
 and [timing conditions](#vulkan-batch-scheduling-patch-0076).
 
-The current source stack contains 78 SDK patches. All 66 Windows Vulkan checks pass
+The current source stack contains 79 SDK patches. All 67 Windows Vulkan checks pass
 in normal Debug and optimized Release. The suites run three tests in parallel;
 their elapsed times are not game performance. Patch 0078 adds exact AVX2 FNMS
 with a scalar fallback. It reduces CPU work in the measured town worker but
 does not establish an FPS gain; see [results](FINDINGS.md#exact-spu-vector-math-patch-0078).
-Reapplying the 78-patch stack changes no SDK files. Patch 0074 restores normal shadow
+Reapplying the 79-patch stack changes no SDK files. Patch 0074 restores normal shadow
 polarity in the observed native town; black foot flicker remains. Patch 0075
 repairs the FIFO user-command route to the registered HLE callback. Its native Logic Stone
 interaction, save write and restart/Continue reload into town are verified.
@@ -1361,3 +1361,16 @@ values and cancellation against the scalar reference. On x86 it runs all
 rounding/FTZ/DAZ combinations and verifies unchanged MXCSR. The existing
 `wkc2_spu_fp` independent oracle remains enabled. Native A/B results and their
 limits are in [the findings](FINDINGS.md#exact-spu-vector-math-patch-0078).
+
+## Vulkan texture LOD bias (patch 0079)
+
+The shared draw engine decodes signed 4.8 texture LOD bias and forwards it to
+Vulkan samplers, clamped to the device limit. Sampler identity retains the bias
+and exact LOD bounds. The optional legacy Vulkan path and Metal do not gain
+this behavior. No forced sharpening, anisotropy or render-resolution change is
+introduced. `wkc2_draw_engine` covers register decoding; `wkc2_vk_sampler_lod`
+drives the production sampler builder with a recording Vulkan entry point,
+covering cache reuse, signed bias, fine LOD steps, limits and comparison state.
+The regression fails against the old sampler builder. All 67 Windows checks
+pass in Debug and optimized Release. See [visual evidence and remaining
+state gaps](FINDINGS.md#texture-detail-and-rendering-state-audit-patch-0079).

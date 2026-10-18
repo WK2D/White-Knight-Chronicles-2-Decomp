@@ -8,28 +8,35 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 78 SDK patches / 66 Windows checks. Patch 0078 reduces exact
-SPU math CPU work; it does not demonstrate an FPS gain. The latest image remains
-the patch-0076 capture. See [current results](FINDINGS.md#exact-spu-vector-math-patch-0078).
-
-**Latest captured checkpoint:** the 76-patch native Windows Vulkan build verifies Logic Stone
-proximity targeting, X opening its menu, Save writing a new local slot, and
-Continue returning to town after a full restart. All 64 Windows tests pass in
-normal Debug and optimized Release. Other NPC/object coverage and wider save
-compatibility remain unverified. The patch-0075 slot also loads on patch 0076.
-
-The latest clean one-minute saved-town sample averages 28.03 presentations/s;
-a locked 30 fps remains unverified. The long hair/clothing strips are removed
-in inspected views, and normal shadow polarity is restored. Black foot flicker and the rotating Logic Stone light
-remain open. Lag is the next priority: presentation counts alone do not establish
-smooth animation, accurate cutscene speed or loading performance. The prior
-73-patch ten-minute town test averages 14.25 presentations/s without worker
-accumulation; [findings](FINDINGS.md) retain its conditions and limits.
-Full rendering fidelity, sustained traversal, combat, Linux and macOS remain unverified.
+Current source: 79 SDK patches / 67 Windows checks. The latest comparison
+shows the texture LOD correction. Saving and Continue reload work; normal
+shadow polarity is restored. Foot/Logic Stone flicker, incomplete rendering
+state and town lag remain open. Still images do not prove smooth animation,
+performance, full gameplay or interpreter-free execution. Historical entries
+retain their original test conditions and patch counts.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-18 - Requested texture detail restored
+
+Patch 0079 honors the game's negative texture LOD bias instead of sampling
+blurrier mip levels. All 67 Windows checks pass in Debug and Release.
+One hidden, muted executable switched bias off/on at the same loaded save and
+camera. These GPU readbacks precede window scaling; idle animation and the
+rotating stone differ. No render-resolution increase or FPS gain is claimed.
+Private A/B controls are absent from the published patch. See the
+[rendering-state audit](FINDINGS.md#texture-detail-and-rendering-state-audit-patch-0079)
+for the remaining omissions.
+
+Requested bias applied:
+
+![Native WKC1 clothing, stonework and foliage with the requested texture LOD bias](../verification/screenshots/2026-10-18-native-wkc1-lod-after.png)
+
+Bias forced to zero, reproducing the previous behavior in the same executable:
+
+![Same native camera with texture LOD bias disabled](../verification/screenshots/2026-10-18-native-wkc1-lod-before.png)
 
 ## 2026-10-18 - Vulkan batch scheduling in the saved town
 

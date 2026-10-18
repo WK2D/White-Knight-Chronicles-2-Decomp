@@ -4,10 +4,10 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-18",
-    "native_probe": "20261018-074333",
-    "sdk_patch_count": 76,
-    "summary": "Patch 0076 improves Vulkan batch scheduling; the saved-town one-minute samples average 27.18 presentations/s before and 28.03 after. All 64 Windows checks pass in Debug and Release. A locked 30 fps remains unverified.",
-    "gallery_image": "screenshots/2026-10-18-native-wkc1-town-batching.png",
+    "native_probe": "20261018-112541",
+    "sdk_patch_count": 79,
+    "summary": "Patch 0079 restores the game-requested negative texture LOD bias in Vulkan. Hidden same-camera captures show improved clothing, brick and foliage detail. All 67 Windows checks pass in Debug and Release. Rendering fidelity and town performance remain incomplete.",
+    "gallery_image": "screenshots/2026-10-18-native-wkc1-lod-after.png",
     "remaining_limits": [
       "Town performance remains below the 30 fps target",
       "Black foot flicker and rotating Logic Stone light flicker remain open",
@@ -117,6 +117,20 @@
       "native_probe": "20261018-074333",
       "sdk_patch_count": 76,
       "scope": "Saved WKC1 town with Logic Stone selected; still image does not establish animation speed or performance."
+    },
+    {
+      "file": "screenshots/2026-10-18-native-wkc1-lod-after.png",
+      "private_source_probe": "20261018-112541/snap_0131.ppm",
+      "sha256": "5f1217402226c773fa7b1d640124a0f53cae2ac13e70a9d43d98cef6b15e7abb",
+      "source_ppm_sha256": "53d227cdb5f56abb504eebf11a16f037615bb347507f919671b3e47b02afb2d4",
+      "method": "Guest presentation surface before the window scaling stage; fixed camera with idle animation and rotating Logic Stone. Private hidden/muted A/B controls; optional PNG metadata removed."
+    },
+    {
+      "file": "screenshots/2026-10-18-native-wkc1-lod-before.png",
+      "private_source_probe": "20261018-112541/snap_0101.ppm",
+      "sha256": "17514bb9d1e8a02efd6039d751e7c06b3e4e7e65d076bdc1333e50db91cd3a20",
+      "source_ppm_sha256": "545d6b811fb944a61fe639f569dddb92b71d8ef85c5422c3a98c202b6b3e0fbf",
+      "method": "Guest presentation surface before the window scaling stage; fixed camera with idle animation and rotating Logic Stone. Private hidden/muted A/B controls; optional PNG metadata removed."
     }
   ],
   "checks": {
@@ -186,19 +200,20 @@
       "wkc2_shadow_compare",
       "wkc2_vk_arena_reserve",
       "wkc2_frame_timeline",
-      "wkc2_spu_fnms_vector"
+      "wkc2_spu_fnms_vector",
+      "wkc2_vk_sampler_lod"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 78,
-    "last_verified_sdk_patch_count": 78,
-    "current_passed_count": 66,
-    "record_scope": "Patch 0078 computes exact SPU FNMS in four AVX2 lanes, retaining the scalar fallback. All 66 Windows checks pass in Debug and Release. A matched hidden-town test reduces the busiest worker CPU time per presented frame by about 10%; presentation rate is 19.55 versus 19.90, so this is a CPU-efficiency change, not a demonstrated FPS improvement. Earlier captures keep their original patch counts.",
+    "current_sdk_patch_count": 79,
+    "last_verified_sdk_patch_count": 79,
+    "current_passed_count": 67,
+    "record_scope": "Patch 0079 restores the game-requested negative texture LOD bias in Vulkan. Hidden same-camera captures show improved clothing, brick and foliage detail. All 67 Windows checks pass in Debug and Release. Rendering fidelity and town performance remain incomplete. Historical evidence retains its original patch counts.",
     "normal_debug_elapsed_seconds": 12.61,
     "optimized_release_elapsed_seconds": 12.69,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 78
+    "repeat_patch_application_verified_sdk_patch_count": 79
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2585,5 +2600,24 @@
     "fps_gain_verified": false,
     "published_binary_native_run_verified": false,
     "scope": "CPU efficiency only; hidden-window measurements do not establish visible traversal smoothness or unique animation rate."
+  },
+  "texture_lod_bias": {
+    "date": "2026-10-18",
+    "sdk_patch_count": 79,
+    "observed_guest_bias": -1.5,
+    "native_detail_improvement_verified": true,
+    "same_process_ab": true,
+    "private_controls_absent_from_public_patch": true,
+    "window_hidden": true,
+    "audio_output_muted": true,
+    "original_pixels_before_window_scaling": true,
+    "full_rendering_fidelity_verified": false,
+    "fps_gain_verified": false,
+    "remaining_audit": [
+      "polygon offset",
+      "depth clip limits",
+      "texture-coordinate controls",
+      "intermediate presentation downsampling"
+    ]
   }
 }

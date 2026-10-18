@@ -2,12 +2,55 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** Patch 0078 computes exact SPU FNMS in four AVX2 lanes, retaining the scalar fallback. All 66 Windows checks pass in Debug and Release. A matched hidden-town test reduces the busiest worker CPU time per presented frame by about 10%; presentation rate is 19.55 versus 19.90, so this is a CPU-efficiency change, not a demonstrated FPS improvement. The latest gallery image remains the patch-0076 capture.
+**Current source checkpoint:** Patch 0079 restores the game-requested negative texture LOD bias in Vulkan. Hidden same-camera captures show improved clothing, brick and foliage detail. All 67 Windows checks pass in Debug and Release. Rendering fidelity and town performance remain incomplete.
 Normal shadow polarity and the starting-town Logic Stone save/reload work.
 Black foot flicker, rotating Logic Stone light flicker, analogue walk/run
 inconsistency and broader game-speed fidelity remain open. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
+
+## Texture detail and rendering state audit (patch 0079)
+
+The native frame was visibly softer than the RPCS3 reference. Read-only
+sampling found repeated **-1.5 LOD bias** requests with trilinear filtering;
+our shared engine discarded that field. Patch 0079 decodes the signed 4.8
+value, forwards it to Vulkan and prevents different bias/LOD values from
+aliasing in the sampler cache. It clamps bias to the device limit.
+
+A hidden, muted run loaded the verified save and switched zero/requested bias
+in one executable, with a fixed camera. Guest audio mixing remained active.
+The requested-bias capture restores clothing grain, masonry and foliage detail.
+Idle animation and the Logic Stone rotation differ between frames. These are
+original pixels from the guest presentation surface before window scaling;
+they do not establish final-window fidelity or an FPS gain. Private A/B and
+visibility/audio controls are absent from the published patch. Both Windows
+suites pass all 67 checks; the sampler regression fails on the previous builder.
+See the [newest gallery comparison](GALLERY.md#2026-10-18---requested-texture-detail-restored).
+
+The subsequent read-only audit sampled render registers over 18 seconds at the
+loaded save. Register-write totals are not equivalent to draw coverage, and
+sampling can miss brief states. Dispatcher TODO labels alone are also unreliable:
+some such states are already consumed elsewhere. The following observations
+were checked against the shared engine and Vulkan implementation:
+
+| Request/state | Observation | Current handling / next check |
+|---|---|---|
+| Texture LOD bias | Repeated -1.5 requests | Fixed for the shared Vulkan engine in 0079 |
+| Polygon offset | Fill offset enabled; nonzero negative bias and slope observed | Missing from Vulkan raster state; concrete flicker lead, effect unverified |
+| Depth clip limits | Changing clip-min/max values observed | Not forwarded separately; check interaction with the vertex depth transform before changing behavior |
+| Texture-coordinate controls | Several units toggle control bit 0 | Missing explicit forwarding; determine interpolation semantics and affected shaders |
+| Presentation scaling | Guest surface readbacks are 1920x1080; intermediate display image is fixed at 1280x720 | Current path can downsample and then enlarge; avoid the intermediate reduction in a separate change |
+| Anisotropy / texture gamma / texture alpha kill | 1x / zero / disabled in sampled enabled units | General omissions remain, but these samples do not implicate them |
+| Fog / logic operations / depth bounds | Not enabled in sampled registers | No evidence these cause the current view's mismatch |
+| Extra render-target blend/masks | Written as zero in samples | Shared pipeline mirrors target A; inspect actual MRT passes before claiming a fault |
+| Framebuffer sRGB output | Disabled in samples | No evidence for this mismatch in this view |
+
+This is a prioritized audit of one loaded scene, not a complete-game support
+claim. Polygon offset, interpolation, depth behavior and final presentation
+remain open; the LOD fix does not establish parity with RPCS3. RPCS3's
+[texture register semantics](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/RSXTexture.cpp)
+and [Vulkan state application](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/VK/VKDraw.cpp)
+were used as read-only references; their implementation was not copied.
 
 ## Exact SPU vector math (patch 0078)
 
