@@ -8,7 +8,8 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 83 SDK patches / 72 Windows checks. The current menu captures
+Current source: 84 SDK patches / 73 Windows checks. The latest menu captures
+were taken at 83 patches and show the same full-panel layout. They
 are final Vulkan swapchain readbacks, including window scaling and FXAA.
 The earlier LOD comparison is captured before window scaling. Saving and Continue
 reload work; normal shadow polarity is restored. Foot/Logic Stone flicker,

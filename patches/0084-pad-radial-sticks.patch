@@ -1,0 +1,93 @@
+diff --git a/libs/input/cellPad.c b/libs/input/cellPad.c
+--- a/libs/input/cellPad.c
++++ b/libs/input/cellPad.c
+@@ -93,26 +93,10 @@
+ 
+ #if PAD_BACKEND_XINPUT
+ 
+-/* Deadzone for analog sticks (same as XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE) */
+-#define PAD_STICK_DEADZONE  7849
++#include "pad_stick.h"
++#define PAD_LEFT_STICK_DEADZONE  7849
++#define PAD_RIGHT_STICK_DEADZONE 8689
+ #define PAD_TRIGGER_THRESHOLD 30
+-
+-static u8 pad_xinput_stick_to_u8(short raw, short deadzone)
+-{
+-    float normalized;
+-    if (raw > deadzone)
+-        normalized = (float)(raw - deadzone) / (float)(32767 - deadzone);
+-    else if (raw < -deadzone)
+-        normalized = (float)(raw + deadzone) / (float)(32767 - deadzone);
+-    else
+-        normalized = 0.0f;
+-
+-    /* Map -1.0..1.0 to 0..255 with center at 128 */
+-    int val = (int)(normalized * 127.0f) + 128;
+-    if (val < 0) val = 0;
+-    if (val > 255) val = 255;
+-    return (u8)val;
+-}
+ 
+ /* Keyboard fallback for port 0.
+  *
+@@ -224,14 +208,11 @@
+ 
+         s_host_state[i].buttons = btns;
+ 
+-        /* Analog sticks. PS3 Y axis is inverted vs XInput (up = 0). Reflect about
+-         * 128 (256 - x), NOT 255 - x: the latter turns a centered stick into 127,
+-         * whose bits (0x7F) alias SELECT+START and can make the guest self-exit.
+-         * (via sagemono, PR #42) */
+-        s_host_state[i].analog_lx = pad_xinput_stick_to_u8(gp->sThumbLX, PAD_STICK_DEADZONE);
+-        s_host_state[i].analog_ly = (u8)(256 - pad_xinput_stick_to_u8(gp->sThumbLY, PAD_STICK_DEADZONE));
+-        s_host_state[i].analog_rx = pad_xinput_stick_to_u8(gp->sThumbRX, PAD_STICK_DEADZONE);
+-        s_host_state[i].analog_ry = (u8)(256 - pad_xinput_stick_to_u8(gp->sThumbRY, PAD_STICK_DEADZONE));
++        /* Radial conversion keeps a full diagonal tilt at full magnitude. */
++        pad_stick_radial(gp->sThumbLX, gp->sThumbLY, PAD_LEFT_STICK_DEADZONE,
++                         &s_host_state[i].analog_lx, &s_host_state[i].analog_ly);
++        pad_stick_radial(gp->sThumbRX, gp->sThumbRY, PAD_RIGHT_STICK_DEADZONE,
++                         &s_host_state[i].analog_rx, &s_host_state[i].analog_ry);
+ 
+         /* Triggers */
+         s_host_state[i].trigger_l2 = gp->bLeftTrigger;
+diff --git a/libs/input/pad_stick.h b/libs/input/pad_stick.h
+new file mode 100644
+--- /dev/null
++++ b/libs/input/pad_stick.h
+@@ -0,0 +1,35 @@
++/* Host stick conversion, project-written radial response.
++ * Preserve direction and magnitude before quantizing to PS3's unsigned axes. */
++#ifndef PS3RECOMP_PAD_STICK_H
++#define PS3RECOMP_PAD_STICK_H
++#include <math.h>
++#include <stdint.h>
++static inline uint8_t pad_stick_encode(float axis)
++{
++    if (axis <= -1.0f) return 0;
++    if (axis >= 1.0f) return 255;
++    return (uint8_t)lroundf(128.0f + axis * (axis < 0.0f ? 128.0f : 127.0f));
++}
++static inline void pad_stick_radial(int16_t raw_x, int16_t raw_y, unsigned deadzone,
++                                   uint8_t* out_x, uint8_t* out_y)
++{
++    float x = raw_x / (raw_x < 0 ? 32768.0f : 32767.0f);
++    float y = raw_y / (raw_y < 0 ? 32768.0f : 32767.0f);
++    const float radius = sqrtf(x*x + y*y);
++    const float dz = deadzone / 32767.0f;
++    float scale = 0.0f;
++    /* Small host-noise gate, then a continuous response through the usual
++     * XInput deadzone landmark. PS3 games retain their own walking threshold. */
++    const float noise = 0.03f;
++    if (radius > noise && dz > noise && dz < 1.0f) {
++        const float bounded = radius < 1.0f ? radius : 1.0f;
++        const float magnitude = bounded <= dz
++            ? 0.13f * (bounded-noise)/(dz-noise)
++            : 0.13f + 0.87f * (bounded-dz)/(1.0f-dz);
++        scale = magnitude/radius;
++    }
++    *out_x = pad_stick_encode(x*scale);
++    /* Invert before quantization: never wrap a full-range endpoint at 256. */
++    *out_y = pad_stick_encode(-y*scale);
++}
++#endif

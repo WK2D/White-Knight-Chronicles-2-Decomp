@@ -4,14 +4,14 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-18",
-    "native_probe": "20261018-180818",
-    "sdk_patch_count": 83,
-    "summary": "Graphics Settings opens the full native settings panel with all eleven options and Back, native frame, scrollbar, arrows and row highlight. Controller changes, Back, ordinary Game Settings isolation and FPS toggle verified. Window-close integration exits normally from title and saved-town settings. All 72 Windows tests pass in Debug and Release with 83 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
+    "native_probe": "20261018-183552",
+    "sdk_patch_count": 84,
+    "summary": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling now follows frame boundaries with an idle heartbeat. Windows XInput radial conversion preserves partial tilt and full diagonal magnitude. 84 SDK patches / 73 passing Windows checks in Debug and Release. Physical controller feel and full-game high-FPS compatibility remain unverified.",
     "gallery_image": "screenshots/2026-10-18-native-graphics-panel.png",
     "remaining_limits": [
       "Town performance remains below the 30 fps target",
       "Black foot flicker and rotating Logic Stone light flicker remain open",
-      "Inconsistent analogue walk/run response and slower loading/cutscenes than RPCS3 remain open reports",
+      "Physical-controller comparison after the analogue conversion fix and slower loading/cutscenes than RPCS3 remain open",
       "Sustained traversal, combat, other save slots/scenes and PS3/RPCS3 save interchange unverified",
       "SPU interpreter fallback remains enabled"
     ]
@@ -194,6 +194,7 @@
   ],
   "checks": {
     "passed": [
+      "wkc2_pad_stick",
       "wkc2_graphics_menu",
       "wkc2_graphics_timing",
       "wkc2_graphics_settings",
@@ -270,14 +271,14 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 83,
-    "last_verified_sdk_patch_count": 83,
-    "current_passed_count": 72,
-    "record_scope": "Graphics Settings opens the full native settings panel with all eleven options and Back, native frame, scrollbar, arrows and row highlight. Controller changes, Back, ordinary Game Settings isolation and FPS toggle verified. Window-close integration exits normally from title and saved-town settings. All 72 Windows tests pass in Debug and Release with 83 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
-    "normal_debug_elapsed_seconds": 12.63,
-    "optimized_release_elapsed_seconds": 12.66,
+    "current_sdk_patch_count": 84,
+    "last_verified_sdk_patch_count": 84,
+    "current_passed_count": 73,
+    "record_scope": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling now follows frame boundaries with an idle heartbeat. Windows XInput radial conversion preserves partial tilt and full diagonal magnitude. 84 SDK patches / 73 passing Windows checks in Debug and Release. Physical controller feel and full-game high-FPS compatibility remain unverified.",
+    "normal_debug_elapsed_seconds": 12.6,
+    "optimized_release_elapsed_seconds": 12.56,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 83
+    "repeat_patch_application_verified_sdk_patch_count": 84
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2697,7 +2698,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Graphics Settings opens the full native settings panel with all eleven options and Back, native frame, scrollbar, arrows and row highlight. Controller changes, Back, ordinary Game Settings isolation and FPS toggle verified. Window-close integration exits normally from title and saved-town settings. All 72 Windows tests pass in Debug and Release with 83 SDK patches. Distance/fog and menu blur removal remain pending; Vulkan is supported and DirectX 12 experimental.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling now follows frame boundaries with an idle heartbeat. Windows XInput radial conversion preserves partial tilt and full diagonal magnitude. 84 SDK patches / 73 passing Windows checks in Debug and Release. Physical controller feel and full-game high-FPS compatibility remain unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -2720,7 +2721,10 @@
     "left_right_and_x_changes_verified": true,
     "back_returns_to_system_verified": true,
     "original_game_settings_isolated_verified": true,
-    "live_unlocked_vsync_on_stall_observed": true
+    "live_unlocked_vsync_on_stall_observed": true,
+    "unlocked_tick_flood_removed": true,
+    "unlocked_vsync_live_toggles_verified": true,
+    "rare_freeze_independently_reproduced": false
   },
   "window_close": {
     "sdk_patch": 83,
@@ -2741,5 +2745,14 @@
     ],
     "physical_mouse_click_automated": false,
     "scope": "Normal exit invokes existing registered media-worker cleanup; does not establish every possible blocked-worker exit condition."
+  },
+  "analogue_response": {
+    "sdk_patch": 84,
+    "backend": "Windows XInput",
+    "radial_pair_conversion": true,
+    "synthetic_full_tilt_angles_checked": 720,
+    "native_raw_input_response_verified": true,
+    "physical_controller_feel_verified": false,
+    "SDL_backend_changed": false
   }
 }

@@ -10,7 +10,7 @@ experimental DirectX 12 selector. Continue loads the verified Logic Stone save.
 See [menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
 and [settings and timing details](#native-graphics-settings-patches-0081-0082).
 
-The current stack contains 83 SDK patches. All 72 Windows checks pass in normal
+The current stack contains 84 SDK patches. All 73 Windows checks pass in normal
 Debug and optimized Release. Suite timings are not game performance. Reapplying
 the complete stack changes no SDK files. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain
@@ -100,7 +100,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 83 numbered SDK patches, and all 72 checks
+The current source stack contains 84 numbered SDK patches, and all 73 checks
 pass in both Windows suites. The latest graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
@@ -1445,16 +1445,18 @@ Short hidden/muted, log-free saved-scene probes exceed 30 completed frames/s
 with approximately one game-clock second per real second; see
 [measured scope](FINDINGS.md#native-graphics-settings-and-frame-rate-control).
 They do not prove full-game high-FPS compatibility or unique animation per frame.
-A diagnostic live change to Unlocked with VSync on stopped advancing frames;
-that combination remains under investigation. The earlier short Unlocked sample
-used VSync off.
+An earlier diagnostic change to Unlocked with VSync on stopped advancing frames.
+The runner now ticks on new flip boundaries, with a 59.94 Hz idle/boot heartbeat,
+instead of on every FIFO poll. New flips can tick immediately, so the heartbeat
+does not impose a frame cap. Repeated native live switches and VSync toggles
+remain responsive in the tested saved-town run; general high-FPS stability remains unverified.
 
 `wkc2_graphics_menu`, `wkc2_graphics_settings`, `wkc2_graphics_timing` and
 `wkc2_vk_graphics` cover full-panel routing, original-panel isolation, Left/Right and X changes,
 persistence, interval restoration,
 window/sampler configuration and the overlay without a black background.
 `wkc2_depth_shader_binding` also compiles the production FXAA shader and verifies
-its descriptor bindings. The full Windows suite passes 72 checks in Debug and
+its descriptor bindings. The full Windows suite passes 73 checks in Debug and
 Release. Native runs verify menu navigation and saved-scene rendering in both
 APIs, with FXAA initialization on Vulkan; not every display mode or monitor is tested.
 
@@ -1471,3 +1473,22 @@ events through the production pump. Private native integration tests inject the
 same SDL close event into the real event queue: title and saved-town settings
 runs exit with code 0 without an external forced termination. This tests event
 handling and process exit; it is not a physical mouse-click automation test.
+
+## Windows analogue response (patch 0084)
+
+The old XInput conversion applied a separate deadzone to each axis. At a full
+45-degree tilt, it sent only about 87% of the straight-ahead magnitude, so the
+game could receive different walk/run input depending on direction.
+The new project-written conversion works on the stick vector before quantizing
+it to PS3 axes. It preserves full magnitude around the circular gate, uses a
+small noise gate and a continuous partial-tilt curve, and inverts Y before
+quantization. The right stick uses its own XInput deadzone landmark.
+
+RPCS3's [XInput defaults](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Input/xinput_pad_handler.cpp)
+and [paired-axis conversion](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Io/PadHandler.cpp)
+were reviewed for expected behavior. This patch contains an independent C
+implementation, not copied emulator source. The `wkc2_pad_stick` regression
+checks neutral/noise, exact endpoints, Y direction, 720 full-tilt angles and
+monotonic partial tilt. Private native tests supply raw XInput values before
+production conversion and observe partial/full-tilt town movement. Physical
+controller feel, other devices and the SDL backend are not established by this test.

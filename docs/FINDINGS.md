@@ -2,16 +2,35 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 83 SDK patches / 72 Windows checks in Debug and
+**Current source checkpoint:** 84 SDK patches / 73 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
 without accelerating the sampled game clock. Rendering fidelity and lag remain open.
 Normal shadow polarity and the starting-town Logic Stone save/reload work.
-Black foot flicker, rotating Logic Stone light flicker, analogue walk/run
-inconsistency and broader game-speed fidelity remain open. Future restarts use
+Black foot flicker, rotating Logic Stone light flicker and broader game-speed
+fidelity remain open. Windows analogue mapping is corrected; physical controller
+feel still needs comparison. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
+
+## Windows stick magnitude and walk/run response (patch 0084)
+
+The previous XInput path applied its deadzone separately to X and Y. A full
+circular diagonal was reduced to roughly 87% of straight-ahead magnitude, and
+partial tilts lost both direction components independently. The corrected radial
+conversion preserves direction and full magnitude, retains a continuous walking
+range, and handles asymmetric signed endpoints and Y inversion before encoding.
+The right stick uses its own deadzone landmark. The implementation is native C.
+
+The regression checks 720 full-tilt angles across the two stick configurations,
+neutral/noise, exact endpoints, monotonic partial tilt and equal straight/diagonal
+magnitude. A private native input harness supplies raw signed XInput values
+before this production conversion. Short town probes show partial-tilt movement
+and a stronger full-tilt running response. This does not establish controller
+calibration, every directional gait transition or sustained traversal. Actual
+physical-controller feel still needs user comparison.
+See [implementation and reference scope](BUILD.md#windows-analogue-response-patch-0084).
 
 ## Full Graphics Settings panel and window close
 
@@ -81,10 +100,21 @@ show that the previous hard ceiling is removed and the sampled game clock
 stays close to wall time. The later menu screenshots use diagnostic readbacks;
 their displayed counters are not performance benchmarks.
 
-One later diagnostic menu run stopped advancing frames after a live change from
-30 to Unlocked with VSync on. The earlier Unlocked measurement used VSync off;
-the live Unlocked/VSync combination needs follow-up. The full-panel 30/40 checks
-above remained responsive. No general high-frame-rate stability claim is made.
+An earlier diagnostic menu run stopped advancing after a live change from 30 to
+Unlocked with VSync on. Investigation found that Unlocked published vblank ticks
+on every FIFO/render-loop pass. The port now ticks immediately at each new flip
+boundary and uses a normal idle heartbeat between them. Fence polling no longer
+creates extra callbacks, and the heartbeat does not cap actual flip frequency.
+
+A 120-second diagnostic on the old path averaged 15,424.7 host ticks/s and
+4,129.6 delivered guest ticks/s. A 30-second candidate run, including live
+VSync toggles, averaged 71.4 ticks/s for both. Both ran hidden/muted with file
+logging while another native copy was open; scenes and durations differ. These
+are callback-volume diagnostics, not a matched FPS improvement comparison.
+Repeated 30/Unlocked switches and ten live VSync toggles remained responsive;
+the candidate subsequently returned to town and exited normally with code 0.
+The earlier rare freeze has not been independently reproduced, so these results
+do not prove that every possible high-FPS stall is fixed.
 
 An end-to-end check on the final 82-patch menu build changed 30 -> 40 -> 60
 using the native menu, returned to the scene, and sampled 385 completed frames
@@ -92,8 +122,8 @@ in 10.002 seconds (38.49/s). Game-clock time advanced 9.989 seconds and vblanks
 ran at 119.97 Hz. FXAA was enabled. This verifies live menu application; it is
 not a comparison with the earlier FXAA-off samples or a traversal benchmark.
 
-All 72 checks pass in normal Debug (12.63 s) and optimized Release (12.66 s).
-The complete 83-patch stack reconstructs 69 SDK files from the pinned baseline.
+All 73 checks pass in normal Debug (12.60 s) and optimized Release (12.56 s).
+The complete 84-patch stack reconstructs 70 SDK files from the pinned baseline.
 The new timing regression covers removing/restoring interval and wait state;
 menu tests cover full-panel routing, input and restart-only API persistence. The FXAA shader
 compiles through the production compiler and its descriptor bindings match the
@@ -2010,7 +2040,7 @@ validation. The remaining work includes:
   diagnostic conditions. Validated 60 fps support remains a later goal.
 - Flickering foot shadows, the rotating Logic Stone light, and complete in-engine
   audio/animation synchronization.
-- Inconsistent analogue walk/run response and loading/cutscene speed compared with RPCS3.
+- Physical-controller walk/run comparison after patch 0084, and loading/cutscene speed compared with RPCS3.
 - All character-creation options and an in-game keyboard usable by gamepad.
 - Complete static SPU coverage, including the six observed image-17 fallback
   fingerprints; source-level reconstruction and a supported modding framework.

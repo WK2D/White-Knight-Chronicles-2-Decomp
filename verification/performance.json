@@ -613,5 +613,26 @@
       "vblank_rate": 119.971297,
       "unique_animation_per_frame_verified": false
     }
+  },
+  "unlocked_callback_scheduling": {
+    "date": "2026-10-18",
+    "sdk_patches": 84,
+    "fix": "Schedule unlocked ticks at new flip boundaries and idle heartbeat, not every FIFO poll",
+    "baseline": {
+      "seconds": 120.187,
+      "host_ticks_per_second": 15424.67155,
+      "delivered_ticks_per_second": 4129.5814
+    },
+    "candidate": {
+      "seconds": 30.14,
+      "host_ticks_per_second": 71.40013,
+      "delivered_ticks_per_second": 71.40013
+    },
+    "conditions": "Hidden and muted, file logging active, another native copy open, different scenes and durations; callback-volume diagnostics only",
+    "fps_gain_claimed": false,
+    "live_vsync_toggles_tested": 10,
+    "tested_candidate_stall_observed": false,
+    "earlier_rare_stall_independently_reproduced": false,
+    "full_game_high_fps_stability_verified": false
   }
 }

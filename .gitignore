@@ -23,6 +23,7 @@
 !/graphics_timing.cpp
 !/graphics_settings.cpp
 !/graphics_settings.h
+!/graphics_pacing.h
 !/graphics_diagnostics.cpp
 !/spu_job_diagnostics.cpp
 !/windows_guids.c
