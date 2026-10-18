@@ -14,6 +14,14 @@ feel still needs comparison. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
+## Killzone 3 SDK comparison
+
+A source review compares all 62 entries in the Killzone 3 runtime catalogue
+against the 84-patch stack. Missing SPU correctness paths, vector-helper/HLE
+performance leads, rendering gaps and service issues are recorded alongside
+existing equivalents. No runtime change or FPS improvement is claimed by this
+audit. See the [complete comparison and priorities](KILLZONE_FIX_AUDIT.md).
+
 ## Windows stick magnitude and walk/run response (patch 0084)
 
 The previous XInput path applied its deadzone separately to X and Y. A full
