@@ -4,14 +4,13 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Verified on 2026-10-17:** the 64-patch Windows Vulkan build reaches the live
-WKC1 town with the long stretched hair/clothing strips removed in the inspected
-views. Short movement and camera rotation are rechecked. Earlier town testing
-also verified pause/resume input. At that checkpoint, all 59 runtime checks
-passed with 64 SDK patches in normal Debug and private optimized Release-CRT builds.
-Full material/rendering fidelity, sustained traversal and combat remain unverified.
-Starting-town local save/reload was verified at patch 0075 and reused for patch 0076. See the
-[latest gallery entry](GALLERY.md).
+**Current verified build (2026-10-18):** the 76-patch Windows Vulkan build
+reaches the WKC1 starting town, loads the verified Logic Stone save through
+Continue, and has normal shadow polarity. The clean one-minute stationary
+sample averages 28.03 presentations/s; locked 30 fps, smooth traversal and full
+game-speed equivalence remain unverified. See the
+[latest gallery entry](GALLERY.md#2026-10-18---vulkan-batch-scheduling-in-the-saved-town)
+and [timing conditions](#vulkan-batch-scheduling-patch-0076).
 
 The source stack contains 76 SDK patches. All 64 Windows Vulkan checks pass in
 normal Debug (25.31 seconds) and optimized Release (22.91 seconds). Reapplying
@@ -46,7 +45,7 @@ private workspace with `-Workspace`; the build script gets project sources from
 its own location. Its default workspace layout is three parent directories above
 the script and is intended for the original development layout.
 
-Required tools: PowerShell, Git, Python 3.11+, Clang/clang-cl, CMake 3.20+, Ninja,
+Required tools: PowerShell, Git, Python 3.11.4+, Clang/clang-cl, CMake 3.20+, Ninja,
 MSVC Build Tools headers/libraries and the Windows 10 SDK. Install the Python
 dependencies listed by the pinned PS3Recomp SDK, plus PyCryptodome. Keep downloaded
 tools and dependency repositories in the private workspace.
@@ -88,8 +87,9 @@ and static lift now reproduces all 24 registered image inputs without captures.
 A clean PPU/SPU regeneration and full native build have also been verified.
 The regenerated inputs have been built with the current runtime and verified
 through the title menu, WKC1 selection, avatar acceptance and live town. Short
-movement and camera response are observed there; sustained traversal, combat
-and save/load remain unverified, and rendering faults remain.
+movement and camera response are observed there. Starting-town local saving
+and Continue reload are verified separately; sustained traversal, combat, wider
+save compatibility and full rendering fidelity remain unverified.
 `tools/import_spu_misses.py` is available for discovering additional jobs.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
@@ -106,10 +106,13 @@ clears, Windows PPU join lifetime and the shared draw engine's colour feedback.
 It also covers persistent DMA label polling, reuse of freed memory ranges and
 finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
-per-byte population counts and host-thread recursion diagnostics. The current
-source stack contains 74 numbered SDK patches, all covered by the current suites. The newest published town
-captures use 58; the NPC-surface checkpoint used 52 and the first town-controls
-capture used 42; the earlier town world-view capture used 39. Patch 0043 passed
+per-byte population counts, host-thread recursion diagnostics, real flip/user-command
+callback delivery, depth-comparison shaders and Vulkan arena reservation.
+The current source stack contains 76 numbered SDK patches, and all 64 checks
+pass in both Windows suites. The newest town capture uses 76 patches; saving
+was first verified at 75, normal shadow polarity at 74, and the physics
+checkpoint at 58. Earlier NPC-surface and controls captures retain their
+52- and 42-patch provenance; the first town world-view capture used 39. Patch 0043 passed
 the earlier 43-check Windows suite and remains covered by the current suite;
 its town-rendering comparison is recorded separately.
 Patch 0045's three float-mode checks and patches 0046-0051's new and extended
@@ -247,8 +250,10 @@ alone do not establish a frame-rate gain.
 
 ## Vulkan window-title counter (patch 0065)
 
-Patch 0065 adds a live FPS and maximum interval readout to the existing Vulkan
-window title. The 65-patch Windows Vulkan build and all 59 existing checks pass.
+Patch 0065 originally added an FPS and maximum interval readout to the Vulkan
+window title. Patch 0070 renames its rate label to `Present/s`; the counting
+method remains unchanged. At the 65-patch checkpoint, the Windows Vulkan build
+and all 59 existing checks passed.
 Counter updates are verified in the visible native title menu and initial
 character creator. It adds no new CTest entry.
 
@@ -262,14 +267,15 @@ moving. If rendering stalls, the displayed title can remain unchanged until
 rendering resumes. The base window title is retained, and counter state resets
 with the renderer lifecycle. No diagnostic environment switch is required.
 
-The normal Windows build passes all 59 checks in 22.17 seconds. The private
+At the patch-0065 checkpoint, the normal Windows build passed all 59 checks
+in 22.17 seconds. The private
 optimized Release-CRT build passes the 54 non-media checks; its five media checks
 also pass when rerun with their required decoder-library environment. Upgrading
 a 64-patch SDK changes one file, and repeating all 65 patches makes no changes.
 
 The native counter check used a visible window, no sampling profiler and
 five-second GPU readbacks. The desktop shortcut also launches the same promoted
-binary. These observations verify the counter display and shortcut target;
+binary. These historical observations verify the counter display and shortcut target;
 they are not a quantified character-creator benchmark or a rotation-smoothness
 fix. The exact scripted rotation gesture was not confidently verified, and the
 reported stutter remains unresolved.
@@ -300,8 +306,9 @@ Patch 0069 moves disabled PPU memory-watch formatting and stack setup behind a
 cached launch-option guard. Live store hooks and self-arming barrier watches
 remain checked. Patch 0070 changes the title label to `Present/s` without dividing
 or otherwise changing its counter. The 70-patch stack passed all 61 normal
-Windows regressions; the 75-patch stack passes all 63 in Debug and Release. Its starting-town run initially improves, then progressively
-slows while idle; see the [timings and worker census](FINDINGS.md#frame-pacing-and-game-speed).
+Windows regressions. Its starting-town run initially improved, then progressively
+slowed while idle. The current 76-patch stack passes 64 checks in Debug and
+Release; see the [timings and worker census](FINDINGS.md#frame-pacing-and-game-speed).
 
 ## Depth snapshot generations (patch 0071)
 
@@ -376,7 +383,10 @@ checks zero/nonzero causes, deferred and exactly-once delivery, the method
 alias, and low-level fallback. It fails on the old walker. All 63 Windows
 checks pass in Debug and optimized Release. Native callback invocation, Logic Stone proximity highlighting, its Save menu,
 and restart/Continue loading back into town are verified. This covers one
-local starting-town slot on the same build; wider save compatibility is unverified.
+local starting-town slot, saved and reloaded on patch 0075, then loaded on
+patch 0076. Other save compatibility is unverified. The current ZPASS report
+values use a conservative visible fallback (`0xFFFF`), not measured GPU samples;
+correct callback delivery does not establish accurate occlusion queries.
 
 ## Vulkan batch scheduling (patch 0076)
 
@@ -423,7 +433,9 @@ This uses a separate `work/build/wkc2-vulkan` directory. The build invokes
 inside the private workspace: SDL2 2.32.10, glslang 16.6.0 and its SPIR-V tools,
 plus Vulkan headers 1.4.328. Exact revisions are in that script. Existing source
 changes or different revisions cause an error; the helper does not reset them.
-Dependencies are optimized but use the port's current Debug CRT and C++ ABI.
+The standard preparation script builds optimized dependencies with the Debug
+CRT and C++ ABI used by `build.ps1`. The measured private Release build uses
+separate matching Release-CRT dependencies; the two ABIs must not be mixed.
 A Vulkan-capable driver and its loader are runtime requirements.
 
 D3D12 is retained as a comparison/fallback build:
@@ -490,6 +502,15 @@ guarantee for the current physics-enabled build. See the
 [performance findings](FINDINGS.md#cutscene-red-flash-and-frame-rate).
 
 ## Earlier runtime fixes and validation history
+
+**Verified on 2026-10-17:** the 64-patch Windows Vulkan build reaches the live
+WKC1 town with the long stretched hair/clothing strips removed in the inspected
+views. Short movement and camera rotation are rechecked. Earlier town testing
+also verified pause/resume input. At that checkpoint, all 59 runtime checks
+passed with 64 SDK patches in normal Debug and private optimized Release-CRT builds.
+Full material/rendering fidelity, sustained traversal and combat remain unverified.
+Starting-town local save/reload was verified at patch 0075 and reused for patch 0076. See the
+[latest gallery entry](GALLERY.md).
 
 The results below describe each patch's validation checkpoint. Reports of the
 stretched strip or speckled NPC surfaces are historical: patch 0052 improved the
@@ -1131,9 +1152,11 @@ otherwise retain a larger scene's threshold and stop presenting a subsequent
 small movie batch. This selects frame completion policy and leaves the guest's
 shaders, depth and culling state intact.
 
-On Windows the idle wait uses the SDK's existing FIFO kick event, signalled by
-guest fence polling, with the same four-millisecond timeout. This allows a kick
-to wake the consumer promptly while retaining presentation at guest flips. The
+On Windows the idle wait uses the SDK's FIFO kick event, signalled by guest
+fence polling and the changed parked-word producer notifications from patch
+0062. The wait is bounded by four milliseconds or the next vblank deadline.
+This allows a kick to wake the consumer promptly while retaining presentation
+at guest flips. The
 POSIX path keeps its existing wait; macOS execution remains unverified.
 
 ## Native text entry
@@ -1169,8 +1192,11 @@ guest protocol on Windows and macOS. That interface remains planned work.
 ## Playing and performance options
 
 `tools/build.ps1` produces the Debug build used by the regression suite. The
-inspected recent town runs use a separate optimized build. After the standard
-build has prepared dependencies and regenerated the current game inputs,
+patch-0076 town timing uses an isolated Release `/MD` build with matching
+Release dependencies. The example below instead enables optimization in the
+standard Debug `/MDd` dependency layout; it does not reproduce that exact
+benchmark configuration. After the standard build has prepared dependencies
+and regenerated the current game inputs,
 configure it as follows in PowerShell, replacing the two placeholder paths:
 
 ```powershell
@@ -1201,6 +1227,9 @@ cmake --build $optimized -j 4
 if ($LASTEXITCODE) { throw 'Optimized compilation failed' }
 ctest --test-dir $optimized -R wkc2_ --output-on-failure
 if ($LASTEXITCODE) { throw 'Optimized regression checks failed' }
+# Play-like timing: keep profiling and per-line diagnostic file writes off.
+$env:WKC2_DISCARD_LOGS = '1'
+Remove-Item Env:WKC2_SAMPLE_PROFILE -ErrorAction SilentlyContinue
 & "$checkout/tools/probe.ps1" -Workspace $workspace -Renderer Vulkan `
   -Executable "$optimized/WKC2Native.exe" -Seconds 900 -ShowWindow
 ```
@@ -1211,7 +1240,11 @@ Release-CRT build. `/arch:AVX2` permits hardware FMA for the SPU helpers' explic
 `fmaf` operations and requires a CPU with AVX2 and FMA support. Omit that option
 on older processors; their performance has not been measured.
 
-The Vulkan window title includes accepted-presentation FPS and the longest
+Use Continue to load the verified town save for repeat runs. Repeating the
+intro and avatar creator is unnecessary when that slot is present. The save is
+private game data and is not distributed by this repository.
+
+The Vulkan window title includes `Present/s` and the longest
 presentation interval without a diagnostic switch; see
 [counter scope](#vulkan-window-title-counter-patch-0065).
 
@@ -1236,7 +1269,9 @@ Runtime switches, all off unless set:
   the presented image when a sampled patch is strongly red.
   `RSX_ENGINE_WATCH_TARGET=<hex offset>` prints draws into one colour target.
 - `RSX_VK_FLUSH_FILE=<file>` writes Vulkan flush counts and timing by source
-  line every five seconds; negative lines identify submissions without a wait.
+  line every five seconds. Negative lines identify the asynchronous batch path;
+  capacity-driven submissions can still wait for a busy spare slot. Patch 0076
+  only performs optional early submissions when that slot is already complete.
 - `RSX_VK_PRESENT_MODE=mailbox` or `immediate` requests that Vulkan present
   mode when the driver supports it; otherwise the backend retains FIFO.
 
@@ -1278,8 +1313,10 @@ presentation timing for diagnostics. `WKC2_THREADS=1` adds guest thread register
 snapshots at each progress report. `-InterpProfile` writes the SPU interpreter
 census described under patch 0042 to `work/probes/<tag>.spu-interp.tsv`.
 Use `-Executable <private-executable>` to inspect a separately prepared build.
-The current WKC1 loading route can exceed ten minutes, so a 600-second probe
-alone may not reach the town. Use a longer bounded run for that route.
+Earlier new-game diagnostic routes exceeded ten minutes. Current repeat-town
+validation uses Continue and the verified saved slot. Allow for loading and
+initial shader creation before timing the settled view; do not treat a probe
+that ends during loading as a town performance result.
 `tools/trace_calls.py` optionally adds opt-in return/argument
 tracing to selected generated functions. Those diagnostics are disabled unless
 `WKC2_TRACE_CALLS=1` is set.

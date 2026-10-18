@@ -52,8 +52,9 @@
     "avatar_material_and_face_shading_scope": "Face shading and textured clothing are visible on the inspected default male avatar; full material fidelity remains unverified.",
     "secondary_bone_town_strips_removed_in_inspected_views": true,
     "physics_full_fidelity": false,
-    "save_load_scope": "New local save from the starting-town Logic Stone, complete restart, Continue reads the saved data and returns to town in the same 75-patch native build. Other scenes, slots, cross-build and PS3/RPCS3 save interchange unverified.",
-    "logic_stone_proximity_target": true
+    "save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified.",
+    "logic_stone_proximity_target": true,
+    "gameplay_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately."
   },
   "captures": [
     {
@@ -1449,7 +1450,7 @@
     "native_game_run_verified": true,
     "native_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
   },
-  "record_scope": "Current status is summarized in current_milestone, verified, checks, cpu_execution and current_spu_input_reproduction. Other named probes retain their historical counts, failures and validation limits. nv0039_memory_transfers records patch 0052; secondary_bone_physics records the patch 0058 town fix. Gallery entries retain their original capture provenance.",
+  "record_scope": "Current status is summarized in current_milestone, verified, checks, cpu_execution and current_spu_input_reproduction; vulkan_batch_scheduling records patch 0076 and gcm_user_command_delivery records patch 0075. Other named probes and milestone_history retain their historical counts, failures and validation limits. Gallery entries retain their original capture provenance.",
   "host_runtime_review": {
     "audio_error_end_restart_regression_passed": true,
     "old_audio_implementation_fails_regression": true,
@@ -2451,6 +2452,20 @@
         "Sustained traversal, combat and save/load unverified",
         "SPU interpreter fallback remains enabled"
       ]
+    },
+    {
+      "date": "2026-10-18",
+      "native_probe": "20261018-065701",
+      "sdk_patch_count": 75,
+      "summary": "Logic Stone proximity targeting, saving through its normal menu, and restart/Continue back into WKC1 town verified",
+      "gallery_image": "screenshots/2026-10-18-native-wkc1-save-reloaded.png",
+      "remaining_limits": [
+        "Town performance remains below the 30 fps target",
+        "Black foot flicker and rotating Logic Stone light flicker remain open",
+        "Inconsistent analogue walk/run response and slower loading/cutscenes than RPCS3 remain open reports",
+        "Sustained traversal, combat, other save slots/scenes and PS3/RPCS3 save interchange unverified",
+        "SPU interpreter fallback remains enabled"
+      ]
     }
   ],
   "texture_comparison_operand_order": {
@@ -2500,7 +2515,8 @@
     "native_proximity_highlighting_verified": true,
     "save_reload_verified": true,
     "visibility_sample_counts_measured_by_gpu": false,
-    "native_proximity_scope": "Logic Stone highlights on approach and opens with X; wider NPC/object coverage remains unverified."
+    "native_proximity_scope": "Logic Stone highlights on approach and opens with X; wider NPC/object coverage remains unverified.",
+    "visibility_report_scope": "ZPASS reports use a conservative visible 0xFFFF fallback; actual GPU sample counts and full occlusion correctness are unverified."
   },
   "vulkan_batch_scheduling": {
     "sdk_patch": 76,

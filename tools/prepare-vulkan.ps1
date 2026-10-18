@@ -39,7 +39,7 @@ PinnedSource "$deps/glslang/External/spirv-tools/external/spirv-headers" 'https:
 PinnedSource "$deps/Vulkan-Headers" 'https://github.com/KhronosGroup/Vulkan-Headers.git' '9a0f3099c8a9607a7c0f3127d8abfdc19a93e8c5'
 
 function BuildDependency([string]$Source, [string]$Build, [string[]]$Options) {
-    # The port currently uses Debug /MDd. Keep the dependencies optimized while
+    # The standard build.ps1 workflow uses Debug /MDd. Keep dependencies optimized while
     # matching its CRT and C++ iterator ABI; Release /MD cannot be mixed with it.
     cmake -S $Source -B $Build -G Ninja -DCMAKE_BUILD_TYPE=Release `
         -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl `

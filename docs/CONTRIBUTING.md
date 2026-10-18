@@ -3,9 +3,10 @@
 This repository contains the host runtime integration, SDK patches, diagnostic
 tools and regression checks for BLUS30784 v01.00. The Windows Vulkan prototype
 reaches the WKC1 starting town, with short movement and camera control verified.
-It remains an early native recompilation project: sustained gameplay, combat,
-save/load and full rendering fidelity are unverified, and the remaining SPU
-interpreter fallback is documented in [ARCHITECTURE.md](ARCHITECTURE.md).
+It remains an early native recompilation project: one starting-town Logic Stone
+save and restart/Continue reload are verified; sustained gameplay, combat, wider
+save compatibility and full rendering fidelity are unverified. The remaining
+SPU interpreter fallback is documented in [ARCHITECTURE.md](ARCHITECTURE.md).
 It is not a completed source or matching decompilation.
 
 Keep original disc files, decrypted executables, generated game sources, saves,

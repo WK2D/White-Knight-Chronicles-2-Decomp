@@ -84,7 +84,9 @@ The native run exposes a bright foot-shadow fault; patch 0074 corrects compariso
 operand order and restores normal shadow polarity in the observed town. Black
 foot flicker remains. Patch 0075 routes consumed user interrupts to the registered
 native HLE callback. Logic Stone interaction, a local save write and
-restart/Continue reload into town are verified; other save compatibility is unverified.
+restart/Continue reload into town are verified. The patch-0075 slot also loads
+on patch 0076; other save compatibility is unverified. Visibility report values
+remain conservative placeholders rather than measured GPU sample counts.
 Patch 0076 creates missing descriptor pools in the active batch slot without
 a layout-only submission. It opportunistically submits small batches only when
 the spare fence is ready; real capacity limits retain their existing waits.

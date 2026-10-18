@@ -23,8 +23,9 @@ See
 **Local save milestone (2026-10-18).** Approaching the
 Logic Stone highlights it, X opens its menu, and Save writes a new slot. After
 restarting the program, Continue loads that slot and returns to town. This
-covers the starting-town save on the same native build; other scenes/slots,
-cross-build compatibility and PS3/RPCS3 save interchange remain unverified.
+covers one starting-town slot, first saved and reloaded with patch 0075 and
+subsequently loaded by patch 0076. Other scenes/slots, further cross-build
+compatibility and PS3/RPCS3 save interchange remain unverified.
 
 The earlier ten-minute town idle test keeps 58–59 host threads without worker
 accumulation and averages 14.25 presentations/s under its recorded diagnostic
@@ -69,13 +70,21 @@ physics work and corrected by patch 0058. See the
 
 Verified progress, with the latest milestone first:
 
+- improves Vulkan batch scheduling; the saved-town sample averages **28.03
+  presentations/s** with logs and sampling off (patch 0076; a locked 30 fps is
+  still the target);
+- restores **Logic Stone targeting and local saving**; Continue reloads the
+  verified slot after restart, including loading the patch-0075 save on patch 0076;
+- restores **normal shadow polarity** (patch 0074); black foot flicker remains;
+- prevents the observed accumulation of duplicate asynchronous SPU workers
+  (patch 0072); the 73-patch ten-minute idle test observes no worker accumulation;
 - filters unchanged FIFO producer writes, accelerates SPU byte counts and
   separates workers' recursion diagnostics (patches 0062-0064);
 - removes repeated SPU conversion-scale calls and shared MFC engine lookups
   (patches 0060-0061); their hidden-window town samples measured 11.5-13.1 fps;
 - improves the hidden-window starting-town diagnostic benchmark by about 15%
-  by caching launch-time diagnostic settings (patch 0059); visible gameplay
-  performance still needs measurement;
+  by caching launch-time diagnostic settings (patch 0059); this historical
+  measurement is separate from the latest visible saved-town comparison;
 - removes the long **stretched hair and clothing strips** in the tested town
   views by running the previously omitted SPURS queue physics job; all 128
   sampled geometry jobs now have normal referenced vertex bounds;
@@ -103,8 +112,8 @@ Verified progress, with the latest milestone first:
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are
 removed in the inspected views; full material fidelity is unverified.
-The starting-town local save/reload is verified. Sustained traversal and combat remain unverified. This is not yet
-a playable port.
+The starting-town local save/reload is verified. This is an early prototype;
+sustained traversal, combat and a complete playthrough remain unverified.
 
 Vulkan is the primary Windows renderer. It now renders the avatar and room
 without its initial red tint after correcting colour-target feedback. D3D12
@@ -186,7 +195,8 @@ coverage report distinguishes handler presence from verified implementation.
   after the opening cutscenes. NPC surfaces improve with patch 0052; patch 0058
   removes the long strips in the inspected views.
 - **Initial town controls:** short analog movement, facing changes and camera
-  rotation first observed on the 42-patch build and rechecked with all 64 patches.
+  rotation first observed on the 42-patch build and rechecked at the 64-patch
+  checkpoint. The latest performance run is stationary, not a new traversal test.
 - **Local save/reload:** starting-town Logic Stone save and restart/Continue verified.
 - **Sustained traversal and combat:** pending.
 - **In-game keyboard with gamepad navigation, shared across Windows and macOS:**
@@ -196,9 +206,11 @@ coverage report distinguishes handler presence from verified implementation.
 
 ## Current investigation
 
-Town performance is the immediate focus: a steady 30 fps first, followed by
-validated 60 fps support. The earlier 70-patch visible run slowed progressively while
-idle, with thousands of asynchronous SPU workers still alive. The 73-patch
+Town performance is the immediate focus: the latest clean saved-town sample
+averages 28.03 presentations/s, with a steady 30 fps first and validated 60 fps
+support later. Patch 0076 reduces Vulkan batch stalls; smooth motion, longer
+frame intervals and matching RPCS3 game speed still need work. The earlier
+70-patch visible run slowed progressively while idle, with thousands of asynchronous SPU workers still alive. The 73-patch
 ten-minute idle test shows no worker accumulation. Texture-comparison operand
 order is corrected in patch 0074, with normal shadow polarity confirmed in the native town; black foot flicker remains.
 The completed passes avoid repeated SPU conversion-scale
@@ -219,7 +231,7 @@ Remaining work includes material fidelity, sustained traversal, combat and
 wider save compatibility. The SPU census also identifies static-entry candidates whose
 behavior still needs validation.
 
-See [the latest performance findings](docs/FINDINGS.md#town-performance-after-the-physics-fix)
+See [the latest performance findings](docs/FINDINGS.md#vulkan-batch-scheduling-patch-0076)
 and [the physics trace](docs/FINDINGS.md#secondary-bone-physics-and-town-stretching).
 The [full findings log](docs/FINDINGS.md) retains earlier investigations;
 [diagnostic probes](docs/BUILD.md#diagnostic-probes) describe reproduction options.

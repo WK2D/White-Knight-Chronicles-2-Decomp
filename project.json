@@ -263,7 +263,9 @@
       "cutscenes_slower_than_rpcs3_reported": true,
       "loading_slower_than_rpcs3_reported": true,
       "presentations_per_second_establishes_game_speed": false,
-      "proximity_target_highlighting_scope": "Logic Stone retested; wider NPC/object interactions need coverage."
+      "proximity_target_highlighting_scope": "Logic Stone retested; wider NPC/object interactions need coverage.",
+      "visibility_sample_counts_measured_by_gpu": false,
+      "visibility_report_scope": "Conservative visible ZPASS fallback; the callback route and Logic Stone interaction are verified, not accurate GPU occlusion."
     },
     "patch_0076_windows_regression_verified": true,
     "patch_0076_native_game_run_verified": true,
@@ -343,19 +345,28 @@
     "latest_measured_sdk_patch_count": 76,
     "diagnostic_window_visible": true,
     "visible_gameplay_fps_verified": false,
-    "latest_profiled_starting_town_fps_range": [
-      28.033233815353288,
-      28.033233815353288
-    ],
     "scope": "Patch 0076 improves Vulkan batch scheduling; the saved-town one-minute samples average 27.18 presentations/s before and 28.03 after. All 64 Windows checks pass in Debug and Release. A locked 30 fps remains unverified. Visible stationary saved town, file logs and sampler off, five-second readbacks. Different runs; no traversal or full game-speed equivalence claim.",
-    "latest_visible_baseline_sdk_patch_count": 66,
-    "latest_visible_baseline_presentations_per_second": 12.283324,
+    "latest_visible_baseline_sdk_patch_count": 75,
+    "latest_visible_baseline_presentations_per_second": 27.18327488929232,
     "latest_candidate_sdk_patch_count": 76,
     "latest_candidate_town_comparison_verified": true,
     "latest_candidate_sustained_gain_verified": false,
-    "later_idle_presentations_per_second_approximate": 7,
     "pending_native_sdk_patch_count": null,
-    "latest_native_idle_worker_stability_verified": true
+    "latest_native_idle_worker_stability_verified": true,
+    "historical_66_patch_visible_baseline": {
+      "sdk_patch_count": 66,
+      "presentations_per_second": 12.283324,
+      "sampling_profiler_enabled": true,
+      "gpu_readback_interval_seconds": 5
+    },
+    "latest_saved_town_presentations_per_second": 28.033233815353288,
+    "latest_saved_town_sample_seconds": 60.000213,
+    "latest_saved_town_presented_frames": 1682,
+    "latest_saved_town_sampling_profiler_enabled": false,
+    "latest_saved_town_probe": "20261018-074333",
+    "idle_worker_stability_test_sdk_patch_count": 73,
+    "idle_worker_stability_test_seconds": 600.000104,
+    "historical_70_patch_idle_slowdown_presentations_per_second_approximate": 7
   },
   "current_native_observation": {
     "sdk_patch_count": 76,
@@ -367,7 +378,14 @@
     "full_shadow_fidelity_verified": false,
     "logic_stone_target_verified": true,
     "logic_stone_save_written_verified": true,
-    "restart_continue_load_verified": true
+    "restart_continue_load_verified": true,
+    "save_write_verified_sdk_patch_count": 75,
+    "save_write_retested_in_this_probe": false,
+    "save_reload_verified_sdk_patch_counts": [
+      75,
+      76
+    ]
   },
-  "native_save_load_scope": "Starting-town Logic Stone: proximity highlighting, X opens its menu, Save writes a new local slot, full process restart and Continue return to town on the same native build. Other scenes/slots, cross-build and PS3/RPCS3 interchange unverified."
+  "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified.",
+  "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately."
 }

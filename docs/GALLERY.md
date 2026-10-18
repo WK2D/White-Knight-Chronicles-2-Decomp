@@ -12,10 +12,11 @@ interpreter-free execution; see [architecture](ARCHITECTURE.md).
 proximity targeting, X opening its menu, Save writing a new local slot, and
 Continue returning to town after a full restart. All 64 Windows tests pass in
 normal Debug and optimized Release. Other NPC/object coverage and wider save
-compatibility remain unverified.
+compatibility remain unverified. The patch-0075 slot also loads on patch 0076.
 
-The long hair/clothing strips are removed in inspected views, and normal shadow
-polarity is restored. Black foot flicker and the rotating Logic Stone light
+The latest clean one-minute saved-town sample averages 28.03 presentations/s;
+a locked 30 fps remains unverified. The long hair/clothing strips are removed
+in inspected views, and normal shadow polarity is restored. Black foot flicker and the rotating Logic Stone light
 remain open. Lag is the next priority: presentation counts alone do not establish
 smooth animation, accurate cutscene speed or loading performance. The prior
 73-patch ten-minute town test averages 14.25 presentations/s without worker
@@ -48,7 +49,8 @@ Continue loads it and returns to town. Both Windows suites pass all 63 checks.
 This covers one starting-town save on the same build; wider save compatibility
 is unverified. Lag, analogue walk/run inconsistency and remaining flicker are open.
 
-The newest capture shows the reloaded town and selected Logic Stone:
+At this checkpoint, the later of the two captures shows the reloaded town
+and selected Logic Stone:
 
 ![Native WKC1 town after restart and Continue, with Logic Stone selected](../verification/screenshots/2026-10-18-native-wkc1-save-reloaded.png)
 
@@ -78,8 +80,8 @@ camera rotation. All 51 Windows runtime checks pass.
 Private replay of 128 captured geometry jobs finds normal referenced vertex
 bounds throughout; 21 of 128 samples before the fix had extreme offsets.
 See the [trace and limits](FINDINGS.md#secondary-bone-physics-and-town-stretching).
-Full rendering fidelity, sustained traversal, combat and save/load remain
-unverified.
+At that checkpoint, full rendering fidelity, sustained traversal, combat and
+save/load were unverified. Later entries above record local saving.
 
 ![Native WKC1 town after restoring secondary-bone physics](../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png)
 
@@ -97,7 +99,7 @@ or rejection diagnostics. Full material fidelity remains unverified.
 The newer physics milestone above removes them in the inspected town views.
 This capture records the earlier NPC surface improvement; it does not establish
 complete rendering correctness. Sustained traversal, combat and save/load
-remain unverified.
+were unverified at this checkpoint; local saving was verified later.
 
 ![Native WKC1 town with improved NPC surfaces and remaining stretched geometry](../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png)
 
@@ -107,7 +109,8 @@ The full 42-patch native build reaches the town and responds to left-stick
 movement and right-stick camera input. Successive GPU readbacks show walking,
 facing changes, a changed minimap position and a rotated view of the street.
 The SPU census was active throughout this run. This is limited starting-town
-input validation; sustained traversal, combat and save/load remain unverified.
+input validation; sustained traversal, combat and save/load were unverified
+at this checkpoint. Local saving was verified later.
 Stretched geometry and corrupt NPC surfaces were still visible at this checkpoint;
 the later fixes are recorded above.
 
@@ -124,7 +127,7 @@ polling lets this run pass the previous loading stall.
 Stretched triangles and corrupt NPC surfaces are visible in this unchanged
 readback. Movement and camera control were unchecked in this run and were
 verified in limited town probes on 2026-10-17. Sustained traversal, combat and
-save/load remain unverified.
+save/load were unverified in this run; later entries record local saving.
 The 1920×1080 display readback contains the game's 1280×720 scene.
 
 ![Native WKC1 town showing Leonard, NPCs, minimap and save crystal, with visible geometry faults](../verification/screenshots/2026-10-16-native-wkc1-town.png)
@@ -138,7 +141,8 @@ the missing colour channels. The entered name is retained. This is live 3D
 rendering from the hybrid C/C++ build with the shared RSX draw engine.
 The 1920×1080 display readback contains the game's 1280×720 scene. Full visual
 fidelity was not established by this capture. Later town rendering and limited
-controls are recorded above; save/load and macOS execution remain unverified.
+controls and local save/reload were verified later, as recorded above. macOS
+execution remains unverified.
 
 ![Native Vulkan WKC1 avatar and room after colour-feedback correction](../verification/screenshots/2026-10-16-native-vulkan-avatar-colours.png)
 

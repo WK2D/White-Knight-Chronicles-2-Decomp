@@ -501,7 +501,7 @@
     "sdk_patch_count": 74,
     "status": "native_normal_shadow_polarity_user_confirmed_black_foot_flicker_remains",
     "foot_shadow_flicker_fixed_verified": false,
-    "bright_foot_shadow_regression_fixed_verified": false,
+    "bright_foot_shadow_regression_fixed_verified": true,
     "probe": "20261018-054301",
     "native_binary_sha256": "dcdf254b70c944cce2dd9205250d4165a5750c2629b6dea4e9f0d580b011d648",
     "conditions": {
@@ -564,5 +564,6 @@
       "Retained-log diagnostic runs were around 15 presentations/s and are not comparable with these play-like samples",
       "The earlier attempted baseline repeat overlapped the test suite and was excluded"
     ]
-  }
+  },
+  "record_scope": "Historical benchmarks retain their original conditions and patch counts. The latest measured stationary saved-town comparison is vulkan_batch_scheduling_0076. Top-level date, scene, conditions and samples describe the earlier hidden-window series, not current play-like performance."
 }

@@ -58,6 +58,10 @@ update. The Logic Stone highlights on approach, X opens its normal menu, and
 Save writes a new slot. A full restart followed by Continue reads the 6,815,744-byte
 save payload and returns to town; the user also confirms success. These checks
 cover the Logic Stone and one local slot, not all NPCs or save compatibility.
+The same patch-0075 slot subsequently loads on patch 0076. The runtime still
+returns conservative visible values (`0xFFFF`) for ZPASS reports rather than
+measuring GPU samples. Fixing callback delivery restores the observed interaction;
+it does not establish correct occlusion or every object's targeting behavior.
 
 The user also reports slower loading and slightly slower cutscenes than RPCS3,
 less smooth motion despite a nominal 30 reading, inconsistent analogue walk/run
@@ -96,10 +100,13 @@ do not establish interpreter-free execution.
 | Result | Evidence | Limit |
 | --- | --- | --- |
 | Native Windows build succeeds | 76-patch Clang build and 64 runtime regression checks in Debug and Release | Compilation alone does not verify gameplay |
+| Logic Stone proximity targeting and local saving work | Patch 0075: X opens the stone menu, Save writes a slot, restart/Continue returns to town; patch 0076 also loads that slot | One starting-town slot; other scenes/slots and PS3/RPCS3 interchange unverified; occlusion samples remain a conservative fallback |
+| Normal shadow polarity is restored | Patch 0074 GPU comparison and user-confirmed native town view | Black foot flicker and complete shadow fidelity remain open |
+| Saved-town presentation throughput approaches the 30 fps target | Separate clean one-minute samples: patch 0075 27.18 presentations/s; patch 0076 28.03; [conditions](../verification/performance.json) | Stationary view, not locked 30 fps, distinct animation updates or RPCS3-equivalent game speed |
 | Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | This colour-fix capture covers character creation; later town validation is recorded below; full visual fidelity remains unverified |
 | WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
-| WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | The long strips are removed with patch 0058 ([secondary-bone physics](#secondary-bone-physics-and-town-stretching)); NPC surfaces improve with patch 0052 ([NV0039 transfers](#nv0039-memory-transfers)); full material fidelity unverified; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
-| Initial town movement and camera response work | First observed with 42 patches; rechecked with 58 patches after the physics fix, including walking/facing changes and camera rotation | Short starting-town probes only; sustained traversal, combat and save/load unverified |
+| WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | The long strips are removed with patch 0058 ([secondary-bone physics](#secondary-bone-physics-and-town-stretching)); NPC surfaces improve with patch 0052 ([NV0039 transfers](#nv0039-memory-transfers)); full material fidelity unverified; short movement and camera response verified; starting-town save/reload verified below; sustained traversal, combat and wider save compatibility unverified |
+| Initial town movement and camera response work | First observed with 42 patches; rechecked with 58 patches after the physics fix, including walking/facing changes and camera rotation | Short starting-town probes only; sustained traversal, combat and analogue walk/run consistency unverified; local save/reload verified separately |
 | Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
 | Language selection accepts input | CROSS through the controller path advances startup | This check covers startup input; limited town controls are verified above |
 | Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
@@ -122,8 +129,8 @@ do not establish interpreter-free execution.
 The investigation sections record successive checkpoints, including failures
 later resolved. Test counts, proposed next steps and limitations within those
 accounts describe that checkpoint. They are not the current task list. The
-verified table above and [secondary-bone physics recheck](#secondary-bone-physics-and-town-stretching)
-record the latest result; [Still unverified](#still-unverified) records the
+verified table above and [latest batch scheduling result](#vulkan-batch-scheduling-patch-0076)
+record the current status; [Still unverified](#still-unverified) records the
 remaining validation work.
 
 - Correct lightweight-condition layout and wait/signal behavior.
@@ -1445,12 +1452,13 @@ also keeps disabled PPU memory-watch diagnostics off the hot path.
 
 The 70-patch normal Windows Vulkan build passed all 61 tests in 25.52 seconds.
 Its new regressions check production compute/graphics descriptor bindings and
-real flip completion, including the guest's two-vblank acquire. The current
+real flip completion, including the guest's two-vblank acquire. The earlier
 73-patch stack passed all 63 tests: 22.79 seconds in normal Debug and
 20.46 seconds in optimized Release. The current 76-patch stack passes all 64 in
 **25.31 seconds (normal Debug)** and **22.91 seconds (optimized Release)**.
-The two additional tests cover worker lifetime and depth-comparison shader
-translation; patch 0074 extends the latter with all comparison-direction mappings.
+The 73-patch suite added worker-lifetime and depth-comparison shader tests;
+patch 0074 extends the latter with all comparison-direction mappings. Patch
+0076 adds the Vulkan arena reservation regression.
 Reapplying the earlier 73-patch stack changed no SDK files.
 
 A separate **visible-window 66-patch baseline** reaches the starting town after
@@ -1742,9 +1750,9 @@ animation program; eight dispatch/return pairs have been observed after lifting
 it. FIFO consumption continues through a later timeout. A subsequent vertex-shader
 cache fix revealed avatar-customization menus. At this checkpoint, the model
 was still missing. Later SPU arithmetic and renderer fixes restored the avatar.
-The town is reached with 73 patches; the 64-patch checkpoint retains the latest
-timed control recheck, with the long secondary-bone strips removed in inspected
-views. The 70-patch idle run exposes progressive slowdown; the 73-patch
+The latest 76-patch build loads the verified save into town; the earlier
+64-patch checkpoint records a short movement and camera recheck, with the long
+secondary-bone strips removed in inspected views. The 70-patch idle run exposes progressive slowdown; the 73-patch
 ten-minute idle test does not reproduce its accumulating SPU workers. Full rendering
 fidelity, broader gameplay, wider save compatibility and imports needed on untested
 paths remain unverified. Starting-town local save/reload was verified at patch 0075 and used again for patch 0076.
@@ -1760,11 +1768,12 @@ corrections. Full material, lighting and physics fidelity still need wider
 validation. The remaining work includes:
 
 - Sustained traversal, combat, later scenes and broader save compatibility.
-  Starting-town local save/reload is verified on the 75-patch build.
-- Sustained visible performance: the 73-patch ten-minute town test averages
-  14.25 presentations/s without worker accumulation. Different profiler settings
-  and capture work prevent a matched speedup comparison with the earlier run.
-  The immediate 30 fps target and later 60 fps goal remain unverified.
+  Starting-town local save/reload is verified on patch 0075; patch 0076 also loads that slot.
+- Sustained visible performance: the clean patch-0076 one-minute saved-town
+  sample averages 28.03 presentations/s versus 27.18 for patch 0075. This does
+  not establish locked 30 fps, smooth traversal or full game-speed fidelity.
+  The earlier ten-minute worker-stability test used patch 0073 and different
+  diagnostic conditions. Validated 60 fps support remains a later goal.
 - Flickering foot shadows, the rotating Logic Stone light, and complete in-engine
   audio/animation synchronization.
 - Inconsistent analogue walk/run response and loading/cutscene speed compared with RPCS3.

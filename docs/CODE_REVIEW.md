@@ -128,12 +128,15 @@ Runtime:
     receivers may still be waiting on it.
 12. Two threads opening the same uncached EDAT at once decrypt into the same
     `.partial` file, and one can publish it while the other is still writing.
-13. Patches 0024 and 0025 call `getenv` on every unhandled method and every
-    job.
+13. **Repeated diagnostic lookups; addressed by patch 0059.** Patches 0024
+    and 0025 originally called `getenv` on every unhandled method and every
+    job. The launch settings are now cached per host thread; the regression
+    covers presence switches set to `0` without suppressing enabled diagnostics.
 
 Tools: `prepare_sdat.py` writes its receipt in place rather than atomically;
-`prepare_ffmpeg.py`'s `tarfile` filter needs Python 3.11.4 or later; the `/w`
-in `build.ps1` also hides warnings in the hand-written sources.
+`prepare_ffmpeg.py`'s `tarfile` filter needs Python 3.11.4 or later, now the
+documented minimum in BUILD.md. The `/w` in `build.ps1` still hides warnings in
+the hand-written sources.
 
 ### Checks run
 
