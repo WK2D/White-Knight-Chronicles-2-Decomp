@@ -10,12 +10,12 @@ views. Short movement and camera rotation are rechecked. Earlier town testing
 also verified pause/resume input. At that checkpoint, all 59 runtime checks
 passed with 64 SDK patches in normal Debug and private optimized Release-CRT builds.
 Full material/rendering fidelity, sustained traversal and combat remain unverified.
-The current 75-patch starting-town local save/reload is verified below. See the
+Starting-town local save/reload was verified at patch 0075 and reused for patch 0076. See the
 [latest gallery entry](GALLERY.md).
 
-The source stack contains 75 SDK patches. All 63 Windows Vulkan checks pass in
-normal Debug (23.61 seconds) and optimized Release (23.15 seconds). Reapplying
-the 75-patch stack changes no SDK files. Patch 0074 restores normal shadow
+The source stack contains 76 SDK patches. All 64 Windows Vulkan checks pass in
+normal Debug (25.31 seconds) and optimized Release (22.91 seconds). Reapplying
+the 76-patch stack changes no SDK files. Patch 0074 restores normal shadow
 polarity in the observed native town; black foot flicker remains. Patch 0075
 repairs the FIFO user-command route to the registered HLE callback. Its native Logic Stone
 interaction, save write and restart/Continue reload into town are verified.
@@ -94,7 +94,7 @@ and save/load remain unverified, and rendering faults remain.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies the numbered runtime patches idempotently
-and runs 63 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs 64 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
@@ -113,8 +113,8 @@ capture used 42; the earlier town world-view capture used 39. Patch 0043 passed
 the earlier 43-check Windows suite and remains covered by the current suite;
 its town-rendering comparison is recorded separately.
 Patch 0045's three float-mode checks and patches 0046-0051's new and extended
-checks pass in the native Windows clang-cl build. All 63 checks pass with
-75 patches in normal Debug and optimized Release; Wine's MinGW TLS workaround is not needed here.
+checks pass in the native Windows clang-cl build. All 64 checks pass with
+76 patches in normal Debug and optimized Release; Wine's MinGW TLS workaround is not needed here.
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
@@ -144,7 +144,7 @@ initialization on repeated jobs and descriptor sizes 64, 128, 256 and 1024.
 At that checkpoint, all 51 Windows Vulkan checks passed with 58 patches. Native town validation is
 recorded in the [findings](FINDINGS.md#secondary-bone-physics-and-town-stretching).
 
-## SPU conversion scales and DMA ownership (patches 0060Ã¢â‚¬“0061)
+## SPU conversion scales and DMA ownership (patches 0060-0061)
 
 Patch 0060 constructs exact power-of-two conversion scales directly from
 binary64 exponent bits. All 256 valid RI8 immediates produce normal doubles,
@@ -170,11 +170,11 @@ At that checkpoint, all 51 Windows Vulkan checks passed with 61 patches in both
 the normal Debug build and the private optimized Release-CRT build, with native
 regression assertions active.
 All 61 patches also apply to a clean SDK checkout (58 files updated).
-The 59Ã¢â€ ’60 and 60Ã¢â€ ’61 upgrades and repeat application are verified.
+The 59-to-60 and 60-to-61 upgrades and repeat application are verified.
 See the [town measurements](FINDINGS.md#town-performance-after-the-physics-fix)
 for the native validation scope.
 
-## FIFO producer wake and SPU execution helpers (patches 0062Ã¢â‚¬“0064)
+## FIFO producer wake and SPU execution helpers (patches 0062-0064)
 
 Patch 0062 wakes the existing FIFO event when a completed, mapped ordinary SPU
 DMA PUT changes the exact self-JUMP word at which the renderer is parked. The
@@ -274,7 +274,7 @@ they are not a quantified character-creator benchmark or a rotation-smoothness
 fix. The exact scripted rotation gesture was not confidently verified, and the
 reported stutter remains unresolved.
 
-## Depth sampling and real flip completion (patches 0067Ã¢â‚¬“0070)
+## Depth sampling and real flip completion (patches 0067-0070)
 
 Patch 0067 keeps the compute depth shader's explicit source/output bindings at
 0 and 1; graphics texture/sampler shifts still apply to graphics shaders. It
@@ -326,7 +326,7 @@ completed-slot reuse, duplicate/stale cleanup and more than eight tasksets. The
 extended SPURS production-dispatch regression checks claim-before-create and
 ownership through delayed cleanup; the reversed claim order and stale-cleanup
 negative controls fail. The 73-patch ten-minute native idle test completes
-17,104 task workers while keeping host thread count at 58Ã¢â‚¬“59 and observing no
+17,104 task workers while keeping host thread count at 58-59 and observing no
 worker accumulation. Wider gameplay and cancellation remain unverified.
 
 ## Vulkan depth comparison (patch 0073)
@@ -377,6 +377,34 @@ alias, and low-level fallback. It fails on the old walker. All 63 Windows
 checks pass in Debug and optimized Release. Native callback invocation, Logic Stone proximity highlighting, its Save menu,
 and restart/Continue loading back into town are verified. This covers one
 local starting-town slot on the same build; wider save compatibility is unverified.
+
+## Vulkan batch scheduling (patch 0076)
+
+The saved-town comparison averages **27.18 presentations/s before** and
+**28.03 after** over separate one-minute samples. Both use the same saved slot,
+a visible window, optimized Release build, no file logging or sampling profiler,
+and five-second GPU readbacks. These stationary measurements do not establish a
+locked 30 fps, smooth traversal, distinct animation updates or RPCS3 timing equivalence.
+See [the recorded conditions](../verification/performance.json).
+
+A missing descriptor pool caused a submission before the two batch slots swapped.
+Ordinary and shadow-layout pools could stay stranded in opposite slots, forcing
+six submissions per town frame. Pools are now created for the active slot without
+submitting solely for a layout change. Removing those submissions alone moved the
+wait to presentation and did not improve the retained-log diagnostic run.
+
+The final change also submits after at least 256 draws when the spare slot is
+already complete. If it is busy, recording continues and readiness is rechecked
+every 64 draws. Real capacity exhaustion retains its existing wait and resource
+lifetime rules. Measured mid-frame submission time falls from roughly 8-9 ms to
+0.15-0.17 ms per frame; occasional longer frames remain.
+
+The host-only `wkc2_vk_arena_reserve` test extracts the actual production reservation
+function. It checks alternating ordinary/shadow layouts, pool creation after a
+slot swap, allocation/submission failures, full pools, and busy versus ready spare
+fences. It fails with the old reservation. All **64 checks** pass in normal Debug
+(25.31 seconds) and optimized Release (22.91 seconds). All 76 patches reconstruct
+from the pinned SDK, and reapplying them changes no files.
 
 ## Windows renderer
 
@@ -435,7 +463,7 @@ The toolkit patches retain the SDK's MIT license; see the retained
 [Demon's Souls SDK fork](https://github.com/JonathanDC64/ps3recomp/blob/61909373a2cb59f8679d8b96382e2899d656e4d0/libs/video/rsx_d3d12_backend.c).
 These are implementation sources actually used by this port.
 
-## Renderer coherence and execution overhead (patches 0053Ã¢â‚¬“0057)
+## Renderer coherence and execution overhead (patches 0053-0057)
 
 Patch 0053 gives depth-only passes a scratch colour target that cannot alias a
 guest display buffer. It also queues host writes for the shared renderer, which
@@ -751,7 +779,7 @@ reservation notifications and separation from both 3D renderers.
 `wkc2_nv0039_routing_3d` checks the SDK compatibility override. The extended
 `wkc2_draw_engine` verifies an unaligned partial-pixel update preserves adjacent
 GPU-owned bytes. All passed in the 50-check checkpoint and remain covered by
-the current 63-check Windows Vulkan suite.
+the current 64-check Windows Vulkan suite.
 
 Set `GCM_M2MF_VERIFY=1` before a private run to compare copied destination bytes
 against the staged source. This re-read confirms the writes landed at the
@@ -974,7 +1002,7 @@ packed depth. These buffers, like shader and geometry captures, remain private.
 
 Patch 0021 decodes `SET_ZMIN_MAX_CONTROL`, including its reset value, and retains
 the depth clipping/clamping selection in each draw's raster-state cache key.
-Bit 3 of the logged `cull` key now means depth clipping; bits 0Ã¢â‚¬“2 still describe
+Bit 3 of the logged `cull` key now means depth clipping; bits 0-2 still describe
 face culling. Guest fragment pipelines set D3D12 `DepthClipEnable` from that key.
 A command-processor regression covers the reset, disable/restore transitions,
 clamping, dirty-state notification and retained draw keys. Nonstandard ignore-W
@@ -1224,10 +1252,10 @@ presence switches set to `0` still emit diagnostics while preserving their norma
 `tools/probe.ps1 -ShowWindow` keeps the game window visible during a probe.
 Draw/shader captures, profiler files and logs stay in the private workspace.
 These options can change timing. With the physics fix included, two one-minute
-hidden-window starting-town samples measured 8.1Ã¢â‚¬“8.3 fps at patch 0058 and
-9.3Ã¢â‚¬“9.6 fps at patch 0059, using the optimized Debug-ABI build, sampling profiler
+hidden-window starting-town samples measured 8.1-8.3 fps at patch 0058 and
+9.3-9.6 fps at patch 0059, using the optimized Debug-ABI build, sampling profiler
 and five-second readbacks. The private benchmark launcher omitted `-ShowWindow`. The immediate target is a steady 30 fps, followed by validated 60 fps
-support. Later hidden-window 64-patch Release-CRT samples measure 12.5Ã¢â‚¬“13.1 fps;
+support. Later hidden-window 64-patch Release-CRT samples measure 12.5-13.1 fps;
 see the conversion/DMA section above. These are relative diagnostic benchmarks
 and do not establish visible gameplay FPS or character-rotation smoothness; see
 [conditions and records](FINDINGS.md#town-performance-after-the-physics-fix).

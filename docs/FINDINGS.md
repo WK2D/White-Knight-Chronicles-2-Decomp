@@ -2,41 +2,40 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Latest verified milestone:** the 75-patch native Windows Vulkan build restores
-Logic Stone proximity targeting. X opens its normal menu; Save writes a new
-local slot. After a full program restart, Continue reads the saved data and
-returns to town. This verifies one starting-town slot on the same native build;
-other scenes/slots, cross-build and PS3/RPCS3 interchange remain unverified.
-All 63 runtime checks pass in normal Debug and optimized Release.
+**Latest verified milestone:** Patch 0076 improves Vulkan batch scheduling; the saved-town one-minute samples average 27.18 presentations/s before and 28.03 after. All 64 Windows checks pass in Debug and Release. A locked 30 fps remains unverified.
+Normal shadow polarity and the starting-town Logic Stone save/reload work.
+Black foot flicker, rotating Logic Stone light flicker, analogue walk/run
+inconsistency and broader game-speed fidelity remain open. Future restarts use
+Continue and the verified save. Earlier measurements below retain their original
+logging, profiler and visibility conditions; they are not interchangeable.
 
-The earlier 73-patch ten-minute idle test keeps 58–59 host threads without
-worker accumulation and averages 14.25 presentations/s under its diagnostic
-conditions. Normal shadow polarity is restored by patch 0074; black foot flicker
-remains. Lag and game-speed fidelity are the next priority, with future restarts
-loading the verified town save. See [interaction and saving](#proximity-interaction-and-saving-patch-0075),
-[frame pacing](#frame-pacing-and-game-speed) and [gallery](GALLERY.md).
+## Vulkan batch scheduling (patch 0076)
 
-Hidden-window starting-town diagnostic benchmarks measure 12.5Ã¢â‚¬“13.1 fps,
-compared with 8.1Ã¢â‚¬“8.3 fps before the performance passes. These runs do not
-measure visible gameplay or character-rotation smoothness. A steady 30 fps is the immediate target,
-followed by validated 60 fps support. See [the comparison](#town-performance-after-the-physics-fix).
+The saved-town comparison averages **27.18 presentations/s before** and
+**28.03 after** over separate one-minute samples. Both use the same saved slot,
+a visible window, optimized Release build, no file logging or sampling profiler,
+and five-second GPU readbacks. These stationary measurements do not establish a
+locked 30 fps, smooth traversal, distinct animation updates or RPCS3 timing equivalence.
+See [the recorded conditions](../verification/performance.json).
 
-The current 75-patch Windows Vulkan build passes all 63 regression checks in
-normal Debug and optimized Release configurations. The preceding 73-patch town
-idle test completes
-17,104 task workers with no thread accumulation over ten minutes. Its new
-depth-comparison path shows a bright pool beneath Leonard and black foot
-flicker. The initial GPU oracle assumed the wrong comparison direction;
-patch 0074 corrects that direction and its oracle. The full 74-patch builds pass;
-the user confirms normal shadow polarity in the native town. Black foot flicker remains unresolved.
-The preceding 70-patch visible town comparison initially measures 16.57
-presentations/s against 12.28 for the 66-patch baseline, then declines to 12.65 in the next minute and
-later about 7 while idle. A census finds 2,636 asynchronous SPU workers still
-alive. The later 73-patch idle test does not reproduce that worker accumulation;
-its different profiler settings prevent a matched performance claim. Foot shadows still flickered
-in the 70-patch run. Selected cutscenes were reported in sync, but sustained
-performance and full audio sync
-remain unverified. Earlier hidden-window records retain their limits.
+A missing descriptor pool caused a submission before the two batch slots swapped.
+Ordinary and shadow-layout pools could stay stranded in opposite slots, forcing
+six submissions per town frame. Pools are now created for the active slot without
+submitting solely for a layout change. Removing those submissions alone moved the
+wait to presentation and did not improve the retained-log diagnostic run.
+
+The final change also submits after at least 256 draws when the spare slot is
+already complete. If it is busy, recording continues and readiness is rechecked
+every 64 draws. Real capacity exhaustion retains its existing wait and resource
+lifetime rules. Measured mid-frame submission time falls from roughly 8-9 ms to
+0.15-0.17 ms per frame; occasional longer frames remain.
+
+The host-only `wkc2_vk_arena_reserve` test extracts the actual production reservation
+function. It checks alternating ordinary/shadow layouts, pool creation after a
+slot swap, allocation/submission failures, full pools, and busy versus ready spare
+fences. It fails with the old reservation. All **64 checks** pass in normal Debug
+(25.31 seconds) and optimized Release (22.91 seconds). All 76 patches reconstruct
+from the pinned SDK, and reapplying them changes no files.
 
 ## Proximity interaction and saving (patch 0075)
 
@@ -96,7 +95,7 @@ do not establish interpreter-free execution.
 
 | Result | Evidence | Limit |
 | --- | --- | --- |
-| Native Windows build succeeds | 75-patch Clang build and 63 runtime regression checks in Debug and Release | Compilation alone does not verify gameplay |
+| Native Windows build succeeds | 76-patch Clang build and 64 runtime regression checks in Debug and Release | Compilation alone does not verify gameplay |
 | Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | This colour-fix capture covers character creation; later town validation is recorded below; full visual fidelity remains unverified |
 | WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
 | WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | The long strips are removed with patch 0058 ([secondary-bone physics](#secondary-bone-physics-and-town-stretching)); NPC surfaces improve with patch 0052 ([NV0039 transfers](#nv0039-memory-transfers)); full material fidelity unverified; short movement and camera response are now observed below; sustained traversal, combat and save/load unverified |
@@ -157,13 +156,13 @@ remaining validation work.
 - Preserve depth-only targets and reload GPU surfaces after video conversion
   writes; patch 0053 removes the observed cutscene red flashes.
 - Reduce SPURS dispatch/setup costs and avoid Vulkan mid-frame fence waits
-  with patches 0054Ã¢â‚¬“0057; town performance remains below the immediate 30 fps
+  with patches 0054-0057; town performance remains below the immediate 30 fps
   target and the later 60 fps goal.
 - Execute the statically compiled secondary-bone physics job through its
   SPURS queue/port imports; patch 0058 removes the long town strips in the
   inspected views.
 
-Patches 0059Ã¢â‚¬“0061 cache launch diagnostics, avoid repeated SPU conversion-scale
+Patches 0059-0061 cache launch diagnostics, avoid repeated SPU conversion-scale
 CRT calls and keep each logical SPU context's DMA engine independent. The
 [town measurements](#town-performance-after-the-physics-fix) record their scope.
 
@@ -490,7 +489,7 @@ does not verify full visual fidelity, completed character creation or gameplay.
 
 ## Avatar normals and fragment shading
 
-Historical checkpoint: patches 0029Ã¢â‚¬“0030, with 28 checks at that stage.
+Historical checkpoint: patches 0029-0030, with 28 checks at that stage.
 Completed character creation and town entry were verified later.
 
 The next captured face draw exposes two separate shading faults. Type-6 CMP
@@ -724,7 +723,7 @@ regression performs 1,024 reads, observes a producer update after read 768 and
 checks completion tags. Forcing the old cutoff fails the regression. Separate
 checks cover the absent setting and an explicit diagnostic cutoff.
 
-With patches 0001Ã¢â‚¬“0039, native execution now passes the previous stall, reaches
+With patches 0001-0039, native execution now passes the previous stall, reaches
 the following live cutscene and enters the WKC1 town after normal cutscene-skip
 inputs. Sixty-four sampled geometry-job dispatches from image 19 return without
 the old halt. Town GPU readbacks show Leonard, NPC names, the minimap and a save
@@ -1019,7 +1018,7 @@ still enabled. Full gameplay, combat and save/load remain unverified.
 
 ## Cutscene red flash and frame rate
 
-Patches 0053Ã¢â‚¬“0057, before the secondary-bone physics milestone. The frame-rate
+Patches 0053-0057, before the secondary-bone physics milestone. The frame-rate
 figures below describe those measured builds and scenes; they are not a new
 benchmark of the 58-patch physics build.
 
@@ -1341,7 +1340,7 @@ Reading the sampler's full current-window maps through a private read-only tool
 reveals dispersed costs that this ranking hides. Actual executable instruction
 pointers are grouped by their PDB symbols; guessed callers from DLL stack scans
 are excluded. Two short town snapshots put image 19's skinning routine at
-`0xCE08` at about 20Ã¢â‚¬“24% of one critical worker's executable samples. This is
+`0xCE08` at about 20-24% of one critical worker's executable samples. This is
 neither a share of whole-frame time nor a whole-process CPU percentage.
 
 Its generated body contains frequent register-state moves, stack spills and
@@ -1415,7 +1414,7 @@ Generated game code, memory snapshots and raw captures remain private.
 
 ## Frame pacing and game speed
 
-Earlier creator counter readings around 37Ã¢â‚¬“60 counted host presentations,
+Earlier creator counter readings around 37-60 counted host presentations,
 including frames with repeated animation state. They did not establish 60
 unique animation updates per second or complete creator smoothness. The earlier
 avatar-turn comparisons are limited observations, not proof of full game-speed
@@ -1448,8 +1447,8 @@ The 70-patch normal Windows Vulkan build passed all 61 tests in 25.52 seconds.
 Its new regressions check production compute/graphics descriptor bindings and
 real flip completion, including the guest's two-vblank acquire. The current
 73-patch stack passed all 63 tests: 22.79 seconds in normal Debug and
-20.46 seconds in optimized Release. The current 75-patch stack passes all 63 in
-**22.40 seconds (normal Debug)** and **20.34 seconds (optimized Release)**.
+20.46 seconds in optimized Release. The current 76-patch stack passes all 64 in
+**25.31 seconds (normal Debug)** and **22.91 seconds (optimized Release)**.
 The two additional tests cover worker lifetime and depth-comparison shader
 translation; patch 0074 extends the latter with all comparison-direction mappings.
 Reapplying the earlier 73-patch stack changed no SDK files.
@@ -1458,7 +1457,7 @@ A separate **visible-window 66-patch baseline** reaches the starting town after
 the party and Travelogue dialogs are dismissed. It records 737 guest-boundary
 presentations in 60.000045 seconds: **12.283324 presentations/s**. The 2 ms
 sampling profiler and five-second readbacks were enabled, so this remains a
-diagnostic sample. Earlier patch-58Ã¢â‚¬“64 timing records used a hidden window and
+diagnostic sample. Earlier patch-58-64 timing records used a hidden window and
 are not a directly matched visible-play comparison.
 
 The visible 70-patch run uses the same starting view with `GCM_SEMA_ACQUIRE=1`
@@ -1522,9 +1521,9 @@ control independently fails three assertions when the old sampled-unit parser
 is restored.
 
 The **73-patch ten-minute idle test** presents 8,552 frames in 600.000104 seconds:
-**14.253331 presentations/s**. Host thread count stays at 58Ã¢â‚¬“59; asynchronous
+**14.253331 presentations/s**. Host thread count stays at 58-59; asynchronous
 workers start and end the interval with one active, with sampled active counts
-of 1Ã¢â‚¬“2 and a process-lifetime peak of 3. It completes 17,104 task runs during
+of 1-2 and a process-lifetime peak of 3. It completes 17,104 task runs during
 the interval. Private committed bytes are 1,462,337,536 at the start and
 1,460,867,072 at the end. No worker accumulation is observed in that tested
 window. This does not establish cancellation, later-game lifetime correctness
@@ -1719,7 +1718,7 @@ SDK's FFmpeg decoder with pinned 8.1 headers and a separately supplied matching
 library. A 210-frame decoder check matches every frame through the guest video API
 on two sequence passes, including reordering and corruption/drop negative controls.
 Twenty checks passed at this checkpoint. The title screen and its menu rendered
-natively; the current suite has 63 passing checks.
+natively; the current suite has 64 passing checks.
 
 Packed A4R4G4B4 font textures were excluded by the D3D12 binding filter, leaving
 previous artwork selected for text draws. The backend now records the current
@@ -1748,7 +1747,7 @@ timed control recheck, with the long secondary-bone strips removed in inspected
 views. The 70-patch idle run exposes progressive slowdown; the 73-patch
 ten-minute idle test does not reproduce its accumulating SPU workers. Full rendering
 fidelity, broader gameplay, wider save compatibility and imports needed on untested
-paths remain unverified. The current 75-patch starting-town local save/reload is verified above.
+paths remain unverified. Starting-town local save/reload was verified at patch 0075 and used again for patch 0076.
 
 ## Still unverified
 

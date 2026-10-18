@@ -1,6 +1,6 @@
 # Code review suggestions
 
-Updated 2026-10-18. The Windows Vulkan stack has 75 SDK patches and 63 passing
+Updated 2026-10-18. The Windows Vulkan stack has 76 SDK patches and 64 passing
 runtime checks in normal Debug and optimized Release. The preceding 70-patch
 visible town run exposes progressive slowdown from accumulating asynchronous
 SPU workers. The 73-patch ten-minute town test observes no worker accumulation
@@ -11,6 +11,9 @@ remains. Patch 0075 repairs the dropped native user-command interrupt route and
 passes all 63 checks in both builds. Logic Stone targeting, its local Save menu,
 and restart/Continue reload into town are verified. See the
 [current findings](FINDINGS.md#frame-pacing-and-game-speed).
+Patch 0076 fixes descriptor-pool submission churn and adds non-waiting early
+batch submissions, with an actual-code regression and native saved-town
+comparison. See [the batch scheduling findings](FINDINGS.md#vulkan-batch-scheduling-patch-0076).
 Earlier tracing located the long town strips in
 omitted secondary-bone physics jobs. Patch 0058 restores their queue execution
 and CRT handoff; see the

@@ -4,10 +4,10 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-18",
-    "native_probe": "20261018-065701",
-    "sdk_patch_count": 75,
-    "summary": "Logic Stone proximity targeting, saving through its normal menu, and restart/Continue back into WKC1 town verified",
-    "gallery_image": "screenshots/2026-10-18-native-wkc1-save-reloaded.png",
+    "native_probe": "20261018-074333",
+    "sdk_patch_count": 76,
+    "summary": "Patch 0076 improves Vulkan batch scheduling; the saved-town one-minute samples average 27.18 presentations/s before and 28.03 after. All 64 Windows checks pass in Debug and Release. A locked 30 fps remains unverified.",
+    "gallery_image": "screenshots/2026-10-18-native-wkc1-town-batching.png",
     "remaining_limits": [
       "Town performance remains below the 30 fps target",
       "Black foot flicker and rotating Logic Stone light flicker remain open",
@@ -46,7 +46,7 @@
     "movement_and_camera_control": true,
     "combat": false,
     "limited_town_movement_and_camera_response": true,
-    "movement_and_camera_control_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified.",
+    "movement_and_camera_control_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat unverified; starting-town local save/reload verified separately.",
     "npc_surface_rendering_improved": true,
     "npc_surface_full_fidelity": false,
     "avatar_material_and_face_shading_scope": "Face shading and textured clothing are visible on the inspected default male avatar; full material fidelity remains unverified.",
@@ -109,6 +109,13 @@
       "sha256": "68cdbd699f5be3e2234efa5cdb48bc4ddfe9bd66363e0ed2e379c58a160bf7a2",
       "source_ppm_sha256": "c0da043a3ab81947495b683b6b3c3718d47036949dbbc2eb3ce72d6775f0019b",
       "method": "Visually inspected Vulkan GPU readback, losslessly encoded as PNG; pixels checked against the source, with IHDR/IDAT/IEND chunks only."
+    },
+    {
+      "file": "screenshots/2026-10-18-native-wkc1-town-batching.png",
+      "sha256": "cb5105b34e967367719e2b4c0cf606c96a26c0d1bb97fec45920105284be6373",
+      "native_probe": "20261018-074333",
+      "sdk_patch_count": 76,
+      "scope": "Saved WKC1 town with Logic Stone selected; still image does not establish animation speed or performance."
     }
   ],
   "checks": {
@@ -175,19 +182,20 @@
       "wkc2_depth_shader_binding",
       "wkc2_gcm_flip_completion",
       "wkc2_spu_async_lifetime",
-      "wkc2_shadow_compare"
+      "wkc2_shadow_compare",
+      "wkc2_vk_arena_reserve"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 75,
-    "last_verified_sdk_patch_count": 75,
-    "current_passed_count": 63,
-    "record_scope": "The 75-patch Windows Vulkan build passes all 63 runtime checks in normal Debug (23.61 seconds) and optimized Release (23.15 seconds). Reapplication changes no SDK files. The native Logic Stone highlights, its Save menu writes a new slot, and restart/Continue returns to town. Normal shadow polarity is confirmed; black foot flicker remains. Earlier named records retain their original patch counts.",
-    "normal_debug_elapsed_seconds": 23.61,
-    "optimized_release_elapsed_seconds": 23.15,
+    "current_sdk_patch_count": 76,
+    "last_verified_sdk_patch_count": 76,
+    "current_passed_count": 64,
+    "record_scope": "Patch 0076 improves Vulkan batch scheduling; the saved-town one-minute samples average 27.18 presentations/s before and 28.03 after. All 64 Windows checks pass in Debug and Release. A locked 30 fps remains unverified. Reapplication changes no SDK files. Earlier named records retain their original patch counts.",
+    "normal_debug_elapsed_seconds": 25.31,
+    "optimized_release_elapsed_seconds": 22.91,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 75
+    "repeat_patch_application_verified_sdk_patch_count": 76
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2493,5 +2501,17 @@
     "save_reload_verified": true,
     "visibility_sample_counts_measured_by_gpu": false,
     "native_proximity_scope": "Logic Stone highlights on approach and opens with X; wider NPC/object coverage remains unverified."
+  },
+  "vulkan_batch_scheduling": {
+    "sdk_patch": 76,
+    "pool_only_transition_submissions_per_frame_before": 6,
+    "pool_transition_submission_fixed": true,
+    "opportunistic_submit_minimum_draws": 256,
+    "busy_spare_recheck_draw_interval": 64,
+    "wait_for_busy_spare_on_opportunistic_submit": false,
+    "old_reservation_regression_fails": true,
+    "new_reservation_regression_passes": true,
+    "native_probe": "20261018-074333",
+    "performance_record": "performance.json"
   }
 }

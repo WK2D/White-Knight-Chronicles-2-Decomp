@@ -559,6 +559,18 @@ if(WKC2_BUILD_TESTS)
     # Synthetic producer handoffs through the actual SDK FIFO walker.
     add_executable(wkc2_gcm_producer_wake_test tests/gcm_producer_wake_test.c)
     if(WIN32 AND PS3RECOMP_RSX_VULKAN)
+        set(VK_ARENA_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/vk-arena-fixture.inc")
+        add_custom_command(OUTPUT "${VK_ARENA_FIXTURE}"
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_vk_arena_fixture.py"
+                --source "${PS3RECOMP_DIR}/libs/video/rsx_vulkan_backend.c"
+                --output "${VK_ARENA_FIXTURE}"
+            DEPENDS "${PS3RECOMP_DIR}/libs/video/rsx_vulkan_backend.c"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_vk_arena_fixture.py"
+            VERBATIM)
+        add_executable(wkc2_vk_arena_reserve_test tests/vk_arena_reserve_test.c "${VK_ARENA_FIXTURE}")
+        target_include_directories(wkc2_vk_arena_reserve_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+        add_test(NAME wkc2_vk_arena_reserve COMMAND wkc2_vk_arena_reserve_test)
+        set_tests_properties(wkc2_vk_arena_reserve PROPERTIES TIMEOUT 10)
         set(DEPTH_SHADER_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/depth-shader-fixture.inc")
         add_custom_command(OUTPUT "${DEPTH_SHADER_FIXTURE}"
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_depth_shader_fixture.py"

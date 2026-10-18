@@ -8,9 +8,9 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-**Current status:** the 75-patch native Windows Vulkan build verifies Logic Stone
+**Current status:** the 76-patch native Windows Vulkan build verifies Logic Stone
 proximity targeting, X opening its menu, Save writing a new local slot, and
-Continue returning to town after a full restart. All 63 Windows tests pass in
+Continue returning to town after a full restart. All 64 Windows tests pass in
 normal Debug and optimized Release. Other NPC/object coverage and wider save
 compatibility remain unverified.
 
@@ -25,6 +25,19 @@ Full rendering fidelity, sustained traversal, combat, Linux and macOS remain unv
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-18 - Vulkan batch scheduling in the saved town
+
+Patch 0076 avoids pool-only submissions and submits small batches when the spare
+slot is ready. One-minute stationary samples average 27.18 presentations/s before
+and 28.03 after with file logging and sampling off. A locked 30 fps and full game-speed
+fidelity remain unverified; see [conditions and limits](FINDINGS.md#vulkan-batch-scheduling-patch-0076).
+The 76-patch build passes all 64 Windows checks in Debug and Release.
+
+The native frame below was captured after Continue loaded the verified town save.
+It documents the scene, not the measured frame rate or flicker cadence.
+
+![Native WKC1 saved town with Logic Stone selected after the Vulkan batch scheduling change](../verification/screenshots/2026-10-18-native-wkc1-town-batching.png)
 
 ## 2026-10-18 - Logic Stone saving and restart/Continue reload
 

@@ -1,9 +1,9 @@
 # White Knight Chronicles II native-port research
 
-**2026-10-18:** Logic Stone targeting, saving, and loading back into WKC1 town
-through Continue after a full restart are verified. Patch 0075 restores the
-missing graphics user-command callback. Lag and game-speed fidelity are the
-next priority; normal shadow polarity is restored, while black foot flicker remains.
+**2026-10-18:** Vulkan batch scheduling improves the saved-town sample to
+**28.03 presentations/s**, compared with 27.18 in the repeated baseline.
+A locked 30 fps and RPCS3-equivalent smoothness remain goals. Logic Stone saving
+and Continue reload work; normal shadows are restored, while black foot flicker remains.
 
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
 through **static recompilation**, followed by Apple Silicon portability testing.
@@ -20,7 +20,7 @@ interpreter fallback, so these counts do not establish complete static coverage.
 See
 [execution architecture and modding scope](docs/ARCHITECTURE.md).
 
-**Current milestone (2026-10-18): native local save and reload.** Approaching the
+**Local save milestone (2026-10-18).** Approaching the
 Logic Stone highlights it, X opens its menu, and Save writes a new slot. After
 restarting the program, Continue loads that slot and returns to town. This
 covers the starting-town save on the same native build; other scenes/slots,
@@ -38,40 +38,21 @@ Full rendering fidelity, sustained traversal and combat remain unverified.
 - [Findings log](docs/FINDINGS.md): verified results, open issues and next steps
 - [Progress gallery](docs/GALLERY.md): newest first
 
-The source stack contains **75 SDK patches** and passes **63 Windows regression
-checks** in normal Debug and optimized Release builds. Patch 0074's texture-comparison fix restores normal shadow polarity in the
-observed native town. Patch 0075 repairs dropped user-command callbacks;
-Logic Stone interaction and a restart/Continue save reload are verified. Depth sampling, flip
-completion and disabled PPU diagnostics have received further fixes. The latest
-patches add explicit asynchronous SPU worker ownership and native depth-comparison
-sampling. The combined 73-patch build reaches town and passes the idle worker
-stability test.
-**Earlier 73-patch visual regression:** the shadow path produced a bright pool under
-Leonard, and black flickering at his feet remains. Synthetic GPU tests do not
-establish correct game rendering. The window title now says **Present/s**: it counts
-accepted presentations, including repeated animation states. Earlier creator
-readings near 60 did not establish 60 distinct animation updates per second.
-The candidate uses the game's two-vblank semaphore pacing and completes flips
-only after real display requests; no host 30 fps cap or counter division is added.
-The visible town comparison initially rose from 12.28 to 16.57 presentations/s,
-then declined to 12.65 in the next minute and later about 7 while idle. A thread
-census found 2,636 asynchronous SPU workers still alive. With patch 0072's
-ownership fix, the later ten-minute run completes 17,104 task workers while
-keeping only 1Ã¢â‚¬“2 active and a process-lifetime peak of 3. The prior thread
-accumulation is absent in that tested interval; sustained 30 fps remains unmet.
-The 70-patch run still showed flickering foot shadows. The observed cutscenes were
-reported in sync, but full audio synchronization remains unverified. See
-[frame pacing and measurement limits](docs/FINDINGS.md#frame-pacing-and-game-speed).
+The source stack contains **76 SDK patches** and passes **64 Windows regression
+checks** in normal Debug and optimized Release. Patch 0076 fixes descriptor-pool
+submission churn and feeds small batches to the GPU when the spare slot is ready.
+It keeps the game's two-vblank pacing and the unchanged **Present/s** counter.
+The counter counts accepted presentations, including repeated animation states.
+See [batch scheduling and its measurement limits](docs/FINDINGS.md#vulkan-batch-scheduling-patch-0076).
 
 ## Progress
 
-[![Native WKC1 town after restarting and loading the Logic Stone save](verification/screenshots/2026-10-18-native-wkc1-save-reloaded.png)](docs/GALLERY.md)
+[![Native WKC1 town after restarting and loading the Logic Stone save](verification/screenshots/2026-10-18-native-wkc1-town-batching.png)](docs/GALLERY.md)
 
-The latest capture shows the 73-patch native town build, including the known
-bright patch beneath Leonard's feet. Black foot flicker is also observed in
-motion; a still image cannot establish its cadence. This is a progress capture
-with a rendering fault, not a shadow-fix result. Earlier physics captures and
-a rotated view are in the [gallery](docs/GALLERY.md).
+The latest capture shows the 76-patch build in the town loaded from the verified
+Logic Stone save. The performance change is documented by timed counter samples;
+a still image cannot establish smoothness. Black foot flicker remains open.
+Earlier captures are in the [gallery](docs/GALLERY.md).
 
 The cutscene's red flashes came from a depth-only pass replacing display
 buffer 0 and from movie frames sampled through a stale GPU copy; see
@@ -89,9 +70,9 @@ physics work and corrected by patch 0058. See the
 Verified progress, with the latest milestone first:
 
 - filters unchanged FIFO producer writes, accelerates SPU byte counts and
-  separates workers' recursion diagnostics (patches 0062Ã¢â‚¬“0064);
+  separates workers' recursion diagnostics (patches 0062-0064);
 - removes repeated SPU conversion-scale calls and shared MFC engine lookups
-  (patches 0060Ã¢â‚¬“0061); their hidden-window town samples measured 11.5Ã¢â‚¬“13.1 fps;
+  (patches 0060-0061); their hidden-window town samples measured 11.5-13.1 fps;
 - improves the hidden-window starting-town diagnostic benchmark by about 15%
   by caching launch-time diagnostic settings (patch 0059); visible gameplay
   performance still needs measurement;
@@ -117,7 +98,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **63 Windows runtime regression checks** with **75 SDK patches** applied.
+- passes **64 Windows runtime regression checks** with **76 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are

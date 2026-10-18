@@ -516,5 +516,53 @@
     "optimized_release_checks_elapsed_seconds": 20.34,
     "normal_shadow_polarity_user_confirmed": true,
     "black_foot_flicker_observed": true
+  },
+  "vulkan_batch_scheduling_0076": {
+    "date": "2026-10-18",
+    "conditions": {
+      "renderer": "Vulkan",
+      "window_visible": true,
+      "runtime": "Release /MD /O2 /Ob2 /arch:AVX2",
+      "sampling_profiler_enabled": false,
+      "stdout_stderr_to_NUL": true,
+      "gpu_readback_interval_seconds": 5,
+      "scene": "Stationary WKC1 town beside Logic Stone after Continue loads the same saved slot",
+      "controller_and_camera_input_during_samples": false,
+      "other_native_game_processes": 0
+    },
+    "samples": [
+      {
+        "sdk_patch_count": 75,
+        "presented_frames": 1631,
+        "elapsed_seconds": 60.000129,
+        "presentations_per_second": 27.18327488929232,
+        "private_counter_record_sha256": "25a91ff45f9cc54b9f11b5ec7aa11448b260285a1f9f08ae7154a08ce8335e86"
+      },
+      {
+        "sdk_patch_count": 76,
+        "presented_frames": 1682,
+        "elapsed_seconds": 60.000213,
+        "presentations_per_second": 28.033233815353288,
+        "private_counter_record_sha256": "f19b2df8c2934811b75b9be570d14051939121711a454f2b9ed034129064b221"
+      }
+    ],
+    "run_order": "76 candidate, then repeated 75 baseline; each loaded the same saved slot",
+    "relative_average_change_percent": 3.1267716252826094,
+    "batch_flush_time_ms_per_frame_before_approximate": [
+      8,
+      9
+    ],
+    "opportunistic_batch_flush_time_ms_per_frame_after_approximate": [
+      0.15,
+      0.17
+    ],
+    "pool_only_experiment": "Removing pool-triggered submissions alone moved the wait to present and showed no improvement in retained-log diagnostic samples. The final patch also submits small batches only when the spare fence is ready.",
+    "limits": [
+      "One-minute stationary samples; not sustained traversal or combat",
+      "Presentation counts do not establish distinct animation updates or RPCS3 timing equivalence",
+      "Not a verified locked 30 fps",
+      "Retained-log diagnostic runs were around 15 presentations/s and are not comparable with these play-like samples",
+      "The earlier attempted baseline repeat overlapped the test suite and was excluded"
+    ]
   }
 }

@@ -1,0 +1,52 @@
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -101,7 +101,7 @@
+     X(vkInvalidateMappedMemoryRanges) \
+     X(vkCreateCommandPool) X(vkDestroyCommandPool) X(vkAllocateCommandBuffers) \
+     X(vkBeginCommandBuffer) X(vkEndCommandBuffer) X(vkResetCommandBuffer) \
+-    X(vkCreateFence) X(vkDestroyFence) X(vkWaitForFences) X(vkResetFences) X(vkQueueSubmit) \
++    X(vkCreateFence) X(vkDestroyFence) X(vkGetFenceStatus) X(vkWaitForFences) X(vkResetFences) X(vkQueueSubmit) \
+     X(vkCreateRenderPass) X(vkDestroyRenderPass) X(vkCreateFramebuffer) X(vkDestroyFramebuffer) \
+     X(vkCreateShaderModule) X(vkDestroyShaderModule) \
+     X(vkCreateDescriptorSetLayout) X(vkDestroyDescriptorSetLayout) \
+@@ -2372,21 +2372,33 @@
+ /* Makes room for one draw in the current batch, flushing it first when an arena or the set pool is full. */
+ static int vk_eb_reserve(VkDeviceSize vbytes, VkDeviceSize ibytes, VkDeviceSize ubytes, int split)
+ {
++    /* Feed the GPU while the CPU prepares later draws. This is opportunistic:
++     * never wait for the spare slot merely to submit a small batch. Recheck
++     * only every 64 draws if the previous batch is still busy. */
++    const u32 draws = s_eb.nsets + s_eb.nsplit;
++    if (draws >= 256u && !(draws & 63u) &&
++        (!s_spare.pending || pvkGetFenceStatus(s_vk.device, s_spare.fence) == VK_SUCCESS)) {
++        if (vk_batch_flush_async_at(__LINE__)) return -1;
++    }
+     const VkDescriptorPool* pool = split ? &s_eb.split_pool : &s_eb.pool;
+     const u32 used = split ? s_eb.nsplit : s_eb.nsets;
+     if (!vk_eb_fits(&s_eb.verts, s_eb.vpos, vbytes, 16) ||
+         (ibytes && !vk_eb_fits(&s_eb.idx, s_eb.ipos, ibytes, 4)) ||
+-        !vk_eb_fits(&s_eb.ubo, s_eb.upos, ubytes, s_eb.ubo_align) || !*pool || used >= VK_EB_SETS) {
++        !vk_eb_fits(&s_eb.ubo, s_eb.upos, ubytes, s_eb.ubo_align) || used >= VK_EB_SETS) {
+         if (vk_batch_flush_async_at(__LINE__)) return -1;
+         if (vk_ensure_buffer(&s_eb.verts, vbytes, 32u << 20, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) ||
+             vk_ensure_buffer(&s_eb.idx, ibytes ? ibytes : 4u, 8u << 20, VK_BUFFER_USAGE_INDEX_BUFFER_BIT) ||
+             vk_ensure_buffer(&s_eb.ubo, ubytes, 16u << 20, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT))
+             return -1;
+-        if (!*pool) {
+-            const VkDescriptorPool np = vk_eb_make_pool();
+-            if (!np) return -1;
+-            if (split) s_eb.split_pool = np; else s_eb.pool = np;
+-        }
++    }
++    /* A missing layout's pool needs no GPU drain. Test this after a possible
++     * slot swap: the active slot can have a different set of pools. Flushing
++     * for a missing pool before the swap can strand ordinary and split pools
++     * in opposite slots, submitting again at every layout transition. */
++    if (!*pool) {
++        const VkDescriptorPool np = vk_eb_make_pool();
++        if (!np) return -1;
++        if (split) s_eb.split_pool = np; else s_eb.pool = np;
+     }
+     return 0;
+ }

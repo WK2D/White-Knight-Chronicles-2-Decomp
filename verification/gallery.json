@@ -4,6 +4,32 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_wkc1_town_batch_scheduling",
+      "date": "2026-10-18",
+      "image": "screenshots/2026-10-18-native-wkc1-town-batching.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "Vulkan shared RSX draw engine",
+      "source_format": "Vulkan GPU readback PPM",
+      "source_sha256": "735757108fe65cee72a32d3f1d62c2a89dd346895b77340817b26ea23faf56b9",
+      "png_sha256": "cb5105b34e967367719e2b4c0cf606c96a26c0d1bb97fec45920105284be6373",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "native_probe": "20261018-074333",
+      "native_readback": "snap_0169.ppm",
+      "sdk_patch_count_in_captured_run": 76,
+      "spu_image_inputs": 24,
+      "reload_verified": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false,
+      "performance_proven_by_still_image": false
+    },
+    {
       "milestone": "native_wkc1_save_reloaded",
       "date": "2026-10-18",
       "image": "screenshots/2026-10-18-native-wkc1-save-reloaded.png",
