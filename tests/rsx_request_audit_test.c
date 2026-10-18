@@ -28,6 +28,30 @@ int main(int argc,char** argv)
     assert(!strcmp(rsx_ra_status(&a,RSX_RA_FILL_OFFSET),"implemented"));
     assert(!a.events[RSX_RA_MRT_MASK]);
     SET(0x0370,0);rsx_ra_draw(&a,r,5,0,2);assert(a.events[RSX_RA_MRT_MASK]==1);
+    SET(0x0220,1);SET(0x0208,8);SET(0x1FEC,1);SET(0x1D60,0x40);
+    rsx_ra_draw(&a,r,5,0,1);assert(!a.events[RSX_RA_FRAMEBUFFER_SRGB]);
+    SET(0x1D60,0);
+    for(unsigned fmt=11;fmt<=13;fmt++) {
+        SET(0x0208,fmt);rsx_ra_draw(&a,r,5,0,1);
+        assert(!a.events[RSX_RA_FRAMEBUFFER_SRGB]);
+    }
+    SET(0x0208,8);SET(0x1FEC,0);rsx_ra_draw(&a,r,5,0,1);
+    assert(!a.events[RSX_RA_FRAMEBUFFER_SRGB]);
+    SET(0x1FEC,1);SET(0x0220,0);rsx_ra_draw(&a,r,5,0,1);
+    assert(!a.events[RSX_RA_FRAMEBUFFER_SRGB]);
+    SET(0x0220,1);SET(0x0324,0x01000000);rsx_ra_draw(&a,r,5,0,1);
+    assert(!a.events[RSX_RA_FRAMEBUFFER_SRGB]); /* Alpha-only output is linear. */
+    SET(0x0324,0x00010000);rsx_ra_draw(&a,r,5,0,1);
+    assert(a.events[RSX_RA_FRAMEBUFFER_SRGB]==1);
+    SET(0x1D60,0x4E);SET(0x0A74,0);rsx_ra_draw(&a,r,5,0,1);
+    assert(!a.events[RSX_RA_DEPTH_EXPORT]);
+    SET(0x0A74,1);SET(0x0A70,0);rsx_ra_draw(&a,r,5,0,1);
+    assert(a.events[RSX_RA_DEPTH_EXPORT]==1); /* Can affect tests without writes. */
+    assert(!a.events[RSX_RA_WINDOW_OFFSET]);
+    SET(0x02B8,0x00400080);rsx_ra_draw(&a,r,5,0,1);
+    assert(a.events[RSX_RA_WINDOW_OFFSET]==1);
+    SET(0x02B8,0);rsx_ra_draw(&a,r,5,0,1);
+    assert(a.events[RSX_RA_WINDOW_OFFSET]==1);
     rsx_ra_program(&a,"TODO: unhandled FP opcode",1);
     assert(a.events[RSX_RA_FP_OPCODE]==1 && a.events[RSX_RA_PIPELINE_FAILED]==1);
     SET(0x1800,0x01000010); /* Report and upload values must not leak into TSV. */

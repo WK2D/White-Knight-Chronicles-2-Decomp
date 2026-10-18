@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Draw-time RSX coverage reporting and fragment coordinate/predication fixes. 96 SDK patches / 82 Windows checks in Debug and Release. Hidden/muted Continue reload and short town movement pass; no FPS or flicker improvement established.",
+    "current_milestone": "Fragment coordinate/predication fixes and expanded RSX request reporting. 97 SDK patches / 82 Windows checks in Debug and Release. Hidden/muted Continue reaches town and exits normally. Output sRGB, depth export and nonzero window offsets were not active in this sample; FPS and flicker remain open.",
     "updated": "2026-10-18"
   },
   "native_data_installation_verified": true,
@@ -153,9 +153,9 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 96,
+    "sdk_patch_count": 97,
     "runtime_checks_passed": 82,
-    "town_native_run_sdk_patch_count": 96,
+    "town_native_run_sdk_patch_count": 97,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
     "patch_0042_native_game_run_verified": true,
@@ -226,7 +226,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 96,
+    "runtime_checks_verified_sdk_patch_count": 97,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -324,7 +324,9 @@
     "patch_0095_windows_regression_verified": true,
     "patch_0095_native_game_run_verified": true,
     "patch_0096_windows_regression_verified": true,
-    "patch_0096_native_game_run_verified": true
+    "patch_0096_native_game_run_verified": true,
+    "patch_0097_windows_regression_verified": true,
+    "patch_0097_native_game_run_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -439,23 +441,23 @@
     }
   },
   "current_native_observation": {
-    "sdk_patch_count": 96,
-    "probe": "20261018-212515",
+    "sdk_patch_count": 97,
+    "probe": "20261018-215910",
     "town_reached": true,
     "save_reload_verified": true,
-    "short_movement_verified": true,
+    "short_movement_verified": false,
     "hidden": true,
     "muted": true,
     "exit_code": 0,
     "sustained_town_fps_gain_verified": false,
     "shadow_flicker_fix_verified": false,
     "full_visual_fidelity_verified": false,
-    "scope": "Known active state and generated-program markers only. Default diagnostic probe, opt-out for timing. No full RSX coverage, FPS gain or flicker-fix claim."
+    "scope": "Coverage-only extension; missing output features remain unimplemented. Counts do not prove GPU completion. Historical shader-file review found no direct WPOS/fog reads in 6224 captured files; unsuspended state samples do not attribute individual draws."
   },
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 96 SDK patches / 82 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 97 SDK patches / 82 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -658,5 +660,54 @@
     "shadow_flicker_fix_verified": false,
     "full_visual_fidelity_verified": false,
     "scope": "Correctness change, not a visual-fix or performance claim. Private diagnostic controls are absent from the public source and clean playable binary."
+  },
+  "rsx_output_request_audit": {
+    "sdk_patch": 97,
+    "native_probe": "20261018-215910",
+    "known_feature_categories": 27,
+    "windows_regression_verified": true,
+    "hidden": true,
+    "muted": true,
+    "save_reload_verified": true,
+    "exit_code": 0,
+    "added_features_not_detected": [
+      "framebuffer_srgb_output",
+      "fragment_depth_export",
+      "window_offset"
+    ],
+    "remaining_features": [
+      {
+        "feature": "clip_range",
+        "status": "unverified",
+        "events": 37109
+      },
+      {
+        "feature": "visibility_reports",
+        "status": "approximate",
+        "events": 20458
+      },
+      {
+        "feature": "shader_window_origin",
+        "status": "unverified",
+        "events": 1486350
+      }
+    ],
+    "draw_attempts": 1486350,
+    "backend_submissions": 1486350,
+    "scope": "Coverage-only extension; missing output features remain unimplemented. Counts do not prove GPU completion. Historical shader-file review found no direct WPOS/fog reads in 6224 captured files; unsuspended state samples do not attribute individual draws."
+  },
+  "historical_0096_native_observation": {
+    "sdk_patch_count": 96,
+    "probe": "20261018-212515",
+    "town_reached": true,
+    "save_reload_verified": true,
+    "short_movement_verified": true,
+    "hidden": true,
+    "muted": true,
+    "exit_code": 0,
+    "sustained_town_fps_gain_verified": false,
+    "shadow_flicker_fix_verified": false,
+    "full_visual_fidelity_verified": false,
+    "scope": "Known active state and generated-program markers only. Default diagnostic probe, opt-out for timing. No full RSX coverage, FPS gain or flicker-fix claim."
   }
 }

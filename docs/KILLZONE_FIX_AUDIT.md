@@ -11,7 +11,7 @@ upstream-status statements describe its author's earlier audit; this is not a
 new check of every upstream PR.
 
 The original 84-patch review was read-only. A follow-up implementation batch
-is recorded below; the current stack has **96 patches / 82 Windows tests**. The
+is recorded below; the current stack has **97 patches / 82 Windows tests**. The
 catalogue's tests and Killzone measurements have not been rerun here. A matching
 source defect does not establish the cause of WKC's lag or flicker.
 

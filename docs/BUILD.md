@@ -10,7 +10,7 @@ experimental DirectX 12 selector. Continue loads the verified Logic Stone save.
 See [menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
 and [settings and timing details](#native-graphics-settings-patches-0081-0082).
 
-The current stack contains 96 SDK patches. All 82 Windows checks pass in normal
+The current stack contains 97 SDK patches. All 82 Windows checks pass in normal
 Debug and optimized Release. Suite timings are not game performance. Reapplying
 the complete stack changes no SDK files. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain
@@ -141,6 +141,13 @@ Negative controls fail for each old shader fault and an omitted cache-key field.
 All 82 checks pass in Debug and Release. A hidden/muted saved-town run exits
 normally, but establishes no FPS or flicker improvement. See
 [evidence and remaining gaps](FINDINGS.md#active-rsx-request-coverage-and-fragment-inputs-patches-0095-0096).
+
+Patch 0097 extends the same census and regression with framebuffer sRGB output,
+fragment depth export and window offsets. sRGB requires integer colour output,
+half-register exports and writable RGB channels; depth export requires depth
+testing, even when depth writes are disabled. These features remain unimplemented.
+They were not active in the 97-patch Continue/town check. All 82 checks pass in
+both configurations; the existing gallery frame retains its 96-patch provenance.
 
 ## SPURS job-queue physics (patch 0058)
 

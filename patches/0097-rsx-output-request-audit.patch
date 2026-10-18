@@ -1,0 +1,43 @@
+diff --git a/libs/video/rsx_request_audit.h b/libs/video/rsx_request_audit.h
+--- a/libs/video/rsx_request_audit.h
++++ b/libs/video/rsx_request_audit.h
+@@ -18,7 +18,8 @@
+     RSX_RA_DITHER, RSX_RA_WINDOW_ORIGIN, RSX_RA_PIXEL_CENTER,
+     RSX_RA_POINT_LINE_OFFSET, RSX_RA_FILL_OFFSET,
+     RSX_RA_FP_OPCODE, RSX_RA_FP_CALL_RETURN, RSX_RA_FP_PREDICATION,
+-    RSX_RA_PIPELINE_FAILED, RSX_RA_COUNT
++    RSX_RA_PIPELINE_FAILED, RSX_RA_FRAMEBUFFER_SRGB,
++    RSX_RA_DEPTH_EXPORT, RSX_RA_WINDOW_OFFSET, RSX_RA_COUNT
+ };
+ #define RSX_RA_CAP_TEXCOORD_2D 1u
+ #define RSX_RA_CAP_BLEND_CONSTANT 2u
+@@ -55,7 +56,10 @@
+     {"fp_unhandled_opcode",0x08E4,"missing",0},
+     {"fp_call_return",0x08E4,"missing",0},
+     {"fp_arithmetic_predication",0x08E4,"incorrect",0},
+-    {"pipeline_failed",0x08E4,"dropped",0}
++    {"pipeline_failed",0x08E4,"dropped",0},
++    {"framebuffer_srgb_output",0x1FEC,"missing",0},
++    {"fragment_depth_export",0x1D60,"missing",0},
++    {"window_offset",0x02B8,"missing",0}
+ };
+ typedef struct rsx_request_audit {
+     char path[1024];
+@@ -101,6 +105,17 @@
+     a->attempted_draws++;a->dirty=1;
+ #define R(m) rsx_dsp_reg(r,m)
+ #define NOTE_IF(test,id) do { if(test)rsx_ra_note(a,id); } while(0)
++    /* Packer conversion only affects integer targets and half-register exports.
++     * A changed packer word alone is not evidence of sRGB output. */
++    const u32 color_format=R(0x0208)&31u;
++    NOTE_IF(R(0x1FEC)!=0 && R(0x0220)!=0 && (R(0x0324)&0x00FFFFFFu) &&
++            !(R(0x1D60)&0x40u) &&
++            color_format!=11u && color_format!=12u && color_format!=13u,
++            RSX_RA_FRAMEBUFFER_SRGB);
++    /* A disabled depth test makes a depth export ineffective, even if the
++     * program control declares one. Depth writes need not be enabled. */
++    NOTE_IF((R(0x1D60)&0xEu) && (R(0x0A74)&1u),RSX_RA_DEPTH_EXPORT);
++    NOTE_IF(R(0x02B8)!=0,RSX_RA_WINDOW_OFFSET);
+     unsigned tc=0;
+     for(unsigned u=0;u<10;u++)tc|=(R(0x0B40+u*4)&1u)<<u;
+     NOTE_IF(tc&255u,RSX_RA_TEXCOORD_2D);

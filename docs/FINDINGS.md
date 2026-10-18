@@ -2,7 +2,7 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 96 SDK patches / 82 Windows checks in Debug and
+**Current source checkpoint:** 97 SDK patches / 82 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -13,6 +13,37 @@ fidelity remain open. Windows analogue mapping has a further diagonal-range and 
 physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
+
+## Request-audit follow-up (patch 0097)
+
+The method-write review added three missing census checks: framebuffer sRGB
+output (`0x1FEC`), fragment depth export (`0x1D60`) and nonzero window offsets
+(`0x02B8`). The implementation gaps remain; this patch makes relevant requests
+visible automatically. The sRGB check excludes 32-bit exports, float surfaces,
+disabled colour targets and alpha-only output. Depth export only counts when
+depth testing is active, including tests with depth writes disabled. Synthetic
+regressions cover the exclusions and active cases. All 82 Windows checks pass
+in Debug and Release, with all 97 patches applying and reapplying cleanly.
+
+The sRGB eligibility and depth-export enable conditions were cross-checked with
+[RPCS3's fragment-program setup](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/RSXThread.cpp)
+and [register decoding](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/rsx_decode.h).
+No game programs or raw register dumps are published.
+
+A new hidden/muted candidate loaded Continue and reached town (probe
+`20261018-215910`, normal exit 0). None of the three added feature conditions
+appeared. The existing clip-range, visibility-report and window-origin warnings
+remain. This run establishes neither an FPS gain nor a new visual fix.
+
+A separate review of 6,224 private captured fragment-shader files found no
+direct WPOS or fog-input reads. This is a historical capture sample, not proof
+that other scenes do not use them. A 20-second, unsuspended town register sample
+also found zero window offset, smooth shading, filled polygons and polygon
+smoothing disabled. Reads can span different draws; they cannot attribute
+clipping or sRGB behavior to a particular pass. Depth-clamp control was unwritten,
+so its zero register image is not evidence of an explicit request to disable
+depth clipping. Clip limits change between passes and need a draw-correlated
+comparison before changing vertex normalization or viewport depth range.
 
 ## Active RSX request coverage and fragment inputs (patches 0095-0096)
 
