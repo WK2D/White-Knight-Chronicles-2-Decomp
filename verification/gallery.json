@@ -4,6 +4,33 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "runtime_input_follow_up",
+      "date": "2026-10-18",
+      "image": "screenshots/2026-10-18-native-runtime-input-check.png",
+      "width": 1280,
+      "height": 720,
+      "renderer": "Vulkan shared RSX draw engine",
+      "source_format": "Final swapchain GPU readback PPM",
+      "source_sha256": "8dc218f683362927ee9c767fb422b37e07909c8f5247e7744d325a4a3c8ed56b",
+      "png_sha256": "76b2fbc369918effc48b341099d564500a4d8e77e6a5b593da8e724bfba8fb87",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "native_probe": "20261018-193814",
+      "native_readback": "partial-back.ppm",
+      "sdk_patch_count_in_captured_run": 90,
+      "spu_image_inputs": 24,
+      "reload_verified": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false,
+      "performance_proven_by_still_image": false,
+      "capture_scope": "Unmodified final Vulkan swapchain pixels during a hidden/muted saved-town synthetic input check. No visual or FPS fix established by this frame."
+    },
+    {
       "milestone": "native_graphics_panel",
       "date": "2026-10-18",
       "image": "screenshots/2026-10-18-native-graphics-panel.png",

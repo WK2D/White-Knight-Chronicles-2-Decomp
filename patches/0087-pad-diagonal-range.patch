@@ -1,0 +1,27 @@
+diff --git a/libs/input/pad_stick.h b/libs/input/pad_stick.h
+--- a/libs/input/pad_stick.h
++++ b/libs/input/pad_stick.h
+@@ -22,11 +22,20 @@
+      * XInput deadzone landmark. PS3 games retain their own walking threshold. */
+     const float noise = 0.03f;
+     if (radius > noise && dz > noise && dz < 1.0f) {
+-        const float bounded = radius < 1.0f ? radius : 1.0f;
++        /* A physical gate need not report exactly 32767 at every angle.
++         * Reserve the outer 5% so full tilt cannot fall back across the
++         * game's run threshold as the stick follows its rim. */
++        const float outer = 0.95f;
++        const float bounded = radius < outer ? radius : outer;
+         const float magnitude = bounded <= dz
+             ? 0.13f * (bounded-noise)/(dz-noise)
+-            : 0.13f + 0.87f * (bounded-dz)/(1.0f-dz);
+-        scale = magnitude/radius;
++            : 0.13f + 0.87f * (bounded-dz)/(outer-dz);
++        /* PS3 axis range extends beyond a unit circle on diagonals. Smoothly
++         * expand by up to 25% there, without changing direction or cardinal
++         * endpoints. x*x*y*y/r^4 is sin(2*angle)^2 / 4; no trig needed. */
++        const float r2 = x*x + y*y;
++        const float shape = 1.0f + (x*x*y*y)/(r2*r2);
++        scale = magnitude*shape/radius;
+     }
+     *out_x = pad_stick_encode(x*scale);
+     /* Invert before quantization: never wrap a full-range endpoint at 256. */

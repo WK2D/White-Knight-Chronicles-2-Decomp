@@ -433,6 +433,19 @@ if(WKC2_BUILD_TESTS)
     set_tests_properties(wkc2_spu_cntb PROPERTIES TIMEOUT 10)
 
     set(SPURS_ABI_FIXTURE "${CMAKE_BINARY_DIR}/spurs-abi-fixture")
+    set(PPU_VSUB_FIXTURE "${CMAKE_BINARY_DIR}/ppu-vsub-fixture.h")
+    add_custom_command(OUTPUT "${PPU_VSUB_FIXTURE}"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_ppu_vsub_fixture.py"
+            "${PS3RECOMP_DIR}" "${PPU_VSUB_FIXTURE}"
+        DEPENDS tools/prepare_ppu_vsub_fixture.py "${PS3RECOMP_DIR}/tools/ppu_lifter.py"
+            "${PS3RECOMP_DIR}/tools/ppu_disasm.py")
+    add_executable(wkc2_ppu_vsub_test tests/ppu_vsub_test.cpp "${PPU_VSUB_FIXTURE}")
+    target_include_directories(wkc2_ppu_vsub_test PRIVATE "${CMAKE_BINARY_DIR}")
+    add_test(NAME wkc2_ppu_vsub COMMAND wkc2_ppu_vsub_test)
+    set_tests_properties(wkc2_ppu_vsub PROPERTIES TIMEOUT 10)
+    add_test(NAME wkc2_pad_exports COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/check_pad_exports.py" "${HLE_NID_TABLE}")
+    set_tests_properties(wkc2_pad_exports PROPERTIES TIMEOUT 10)
     add_custom_command(OUTPUT "${SPURS_ABI_FIXTURE}/fixture.c" "${SPURS_ABI_FIXTURE}/fixture.h"
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spurs_abi_fixture.py"
             "${PS3RECOMP_DIR}" "${SPURS_ABI_FIXTURE}"
@@ -453,6 +466,17 @@ if(WKC2_BUILD_TESTS)
     add_executable(wkc2_spu_interp_profile_test tests/spu_interp_profile_test.c
         "${PS3RECOMP_DIR}/runtime/spu/spu_interp.c" "${PS3RECOMP_DIR}/runtime/spu/spu_interp_profile.c"
         "${PS3RECOMP_DIR}/runtime/spu/spu_float_mode.c")
+    add_executable(wkc2_spu_interp_ops_test tests/spu_interp_ops_test.c
+        "${PS3RECOMP_DIR}/runtime/spu/spu_interp.c" "${PS3RECOMP_DIR}/runtime/spu/spu_interp_profile.c"
+        "${PS3RECOMP_DIR}/runtime/spu/spu_float_mode.c")
+    target_include_directories(wkc2_spu_interp_ops_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/spu")
+    target_link_libraries(wkc2_spu_interp_ops_test PRIVATE Threads::Threads)
+    if(NOT WIN32)
+        target_link_libraries(wkc2_spu_interp_ops_test PRIVATE m)
+    endif()
+    add_test(NAME wkc2_spu_interp_ops COMMAND wkc2_spu_interp_ops_test)
+    set_tests_properties(wkc2_spu_interp_ops PROPERTIES TIMEOUT 10)
     target_include_directories(wkc2_spu_interp_profile_test PRIVATE
         "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/spu")
     target_link_libraries(wkc2_spu_interp_profile_test PRIVATE Threads::Threads)
@@ -490,6 +514,12 @@ if(WKC2_BUILD_TESTS)
     set_tests_properties(wkc2_spu_microstep_profile PROPERTIES
         ENVIRONMENT "SPU_INTERP_PROFILE=${CMAKE_BINARY_DIR}/spu-microstep-profile.tsv" TIMEOUT 10)
     if(WIN32)
+        add_executable(wkc2_pad_report_test tests/pad_report_test.c)
+        target_include_directories(wkc2_pad_report_test PRIVATE
+            "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/input")
+        target_link_libraries(wkc2_pad_report_test PRIVATE xinput)
+        add_test(NAME wkc2_pad_report COMMAND wkc2_pad_report_test)
+        set_tests_properties(wkc2_pad_report PROPERTIES TIMEOUT 15)
         add_executable(wkc2_ppu_join_test tests/ppu_join_test.c
             "${PS3RECOMP_DIR}/runtime/syscalls/sys_ppu_thread.c")
         target_include_directories(wkc2_ppu_join_test PRIVATE

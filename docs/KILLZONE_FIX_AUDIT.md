@@ -10,7 +10,8 @@ generated registration table and relevant private WKC analysis. The catalogue's
 upstream-status statements describe its author's earlier audit; this is not a
 new check of every upstream PR.
 
-This is a source audit. No runtime fix was applied during this review. The
+The original 84-patch review was read-only. A follow-up implementation batch
+is recorded below; the current stack has **90 patches / 77 Windows tests**. The
 catalogue's tests and Killzone measurements have not been rerun here. A matching
 source defect does not establish the cause of WKC's lag or flicker.
 
@@ -18,8 +19,8 @@ source defect does not establish the cause of WKC's lag or flicker.
 
 | Priority | Entries | Local finding and next check |
 |---|---|---|
-| 1 | S2 | SMC absolute loads/stores use the wrong address shift. Add a guarded synthetic round trip, then reload the native save and inspect fallback coverage. |
-| 2 | S6, P1 | RR `mpyhha` writes the wrong destination in the interpreter; generated WKC PPU code has four `vsubuws` TODO sites. Add independent instruction tests and determine which sites execute. |
+| 1 | S2 | Address scale fixed by 0085; independent guarded load/store regression passes. Saved-town reload works; execution coverage and any scene effect remain unmeasured. |
+| 2 | S6, P1 | 0086/0089 fix the accumulator and four missing integer cases; 0090 replaces four WKC PPU `vsubuws` TODOs. Tests pass; remaining VMX/special-register semantics and native instruction coverage need work. |
 | 3 | S7, S4 | Byte-shift/rotate loops and scalar host `fma`/`fms` remain. Benchmark validated vector replacements on WKC jobs; retain our extended-range exact `fnms`. |
 | 4 | S8, R1 | A global reservation lock remains, while taskset bit updates use a separate lifetime lock. Establish race safety before optimizing contention. |
 | 5 | P8, P9 | HLE lookup is linear and per-read HOTREAD TLS diagnostics remain. Measure their current clang-cl cost and test indexed lookup equivalence. |
@@ -39,7 +40,7 @@ means some pieces exist. Missing does not imply execution in the current scene.
 
 | ID | Status | Evidence and limits |
 |---|---|---|
-| P1 | Partial | Old VMX lane/pack bodies remain in `tools/ppu_lifter.py`; generated WKC contains four `vsubuws` TODOs. Other reported operations need independent semantic tests; not all ten are proven wrong here. |
+| P1 | Partial | Old VMX lane/pack bodies remain in `tools/ppu_lifter.py`; patch 0090 replaces all four generated WKC `vsubuws` TODOs and tests decoded/lifted unsigned saturation, aliases and sticky VSCR. Other reported operations need independent semantic tests; not all ten are proven wrong here. |
 | P2 | Missing; coroutine-dependent | `ppu_loader.cpp` keeps `s_depth`/`g_vcall_sp` thread-local, without a coroutine-swappable slot. WKC host-fiber use/depth leakage is unproven. |
 | P3 | Missing tooling; workaround exists | No lifter `--overrides`; port `tools/apply_port_hooks.py` wraps selected generated functions. |
 | P4 | Covered for Windows port | Port `lwcond.cpp` supplies the layout/wait/signal behavior through context registration. Other-platform parity is separate work. |
@@ -54,11 +55,11 @@ means some pieces exist. Missing does not imply execution in the current scene.
 | ID | Status | Evidence and limits |
 |---|---|---|
 | S1 | Covered | Disassembler already decodes `orbi`, `xorhi`, `xorbi`. |
-| S2 | Missing; concrete defect | `spu_smc_microstep` uses `I16 << 4` for absolute `lqa`/`stqa`; normal interpretation uses `I16 << 2`. |
+| S2 | Fixed by 0085 | SMC absolute loads/stores now use `I16 << 2`, matching the normal interpreter. Independent address/guard regression fails before the change and passes after. |
 | S3 | Superseded | Patch 0061 gives each `spu_context` an MFC engine. Enlarging the old shared table would be weaker. |
 | S4 | Partial | Ordinary `static inline`, policy-mode LS probe calls outside the relevant range, and scalar host FMA remain. FI already avoids common `ldexpf` work; exact `fnms` is ours. Preserve extended SPU semantics. |
 | S5 | Partial | Normal dispatch tries resident overlays; interpreter rejoin's `spu_lifted_lookup` only checks `ctx->image_id`. WKC overlay usage needs measurement. |
-| S6 | Partial; concrete accumulator defect | Many decoder names exist without execution cases. `mpyhha` decodes as RR but writes `DSTC`, not `DST`; `mfspr`/FSCR operations are no-ops. |
+| S6 | Partly addressed by 0086/0089 | RR accumulator destination and `mpyhhau` fixed; `bgx`, `mpyui`, `rothmi`, `rotmahi` execute. Floating/special-register gaps remain, including no-op `mfspr`/FSCR. |
 | S7 | Mostly missing optimizations | Byte shifts/rotates use loops; `shufb` retains order-conversion shuffles; host `fma`/`fms` are scalar. Patch 0078 already implements exact AVX2 `fnms` with a scalar oracle. |
 | S8 | Missing larger design | Global lock, no striped/seqlock reservation reads. MSVC/x64 already pauses; non-MSVC has a bare spin. Ordering/invalidation require stress tests. |
 | S9 | Partial; mainly portability/performance | Dispatch/history fields remain TLS; host depth and MFC are already context-owned. Native Windows TLS cost differs from MinGW emulated TLS. |
@@ -136,3 +137,21 @@ can make objects disappear.
 Killzone FPS gains are not predictions for WKC. Several large entries describe
 changes without full diffs, and R6/V14 disclose unresolved problems. Each adopted
 fix needs its own regression and appropriate native capture/save/performance check.
+
+
+## First implementation batch: 0085-0090
+
+S2, the concrete S6 accumulator fault and four missing integer interpreter cases
+now have Windows regressions and fixes. P1's four WKC `vsubuws` TODOs are
+replaced with tested native translation. Patches 0087-0088 separately follow up
+the user's physical-stick report with diagonal range expansion, an outer margin
+and serialized report publication. Native synthetic input reaches the game
+steadily; physical feel is still unverified. All 77 Debug and Release checks
+pass, including regressions that fail on the earlier implementations.
+
+This is the first batch, not completion of the entire catalogue. SIMD/HLE
+performance, reservation/taskset concurrency, reports/conditional rendering,
+fragment/AA semantics, TLS/IO/context allocation and service correctness remain
+in the queue above. Optimizations need equivalent-result tests and measurements;
+Killzone-specific scheduling policies are not enabled wholesale. No FPS gain is
+claimed for this batch.

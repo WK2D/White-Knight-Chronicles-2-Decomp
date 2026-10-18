@@ -11,8 +11,11 @@ reach roughly 37-38 completed frames/s with game time tracking real time.
 This is not a locked 60 FPS or full-game compatibility claim. Vulkan remains
 the supported renderer; its display settings are not yet implemented on DirectX 12.
 Unlocked mode now schedules ticks at frame boundaries instead of flooding callbacks
-while polling the FIFO. Windows XInput sticks now use a radial response, preserving
-partial tilt and full diagonal magnitude for walking and running.
+while polling the FIFO. A follow-up Windows XInput change expands diagonal range,
+adds a small outer calibration margin and prevents partially updated pad reports.
+Physical walk/run consistency still needs user comparison. The first runtime audit
+batch also fixes SPU instruction execution and four PPU subtract TODOs; see
+[tests and remaining work](docs/FINDINGS.md#runtime-correctness-and-input-follow-up-patches-0085-0090).
 Draw distance, fog and removing menu background blur remain pending.
 
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
@@ -41,7 +44,7 @@ The earlier ten-minute town idle test keeps 58–59 host threads without worker
 accumulation and averages 14.25 presentations/s under its recorded diagnostic
 conditions. A steady 30 fps and smooth game timing remain goals. The user reports
 slower loading and cutscenes and less smooth motion than RPCS3. The analogue
-conversion has since been corrected; physical-controller comparison is pending. See [measurements and limits](docs/FINDINGS.md#frame-pacing-and-game-speed).
+conversion has further changes under test; physical-controller comparison is pending. See [measurements and limits](docs/FINDINGS.md#frame-pacing-and-game-speed).
 Full rendering fidelity, sustained traversal and combat remain unverified.
 
 - [Build instructions](docs/BUILD.md)
@@ -50,7 +53,7 @@ Full rendering fidelity, sustained traversal and combat remain unverified.
 - [Progress gallery](docs/GALLERY.md): newest first
 - [Project icon](docs/ICON.md): approved WKCII artwork used by Windows builds
 
-The source stack contains **84 SDK patches** and passes **73 Windows regression
+The source stack contains **90 SDK patches** and passes **77 Windows regression
 checks** in normal Debug and optimized Release. The menus, preferences, Vulkan
 FXAA initialization and save loading have been exercised in native runs; the
 experimental DirectX 12 path also reaches the saved scene and settings menu.

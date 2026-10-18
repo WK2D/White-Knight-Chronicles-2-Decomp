@@ -23,6 +23,33 @@ static void check_row(const char* path,const char* kind,uint32_t entry,
     }
     fclose(f);assert(found==1);
 }
+static void absolute_memory(void) {
+    /* I16 denotes words, not quadwords. Guard both the intended destination
+     * and the old, erroneous four-times-larger address; do not let a matching
+     * bad store/load pair conceal the addressing error. */
+    static const uint16_t immediates[]={0x0800,0x0803,0x8123,0xffff};
+    for(unsigned j=0;j<sizeof immediates/sizeof *immediates;j++) {
+        const uint32_t imm=immediates[j], address=(imm*4)&0x3fff0;
+        const uint32_t wrong=(imm*16)&0x3fff0;
+        spu_context_init(&ctx,0);ctx.image_id=992;ctx.policy_mode=1;
+        memset(ctx.ls,0xa5,0x40000);
+        for(unsigned i=0;i<16;i++) ctx.gpr[2]._u8[i]=(uint8_t)(0x30+i+j);
+        const u128 expected=ctx.gpr[2];
+        ctx.pc=0x100;ctx.status=SPU_STATUS_RUNNING;ctx.gpr[0]._u32[0]=0x200;
+        word(0x100,(0x041u<<23)|(imm<<7)|2); /* stqa $2,I16 */
+        word(0x104,0x35000000); /* bi $0 */
+        spu_indirect_branch(&ctx);assert(ctx.pc==0x200);
+        /* SPU LS is big endian within each host word. */
+        for(unsigned i=0;i<16;i++) assert(ctx.ls[address+i]==expected._u8[i^3]);
+        if(wrong!=address) for(unsigned i=0;i<16;i++) assert(ctx.ls[wrong+i]==0xa5);
+        /* Load an independently initialized pattern, with a different guard. */
+        for(unsigned i=0;i<16;i++) ctx.ls[address+i]=(uint8_t)(0x70+i+j);
+        ctx.pc=0x100;ctx.status=SPU_STATUS_RUNNING;
+        word(0x100,(0x061u<<23)|(imm<<7)|3); /* lqa $3,I16 */
+        spu_indirect_branch(&ctx);
+        for(unsigned i=0;i<16;i++) assert(ctx.gpr[3]._u8[i]==(uint8_t)(0x70+(i^3)+j));
+    }
+}
 int wkc2_test_spu_microstep_profile(const char* path) {
     remove(path);
     for(unsigned i=0;i<2;i++) {
@@ -44,6 +71,7 @@ int wkc2_test_spu_microstep_profile(const char* path) {
     check_row(path,"microstep",0x100,2,4);
     check_row(path,"microstep",0x300,1,1);
     check_row(path,"interp",0x304,1,2);
+    absolute_memory();
     puts("Actual microstep dispatch, branch return and interpreter handoff accounting passed");
     return 0;
 }

@@ -1,0 +1,28 @@
+diff --git a/runtime/spu/spu_interp.c b/runtime/spu/spu_interp.c
+--- a/runtime/spu/spu_interp.c
++++ b/runtime/spu/spu_interp.c
+@@ -145,6 +145,7 @@
+     case SPU_cg:   DST = spu_cg(A,B); break;
+     case SPU_cgx:  DST = spu_cgx(A,B,DST); break;
+     case SPU_mpyi: DST = spu_mpyi(A,I); break;
++    case SPU_mpyui:DST = spu_mpyui(A,I); break;
+     /* logical */
+     case SPU_and: DST = spu_and(A,B); break;
+     case SPU_or:  DST = spu_or(A,B); break;
+@@ -258,6 +259,7 @@
+     case SPU_clgthi:DST = spu_clgthi(A,I); break;
+     /* integer / byte extras */
+     case SPU_bg:    DST = spu_bg(A,B); break;
++    case SPU_bgx:   DST = spu_bgx(A,B,T); break;
+     case SPU_absdb: DST = spu_absdb(A,B); break;
+     case SPU_avgb:  DST = spu_avgb(A,B); break;
+     case SPU_sumb:  DST = spu_sumb(A,B); break;
+@@ -268,6 +270,8 @@
+     case SPU_mpyhhau:DST = spu_mpyhhau(A,B,T); break;
+     /* rotate / shift extras */
+     case SPU_rothm:    DST = spu_rothm(A,B); break;
++    case SPU_rothmi:   DST = spu_rothmi(A,I); break;
++    case SPU_rotmahi:  DST = spu_rotmahi(A,I); break;
+     case SPU_rotqmbi:  DST = spu_rotqmbi(A,B); break;
+     case SPU_rotqmbii: DST = spu_rotqmbii(A,(int)I); break;
+     case SPU_rotqbybi: DST = spu_rotqbybi(A,B); break;

@@ -8,8 +8,8 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 84 SDK patches / 73 Windows checks. The latest menu captures
-were taken at 83 patches and show the same full-panel layout. They
+Current source: 90 SDK patches / 77 Windows checks. The newest town capture
+uses the 90-patch input/runtime follow-up; the menu captures use 83 patches. They
 are final Vulkan swapchain readbacks, including window scaling and FXAA.
 The earlier LOD comparison is captured before window scaling. Saving and Continue
 reload work; normal shadow polarity is restored. Foot/Logic Stone flicker,
@@ -20,6 +20,17 @@ Historical entries retain their original test conditions and patch counts.
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-18 - Runtime correctness and controller input follow-up
+
+The 90-patch Vulkan build reloads the verified town save. This game-only frame
+comes from a hidden, muted synthetic input check, after a partial raw stick tilt.
+The new regressions cover SPU instructions, PPU saturating subtraction, diagonal
+stick range, concurrent report publication and complete pad API registration.
+All 77 checks pass in Debug and Release. Physical-controller walk/run feel and
+any performance gain remain unverified; this is not evidence of a visual fix.
+
+![Saved town during the runtime and input check](../verification/screenshots/2026-10-18-native-runtime-input-check.png)
 
 ## 2026-10-18 - Full Graphics Settings panel and window close
 

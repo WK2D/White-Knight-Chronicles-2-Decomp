@@ -2,15 +2,15 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 84 SDK patches / 73 Windows checks in Debug and
+**Current source checkpoint:** 90 SDK patches / 77 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
 without accelerating the sampled game clock. Rendering fidelity and lag remain open.
 Normal shadow polarity and the starting-town Logic Stone save/reload work.
 Black foot flicker, rotating Logic Stone light flicker and broader game-speed
-fidelity remain open. Windows analogue mapping is corrected; physical controller
-feel still needs comparison. Future restarts use
+fidelity remain open. Windows analogue mapping has a further diagonal-range and report-race fix;
+physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
@@ -19,10 +19,53 @@ logging, profiler and visibility conditions; they are not interchangeable.
 A source review compares all 62 entries in the Killzone 3 runtime catalogue
 against the 84-patch stack. Missing SPU correctness paths, vector-helper/HLE
 performance leads, rendering gaps and service issues are recorded alongside
-existing equivalents. No runtime change or FPS improvement is claimed by this
-audit. See the [complete comparison and priorities](KILLZONE_FIX_AUDIT.md).
+existing equivalents. The original audit was read-only; the first implementation
+batch below addresses concrete instruction faults. No FPS gain is established. See the [complete comparison and priorities](KILLZONE_FIX_AUDIT.md).
+
+## Runtime correctness and input follow-up (patches 0085-0090)
+
+The user still reports intermittent walk/run transitions, particularly at angles,
+after patch 0084. Patches 0087-0088 expand the circular XInput vector toward
+the PS3 diagonal range, allow a 5% outer calibration margin, and serialize the
+complete host report with its freshness flag. The event pump and guest pad API
+previously accessed those bytes without synchronization.
+
+The new recording-driver test pauses a host poll and verifies that a concurrent
+guest read cannot consume an unfinished report. It fails on the old code. The
+stick test checks imperfect-rim endpoints and continuous partial-tilt angle sweeps,
+and also fails on the old mapping. A new export check ensures all twelve pad API
+functions remain registered after source scanning.
+
+A hidden, muted native Vulkan run loaded the verified town save. Read-only
+sampling of the game's cached pad state found steady partial/full input and no
+neutral dropouts across twelve full-tilt directions. This verifies synthetic
+input delivery; it does **not** establish physical-controller gait consistency,
+calibration for every device or smooth animation. The SDL mapping is unchanged.
+
+The first audit implementation batch also fixes:
+
+- **0085 / S2:** absolute SMC `lqa`/`stqa` use word-scaled addresses, with
+  independent load/store checks, guards and upper-address/alignment cases.
+- **0086 / S6:** RR `mpyhha` writes its actual destination; `mpyhhau` executes.
+  Signed accumulation now uses modular unsigned addition to avoid host overflow UB.
+- **0089 / S6:** interpreter cases for `bgx`, `mpyui`, `rothmi` and `rotmahi`,
+  tested at borrow/sign/shift boundaries.
+- **0090 / P1:** `vsubuws` now translates unsigned saturation with big-endian
+  word lanes, register aliases and sticky VSCR.SAT. All four WKC TODO sites
+  were regenerated from the updated lifter. Whether those sites execute in
+  this saved scene remains unmeasured.
+
+The old implementations fail their regressions. All **77 Windows checks** pass
+in normal Debug (12.10 s) and optimized Release (11.80 s). The **90-patch stack**
+reconstructs 71 SDK files from the pinned baseline. These are correctness results;
+no game-speed or rendering improvement is established by this batch. Remaining
+performance, SPURS, rendering and service work stays in the
+[audit queue](KILLZONE_FIX_AUDIT.md).
 
 ## Windows stick magnitude and walk/run response (patch 0084)
+
+Historical first change; the user reported remaining problems, addressed further
+by patches 0087-0088 above.
 
 The previous XInput path applied its deadzone separately to X and Y. A full
 circular diagonal was reduced to roughly 87% of straight-ahead magnitude, and
@@ -2048,7 +2091,7 @@ validation. The remaining work includes:
   diagnostic conditions. Validated 60 fps support remains a later goal.
 - Flickering foot shadows, the rotating Logic Stone light, and complete in-engine
   audio/animation synchronization.
-- Physical-controller walk/run comparison after patch 0084, and loading/cutscene speed compared with RPCS3.
+- Physical-controller walk/run comparison after patches 0087-0088, and loading/cutscene speed compared with RPCS3.
 - All character-creation options and an in-game keyboard usable by gamepad.
 - Complete static SPU coverage, including the six observed image-17 fallback
   fingerprints; source-level reconstruction and a supported modding framework.

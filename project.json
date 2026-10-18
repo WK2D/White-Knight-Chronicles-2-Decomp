@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling now follows frame boundaries with an idle heartbeat. Windows XInput radial conversion preserves partial tilt and full diagonal magnitude. 84 SDK patches / 73 passing Windows checks in Debug and Release. Physical controller feel and full-game high-FPS compatibility remain unverified.",
+    "current_milestone": "SPU absolute-address and multiply-accumulate fixes, four additional SPU integer operations and PPU VSUBUWS translation. Windows XInput now expands diagonal range, reserves an outer calibration margin and serializes complete pad reports. 90 SDK patches / 77 passing Windows checks in Debug and Release. Saved-town input delivery verified with synthetic raw values; physical controller feel and any FPS gain remain unverified.",
     "updated": "2026-10-18"
   },
   "native_data_installation_verified": true,
@@ -153,8 +153,8 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 84,
-    "runtime_checks_passed": 73,
+    "sdk_patch_count": 90,
+    "runtime_checks_passed": 77,
     "town_native_run_sdk_patch_count": 76,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
@@ -226,7 +226,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 84,
+    "runtime_checks_verified_sdk_patch_count": 90,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -253,7 +253,7 @@
     "patch_0074_native_game_run_verified": true,
     "patch_0074_texture_compare_direction_gpu_verified": true,
     "patch_0074_foot_shadow_flicker_fixed_verified": false,
-    "repeat_patch_application_verified_sdk_patch_count": 84,
+    "repeat_patch_application_verified_sdk_patch_count": 90,
     "patch_0075_windows_regression_verified": true,
     "patch_0075_native_interaction_verified": true,
     "patch_0075_save_load_verified": true,
@@ -306,7 +306,13 @@
     "native_full_graphics_panel_verified": true,
     "patch_0084_windows_regression_verified": true,
     "native_raw_xinput_partial_full_tilt_response_verified": true,
-    "physical_controller_walk_run_fidelity_verified": false
+    "physical_controller_walk_run_fidelity_verified": false,
+    "patch_0085_windows_regression_verified": true,
+    "patch_0086_windows_regression_verified": true,
+    "patch_0087_windows_regression_verified": true,
+    "patch_0088_windows_regression_verified": true,
+    "patch_0089_windows_regression_verified": true,
+    "patch_0090_windows_regression_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -370,7 +376,7 @@
     "creator_rotation_smoothness_fixed": false,
     "label": "Present/s",
     "label_patch": 70,
-    "current_windows_runtime_checks_passed": 68
+    "current_windows_runtime_checks_passed": 77
   },
   "performance": {
     "record": "verification/performance.json",
@@ -425,7 +431,7 @@
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling now follows frame boundaries with an idle heartbeat. Windows XInput radial conversion preserves partial tilt and full diagonal magnitude. 84 SDK patches / 73 passing Windows checks in Debug and Release. Physical controller feel and full-game high-FPS compatibility remain unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling follows frame boundaries with an idle heartbeat. Menu features were verified in earlier native probes; current source adds the instruction/input follow-up, with 90 SDK patches and 77 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -454,12 +460,34 @@
     "rare_freeze_independently_reproduced": false
   },
   "analogue_response": {
-    "sdk_patch": 84,
+    "sdk_patch": 87,
     "backend": "Windows XInput",
     "radial_pair_conversion": true,
     "synthetic_full_tilt_angles_checked": 720,
     "native_raw_input_response_verified": true,
     "physical_controller_feel_verified": false,
-    "SDL_backend_changed": false
+    "SDL_backend_changed": false,
+    "sdk_patches": [
+      84,
+      87,
+      88
+    ],
+    "diagonal_range_expansion": true,
+    "outer_margin_fraction": 0.05,
+    "complete_report_serialization": true,
+    "native_cached_input_angles_checked": 12
+  },
+  "runtime_correctness_batch": {
+    "sdk_patches": [
+      85,
+      86,
+      89,
+      90
+    ],
+    "native_probe": "20261018-193814",
+    "save_reload_verified": true,
+    "native_effect_of_each_instruction_fix_verified": false,
+    "fps_gain_verified": false,
+    "all_catalogue_items_complete": false
   }
 }

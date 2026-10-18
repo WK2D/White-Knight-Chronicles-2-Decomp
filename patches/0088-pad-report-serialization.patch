@@ -1,0 +1,235 @@
+diff --git a/libs/input/cellPad.c b/libs/input/cellPad.c
+--- a/libs/input/cellPad.c
++++ b/libs/input/cellPad.c
+@@ -404,8 +404,8 @@
+ 
+ static void pad_poll_backend(void)
+ {
+-    /* Benign race: two threads may poll in the same tick. That costs one extra
+-     * sweep, never a missed or stale-forever read. */
++    /* Called under the pad API lock: report bytes and the consumed-report
++     * flag must belong to the same completed host poll. */
+     static unsigned long long s_last_ms = 0;
+     unsigned long long now = pad_now_ms();
+     if (s_last_ms && now - s_last_ms < PAD_POLL_INTERVAL_MS) return;
+@@ -425,11 +425,32 @@
+ #endif
+ }
+ 
++/* The event pump and guest input thread can poll concurrently. Protect the
++ * complete report, freshness flag, backend lifetime and test-input state;
++ * locking only the timestamp would still publish partially updated axes. */
++#ifdef _WIN32
++static SRWLOCK s_pad_lock = SRWLOCK_INIT;
++static void pad_lock(void) { AcquireSRWLockExclusive(&s_pad_lock); }
++static void pad_unlock(void) { ReleaseSRWLockExclusive(&s_pad_lock); }
++#else
++#include <pthread.h>
++static pthread_mutex_t s_pad_lock = PTHREAD_MUTEX_INITIALIZER;
++static void pad_lock(void) { pthread_mutex_lock(&s_pad_lock); }
++static void pad_unlock(void) { pthread_mutex_unlock(&s_pad_lock); }
++#endif
+ /* ---------------------------------------------------------------------------
+  * API implementations
+  * -----------------------------------------------------------------------*/
+ 
++static s32 cellPadInit_locked(u32 max_connect);
+ s32 cellPadInit(u32 max_connect)
++{
++    pad_lock();
++    s32 result = cellPadInit_locked(max_connect);
++    pad_unlock();
++    return result;
++}
++static s32 cellPadInit_locked(u32 max_connect)
+ {
+     printf("[cellPad] Init(max_connect=%u)\n", max_connect);
+ 
+@@ -456,7 +477,15 @@
+     return CELL_OK;
+ }
+ 
++static s32 cellPadEnd_locked(void);
+ s32 cellPadEnd(void)
++{
++    pad_lock();
++    s32 result = cellPadEnd_locked();
++    pad_unlock();
++    return result;
++}
++static s32 cellPadEnd_locked(void)
+ {
+     printf("[cellPad] End()\n");
+ 
+@@ -472,9 +501,11 @@
+ 
+ void cellPad_poll(void)
+ {
++    pad_lock();
+     if (s_pad_initialized) {
+         pad_poll_backend();
+     }
++    pad_unlock();
+ }
+ 
+ /* HLE args are GUEST effective addresses; guest structs are BIG-ENDIAN. The
+@@ -483,7 +514,15 @@
+  * were fixed.) These used to be redeclared here with a 64-bit address
+  * parameter, which conflicts with the header now that it is included. */
+ 
++static s32 cellPadGetData_locked(u32 port_no, CellPadData* data_guest);
+ s32 cellPadGetData(u32 port_no, CellPadData* data_guest)
++{
++    pad_lock();
++    s32 result = cellPadGetData_locked(port_no, data_guest);
++    pad_unlock();
++    return result;
++}
++static s32 cellPadGetData_locked(u32 port_no, CellPadData* data_guest)
+ {
+     { static int _once = 0;
+       if (!_once++) printf("[cellPad] GetData polling begins (port %u)\n", port_no); }
+@@ -872,7 +911,15 @@
+  *   (CELL_MAX_PADS / PSL1GHT MAX_PADS = 127 -- NOT 7; see below)
+  * Leaving this unimplemented let the guest read stack garbage as pad state and
+  * run off into the weeds before ever reaching gcm init. */
++static s32 cellPadGetInfo_locked(CellPadInfo2* info);
+ s32 cellPadGetInfo(CellPadInfo2* info)
++{
++    pad_lock();
++    s32 result = cellPadGetInfo_locked(info);
++    pad_unlock();
++    return result;
++}
++static s32 cellPadGetInfo_locked(CellPadInfo2* info)
+ {
+     uint32_t gaddr = (uint32_t)(uintptr_t)info;
+     if (!s_pad_initialized)
+@@ -913,7 +960,15 @@
+     return CELL_OK;
+ }
+ 
++static s32 cellPadGetInfo2_locked(CellPadInfo2* info_guest);
+ s32 cellPadGetInfo2(CellPadInfo2* info_guest)
++{
++    pad_lock();
++    s32 result = cellPadGetInfo2_locked(info_guest);
++    pad_unlock();
++    return result;
++}
++static s32 cellPadGetInfo2_locked(CellPadInfo2* info_guest)
+ {
+     if (!s_pad_initialized)
+         return CELL_PAD_ERROR_NOT_OPENED;
+@@ -971,7 +1026,15 @@
+  *   device_type[7], pclass_type[7], pclass_profile[7]
+  * We report a standard DUALSHOCK-class pad (pclass_type STANDARD = 0, no
+  * profile bits) mirroring the ports cellPadGetInfo2 already reports. */
++static s32 cellPadPeriphGetInfo_locked(CellPadPeriphInfo* info_guest);
+ s32 cellPadPeriphGetInfo(CellPadPeriphInfo* info_guest)
++{
++    pad_lock();
++    s32 result = cellPadPeriphGetInfo_locked(info_guest);
++    pad_unlock();
++    return result;
++}
++static s32 cellPadPeriphGetInfo_locked(CellPadPeriphInfo* info_guest)
+ {
+     if (!s_pad_initialized)
+         return CELL_PAD_ERROR_NOT_OPENED;
+@@ -1018,7 +1081,15 @@
+     return CELL_OK;
+ }
+ 
++static s32 cellPadSetPortSetting_locked(u32 port_no, u32 port_setting);
+ s32 cellPadSetPortSetting(u32 port_no, u32 port_setting)
++{
++    pad_lock();
++    s32 result = cellPadSetPortSetting_locked(port_no, port_setting);
++    pad_unlock();
++    return result;
++}
++static s32 cellPadSetPortSetting_locked(u32 port_no, u32 port_setting)
+ {
+     printf("[cellPad] SetPortSetting(port=%u, setting=0x%X)\n",
+            port_no, port_setting);
+@@ -1044,7 +1115,15 @@
+  * Info returns 1 when the port supports press mode; Set toggles it, recorded in
+  * the same s_port_setting word cellPadSetPortSetting uses so a title that reads
+  * the setting back sees what it asked for. */
++static s32 cellPadInfoPressMode_locked(u32 port_no);
+ s32 cellPadInfoPressMode(u32 port_no)
++{
++    pad_lock();
++    s32 result = cellPadInfoPressMode_locked(port_no);
++    pad_unlock();
++    return result;
++}
++static s32 cellPadInfoPressMode_locked(u32 port_no)
+ {
+     if (!s_pad_initialized)
+         return CELL_PAD_ERROR_NOT_OPENED;
+@@ -1053,7 +1132,15 @@
+     return 1;                                  /* supported */
+ }
+ 
++static s32 cellPadSetPressMode_locked(u32 port_no, u32 mode);
+ s32 cellPadSetPressMode(u32 port_no, u32 mode)
++{
++    pad_lock();
++    s32 result = cellPadSetPressMode_locked(port_no, mode);
++    pad_unlock();
++    return result;
++}
++static s32 cellPadSetPressMode_locked(u32 port_no, u32 mode)
+ {
+     if (!s_pad_initialized)
+         return CELL_PAD_ERROR_NOT_OPENED;
+@@ -1066,7 +1153,15 @@
+     return CELL_OK;
+ }
+ 
++static s32 cellPadGetCapabilityInfo_locked(u32 port_no, CellPadCapabilityInfo* info);
+ s32 cellPadGetCapabilityInfo(u32 port_no, CellPadCapabilityInfo* info)
++{
++    pad_lock();
++    s32 result = cellPadGetCapabilityInfo_locked(port_no, info);
++    pad_unlock();
++    return result;
++}
++static s32 cellPadGetCapabilityInfo_locked(u32 port_no, CellPadCapabilityInfo* info)
+ {
+     if (!s_pad_initialized)
+         return CELL_PAD_ERROR_NOT_OPENED;
+@@ -1088,7 +1183,15 @@
+     return CELL_OK;
+ }
+ 
++static s32 cellPadSetActDirect_locked(u32 port_no, CellPadActParam* param);
+ s32 cellPadSetActDirect(u32 port_no, CellPadActParam* param)
++{
++    pad_lock();
++    s32 result = cellPadSetActDirect_locked(port_no, param);
++    pad_unlock();
++    return result;
++}
++static s32 cellPadSetActDirect_locked(u32 port_no, CellPadActParam* param)
+ {
+     if (!s_pad_initialized)
+         return CELL_PAD_ERROR_NOT_OPENED;
+@@ -1122,7 +1225,15 @@
+     return CELL_OK;
+ }
+ 
++static s32 cellPadClearBuf_locked(u32 port_no);
+ s32 cellPadClearBuf(u32 port_no)
++{
++    pad_lock();
++    s32 result = cellPadClearBuf_locked(port_no);
++    pad_unlock();
++    return result;
++}
++static s32 cellPadClearBuf_locked(u32 port_no)
+ {
+     if (!s_pad_initialized)
+         return CELL_PAD_ERROR_NOT_OPENED;

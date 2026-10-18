@@ -1,0 +1,18 @@
+diff --git a/tools/ppu_lifter.py b/tools/ppu_lifter.py
+--- a/tools/ppu_lifter.py
++++ b/tools/ppu_lifter.py
+@@ -2789,6 +2789,14 @@
+                     f"for(int i=0;i<4;i++){{uint64_t r=(uint64_t)a[i]+(uint64_t)b[i]; d[i]=(uint32_t)(r>0xFFFFFFFFu?0xFFFFFFFFu:r);}} }}")
+ 
+         # Subtract saturate
++        if mn == "vsubuws":
++            vd, va, vb = int(ops[0][1:]), int(ops[1][1:]), int(ops[2][1:])
++            # Load both sources before writing, preserving BE word lanes and
++            # every vD/vA/vB alias. VSCR.SAT is sticky, at bit zero.
++            return (f"{{ uint32_t a[4],b[4],d[4]; ppu_vldu4(&ctx->vr[{va}],a); "
++                    f"ppu_vldu4(&ctx->vr[{vb}],b); "
++                    f"for(int i=0;i<4;i++){{ if(a[i]<b[i]){{d[i]=0;ctx->vscr|=1u;}} "
++                    f"else d[i]=a[i]-b[i]; }} ppu_vstu4(&ctx->vr[{vd}],d); }}")
+         if mn == "vsubsws":
+             vd, va, vb = int(ops[0][1:]), int(ops[1][1:]), int(ops[2][1:])
+             return (f"{{ int32_t* d=(int32_t*)&ctx->vr[{vd}]; int32_t* a=(int32_t*)&ctx->vr[{va}]; "

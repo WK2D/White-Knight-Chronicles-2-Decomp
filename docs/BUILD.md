@@ -10,7 +10,7 @@ experimental DirectX 12 selector. Continue loads the verified Logic Stone save.
 See [menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
 and [settings and timing details](#native-graphics-settings-patches-0081-0082).
 
-The current stack contains 84 SDK patches. All 73 Windows checks pass in normal
+The current stack contains 90 SDK patches. All 77 Windows checks pass in normal
 Debug and optimized Release. Suite timings are not game performance. Reapplying
 the complete stack changes no SDK files. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain
@@ -100,7 +100,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 84 numbered SDK patches, and all 73 checks
+The current source stack contains 90 numbered SDK patches, and all 77 checks
 pass in both Windows suites. The latest graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
@@ -1456,7 +1456,7 @@ remain responsive in the tested saved-town run; general high-FPS stability remai
 persistence, interval restoration,
 window/sampler configuration and the overlay without a black background.
 `wkc2_depth_shader_binding` also compiles the production FXAA shader and verifies
-its descriptor bindings. The full Windows suite passes 73 checks in Debug and
+its descriptor bindings. The full Windows suite passes 77 checks in Debug and
 Release. Native runs verify menu navigation and saved-scene rendering in both
 APIs, with FXAA initialization on Vulkan; not every display mode or monitor is tested.
 
@@ -1476,6 +1476,9 @@ handling and process exit; it is not a physical mouse-click automation test.
 
 ## Windows analogue response (patch 0084)
 
+Historical first change; see patches 0087-0088 below for the follow-up after
+the user reported remaining diagonal walk/run inconsistency.
+
 The old XInput conversion applied a separate deadzone to each axis. At a full
 45-degree tilt, it sent only about 87% of the straight-ahead magnitude, so the
 game could receive different walk/run input depending on direction.
@@ -1492,3 +1495,31 @@ checks neutral/noise, exact endpoints, Y direction, 720 full-tilt angles and
 monotonic partial tilt. Private native tests supply raw XInput values before
 production conversion and observe partial/full-tilt town movement. Physical
 controller feel, other devices and the SDL backend are not established by this test.
+
+
+## Runtime and input follow-up (patches 0085-0090)
+
+0085 fixes the absolute SMC load/store address scale. 0086 fixes RR SPU multiply
+accumulation and its unsigned form; 0089 fills four additional integer interpreter
+cases. `wkc2_spu_microstep_profile` checks independent loads/stores and guard
+addresses. `wkc2_spu_interp_ops` checks destinations, aliases, modular overflow,
+borrow boundaries, immediate signs and halfword shifts.
+
+0087 extends the Windows stick mapping with a 5% outer margin and smooth
+diagonal range expansion. The behavioral reference is RPCS3's
+[default stick shape](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Io/pad_config.h)
+and the paired-axis conversion linked above; the implementation is project-written C.
+0088 serializes pad APIs and event-pump polling. `wkc2_pad_report` uses a paused
+recording driver to reproduce the report race; `wkc2_pad_exports` validates all
+twelve generated HLE registrations. Physical controller feel remains unverified.
+
+0090 translates PPU `vsubuws`, including sticky VSCR saturation and BE word
+lanes. `wkc2_ppu_vsub` decodes original synthetic opcodes, runs their actual
+lifted output and checks aliases and saturation boundaries. Regenerate existing
+PPU output with the updated lifter to replace any previous TODOs; applying the
+SDK patches alone does not rewrite already generated game sources.
+
+These regressions fail against the preceding implementations. All 77 checks pass
+in Debug and Release. A private Vulkan run reloads the save and verifies steady
+synthetic input reaching the game through partial and full directional probes.
+This batch makes no FPS or complete physical walk/run compatibility claim.

@@ -4,10 +4,10 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-18",
-    "native_probe": "20261018-183552",
-    "sdk_patch_count": 84,
-    "summary": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling now follows frame boundaries with an idle heartbeat. Windows XInput radial conversion preserves partial tilt and full diagonal magnitude. 84 SDK patches / 73 passing Windows checks in Debug and Release. Physical controller feel and full-game high-FPS compatibility remain unverified.",
-    "gallery_image": "screenshots/2026-10-18-native-graphics-panel.png",
+    "native_probe": "20261018-193814",
+    "sdk_patch_count": 90,
+    "summary": "SPU absolute-address and multiply-accumulate fixes, four additional SPU integer operations and PPU VSUBUWS translation. Windows XInput now expands diagonal range, reserves an outer calibration margin and serializes complete pad reports. 90 SDK patches / 77 passing Windows checks in Debug and Release. Saved-town input delivery verified with synthetic raw values; physical controller feel and any FPS gain remain unverified.",
+    "gallery_image": "screenshots/2026-10-18-native-runtime-input-check.png",
     "remaining_limits": [
       "Town performance remains below the 30 fps target",
       "Black foot flicker and rotating Logic Stone light flicker remain open",
@@ -66,6 +66,12 @@
     "window_close_title_and_saved_town_settings": true
   },
   "captures": [
+    {
+      "file": "screenshots/2026-10-18-native-runtime-input-check.png",
+      "sha256": "76b2fbc369918effc48b341099d564500a4d8e77e6a5b593da8e724bfba8fb87",
+      "source_ppm_sha256": "8dc218f683362927ee9c767fb422b37e07909c8f5247e7744d325a4a3c8ed56b",
+      "method": "Unmodified final Vulkan swapchain pixels during a hidden/muted saved-town synthetic input check. No visual or FPS fix established by this frame."
+    },
     {
       "file": "screenshots/2026-10-15-language-selection.png",
       "private_source_probe": "20261015-231841.frames/frame_001.bmp",
@@ -216,14 +222,18 @@
       "wkc2_spu_depth_guard_zero",
       "wkc2_spu_depth_guard_invalid",
       "wkc2_spu_cntb",
+      "wkc2_ppu_vsub",
+      "wkc2_pad_exports",
       "wkc2_spurs_abi",
       "wkc2_spurs_job_queue",
+      "wkc2_spu_interp_ops",
       "wkc2_spu_interp_profile",
       "wkc2_spu_interp_profile_off",
       "wkc2_spu_float_host",
       "wkc2_spu_float_exact",
       "wkc2_spu_float_audit",
       "wkc2_spu_microstep_profile",
+      "wkc2_pad_report",
       "wkc2_ppu_join",
       "wkc2_osk_window",
       "wkc2_fp_precision",
@@ -271,12 +281,12 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 84,
-    "last_verified_sdk_patch_count": 84,
-    "current_passed_count": 73,
-    "record_scope": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling now follows frame boundaries with an idle heartbeat. Windows XInput radial conversion preserves partial tilt and full diagonal magnitude. 84 SDK patches / 73 passing Windows checks in Debug and Release. Physical controller feel and full-game high-FPS compatibility remain unverified.",
-    "normal_debug_elapsed_seconds": 12.6,
-    "optimized_release_elapsed_seconds": 12.56,
+    "current_sdk_patch_count": 90,
+    "last_verified_sdk_patch_count": 90,
+    "current_passed_count": 77,
+    "record_scope": "SPU absolute-address and multiply-accumulate fixes, four additional SPU integer operations and PPU VSUBUWS translation. Windows XInput now expands diagonal range, reserves an outer calibration margin and serializes complete pad reports. 90 SDK patches / 77 passing Windows checks in Debug and Release. Saved-town input delivery verified with synthetic raw values; physical controller feel and any FPS gain remain unverified.",
+    "normal_debug_elapsed_seconds": 12.1,
+    "optimized_release_elapsed_seconds": 11.8,
     "repeat_patch_application_files_changed": 0,
     "repeat_patch_application_verified_sdk_patch_count": 84
   },
@@ -2698,7 +2708,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling now follows frame boundaries with an idle heartbeat. Windows XInput radial conversion preserves partial tilt and full diagonal magnitude. 84 SDK patches / 73 passing Windows checks in Debug and Release. Physical controller feel and full-game high-FPS compatibility remain unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling follows frame boundaries with an idle heartbeat. Menu features were verified in earlier native probes; current source adds the instruction/input follow-up, with 90 SDK patches and 77 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -2754,5 +2764,36 @@
     "native_raw_input_response_verified": true,
     "physical_controller_feel_verified": false,
     "SDL_backend_changed": false
+  },
+  "runtime_correctness_batch": {
+    "sdk_patches": [
+      85,
+      86,
+      89,
+      90
+    ],
+    "native_probe": "20261018-193814",
+    "save_reload_verified": true,
+    "native_effect_of_each_instruction_fix_verified": false,
+    "fps_gain_verified": false,
+    "all_catalogue_items_complete": false
+  },
+  "analogue_response_follow_up": {
+    "sdk_patch": 87,
+    "backend": "Windows XInput",
+    "radial_pair_conversion": true,
+    "synthetic_full_tilt_angles_checked": 720,
+    "native_raw_input_response_verified": true,
+    "physical_controller_feel_verified": false,
+    "SDL_backend_changed": false,
+    "sdk_patches": [
+      84,
+      87,
+      88
+    ],
+    "diagonal_range_expansion": true,
+    "outer_margin_fraction": 0.05,
+    "complete_report_serialization": true,
+    "native_cached_input_angles_checked": 12
   }
 }

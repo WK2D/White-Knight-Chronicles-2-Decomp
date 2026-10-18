@@ -1,0 +1,25 @@
+diff --git a/runtime/spu/spu_interp.c b/runtime/spu/spu_interp.c
+--- a/runtime/spu/spu_interp.c
++++ b/runtime/spu/spu_interp.c
+@@ -264,7 +264,8 @@
+     case SPU_mpys:  DST = spu_mpys(A,B); break;
+     case SPU_mpyhh: DST = spu_mpyhh(A,B); break;
+     case SPU_mpyhhu:DST = spu_mpyhhu(A,B); break;
+-    case SPU_mpyhha:DSTC = spu_mpyhha(A,B,T); break;  /* RRR */
++    case SPU_mpyhha:DST = spu_mpyhha(A,B,T); break; /* RR accumulator */
++    case SPU_mpyhhau:DST = spu_mpyhhau(A,B,T); break;
+     /* rotate / shift extras */
+     case SPU_rothm:    DST = spu_rothm(A,B); break;
+     case SPU_rotqmbi:  DST = spu_rotqmbi(A,B); break;
+diff --git a/runtime/spu/spu_helpers.h b/runtime/spu/spu_helpers.h
+--- a/runtime/spu/spu_helpers.h
++++ b/runtime/spu/spu_helpers.h
+@@ -519,7 +519,7 @@
+ static inline u128 spu_absdb(u128 a, u128 b)  { u128 r; for(int i=0;i<16;i++){ uint8_t x=a._u8[i],y=b._u8[i]; r._u8[i]=(uint8_t)(x>y?x-y:y-x); } return r; }
+ static inline u128 spu_avgb(u128 a, u128 b)   { u128 r; for(int i=0;i<16;i++) r._u8[i]=(uint8_t)(((uint32_t)a._u8[i]+(uint32_t)b._u8[i]+1u)>>1); return r; }
+ /* mpyhha/mpyhhau: high-16 x high-16, ACCUMULATE into rt (3-register). */
+-static inline u128 spu_mpyhha(u128 a, u128 b, u128 t)  { u128 r; for(int i=0;i<4;i++) r._s32[i]=t._s32[i]+(int32_t)a._s16[2*i+1]*(int32_t)b._s16[2*i+1]; return r; }
++static inline u128 spu_mpyhha(u128 a, u128 b, u128 t)  { u128 r; for(int i=0;i<4;i++) r._u32[i]=t._u32[i]+(uint32_t)((int32_t)a._s16[2*i+1]*(int32_t)b._s16[2*i+1]); return r; }
+ static inline u128 spu_mpyhhau(u128 a, u128 b, u128 t) { u128 r; for(int i=0;i<4;i++) r._u32[i]=t._u32[i]+(uint32_t)a._u16[2*i+1]*(uint32_t)b._u16[2*i+1]; return r; }
+ /* double compare greater (RPCS3 stubs these; sane impl) -> per-lane mask. */
+ static inline u128 spu_dfcgt(u128 a, u128 b)  { u128 r; for(int i=0;i<2;i++){ uint64_t m=(spu__dget(a,i)>spu__dget(b,i))?~0ull:0ull; r._u32[i*2]=(uint32_t)(m>>32); r._u32[i*2+1]=(uint32_t)m; } return r; }
