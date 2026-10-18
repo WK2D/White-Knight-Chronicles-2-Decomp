@@ -8,8 +8,8 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 93 SDK patches / 79 Windows checks. The newest town capture
-uses the 93-patch task/byte-operation follow-up; the menu captures use 83 patches. They
+Current source: 94 SDK patches / 80 Windows checks. The newest town captures
+compare polygon offset in the 94-patch candidate; the menu captures use 83 patches. They
 are final Vulkan swapchain readbacks, including window scaling and FXAA.
 The earlier LOD comparison is captured before window scaling. Saving and Continue
 reload work; normal shadow polarity is restored. Foot/Logic Stone flicker,
@@ -20,6 +20,22 @@ Historical entries retain their original test conditions and patch counts.
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-18 - Vulkan polygon offset check
+
+Patch 0094 forwards the game's fill-polygon offset to Vulkan. All 80 Windows
+checks pass in Debug and Release, including synthetic GPU depth readbacks.
+The hidden/muted native candidate reloads Continue and moves in town.
+
+These unmodified final swapchain readbacks come from the same executable and
+camera with requested offset **enabled** (first) and forced **off** (second).
+Idle animation, NPC poses and the rotating stone effect differ between frames.
+The short sequences show no clear flicker reduction; foot/Logic Stone flicker
+remain open. These are correctness-check captures, not an FPS comparison.
+
+![Requested polygon offset enabled](../verification/screenshots/2026-10-18-native-polygon-offset-on.png)
+
+![Polygon offset disabled for comparison](../verification/screenshots/2026-10-18-native-polygon-offset-off.png)
 
 ## 2026-10-18 - Task scheduling and SPU byte-operation checks
 

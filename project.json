@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Task completion and pending-bit updates now share the SPU reservation lock and notify reservation loss; task scans mask ELF flag bits. Byte shifts/rotates use SSSE3 where available with a scalar fallback. 93 SDK patches / 79 passing Windows checks in Debug and Release. Helper microbenchmarks improve; sustained town FPS gain and physical-controller gait remain unverified.",
+    "current_milestone": "Vulkan fill-polygon offset now reaches dynamic draw state. 94 SDK patches / 80 Windows checks in Debug and Release, including synthetic GPU bias direction/reset checks. Hidden/muted Continue reload and town comparison pass; no clear foot/Logic Stone flicker reduction or FPS gain established.",
     "updated": "2026-10-18"
   },
   "native_data_installation_verified": true,
@@ -153,9 +153,9 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 93,
-    "runtime_checks_passed": 79,
-    "town_native_run_sdk_patch_count": 93,
+    "sdk_patch_count": 94,
+    "runtime_checks_passed": 80,
+    "town_native_run_sdk_patch_count": 94,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
     "patch_0042_native_game_run_verified": true,
@@ -226,7 +226,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 93,
+    "runtime_checks_verified_sdk_patch_count": 94,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -253,7 +253,7 @@
     "patch_0074_native_game_run_verified": true,
     "patch_0074_texture_compare_direction_gpu_verified": true,
     "patch_0074_foot_shadow_flicker_fixed_verified": false,
-    "repeat_patch_application_verified_sdk_patch_count": 93,
+    "repeat_patch_application_verified_sdk_patch_count": 94,
     "patch_0075_windows_regression_verified": true,
     "patch_0075_native_interaction_verified": true,
     "patch_0075_save_load_verified": true,
@@ -315,7 +315,12 @@
     "patch_0090_windows_regression_verified": true,
     "patch_0091_windows_regression_verified": true,
     "patch_0092_windows_regression_verified": true,
-    "patch_0093_windows_regression_verified": true
+    "patch_0093_windows_regression_verified": true,
+    "patch_0094_windows_regression_verified": true,
+    "patch_0094_native_game_run_verified": true,
+    "patch_0094_gpu_bias_regression_verified": true,
+    "patch_0094_foot_flicker_fix_verified": false,
+    "patch_0094_logic_stone_flicker_fix_verified": false
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -379,7 +384,7 @@
     "creator_rotation_smoothness_fixed": false,
     "label": "Present/s",
     "label_patch": 70,
-    "current_windows_runtime_checks_passed": 79
+    "current_windows_runtime_checks_passed": 80
   },
   "performance": {
     "record": "verification/performance.json",
@@ -430,8 +435,8 @@
     }
   },
   "current_native_observation": {
-    "sdk_patch_count": 93,
-    "probe": "20261018-201939",
+    "sdk_patch_count": 94,
+    "probe": "20261018-204430",
     "town_reached": true,
     "save_reload_verified": true,
     "short_movement_verified": true,
@@ -439,14 +444,15 @@
     "muted": true,
     "exit_code": 0,
     "sustained_town_fps_gain_verified": false,
-    "shadow_flicker_retested": false,
+    "shadow_flicker_retested": true,
+    "shadow_flicker_fix_verified": false,
     "full_visual_fidelity_verified": false,
-    "scope": "Private diagnostic build; clean playable build separately compiled/tested. Physical controller gait and full gameplay remain unverified."
+    "scope": "Correctness change, not a visual-fix or performance claim. Private diagnostic controls are absent from the public source and clean playable binary."
   },
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling follows frame boundaries with an idle heartbeat. Menu features were verified in earlier native probes; current source adds the task/byte-operation follow-up, with 93 SDK patches and 79 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 94 SDK patches / 80 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -550,5 +556,46 @@
       75,
       76
     ]
+  },
+  "historical_0093_native_observation": {
+    "sdk_patch_count": 93,
+    "probe": "20261018-201939",
+    "town_reached": true,
+    "save_reload_verified": true,
+    "short_movement_verified": true,
+    "hidden": true,
+    "muted": true,
+    "exit_code": 0,
+    "sustained_town_fps_gain_verified": false,
+    "shadow_flicker_retested": false,
+    "full_visual_fidelity_verified": false,
+    "scope": "Private diagnostic build; clean playable build separately compiled/tested. Physical controller gait and full gameplay remain unverified."
+  },
+  "vulkan_polygon_offset": {
+    "sdk_patch": 94,
+    "windows_regression_verified": true,
+    "shared_engine_forwarding_verified": true,
+    "engine_negative_control_failed_as_expected": true,
+    "gpu_negative_control_failed_as_expected": true,
+    "gpu_formats_verified": [
+      "D32_SFLOAT",
+      "D32_SFLOAT_S8_UINT",
+      "D24_UNORM_S8_UINT",
+      "X8_D24_UNORM_PACK32"
+    ],
+    "gpu_scope": "Synthetic planar geometry: baseline depth, signed constant/slope direction and zero reset. Vendor/format selection also checked with a recording entry point. Full RSX precision/range and other hardware remain unverified.",
+    "native_probe": "20261018-204430",
+    "save_reload_verified": true,
+    "hidden": true,
+    "muted": true,
+    "exit_code": 0,
+    "comparison_mode": "Two off/on cycles, four readbacks per mode per cycle, in each of two saved-town camera views; one diagnostic executable with a private switch.",
+    "native_foot_flicker_fix_verified": false,
+    "native_logic_stone_flicker_fix_verified": false,
+    "fps_gain_verified": false,
+    "point_line_offset_implemented": false,
+    "other_backends_implemented": false,
+    "scope": "Correctness change, not a visual-fix or performance claim. Private diagnostic controls are absent from the public source and clean playable binary.",
+    "guest_z16_bias_precision_verified": false
   }
 }

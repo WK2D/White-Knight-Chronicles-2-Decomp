@@ -1,0 +1,269 @@
+diff --git a/libs/video/rsx_dispatch.c b/libs/video/rsx_dispatch.c
+--- a/libs/video/rsx_dispatch.c
++++ b/libs/video/rsx_dispatch.c
+@@ -215,6 +215,8 @@
+     mark_class(rsx, M_COLOR_MASK,        1, RSX_DSP_CLASS_STATE);
+     mark_class(rsx, M_MRT_COLOR_MASK,    1, RSX_DSP_CLASS_STATE);
+     mark_class(rsx, M_DEPTH_FUNC,        3, RSX_DSP_CLASS_STATE); /* ..TEST_ENABLE */
++    mark_class(rsx, 0x0A68,              1, RSX_DSP_CLASS_STATE); /* fill offset enable */
++    mark_class(rsx, 0x0A78,              2, RSX_DSP_CLASS_STATE); /* offset scale/bias */
+     mark_class(rsx, M_CULL_FACE,         1, RSX_DSP_CLASS_STATE);
+     mark_class(rsx, M_FRONT_FACE,        1, RSX_DSP_CLASS_STATE);
+     mark_class(rsx, M_CULL_FACE_ENABLE,  1, RSX_DSP_CLASS_STATE);
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -3089,6 +3089,18 @@
+     /* Dynamic, and deliberately outside the pipeline key. */
+     g.be->set_stencil_ref(g.be->user,
+                           rsx_dsp_reg(&g.rsx, M_STENCIL_FUNC_REF) & 0xFFu);
++
++    if (g.be->set_polygon_offset) {
++        float scale = 0.0f, bias = 0.0f;
++        if (topology >= RSX_TOPOLOGY_TRIANGLES &&
++            (rsx_dsp_reg(&g.rsx, 0x0A68) & 1u)) {
++            const u32 sb = rsx_dsp_reg(&g.rsx, 0x0A78);
++            const u32 bb = rsx_dsp_reg(&g.rsx, 0x0A7C);
++            memcpy(&scale, &sb, sizeof scale);
++            memcpy(&bias, &bb, sizeof bias);
++        }
++        g.be->set_polygon_offset(g.be->user, scale, bias);
++    }
+ 
+     const u32 uploaded = indexed ? dc.n_verts : n_draw;
+     g.be->draw(g.be->user, topology, dc.verts, uploaded, layout.stride,
+diff --git a/libs/video/rsx_draw_engine.h b/libs/video/rsx_draw_engine.h
+--- a/libs/video/rsx_draw_engine.h
++++ b/libs/video/rsx_draw_engine.h
+@@ -241,6 +241,10 @@
+     /* Nonzero only when depth snapshots AND uploaded depth textures support
+      * comparison samplers. Older backends retain their existing HLSL path. */
+     u32 depth_compare;
++    /* Optional dynamic fill-polygon offset. Zero values disable it for the
++     * next draw. Values are RSX floats; the backend handles host depth units.
++     * Point/line offset is not implemented by this callback. */
++    void (*set_polygon_offset)(void* user, float scale, float bias);
+ } rsx_draw_backend;
+ 
+ /* ---- the engine --------------------------------------------------------- */
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -54,6 +54,7 @@
+ #include "rsx_shader_spirv.h"
+ #include "rsx_draw_engine.h"
+ #include "rsx_texture_compare.h"
++#include "rsx_vk_depth_bias.h"
+ #include "vulkan/rsx_vk_fallback_vert.spv.h"
+ #include "vulkan/rsx_vk_fallback_frag.spv.h"
+ 
+@@ -116,7 +117,7 @@
+     X(vkCmdBeginRenderPass) X(vkCmdEndRenderPass) X(vkCmdBindPipeline) \
+     X(vkCmdBindVertexBuffers) X(vkCmdBindDescriptorSets) X(vkCmdPushConstants) \
+     X(vkCmdSetViewport) X(vkCmdSetScissor) X(vkCmdDraw) \
+-    X(vkCmdSetStencilReference) X(vkCmdBindIndexBuffer) X(vkCmdDrawIndexed) \
++    X(vkCmdSetStencilReference) X(vkCmdSetDepthBias) X(vkCmdBindIndexBuffer) X(vkCmdDrawIndexed) \
+     X(vkCreateSemaphore) X(vkDestroySemaphore) X(vkCmdBlitImage) \
+     X(vkCreateComputePipelines) X(vkCmdDispatch)
+ /* Window-system entry points, loaded only when a window was requested, so a
+@@ -179,6 +180,7 @@
+     vk_image         color;           /* R8G8B8A8_UNORM                 */
+     vk_image         depth;           /* D32_SFLOAT or fallback         */
+     VkFormat         depth_format;
++    u32              vendor_id;
+     VkImageAspectFlags depth_aspect;  /* DEPTH, plus STENCIL if it has one  */
+ 
+     VkRenderPass     render_pass;
+@@ -404,6 +406,7 @@
+     /* Vulkan guarantees 4096; the engine's targets and textures may use what
+      * the device really has (a title's 4608-wide target on RADV). */
+     s_vk.max_dim = p.limits.maxImageDimension2D >= 4096u ? p.limits.maxImageDimension2D : 4096u;
++    s_vk.vendor_id = p.vendorID;
+     s_vk.max_sampler_lod_bias = p.limits.maxSamplerLodBias;
+     s_vk.max_anisotropy = p.limits.maxSamplerAnisotropy;
+     VK_LOG("using device %d: %s\n", best, p.deviceName);
+@@ -3497,6 +3500,7 @@
+     u32          sc[4];
+     int          have_vp, have_sc;
+     u32          stencil_ref;
++    float        polygon_offset_scale, polygon_offset_bias;
+     u32          warned;
+     /* The split set layout (vk_eng_split_layout) and its one set, made the
+      * first time a pipeline samples a cube map; the 1x1 cube a cube unit
+@@ -3779,6 +3783,7 @@
+         .frontFace = (rs->front_face == 0x0901u) ? VK_FRONT_FACE_COUNTER_CLOCKWISE
+                                                  : VK_FRONT_FACE_CLOCKWISE,
+         .lineWidth = 1.0f };
++    rsx_vk_depth_bias_pipeline(&ras, (rsx_topology)(topo_idx + 1u));
+     VkPipelineMultisampleStateCreateInfo ms = {
+         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+         .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT };
+@@ -3816,11 +3821,11 @@
+     VkPipelineColorBlendStateCreateInfo cb = {
+         .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+         .attachmentCount = P->rt_count, .pAttachments = cba };
+-    VkDynamicState dyn[3] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR,
+-                              VK_DYNAMIC_STATE_STENCIL_REFERENCE };
++    VkDynamicState dyn[4] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR,
++                              VK_DYNAMIC_STATE_STENCIL_REFERENCE, VK_DYNAMIC_STATE_DEPTH_BIAS };
+     VkPipelineDynamicStateCreateInfo dy = {
+         .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+-        .dynamicStateCount = 3, .pDynamicStates = dyn };
++        .dynamicStateCount = 4, .pDynamicStates = dyn };
+     VkGraphicsPipelineCreateInfo gci = {
+         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+         .stageCount = 2, .pStages = st, .pVertexInputState = &vi, .pInputAssemblyState = &ia,
+@@ -3905,6 +3910,12 @@
+     s_e2.sc[0] = x; s_e2.sc[1] = y; s_e2.sc[2] = w; s_e2.sc[3] = h; s_e2.have_sc = 1;
+ }
+ static void vk_eng_set_stencil_ref(void* user, u32 ref) { (void)user; s_e2.stencil_ref = ref; }
++static void vk_eng_set_polygon_offset(void* user, float scale, float bias)
++{
++    (void)user;
++    s_e2.polygon_offset_scale = scale;
++    s_e2.polygon_offset_bias = bias;
++}
+ 
+ static VkFramebuffer vk_eng_framebuffer(VkRenderPass rp, const u32* rt, u32 n, VkImageView dview,
+                                         u32 dkey, u32 w, u32 h)
+@@ -4237,6 +4248,9 @@
+     pvkCmdSetViewport(s_vk.cmd, 0, 1, &vp);
+     pvkCmdSetScissor(s_vk.cmd, 0, 1, &sc);
+     pvkCmdSetStencilReference(s_vk.cmd, VK_STENCIL_FACE_FRONT_AND_BACK, s_e2.stencil_ref & 0xFFu);
++    rsx_vk_depth_bias_command(pvkCmdSetDepthBias, s_vk.cmd, s_vk.depth_format,
++                              s_vk.vendor_id, s_e2.polygon_offset_scale,
++                              s_e2.polygon_offset_bias);
+     pvkCmdBindDescriptorSets(s_vk.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              P->shadow_mask ? s_e2.shadow_pipe_layout
+                                             : P->cube_mask ? s_e2.split_pipe_layout : s_g.pipe_layout,
+@@ -4276,6 +4290,7 @@
+     .set_viewport         = vk_eng_set_viewport,
+     .set_scissor          = vk_eng_set_scissor,
+     .set_stencil_ref      = vk_eng_set_stencil_ref,
++    .set_polygon_offset   = vk_eng_set_polygon_offset,
+     .draw                 = vk_eng_draw,
+     .clear_color          = vk_eng_clear_color,
+     .clear_depth_stencil  = vk_eng_clear_depth_stencil,
+diff --git a/libs/video/tests/test_rsx_draw_engine.c b/libs/video/tests/test_rsx_draw_engine.c
+--- a/libs/video/tests/test_rsx_draw_engine.c
++++ b/libs/video/tests/test_rsx_draw_engine.c
+@@ -97,6 +97,8 @@
+     rsx_topology draw_topology;
+     u32 scissor[4];
+     u32 stencil_ref;
++    float offset_scale, offset_bias;
++    unsigned offset_calls;
+     u32 last_created_texture, last_created_color;
+     u32 last_released;
+     float last_clear_depth;
+@@ -262,6 +264,8 @@
+ }
+ 
+ static void stub_stencil_ref(void* u, u32 r) { (void)u; stub.stencil_ref = r; }
++static void stub_polygon_offset(void* u, float scale, float bias)
++{ (void)u; stub.offset_scale = scale; stub.offset_bias = bias; stub.offset_calls++; }
+ 
+ static void stub_draw(void* u, rsx_topology topology, const void* verts,
+                       u32 count, u32 stride, const u32* indices,
+@@ -362,6 +366,7 @@
+     .set_viewport = stub_viewport,
+     .set_scissor = stub_scissor,
+     .set_stencil_ref = stub_stencil_ref,
++    .set_polygon_offset = stub_polygon_offset,
+     .draw = stub_draw,
+     .clear_color = stub_clear_color,
+     .clear_depth_stencil = stub_clear_ds,
+@@ -458,6 +463,51 @@
+ 
+ /* ---- 1. the surface set -------------------------------------------------- */
+ 
++static void test_polygon_offset(void)
++{
++    printf("-- dynamic fill polygon offset\n");
++    engine_up();
++    draw_triangle();
++    CHECK(stub.offset_calls == 1 && stub.offset_scale == 0 && stub.offset_bias == 0,
++          "never-written polygon offset is zero");
++    const int pipelines = stub.n_pipeline_create;
++    m(0x0A78, 0xC0800000u); /* -4.0 */
++    m(0x0A7C, 0xC2C80000u); /* -100.0 */
++    draw_triangle();
++    CHECK(stub.offset_scale == 0 && stub.offset_bias == 0,
++          "disabled offset ignores stale nonzero factors");
++    m(0x0A68, 1);
++    draw_triangle();
++    CHECK(stub.offset_scale == -4 && stub.offset_bias == -100,
++          "enabled fill offset reaches backend with float sign/units intact");
++    m(0x0A7C, 0x42C80000u); /* +100 */
++    draw_triangle();
++    CHECK(stub.offset_scale == -4 && stub.offset_bias == 100,
++          "factor changes reach the very next draw");
++    m(M_BEGIN_END, RSX_PRIMITIVE_LINES);
++    m(M_DRAW_ARRAYS, 1u << 24);
++    m(M_BEGIN_END, 0);
++    CHECK(stub.offset_scale == 0 && stub.offset_bias == 0,
++          "fill offset cannot leak into a line draw");
++    draw_triangle();
++    CHECK(stub.offset_scale == -4 && stub.offset_bias == 100,
++          "returning to triangles restores requested factors");
++    m(0x0A68, 0);
++    draw_triangle();
++    CHECK(stub.offset_scale == 0 && stub.offset_bias == 0,
++          "disabling offset resets the next draw");
++    CHECK(stub.n_pipeline_create == pipelines,
++          "dynamic offset changes do not compile extra pipeline objects");
++    engine_down();
++    /* The callback is optional for backends which have not implemented it. */
++    rsx_draw_backend previous = g_stub_backend;
++    previous.set_polygon_offset = NULL;
++    memset(&stub, 0, sizeof stub);
++    rsx_draw_engine_set_backend(&previous);
++    CHECK(rsx_draw_engine_init(1280,720) == 0, "old backend still initializes");
++    engine_down();
++}
++
+ static void test_sampler_lod_bias(void)
+ {
+     printf("-- signed sampler LOD bias\n");
+@@ -1657,6 +1707,7 @@
+         p[0] = 0x3F; p[1] = 0x80; p[2] = 0; p[3] = 0;    /* 1.0f big-endian */
+     }
+ 
++    test_polygon_offset();
+     test_sampler_lod_bias();
+     test_surface_set();
+     test_surface_aliasing();
+diff --git a/libs/video/rsx_vk_depth_bias.h b/libs/video/rsx_vk_depth_bias.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_vk_depth_bias.h
+@@ -0,0 +1,29 @@
++/* Vulkan fill-polygon offset. Core 1.0 dynamic state, no optional features.
++ * RSX scale/bias are floats. D32 uses the host float-depth bias rule.
++ * NVIDIA D24 needs half the constant factor (RPCS3 VKDraw.cpp hardware
++ * observation); keep this adjustment specific to fixed D24 on that vendor.
++ * Other formats/vendors require their own hardware parity validation. */
++#ifndef PS3RECOMP_RSX_VK_DEPTH_BIAS_H
++#define PS3RECOMP_RSX_VK_DEPTH_BIAS_H
++#include <vulkan/vulkan.h>
++#include "rsx_primitives.h"
++
++static inline void rsx_vk_depth_bias_pipeline(
++    VkPipelineRasterizationStateCreateInfo* raster, rsx_topology topology)
++{
++    /* Filled triangle topologies include expanded quads/fans/polygons.
++     * Zero dynamic factors disable the offset without creating pipelines. */
++    raster->depthBiasEnable = topology >= RSX_TOPOLOGY_TRIANGLES &&
++                              topology <= RSX_TOPOLOGY_TRIANGLE_STRIP;
++}
++
++static inline void rsx_vk_depth_bias_command(PFN_vkCmdSetDepthBias command,
++    VkCommandBuffer cmd, VkFormat format, uint32_t vendor,
++    float scale, float bias)
++{
++    if (vendor == 0x10DEu && (format == VK_FORMAT_D24_UNORM_S8_UINT ||
++                             format == VK_FORMAT_X8_D24_UNORM_PACK32))
++        bias *= 0.5f;
++    command(cmd, bias, 0.0f, scale);
++}
++#endif

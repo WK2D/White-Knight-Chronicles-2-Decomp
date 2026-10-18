@@ -2,7 +2,7 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 93 SDK patches / 79 Windows checks in Debug and
+**Current source checkpoint:** 94 SDK patches / 80 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -14,13 +14,49 @@ physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
+## Vulkan polygon offset (patch 0094)
+
+The command-reference review below identified active fill-offset requests which
+never reached Vulkan. The shared engine now forwards their float scale/bias
+through an optional dynamic callback. Disabled fill offset and point/line draws
+send zero, preventing a previous draw's factors leaking into later draws.
+Vulkan enables bias on filled triangle topologies, including expanded quads and
+fans, and records the factors per draw without adding changing values to its
+pipeline cache. Point/line offset and other renderer implementations remain open.
+
+The backend uses the NVIDIA D24 constant-factor adjustment noted below; D32
+factors pass directly. Synthetic GPU depth readbacks pass for D32, D32S8, D24S8
+and X8D24 on the tested device. Positive/negative constant and slope factors
+move depth in the expected direction, and returning to zero restores baseline.
+An independent planar-depth calculation checks the zero-bias result. Host-side
+cases cover vendor/format selection; hardware parity on other GPUs and the full
+RSX depth range remain unverified. Depth attachments still use the backend-selected
+host format; matching guest Z16 bias precision is additional work.
+
+The production engine regression checks forwarding, sign changes, line
+isolation, enable/reset and pipeline reuse. It fails with the prior engine.
+A separate negative control disables raster bias and fails the GPU depth
+readback assertion. All **80 Windows checks** pass in Debug and Release, and
+all 94 patches reconstruct the build SDK and reapply without changes.
+
+The hidden, muted native candidate loaded the verified save, moved away from
+the Logic Stone and changed camera pitch. Two off/on cycles captured four
+frames per mode in each view: one near the stone, one aimed down at Leonard's
+feet. Offset switching used a private control in one process; animation and
+NPC poses differed. The captures show no clear reduction in the reported
+flicker, so neither foot flicker nor Logic Stone light flicker is marked fixed.
+This was a correctness comparison with readbacks and logging, not a performance
+benchmark. The process closed normally with exit code 0. See the
+[unmodified comparison frames](GALLERY.md#2026-10-18---vulkan-polygon-offset-check).
+
 ## RSX command-reference cross-check
 
 Reviewed the [RSX FIFO command reference](https://www.psdevwiki.com/ps3/RSXFIFOCommands)
-against the current 93-patch SDK. This was a source review, with the existing
+against the 93-patch SDK before patch 0094. The table retains that review's
+state; the implementation above supersedes its polygon-offset omission. It used the existing
 18-second saved-town register sample described under
 [texture detail and rendering state](#texture-detail-and-rendering-state-audit-patch-0079);
-no new native run or performance measurement was made for this review.
+no new native run or performance measurement was made for that source review.
 
 | Commands | Current implementation and evidence | Next check |
 |---|---|---|

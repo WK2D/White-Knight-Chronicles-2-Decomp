@@ -635,6 +635,12 @@ if(WKC2_BUILD_TESTS)
     # Synthetic producer handoffs through the actual SDK FIFO walker.
     add_executable(wkc2_gcm_producer_wake_test tests/gcm_producer_wake_test.c)
     if(WIN32 AND PS3RECOMP_RSX_VULKAN)
+        add_executable(wkc2_vk_polygon_offset_gpu_test tests/vk_polygon_offset_gpu_test.cpp)
+        target_include_directories(wkc2_vk_polygon_offset_gpu_test PRIVATE
+            "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_DIR}/include" "${PS3RECOMP_VULKAN_INCLUDE_DIR}")
+        target_link_libraries(wkc2_vk_polygon_offset_gpu_test PRIVATE ps3recomp_runtime)
+        add_test(NAME wkc2_vk_polygon_offset_gpu COMMAND wkc2_vk_polygon_offset_gpu_test)
+        set_tests_properties(wkc2_vk_polygon_offset_gpu PROPERTIES TIMEOUT 30)
         set(SAMPLER_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/sampler-fixture.inc")
         add_custom_command(OUTPUT "${SAMPLER_FIXTURE}"
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_sampler_fixture.py"

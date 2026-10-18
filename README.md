@@ -20,6 +20,9 @@ Task completion now follows SPU reservation locking, and flagged task ELF
 addresses are decoded correctly. Byte shifts/rotates have a tested SIMD path;
 helper microbenchmarks improve, while the town comparison remains mixed. See
 [task scheduling and byte operations](docs/FINDINGS.md#spurs-completion-coherence-and-spu-byte-operations-patches-0091-0093).
+Vulkan now applies the requested fill-polygon offset, with GPU tests for
+constant/slope bias and reset. Saved-town comparisons have not established a
+foot/Logic Stone flicker improvement; see [offset validation](docs/FINDINGS.md#vulkan-polygon-offset-patch-0094).
 Draw distance, fog and removing menu background blur remain pending.
 
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
@@ -57,7 +60,7 @@ Full rendering fidelity, sustained traversal and combat remain unverified.
 - [Progress gallery](docs/GALLERY.md): newest first
 - [Project icon](docs/ICON.md): approved WKCII artwork used by Windows builds
 
-The source stack contains **93 SDK patches** and passes **79 Windows regression
+The source stack contains **94 SDK patches** and passes **80 Windows regression
 checks** in normal Debug and optimized Release. The menus, preferences, Vulkan
 FXAA initialization and save loading have been exercised in native runs; the
 experimental DirectX 12 path also reaches the saved scene and settings menu.

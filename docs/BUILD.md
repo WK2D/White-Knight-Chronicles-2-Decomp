@@ -10,7 +10,7 @@ experimental DirectX 12 selector. Continue loads the verified Logic Stone save.
 See [menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
 and [settings and timing details](#native-graphics-settings-patches-0081-0082).
 
-The current stack contains 93 SDK patches. All 79 Windows checks pass in normal
+The current stack contains 94 SDK patches. All 80 Windows checks pass in normal
 Debug and optimized Release. Suite timings are not game performance. Reapplying
 the complete stack changes no SDK files. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain
@@ -100,7 +100,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 93 numbered SDK patches, and all 79 checks
+The current source stack contains 94 numbered SDK patches, and all 80 checks
 pass in both Windows suites. The latest graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
@@ -1545,3 +1545,29 @@ All 79 Windows checks pass in Debug and Release. A saved-town hidden/muted run
 works and exits normally. The isolated helper benchmark improves, but the
 repeated native comparison is mixed; no sustained game FPS gain is claimed.
 See [measurement scope](FINDINGS.md#spurs-completion-coherence-and-spu-byte-operations-patches-0091-0093).
+
+## Vulkan polygon offset (patch 0094)
+
+The shared engine now decodes fill enable `0x0A68`, float scale `0x0A78` and
+float bias `0x0A7C`, and forwards zero factors whenever fill offset is disabled
+or the primitive is a point/line. An optional backend callback preserves older
+backends. Vulkan enables bias for filled triangle topologies and records core
+`vkCmdSetDepthBias` on each draw. Dynamic factors stay outside pipeline keys.
+NVIDIA fixed D24 targets halve the constant factor; D32 is passed directly.
+Point/line offset and the D3D12/Metal paths remain unimplemented.
+
+The extended `wkc2_draw_engine` regression checks forwarding, changing signs,
+disabling/re-enabling, line isolation and pipeline reuse. The new
+`wkc2_vk_polygon_offset_gpu` creates no window and uses synthetic vertex shaders
+and GPU depth readbacks. It checks constant/slope bias direction and zero reset
+on supported D32/D32S8/D24S8/X8D24 formats, plus host-side vendor/format selection.
+The prior engine fails the forwarding regression. Disabling raster bias makes
+the GPU readback regression fail. These checks do not establish RSX parity at
+every depth/slope or on other vendors. Guest Z16 bias precision also needs
+validation against the backend-selected host depth format.
+
+All 80 Windows checks pass in Debug and Release. A hidden/muted native candidate
+reloads Continue, moves in town and switches offset off/on in one process.
+The short frame sequences do not establish a flicker reduction or FPS gain.
+See [findings](FINDINGS.md#vulkan-polygon-offset-patch-0094) and
+[the comparison captures](GALLERY.md#2026-10-18---vulkan-polygon-offset-check).

@@ -4,10 +4,10 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-18",
-    "native_probe": "20261018-201939",
-    "sdk_patch_count": 93,
-    "summary": "Task completion and pending-bit updates now share the SPU reservation lock and notify reservation loss; task scans mask ELF flag bits. Byte shifts/rotates use SSSE3 where available with a scalar fallback. 93 SDK patches / 79 passing Windows checks in Debug and Release. Helper microbenchmarks improve; sustained town FPS gain and physical-controller gait remain unverified.",
-    "gallery_image": "screenshots/2026-10-18-native-task-byte-check.png",
+    "native_probe": "20261018-204430",
+    "sdk_patch_count": 94,
+    "summary": "Vulkan fill-polygon offset now reaches dynamic draw state. 94 SDK patches / 80 Windows checks in Debug and Release, including synthetic GPU bias direction/reset checks. Hidden/muted Continue reload and town comparison pass; no clear foot/Logic Stone flicker reduction or FPS gain established.",
+    "gallery_image": "screenshots/2026-10-18-native-polygon-offset-on.png",
     "remaining_limits": [
       "Town performance remains below the 30 fps target",
       "Black foot flicker and rotating Logic Stone light flicker remain open",
@@ -66,6 +66,20 @@
     "window_close_title_and_saved_town_settings": true
   },
   "captures": [
+    {
+      "file": "screenshots/2026-10-18-native-polygon-offset-on.png",
+      "private_source_probe": "20261018-204430/feet-on-1792352976295306100.ppm",
+      "sha256": "4cee7d8ae80bbe5a595edd9e0395b64ae0c39271416413ab39cf173fcc615cd9",
+      "source_ppm_sha256": "be61b4209f7d418697943b780edb1b1ccaf388b94d51edabd003bcd63f4da979",
+      "scope": "Unmodified final swapchain pixels from hidden/muted saved-town candidate with polygon offset on; same process/camera, different animation poses. No clear flicker reduction or FPS gain established."
+    },
+    {
+      "file": "screenshots/2026-10-18-native-polygon-offset-off.png",
+      "private_source_probe": "20261018-204430/feet-off-1792352972439421900.ppm",
+      "sha256": "ab1c7bd69d590c3cebe2f085424d8355078dd67d8f2149614997dfc589447a1d",
+      "source_ppm_sha256": "2202645b136c8131917352dc90ed4c55dce4b8cc30bb241bdba2d236dee7dde2",
+      "scope": "Unmodified final swapchain pixels from hidden/muted saved-town candidate with polygon offset off; same process/camera, different animation poses. No clear flicker reduction or FPS gain established."
+    },
     {
       "file": "screenshots/2026-10-18-native-task-byte-check.png",
       "sha256": "138371ab54f7c62369bdd43f7762f33d0c06277d728c279520b79c4e8d4b5515",
@@ -284,19 +298,20 @@
       "wkc2_ppu_thread_lifetime",
       "wkc2_spu_async_lifetime",
       "wkc2_lfqueue",
-      "wkc2_event_queue"
+      "wkc2_event_queue",
+      "wkc2_vk_polygon_offset_gpu"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 93,
-    "last_verified_sdk_patch_count": 93,
-    "current_passed_count": 79,
-    "record_scope": "Task completion and pending-bit updates now share the SPU reservation lock and notify reservation loss; task scans mask ELF flag bits. Byte shifts/rotates use SSSE3 where available with a scalar fallback. 93 SDK patches / 79 passing Windows checks in Debug and Release. Helper microbenchmarks improve; sustained town FPS gain and physical-controller gait remain unverified.",
-    "normal_debug_elapsed_seconds": 11.11,
-    "optimized_release_elapsed_seconds": 10.79,
+    "current_sdk_patch_count": 94,
+    "last_verified_sdk_patch_count": 94,
+    "current_passed_count": 80,
+    "record_scope": "Vulkan fill-polygon offset now reaches dynamic draw state. 94 SDK patches / 80 Windows checks in Debug and Release, including synthetic GPU bias direction/reset checks. Hidden/muted Continue reload and town comparison pass; no clear foot/Logic Stone flicker reduction or FPS gain established.",
+    "normal_debug_elapsed_seconds": 11.03,
+    "optimized_release_elapsed_seconds": 11.05,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 84
+    "repeat_patch_application_verified_sdk_patch_count": 94
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2716,7 +2731,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling follows frame boundaries with an idle heartbeat. Menu features were verified in earlier native probes; current source adds the task/byte-operation follow-up, with 93 SDK patches and 79 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 94 SDK patches / 80 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -2831,5 +2846,32 @@
     "sustained_town_fps_gain_verified": false,
     "floating_point_helpers_changed": false,
     "ARM_execution_verified": false
+  },
+  "vulkan_polygon_offset": {
+    "sdk_patch": 94,
+    "windows_regression_verified": true,
+    "shared_engine_forwarding_verified": true,
+    "engine_negative_control_failed_as_expected": true,
+    "gpu_negative_control_failed_as_expected": true,
+    "gpu_formats_verified": [
+      "D32_SFLOAT",
+      "D32_SFLOAT_S8_UINT",
+      "D24_UNORM_S8_UINT",
+      "X8_D24_UNORM_PACK32"
+    ],
+    "gpu_scope": "Synthetic planar geometry: baseline depth, signed constant/slope direction and zero reset. Vendor/format selection also checked with a recording entry point. Full RSX precision/range and other hardware remain unverified.",
+    "native_probe": "20261018-204430",
+    "save_reload_verified": true,
+    "hidden": true,
+    "muted": true,
+    "exit_code": 0,
+    "comparison_mode": "Two off/on cycles, four readbacks per mode per cycle, in each of two saved-town camera views; one diagnostic executable with a private switch.",
+    "native_foot_flicker_fix_verified": false,
+    "native_logic_stone_flicker_fix_verified": false,
+    "fps_gain_verified": false,
+    "point_line_offset_implemented": false,
+    "other_backends_implemented": false,
+    "scope": "Correctness change, not a visual-fix or performance claim. Private diagnostic controls are absent from the public source and clean playable binary.",
+    "guest_z16_bias_precision_verified": false
   }
 }
