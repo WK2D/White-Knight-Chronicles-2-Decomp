@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Patch 0076 improves Vulkan batch scheduling; the saved-town one-minute samples average 27.18 presentations/s before and 28.03 after. All 64 Windows checks pass in Debug and Release. A locked 30 fps remains unverified.",
+    "current_milestone": "Patch 0077 preserves the current town checkpoint and adds an optional Windows frame timeline. All 65 Windows checks pass in Debug and Release. Movement remains uneven; locked 30 fps and a controlled improvement over patch 0076 are unverified.",
     "updated": "2026-10-18"
   },
   "native_data_installation_verified": true,
@@ -153,8 +153,8 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 76,
-    "runtime_checks_passed": 64,
+    "sdk_patch_count": 77,
+    "runtime_checks_passed": 65,
     "town_native_run_sdk_patch_count": 76,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
@@ -226,7 +226,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 76,
+    "runtime_checks_verified_sdk_patch_count": 77,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -236,8 +236,8 @@
       "GCM_SEMA_ACQUIRE": "1",
       "RSX_ENGINE_ZTEX_GPU": "1"
     },
-    "normal_debug_checks_elapsed_seconds": 25.31,
-    "optimized_release_checks_elapsed_seconds": 22.91,
+    "normal_debug_checks_elapsed_seconds": 12.62,
+    "optimized_release_checks_elapsed_seconds": 12.7,
     "repeat_patch_application_files_changed": 0,
     "patch_0071_windows_regression_verified": true,
     "patch_0072_windows_regression_verified": true,
@@ -253,7 +253,7 @@
     "patch_0074_native_game_run_verified": true,
     "patch_0074_texture_compare_direction_gpu_verified": true,
     "patch_0074_foot_shadow_flicker_fixed_verified": false,
-    "repeat_patch_application_verified_sdk_patch_count": 76,
+    "repeat_patch_application_verified_sdk_patch_count": 77,
     "patch_0075_windows_regression_verified": true,
     "patch_0075_native_interaction_verified": true,
     "patch_0075_save_load_verified": true,
@@ -265,12 +265,18 @@
       "presentations_per_second_establishes_game_speed": false,
       "proximity_target_highlighting_scope": "Logic Stone retested; wider NPC/object interactions need coverage.",
       "visibility_sample_counts_measured_by_gpu": false,
-      "visibility_report_scope": "Conservative visible ZPASS fallback; the callback route and Logic Stone interaction are verified, not accurate GPU occlusion."
+      "visibility_report_scope": "Conservative visible ZPASS fallback; the callback route and Logic Stone interaction are verified, not accurate GPU occlusion.",
+      "town_movement_still_laggy": true,
+      "latest_subjective_feedback": "Slightly smoother but still bad",
+      "controlled_speed_gain_over_patch_0076_verified": false
     },
     "patch_0076_windows_regression_verified": true,
     "patch_0076_native_game_run_verified": true,
     "patch_0076_pool_transition_regression_verified": true,
-    "patch_0076_batch_submission_wait_reduced_verified": true
+    "patch_0076_batch_submission_wait_reduced_verified": true,
+    "patch_0077_windows_regression_verified": true,
+    "patch_0077_native_game_run_verified": false,
+    "patch_0077_native_scope": "Private diagnostic precursor executed in town and captured a ten-second trace with no dropped records; portable publication form passes both Windows suites but has not had a separate native run."
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",

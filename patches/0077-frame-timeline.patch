@@ -1,0 +1,295 @@
+diff --git a/runtime/ppu/ppu_loader.cpp b/runtime/ppu/ppu_loader.cpp
+--- a/runtime/ppu/ppu_loader.cpp
++++ b/runtime/ppu/ppu_loader.cpp
+@@ -1,3 +1,4 @@
++#include "ps3emu/wkc_frame_trace.h"
+ /*
+  * ps3recomp - PPU runtime loader
+  *
+@@ -3047,10 +3048,11 @@
+      * through ps3_hle_call) and a stale CTR, so without this a wedged thread is
+      * just "somewhere in ntdll". Cleared on every exit path by the guard. */
+     struct _ScGuard {
+-        ppu_context* c;
++        ppu_context* c; uint64_t start; uint32_t num,lr;
+         ~_ScGuard() { unsigned t = (unsigned)c->thread_id;
+-                      if (t < PS3_SC_INFLIGHT_MAX) g_sc_inflight[t] = 0; }
+-    } _sg{ ctx };
++                      if (t < PS3_SC_INFLIGHT_MAX) g_sc_inflight[t] = 0;
++                      wt_end(WT_SYSCALL,num,lr,start); }
++    } _sg{ ctx,wt_begin(),(uint32_t)num,(uint32_t)ctx->lr };
+     { unsigned t = (unsigned)ctx->thread_id;
+       if (t < PS3_SC_INFLIGHT_MAX) g_sc_inflight[t] = (uint32_t)num; }
+     /* Guest-PC breadcrumb for the sampling profiler: record the syscall
+diff --git a/runtime/ppu/ppu_hle.cpp b/runtime/ppu/ppu_hle.cpp
+--- a/runtime/ppu/ppu_hle.cpp
++++ b/runtime/ppu/ppu_hle.cpp
+@@ -1,3 +1,4 @@
++#include "ps3emu/wkc_frame_trace.h"
+ /*
+  * ps3recomp - PPU HLE bridge (NID -> host function dispatch)
+  *
+@@ -181,6 +182,11 @@
+ extern "C" uint32_t ppu_prof_resolve_host(void* ra);
+ extern "C" void ps3_hle_call(uint32_t nid, ppu_context* ctx)
+ {
++    struct PrivateHleTiming {
++        uint64_t t0;uint32_t nid,lr;
++        ~PrivateHleTiming(){wt_end(WT_HLE,nid,lr,t0);}
++    } private_hle_timing{wt_begin(),nid,ctx ? (uint32_t)ctx->lr : 0};
++
+     /* HLE_BT_EVERY=<n>: dump the calling thread's guest stack every nth HLE
+      * call it makes. WAITBT_EVERY only samples threads that are blocking on an
+      * event queue, which misses a thread that stops looping while it is BUSY --
+diff --git a/runtime/spu/spu_channels.c b/runtime/spu/spu_channels.c
+--- a/runtime/spu/spu_channels.c
++++ b/runtime/spu/spu_channels.c
+@@ -1,3 +1,4 @@
++#include "ps3emu/wkc_frame_trace.h"
+ /*
+  * ps3recomp - SPU channel + indirect-branch runtime glue
+  *
+@@ -203,6 +204,8 @@
+  * (via spu_halt), 0 if it returned normally. */
+ int spu_run_with_halt(void (*entry)(spu_context*), spu_context* ctx)
+ {
++    const uint64_t trace_start=wt_begin();
++    const unsigned trace_image=ctx->image_id, trace_entry=ctx->pc;
+     int halted = 0;
+     /* Job-args probe: image-1 (the WWS job binary) entries arrive at the crt
+      * with r3/r4 zeroed in SOME runs while the jm2 runner sets them -- count
+@@ -277,6 +280,7 @@
+     yz_lockstep_unregister(ctx);   /* leave the ring; hand the token onward */
+     s_spu_halt_armed = outer_armed;
+     if (outer_armed) memcpy(s_spu_halt_env, outer_env, sizeof(jmp_buf));
++    wt_end(WT_SPU_RUN,trace_image,trace_entry,trace_start);
+     return halted;
+ }
+ 
+@@ -928,6 +932,7 @@
+ static void spu_ch_wait(spu_context* ctx, uint32_t channel, const char* op)
+ {
+     if (!yz_ch_block() || spu_ch_ready(ctx, channel)) return;
++    const uint64_t trace_wait=wt_begin();
+ 
+     { static unsigned long bn = 0; unsigned long n = ++bn;
+       if (n <= 50 || (n % 512) == 0)
+@@ -957,6 +962,7 @@
+         }
+     }
+     yz_lockstep_block_end(ctx);            /* rejoin the rotation, reacquire the token */
++    wt_end(WT_SPU_WAIT,channel,ctx->pc,trace_wait);
+     ctx->status = SPU_STATUS_RUNNING;
+ }
+ 
+diff --git a/libs/video/cellGcmSys.c b/libs/video/cellGcmSys.c
+--- a/libs/video/cellGcmSys.c
++++ b/libs/video/cellGcmSys.c
+@@ -1,3 +1,4 @@
++#include "ps3emu/wkc_frame_trace.h"
+ /*
+  * ps3recomp - cellGcmSys HLE module implementation
+  *
+@@ -1927,11 +1928,14 @@
+     }
+ }
+ 
++static uint64_t private_sema_start;
+ void cellGcm_rsx_process_fifo(void)
+ {
++    uint64_t trace_start=wt_begin();
+     AcquireSRWLockExclusive(&s_gcm_fifo_lock);
+     gcm_rsx_process_fifo_unlocked();
+     ReleaseSRWLockExclusive(&s_gcm_fifo_lock);
++    wt_end(WT_DRAIN,0,0,trace_start);
+ }
+ 
+ /* Optional host-only FIFO observations. Published GET updates at the end of
+@@ -2264,6 +2268,9 @@
+                     u32 la = GCM_LABEL_GUEST_BASE + (s_sema_offset & 0xFFFFu);
+                     { static int sn = 0; if (getenv("GCM_RECDBG") && sn++ < 12)
+                         fprintf(stderr, "[SEMA] m=0x%02X v=0x%08X off=0x%X\n", m, v, s_sema_offset); }
++                    if (m == 0x68u && private_sema_start && vm_read32(la) == v) {
++                        wt_end(11,s_sema_offset,v,private_sema_start);private_sema_start=0;
++                    }
+                     if (m == 0x64u)      s_sema_offset = v;
+                     else if (m == 0x6Cu) vm_write32(la, v);
+                     else if (m == 0x68u && vm_read32(la) != v) {
+@@ -2273,7 +2280,7 @@
+              * its own is the half that unblocks a waiting guest. */
+             static int blk = -1;
+             if (blk < 0) { const char* e = getenv("GCM_SEMA_ACQUIRE"); blk = e ? atoi(e) : 0; }
+-            if (blk) { sem_blocked = 1; break; }
++            if (blk) { if(!private_sema_start)private_sema_start=wt_begin(); sem_blocked = 1; break; }
+         }
+                 }
+                 if (sem_blocked) { why = "semaphore-wait"; break; }
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -1,3 +1,4 @@
++#include "ps3emu/wkc_frame_trace.h"
+ /*
+  * ps3recomp - Vulkan RSX Backend. See rsx_vulkan_backend.h.
+  *
+@@ -521,6 +522,11 @@
+     return 0;
+ }
+ 
++static VkResult wt_vk_wait(VkDevice device,uint32_t count,const VkFence* fences,VkBool32 all,uint64_t timeout) {
++    uint64_t start=wt_begin();
++    VkResult result=pvkWaitForFences(device,count,fences,all,timeout);
++    wt_end(WT_GPU_WAIT,count,0,start);return result;
++}
+ static int vk_submit_and_wait(void)
+ {
+     VK_CHECK(pvkEndCommandBuffer(s_vk.cmd), "vkEndCommandBuffer");
+@@ -528,7 +534,7 @@
+                         .commandBufferCount = 1, .pCommandBuffers = &s_vk.cmd };
+     VK_CHECK(pvkResetFences(s_vk.device, 1, &s_vk.fence), "vkResetFences");
+     VK_CHECK(pvkQueueSubmit(s_vk.queue, 1, &si, s_vk.fence), "vkQueueSubmit");
+-    VK_CHECK(pvkWaitForFences(s_vk.device, 1, &s_vk.fence, VK_TRUE, UINT64_MAX), "vkWaitForFences");
++    VK_CHECK(wt_vk_wait(s_vk.device, 1, &s_vk.fence, VK_TRUE, UINT64_MAX), "vkWaitForFences");
+     return 0;
+ }
+ 
+@@ -2053,7 +2059,7 @@
+         if (timed < 0) timed = getenv("RSX_ENGINE_PRESENT_LOG") != NULL;
+         struct timespec t0, t1;
+         if (timed) timespec_get(&t0, TIME_UTC);
+-        pvkWaitForFences(s_vk.device, 1, &s_vk.fence, VK_TRUE, UINT64_MAX);
++        wt_vk_wait(s_vk.device, 1, &s_vk.fence, VK_TRUE, UINT64_MAX);
+         if (timed) {
+             timespec_get(&t1, TIME_UTC);
+             acc_ms += (t1.tv_sec - t0.tv_sec) * 1000.0 + (t1.tv_nsec - t0.tv_nsec) / 1e6;
+@@ -2292,7 +2298,7 @@
+ static void vk_slot_drain(void)
+ {
+     if (!s_spare.pending) return;
+-    pvkWaitForFences(s_vk.device, 1, &s_spare.fence, VK_TRUE, UINT64_MAX);
++    wt_vk_wait(s_vk.device, 1, &s_spare.fence, VK_TRUE, UINT64_MAX);
+     s_spare.pending = 0;
+     vk_slot_swap();
+     vk_batch_retire();
+@@ -2324,7 +2330,7 @@
+     VK_CHECK(pvkResetFences(s_vk.device, 1, &s_vk.fence), "vkResetFences");
+     VK_CHECK(pvkQueueSubmit(s_vk.queue, 1, &si, s_vk.fence), "vkQueueSubmit");
+     if (s_spare.pending)
+-        pvkWaitForFences(s_vk.device, 1, &s_spare.fence, VK_TRUE, UINT64_MAX);
++        wt_vk_wait(s_vk.device, 1, &s_spare.fence, VK_TRUE, UINT64_MAX);
+     vk_slot_swap();             /* recording goes on in the finished slot */
+     s_spare.pending = 1;
+     vk_batch_retire();
+@@ -2563,8 +2569,10 @@
+ 
+ static void vk_eng_submit_and_wait(void* user, u32 reason)
+ {
+-    (void)user; (void)reason;      /* everything else is waited on; only a batch of draws can be pending */
++    (void)user;
++    const uint64_t trace_flush=wt_begin();
+     vk_batch_flush();
++    wt_end(WT_FLUSH,reason,0,trace_flush);
+ }
+ 
+ static u32 vk_eng_color_target_create(void* user, rsx_be_format fmt, u32 w, u32 h,
+diff --git a/include/ps3emu/wkc_frame_trace.h b/include/ps3emu/wkc_frame_trace.h
+new file mode 100644
+--- /dev/null
++++ b/include/ps3emu/wkc_frame_trace.h
+@@ -0,0 +1,96 @@
++/* Optional WKC frame timeline. Records host timing and IDs, never game bytes.
++ * The frame-clock thread alone starts/stops/dumps. Workers publish only while
++ * recording; the clock closes admission and waits for active publishers before
++ * reading records. No allocations or file I/O occur on recording workers. */
++#ifndef WKC_FRAME_TRACE_H
++#define WKC_FRAME_TRACE_H
++#include <stdint.h>
++#ifdef _WIN32
++#include <windows.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#ifdef __cplusplus
++extern "C" {
++#endif
++enum { WT_DRAIN=1,WT_PRESENT,WT_FRAME_WAIT,WT_SPU_RUN,WT_SPU_WAIT,
++       WT_SYSCALL,WT_HLE,WT_GPU_WAIT,WT_READBACK,WT_FLUSH };
++typedef struct { uint64_t t0,t1; uint32_t kind,tid,a,b; } wt_record;
++typedef struct {
++    volatile LONG on,writers,n,dropped;
++    uint64_t base,end,frequency;
++    wt_record* records;
++    unsigned cap;
++} wt_shared;
++__declspec(selectany) wt_shared g_wkc_private_trace = {0};
++static inline uint64_t wt_now(void) { LARGE_INTEGER c; QueryPerformanceCounter(&c);return (uint64_t)c.QuadPart; }
++static inline uint64_t wt_begin(void) {
++    return __atomic_load_n(&g_wkc_private_trace.on,__ATOMIC_ACQUIRE)==1 ? wt_now() : 0;
++}
++static inline void wt_end(unsigned kind,unsigned a,unsigned b,uint64_t t0) {
++    if(!t0)return;
++    wt_shared* s=&g_wkc_private_trace;
++    const uint64_t t1=wt_now();
++    /* Discard sub-20-us calls before claiming a ring slot: very short syscall
++     * probes occur hundreds of thousands of times a second in this title. */
++    if((kind==WT_SYSCALL || kind==WT_HLE) && t1-t0<s->frequency/50000)return;
++    InterlockedIncrement(&s->writers);
++    if(__atomic_load_n(&s->on,__ATOMIC_ACQUIRE)==1) {
++        if(t0>=s->base && t0<s->end) {
++            LONG i=InterlockedIncrement(&s->n)-1;
++            if((unsigned)i<s->cap) {
++                wt_record r={t0,t1,kind,GetCurrentThreadId(),a,b};s->records[i]=r;
++            } else InterlockedIncrement(&s->dropped);
++        }
++    }
++    InterlockedDecrement(&s->writers);
++}
++static inline void wt_tick(void) {
++    static int initialized,finished;
++    static const char *gate,*output;
++    static uint64_t next_check;
++    wt_shared* s=&g_wkc_private_trace;
++    if(!initialized) {
++        initialized=1;gate=getenv("WKC_TRACE_GATE");output=getenv("WKC_TRACE_OUT");
++        if(!gate||!output){finished=1;return;}
++        LARGE_INTEGER f;QueryPerformanceFrequency(&f);s->frequency=f.QuadPart;
++        s->cap=2000000;s->records=(wt_record*)calloc(s->cap,sizeof(wt_record));
++        if(!s->records){finished=1;return;}
++    }
++    if(finished)return;
++    uint64_t now=wt_now();
++    if(!s->on && now>=next_check) {
++        next_check=now+s->frequency/10;
++        if(GetFileAttributesA(gate)!=INVALID_FILE_ATTRIBUTES) {
++            s->base=now;s->end=now+s->frequency*10;
++            __atomic_store_n(&s->on,1,__ATOMIC_RELEASE);
++        }
++    }
++    if(s->on==1 && now>=s->end) {
++        __atomic_store_n(&s->on,2,__ATOMIC_RELEASE);
++        while(InterlockedCompareExchange(&s->writers,0,0))Sleep(0);
++        FILE* f=fopen(output,"wb");
++        if(f) {
++            fprintf(f,"# private WKC timeline: kind tid a b start_us end_us; dropped=%ld\n",s->dropped);
++            unsigned n=(unsigned)s->n;if(n>s->cap)n=s->cap;
++            for(unsigned i=0;i<n;i++) {
++                const wt_record* r=&s->records[i];
++                fprintf(f,"%u %u %u %u %.3f %.3f\n",r->kind,r->tid,r->a,r->b,
++                    (r->t0-s->base)*1e6/s->frequency,(r->t1-s->base)*1e6/s->frequency);
++            }
++            fclose(f);
++        }
++        finished=1;
++    }
++}
++#ifdef __cplusplus
++}
++#endif
++#else
++enum { WT_DRAIN=1,WT_PRESENT,WT_FRAME_WAIT,WT_SPU_RUN,WT_SPU_WAIT,
++       WT_SYSCALL,WT_HLE,WT_GPU_WAIT,WT_READBACK,WT_FLUSH };
++static inline uint64_t wt_begin(void) { return 0; }
++static inline void wt_end(unsigned k,unsigned a,unsigned b,uint64_t t) { (void)k;(void)a;(void)b;(void)t; }
++static inline void wt_tick(void) {}
++#endif /* _WIN32: other hosts have no diagnostic hooks yet */
++#endif

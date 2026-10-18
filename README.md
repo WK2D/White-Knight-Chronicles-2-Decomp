@@ -40,8 +40,9 @@ Full rendering fidelity, sustained traversal and combat remain unverified.
 - [Progress gallery](docs/GALLERY.md): newest first
 - [Project icon](docs/ICON.md): approved WKCII artwork used by Windows builds
 
-The source stack contains **76 SDK patches** and passes **64 Windows regression
-checks** in normal Debug and optimized Release. Patch 0076 fixes descriptor-pool
+The source stack contains **77 SDK patches** and passes **65 Windows regression
+checks** in normal Debug and optimized Release. Patch 0077 adds an optional Windows
+frame timeline; movement remains uneven, and a controlled speed gain is unverified. Patch 0076 fixes descriptor-pool
 submission churn and feeds small batches to the GPU when the spare slot is ready.
 It keeps the game's two-vblank pacing and the unchanged **Present/s** counter.
 The counter counts accepted presentations, including repeated animation states.
@@ -108,7 +109,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **64 Windows runtime regression checks** with **76 SDK patches** applied.
+- passes **65 Windows runtime regression checks** with **77 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are

@@ -2,12 +2,42 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Latest verified milestone:** Patch 0076 improves Vulkan batch scheduling; the saved-town one-minute samples average 27.18 presentations/s before and 28.03 after. All 64 Windows checks pass in Debug and Release. A locked 30 fps remains unverified.
+**Current source checkpoint:** Patch 0077 preserves the current town checkpoint and adds an optional Windows frame timeline. All 65 Windows checks pass in Debug and Release. Movement remains uneven; locked 30 fps and a controlled improvement over patch 0076 are unverified. The latest gallery image remains the patch-0076 capture.
 Normal shadow polarity and the starting-town Logic Stone save/reload work.
 Black foot flicker, rotating Logic Stone light flicker, analogue walk/run
 inconsistency and broader game-speed fidelity remain open. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
+
+## Frame timeline checkpoint (patch 0077)
+
+The current player report is "slightly smoother but still bad". This is a
+checkpoint, not a demonstrated speed fix. The earlier near-30 stationary view
+faced the Logic Stone and hid NPCs; it cannot rank movement or busy-town
+performance. Both earlier and later candidates stutter during traversal.
+
+The private diagnostic precursor captured ten seconds with 1,146,981 timing
+records and none dropped. A first capture overflowed and is excluded. Recording
+adds CPU work, and the captured camera is not a matched traversal benchmark.
+Many recorded presentation intervals alternate around 17 and 50 ms; this is a
+lead to confirm with recording disabled, not proof of the player's exact cadence.
+SPU entry spans are wall time and can include waits; they do not equal CPU time.
+
+Patch 0077 adds opt-in Windows timing for imports, syscalls, SPU entries/channel
+waits, FIFO drains/semaphore waits, presentation, Vulkan fences and flush reasons.
+Its concurrent synthetic test checks 80,000 complete records from eight writers;
+all 65 Windows checks pass in Debug and Release. The portable publication form
+has not had a separate native run. The observed rendering/math remains the
+patch-0076 baseline. Foot-shadow and Logic Stone flicker remain open.
+
+The frame-dependency approach follows an inspected
+[inFAMOUS 2 performance report](https://github.com/sp00nznet/ps3recomp/issues/345)
+and its [tracer proposal](https://github.com/sp00nznet/ps3recomp/pull/339).
+The Windows recorder here is independently implemented for this port. Our
+renderer already skips unused texture units, so that report's unused-depth-unit
+fix is not missing here. Its general vertex-span PR 357 passed a private Windows
+fixture but is not integrated into this checkpoint. Its game-specific lighting
+and SSAO replacements are not substitutes for WKC's geometry work.
 
 ## Vulkan batch scheduling (patch 0076)
 

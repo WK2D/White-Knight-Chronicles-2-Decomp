@@ -355,6 +355,13 @@ if(WKC2_BUILD_TESTS)
         "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
     add_test(NAME wkc2_vertex_fetch COMMAND wkc2_vertex_fetch_test)
     set_tests_properties(wkc2_vertex_fetch PROPERTIES TIMEOUT 10)
+    if(WIN32)
+        add_executable(wkc2_frame_timeline_test tests/frame_timeline_test.c)
+        target_include_directories(wkc2_frame_timeline_test PRIVATE "${PS3RECOMP_DIR}/include")
+        add_test(NAME wkc2_frame_timeline COMMAND wkc2_frame_timeline_test
+            "${CMAKE_BINARY_DIR}/timeline-fixture.gate" "${CMAKE_BINARY_DIR}/timeline-fixture.trace")
+        set_tests_properties(wkc2_frame_timeline PROPERTIES TIMEOUT 15)
+    endif()
     set(SPU_FP_FIXTURE "${CMAKE_BINARY_DIR}/spu-fp-fixture/spu_fp_vectors.h")
     add_custom_command(OUTPUT "${SPU_FP_FIXTURE}"
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spu_fp_fixture.py" "${SPU_FP_FIXTURE}"

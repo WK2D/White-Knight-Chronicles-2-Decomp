@@ -184,19 +184,20 @@
       "wkc2_gcm_flip_completion",
       "wkc2_spu_async_lifetime",
       "wkc2_shadow_compare",
-      "wkc2_vk_arena_reserve"
+      "wkc2_vk_arena_reserve",
+      "wkc2_frame_timeline"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 76,
-    "last_verified_sdk_patch_count": 76,
-    "current_passed_count": 64,
-    "record_scope": "Patch 0076 improves Vulkan batch scheduling; the saved-town one-minute samples average 27.18 presentations/s before and 28.03 after. All 64 Windows checks pass in Debug and Release. A locked 30 fps remains unverified. Reapplication changes no SDK files. Earlier named records retain their original patch counts.",
-    "normal_debug_elapsed_seconds": 25.31,
-    "optimized_release_elapsed_seconds": 22.91,
+    "current_sdk_patch_count": 77,
+    "last_verified_sdk_patch_count": 77,
+    "current_passed_count": 65,
+    "record_scope": "Patch 0077 preserves the current town checkpoint and adds an optional Windows frame timeline. All 65 Windows checks pass in Debug and Release. Movement remains uneven; locked 30 fps and a controlled improvement over patch 0076 are unverified. Earlier captures keep their original patch counts.",
+    "normal_debug_elapsed_seconds": 12.62,
+    "optimized_release_elapsed_seconds": 12.7,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 76
+    "repeat_patch_application_verified_sdk_patch_count": 77
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -1450,7 +1451,7 @@
     "native_game_run_verified": true,
     "native_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
   },
-  "record_scope": "Current status is summarized in current_milestone, verified, checks, cpu_execution and current_spu_input_reproduction; vulkan_batch_scheduling records patch 0076 and gcm_user_command_delivery records patch 0075. Other named probes and milestone_history retain their historical counts, failures and validation limits. Gallery entries retain their original capture provenance.",
+  "record_scope": "Current source checks are summarized in checks and frame_timeline_checkpoint. current_milestone retains the patch-0076 gallery capture provenance. Other probes and milestone_history keep their historical counts and limits.",
   "host_runtime_review": {
     "audio_error_end_restart_regression_passed": true,
     "old_audio_implementation_fails_regression": true,
@@ -2529,5 +2530,20 @@
     "new_reservation_regression_passes": true,
     "native_probe": "20261018-074333",
     "performance_record": "performance.json"
+  },
+  "frame_timeline_checkpoint": {
+    "date": "2026-10-18",
+    "sdk_patch_count": 77,
+    "windows_regression_checks": 65,
+    "concurrent_synthetic_records_verified": 80000,
+    "synthetic_threads": 8,
+    "private_precursor_trace_seconds": 10,
+    "private_precursor_trace_records": 1146981,
+    "private_precursor_trace_dropped_records": 0,
+    "trace_is_performance_benchmark": false,
+    "default_recording_enabled": false,
+    "user_feedback": "Slightly smoother but still bad",
+    "controlled_speed_improvement_verified": false,
+    "published_form_separate_native_run_verified": false
   }
 }

@@ -4,7 +4,7 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current verified build (2026-10-18):** the 76-patch Windows Vulkan build
+**Latest rendering milestone (2026-10-18):** the 76-patch Windows Vulkan build
 reaches the WKC1 starting town, loads the verified Logic Stone save through
 Continue, and has normal shadow polarity. The clean one-minute stationary
 sample averages 28.03 presentations/s; locked 30 fps, smooth traversal and full
@@ -12,9 +12,10 @@ game-speed equivalence remain unverified. See the
 [latest gallery entry](GALLERY.md#2026-10-18---vulkan-batch-scheduling-in-the-saved-town)
 and [timing conditions](#vulkan-batch-scheduling-patch-0076).
 
-The source stack contains 76 SDK patches. All 64 Windows Vulkan checks pass in
-normal Debug (25.31 seconds) and optimized Release (22.91 seconds). Reapplying
-the 76-patch stack changes no SDK files. Patch 0074 restores normal shadow
+The current source stack contains 77 SDK patches. All 65 Windows Vulkan checks pass
+in normal Debug (12.62 seconds) and optimized Release (12.70 seconds). These suites
+ran three tests in parallel, so their elapsed times are not game performance.
+Reapplying the 77-patch stack changes no SDK files. Patch 0074 restores normal shadow
 polarity in the observed native town; black foot flicker remains. Patch 0075
 repairs the FIFO user-command route to the registered HLE callback. Its native Logic Stone
 interaction, save write and restart/Continue reload into town are verified.
@@ -1320,3 +1321,27 @@ that ends during loading as a town performance result.
 `tools/trace_calls.py` optionally adds opt-in return/argument
 tracing to selected generated functions. Those diagnostics are disabled unless
 `WKC2_TRACE_CALLS=1` is set.
+
+## Optional Windows frame timeline (patch 0077)
+
+This checkpoint preserves the rendering baseline and adds an optional diagnostic;
+it does not claim smoother traversal or a speed gain. With both variables unset,
+recording stays off. On Windows, set `WKC_TRACE_GATE` to an initially absent
+private file path and `WKC_TRACE_OUT` to a private output path before launching.
+Load the town save, settle in the view to inspect, then create the gate file.
+The frame-clock thread records ten seconds, stops writer admission, waits for
+active publishers and writes the trace. Keep the process alive until that file
+is complete. Recording allocates a bounded buffer and reports dropped records;
+discard overflowed traces. Imports and syscalls shorter than 20 us are filtered.
+
+Analyze locally with `python tools/report_frame_timeline.py <private-trace>`.
+The report includes overlapping wall-time spans, not exclusive CPU costs. SPU
+entries may include channel waits; the GPU-fence spans measure host waits, not
+GPU execution timestamps. Open calls that have not returned at capture end are
+not covered. Trace collection adds overhead and must be disabled for speed A/B.
+The Windows recorder is a no-op on other platforms, which remain untested.
+
+Raw traces include host thread IDs, call sites and timings. Keep them private;
+the public tree contains the source and synthetic regression only. A native
+diagnostic precursor was used in town, while this portable publication form
+has so far been checked by the Windows build and regression suites.

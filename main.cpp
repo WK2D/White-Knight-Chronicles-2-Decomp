@@ -1,3 +1,4 @@
+#include "ps3emu/wkc_frame_trace.h"
 /*
  * White Knight Chronicles II native-port runner.
  *
@@ -557,7 +558,9 @@ extern "C" void wkc2_observe_update(uint32_t app)
 
 static void present_guest_frame(void)
 {
+    const uint64_t trace_start=wt_begin();
     rsx_backend_present();
+    wt_end(WT_PRESENT,0,0,trace_start);
     /* This thread increments and guest threads read, so interlocked rather
      * than a volatile ++, which on arm64 is neither atomic nor a fence. */
     InterlockedIncrement(&g_frames_presented);
@@ -597,6 +600,7 @@ static DWORD WINAPI frame_clock(LPVOID)
     const bool guest_present_only = getenv("WKC2_GUEST_PRESENT_ONLY") != nullptr;
 
     for (;;) {
+        wt_tick();
 #ifdef _WIN32
         /* Fence polling already signals the SDK's auto-reset kick event.
          * Wait for it so each pass can resume immediately; a flat Sleep(4)
@@ -605,7 +609,9 @@ static DWORD WINAPI frame_clock(LPVOID)
             /* Wake for the next vblank as well as for a FIFO kick. */
             QueryPerformanceCounter(&qpc);
             const double until = next_tick_ms - (double)qpc.QuadPart * 1000.0 / (double)qpf.QuadPart;
+            const uint64_t trace_start=wt_begin();
             cellGcm_fifo_kick_wait(until <= 0.0 ? 0u : until >= 4.0 ? 4u : (unsigned)until);
+            wt_end(WT_FRAME_WAIT,0,0,trace_start);
         }
 #else
         Sleep(4);
