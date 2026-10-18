@@ -38,6 +38,7 @@ Full rendering fidelity, sustained traversal and combat remain unverified.
 - [Contribution workflow](docs/CONTRIBUTING.md)
 - [Findings log](docs/FINDINGS.md): verified results, open issues and next steps
 - [Progress gallery](docs/GALLERY.md): newest first
+- [Project icon](docs/ICON.md): approved WKCII artwork used by Windows builds
 
 The source stack contains **76 SDK patches** and passes **64 Windows regression
 checks** in normal Debug and optimized Release. Patch 0076 fixes descriptor-pool

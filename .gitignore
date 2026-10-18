@@ -9,6 +9,11 @@
 !/LICENSE
 !/LICENSE.ps3recomp
 !/CMakeLists.txt
+!/app.rc
+!/assets/
+/assets/*
+!/assets/wkcii.png
+!/assets/wkcii.ico
 !/project.json
 !/decompression-verification.json
 !/main.cpp

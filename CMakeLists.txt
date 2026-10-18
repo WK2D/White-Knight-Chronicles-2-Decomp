@@ -217,10 +217,12 @@ endif()
 set_source_files_properties(spu_job_diagnostics.cpp PROPERTIES
     INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/runtime/spu")
 
-# app.rc carries the icon, the version block and the manifest, and needs a
-# resource compiler. Listing it as a source on a host that has none is not a
-# link error, it is a "no rule to make" for a file nothing can consume.
-if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/app.rc")
+# Embed the project lettermark in Windows executables. SDL uses the first
+# icon resource for the game window; Explorer uses it for the executable.
+if(WIN32)
+    enable_language(RC)
+    set_source_files_properties(app.rc PROPERTIES
+        OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets/wkcii.ico")
     target_sources(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/app.rc")
 endif()
 

@@ -13,7 +13,7 @@ def git(*args):
     return subprocess.check_output(['git', '-C', str(root), *args])
 
 root_files = {
-    '.gitignore', '.gitattributes', 'README.md', 'LICENSE', 'LICENSE.ps3recomp', 'CMakeLists.txt',
+    '.gitignore', '.gitattributes', 'README.md', 'LICENSE', 'LICENSE.ps3recomp', 'CMakeLists.txt', 'app.rc',
     'project.json', 'decompression-verification.json', 'main.cpp', 'stubs.cpp',
     'osk.cpp', 'osk.hpp', 'osk_win32.cpp', 'l10n.cpp',
     'thread_diagnostics.cpp', 'graphics_diagnostics.cpp', 'spu_job_diagnostics.cpp', 'windows_guids.c', 'lwcond.cpp', 'lfqueue.cpp', 'pamf.cpp', 'mpegps.hpp', 'dmux.cpp', 'vpost.cpp', 'adec.cpp', 'vdec.cpp',
@@ -59,21 +59,46 @@ def check_png(data):
         return 'incomplete PNG'
     return None
 
+def check_ico(data):
+    sizes = (16, 24, 32, 48, 64, 128, 256)
+    if len(data) < 6 or struct.unpack_from('<HHH', data) != (0, 1, len(sizes)):
+        return 'unexpected ICO header'
+    offset = 6 + 16 * len(sizes)
+    if len(data) < offset:
+        return 'truncated ICO directory'
+    for index, size in enumerate(sizes):
+        w, h, colors, reserved, planes, bits, length, start = struct.unpack_from(
+            '<BBBBHHII', data, 6 + 16 * index)
+        if ((w or 256), (h or 256), colors, reserved, planes, bits) != (size, size, 0, 0, 1, 32):
+            return 'unexpected ICO entry'
+        if start != offset or length < 24 or start + length > len(data):
+            return 'invalid ICO image bounds'
+        png = data[start:start + length]
+        reason = check_png(png)
+        if reason:
+            return 'ICO image: ' + reason
+        if struct.unpack_from('>II', png, 16) != (size, size):
+            return 'ICO dimensions mismatch'
+        offset += length
+    return None if offset == len(data) else 'trailing ICO data'
+
 names = [n.decode('utf-8') for n in git('ls-files', '--cached', '-z').split(b'\0') if n]
 for name in names:
     path = PurePosixPath(name)
     screenshot = len(path.parts) == 3 and path.parts[:2] == ('verification', 'screenshots') and re.fullmatch(r'[a-z0-9][a-z0-9-]*\.png', path.name)
-    allowed = screenshot or name in root_files or name in {'.github/FUNDING.yml', 'verification/rendering.json', 'verification/gallery.json', 'verification/installation.json', 'verification/movie-demux.json', 'verification/performance.json'} or (
+    icon_png = name == 'assets/wkcii.png'
+    icon_ico = name == 'assets/wkcii.ico'
+    allowed = screenshot or icon_png or icon_ico or name in root_files or name in {'.github/FUNDING.yml', 'verification/rendering.json', 'verification/gallery.json', 'verification/installation.json', 'verification/movie-demux.json', 'verification/performance.json'} or (
         len(path.parts) == 2 and path.parts[0] in extensions and path.suffix in extensions[path.parts[0]])
     if not allowed:
         findings.append({'file': name, 'reason': 'outside publication allowlist'})
         continue
     data = git('show', ':' + name)
     total += len(data)
-    if len(data) > (8_000_000 if screenshot else 2_000_000):
+    if len(data) > (8_000_000 if screenshot or icon_png else 2_000_000):
         findings.append({'file': name, 'reason': 'unexpected source file size'})
-    if screenshot:
-        reason = check_png(data)
+    if screenshot or icon_png or icon_ico:
+        reason = check_ico(data) if icon_ico else check_png(data)
         if reason:
             findings.append({'file': name, 'reason': reason})
         continue
