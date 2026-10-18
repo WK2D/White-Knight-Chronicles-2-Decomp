@@ -16,6 +16,10 @@ adds a small outer calibration margin and prevents partially updated pad reports
 Physical walk/run consistency still needs user comparison. The first runtime audit
 batch also fixes SPU instruction execution and four PPU subtract TODOs; see
 [tests and remaining work](docs/FINDINGS.md#runtime-correctness-and-input-follow-up-patches-0085-0090).
+Task completion now follows SPU reservation locking, and flagged task ELF
+addresses are decoded correctly. Byte shifts/rotates have a tested SIMD path;
+helper microbenchmarks improve, while the town comparison remains mixed. See
+[task scheduling and byte operations](docs/FINDINGS.md#spurs-completion-coherence-and-spu-byte-operations-patches-0091-0093).
 Draw distance, fog and removing menu background blur remain pending.
 
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
@@ -53,7 +57,7 @@ Full rendering fidelity, sustained traversal and combat remain unverified.
 - [Progress gallery](docs/GALLERY.md): newest first
 - [Project icon](docs/ICON.md): approved WKCII artwork used by Windows builds
 
-The source stack contains **90 SDK patches** and passes **77 Windows regression
+The source stack contains **93 SDK patches** and passes **79 Windows regression
 checks** in normal Debug and optimized Release. The menus, preferences, Vulkan
 FXAA initialization and save loading have been exercised in native runs; the
 experimental DirectX 12 path also reaches the saved scene and settings menu.

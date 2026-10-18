@@ -10,7 +10,7 @@ experimental DirectX 12 selector. Continue loads the verified Logic Stone save.
 See [menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
 and [settings and timing details](#native-graphics-settings-patches-0081-0082).
 
-The current stack contains 90 SDK patches. All 77 Windows checks pass in normal
+The current stack contains 93 SDK patches. All 79 Windows checks pass in normal
 Debug and optimized Release. Suite timings are not game performance. Reapplying
 the complete stack changes no SDK files. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain
@@ -100,7 +100,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 90 numbered SDK patches, and all 77 checks
+The current source stack contains 93 numbered SDK patches, and all 79 checks
 pass in both Windows suites. The latest graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
@@ -1456,7 +1456,7 @@ remain responsive in the tested saved-town run; general high-FPS stability remai
 persistence, interval restoration,
 window/sampler configuration and the overlay without a black background.
 `wkc2_depth_shader_binding` also compiles the production FXAA shader and verifies
-its descriptor bindings. The full Windows suite passes 77 checks in Debug and
+its descriptor bindings. The full Windows suite passes 79 checks in Debug and
 Release. Native runs verify menu navigation and saved-scene rendering in both
 APIs, with FXAA initialization on Vulkan; not every display mode or monitor is tested.
 
@@ -1523,3 +1523,25 @@ These regressions fail against the preceding implementations. All 77 checks pass
 in Debug and Release. A private Vulkan run reloads the save and verifies steady
 synthetic input reaching the game through partial and full directional probes.
 This batch makes no FPS or complete physical walk/run compatibility claim.
+
+
+## Task completion and SPU byte operations (patches 0091-0093)
+
+0091 makes task completion's bit updates and descriptor snapshots coherent
+with SPU atomic commits, keeping the lifetime lock and avoiding worker launch
+under the reservation lock. 0092 masks task ELF flag bits before image lookup.
+`wkc2_spu_async_lifetime` now links the real coherence registry and tests the
+compare/commit interleaving, reservation-loss event, flagged images and existing
+ownership/cleanup rules. The old paths and a missing-notification variant fail
+independently. Other SPURS producer paths remain separate work.
+
+0093 uses SSSE3 byte shuffles for nine quadword byte-shift/rotate helpers. Builds
+without SSSE3 retain scalar C; `PS3RECOMP_SPU_BYTE_SCALAR=1` forces that fallback
+for comparison. `wkc2_spu_byte_vector` and `wkc2_spu_byte_scalar` compare all
+counts and byte-order/wrap/zero-fill cases with an independent architectural
+oracle. Existing floating-point modes and exact AVX2 FNMS are retained.
+
+All 79 Windows checks pass in Debug and Release. A saved-town hidden/muted run
+works and exits normally. The isolated helper benchmark improves, but the
+repeated native comparison is mixed; no sustained game FPS gain is claimed.
+See [measurement scope](FINDINGS.md#spurs-completion-coherence-and-spu-byte-operations-patches-0091-0093).

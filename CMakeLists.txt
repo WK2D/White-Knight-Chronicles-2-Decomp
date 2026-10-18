@@ -431,6 +431,17 @@ if(WKC2_BUILD_TESTS)
     target_include_directories(wkc2_spu_cntb_test PRIVATE "${PS3RECOMP_DIR}/runtime/spu")
     add_test(NAME wkc2_spu_cntb COMMAND wkc2_spu_cntb_test)
     set_tests_properties(wkc2_spu_cntb PROPERTIES TIMEOUT 10)
+    foreach(byte_variant IN ITEMS vector scalar)
+        add_executable(wkc2_spu_byte_${byte_variant}_test tests/spu_byte_ops_test.c)
+        target_include_directories(wkc2_spu_byte_${byte_variant}_test PRIVATE
+            "${PS3RECOMP_DIR}/runtime/spu")
+        if(byte_variant STREQUAL "scalar")
+            target_compile_definitions(wkc2_spu_byte_${byte_variant}_test PRIVATE
+                PS3RECOMP_SPU_BYTE_SCALAR=1)
+        endif()
+        add_test(NAME wkc2_spu_byte_${byte_variant} COMMAND wkc2_spu_byte_${byte_variant}_test)
+        set_tests_properties(wkc2_spu_byte_${byte_variant} PROPERTIES TIMEOUT 20)
+    endforeach()
 
     set(SPURS_ABI_FIXTURE "${CMAKE_BINARY_DIR}/spurs-abi-fixture")
     set(PPU_VSUB_FIXTURE "${CMAKE_BINARY_DIR}/ppu-vsub-fixture.h")
@@ -842,7 +853,8 @@ if(WKC2_BUILD_TESTS)
             "${PS3RECOMP_DIR}/runtime/spu/spu_async_lifetime.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spu_async_fixture.py"
         VERBATIM)
-    add_executable(wkc2_spu_async_lifetime_test tests/spu_async_lifetime_test.c "${SPU_ASYNC_FIXTURE}")
+    add_executable(wkc2_spu_async_lifetime_test tests/spu_async_lifetime_test.c "${SPU_ASYNC_FIXTURE}"
+        "${PS3RECOMP_DIR}/runtime/spu/spu_coherency.c")
     target_include_directories(wkc2_spu_async_lifetime_test PRIVATE
         "${CMAKE_CURRENT_BINARY_DIR}" "${PS3RECOMP_DIR}/runtime/spu")
     if(MSVC)

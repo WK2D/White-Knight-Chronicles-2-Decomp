@@ -11,7 +11,7 @@ upstream-status statements describe its author's earlier audit; this is not a
 new check of every upstream PR.
 
 The original 84-patch review was read-only. A follow-up implementation batch
-is recorded below; the current stack has **90 patches / 77 Windows tests**. The
+is recorded below; the current stack has **93 patches / 79 Windows tests**. The
 catalogue's tests and Killzone measurements have not been rerun here. A matching
 source defect does not establish the cause of WKC's lag or flicker.
 
@@ -21,8 +21,8 @@ source defect does not establish the cause of WKC's lag or flicker.
 |---|---|---|
 | 1 | S2 | Address scale fixed by 0085; independent guarded load/store regression passes. Saved-town reload works; execution coverage and any scene effect remain unmeasured. |
 | 2 | S6, P1 | 0086/0089 fix the accumulator and four missing integer cases; 0090 replaces four WKC PPU `vsubuws` TODOs. Tests pass; remaining VMX/special-register semantics and native instruction coverage need work. |
-| 3 | S7, S4 | Byte-shift/rotate loops and scalar host `fma`/`fms` remain. Benchmark validated vector replacements on WKC jobs; retain our extended-range exact `fnms`. |
-| 4 | S8, R1 | A global reservation lock remains, while taskset bit updates use a separate lifetime lock. Establish race safety before optimizing contention. |
+| 3 | S7, S4 | 0093 adds tested byte-shift/rotate SIMD and scalar fallback; helper benchmark improves, native timing is mixed. Scalar host `fma`/`fms`, inlining and remaining shuffle work stay open; exact `fnms` is retained. |
+| 4 | S8, R1 | 0091 makes completion/scan updates coherent with SPU reservations; other producer RMW helpers remain to review. Global lock redesign/contention is separate. |
 | 5 | P8, P9 | HLE lookup is linear and per-read HOTREAD TLS diagnostics remain. Measure their current clang-cl cost and test indexed lookup equivalence. |
 | 6 | G3, V11 | Reports stay host-side and ZPASS is fixed-visible. Town logs contain type-1 GET_REPORT requests. Capture DMA context/render-enable use before implementing Vulkan queries. |
 | 7 | V1-V3, V5 | Shared fragment-shader gaps and missing AA sample-resolution handling can affect Vulkan. Use small shader/GPU tests and a WKC feature census. FXAA does not implement RSX AA memory layout. |
@@ -60,12 +60,12 @@ means some pieces exist. Missing does not imply execution in the current scene.
 | S4 | Partial | Ordinary `static inline`, policy-mode LS probe calls outside the relevant range, and scalar host FMA remain. FI already avoids common `ldexpf` work; exact `fnms` is ours. Preserve extended SPU semantics. |
 | S5 | Partial | Normal dispatch tries resident overlays; interpreter rejoin's `spu_lifted_lookup` only checks `ctx->image_id`. WKC overlay usage needs measurement. |
 | S6 | Partly addressed by 0086/0089 | RR accumulator destination and `mpyhhau` fixed; `bgx`, `mpyui`, `rothmi`, `rotmahi` execute. Floating/special-register gaps remain, including no-op `mfspr`/FSCR. |
-| S7 | Mostly missing optimizations | Byte shifts/rotates use loops; `shufb` retains order-conversion shuffles; host `fma`/`fms` are scalar. Patch 0078 already implements exact AVX2 `fnms` with a scalar oracle. |
+| S7 | Partly addressed by 0093 | Nine byte-shift/rotate forms use SSSE3 with a scalar fallback. Both pass independent byte-order/count tests. Helper speed improves; sustained town FPS gain unproven. Remaining `shufb`/FMA work stays open; exact AVX2 FNMS is retained. |
 | S8 | Missing larger design | Global lock, no striped/seqlock reservation reads. MSVC/x64 already pauses; non-MSVC has a bare spin. Ordering/invalidation require stress tests. |
 | S9 | Partial; mainly portability/performance | Dispatch/history fields remain TLS; host depth and MFC are already context-owned. Native Windows TLS cost differs from MinGW emulated TLS. |
 | S10 | Missing log cleanup | `RESUME-ELEMS` is ungated and PM poll logs restart with each run counter. Normal play redirects logs to NUL; catalogue file-write speedups do not transfer directly. |
-| R1 | Missing shared atomic discipline | `spu_taskset_task_exited` modifies task bitsets directly under `ts_lock`, not the SPU reservation lock. Lifetime protection does not cover concurrent SPU `PUTLLC`. |
-| R2 | Partial | Patch 0072 serializes PPU create/scan lifetime claims. Scan still loads an unmasked task ELF word; SPU-side publication races need separate checks. |
+| R1 | Completion/scan fixed by 0091; producers pending | Completion and pending-bit clears share the reservation lock and notify LR. Snapshot/descriptor reads are protected. Regression models the compare/commit window with production completion and real coherence. Shared bitset-builder RMW helpers still need review. |
+| R2 | Partly addressed by 0072/0092 | Host lifetime claims are serialized; scan ELF flag bits are masked and all seven combinations tested. Full SPU/PPU task-creation publication remains separate. |
 | R3 | Missing | Taskset2/Task2 exports absent. Not found among current named WKC direct imports; indirect/guest-library use remains possible. |
 | R4 | Missing | No complete Taskset2 event-flag/exit-code machinery. Generic tasksets and async-lifetime fixes are different facilities. |
 | R5 | Missing PM-lane optimization | Multi-lane PM runs still spawn/join per pass and sleep at loop entry. Lane count clamps to six rather than `si->nspus`. Patch 0072's reusable async task workers are a separate path. Measure WKC PM usage. |
@@ -155,3 +155,15 @@ fragment/AA semantics, TLS/IO/context allocation and service correctness remain
 in the queue above. Optimizations need equivalent-result tests and measurements;
 Killzone-specific scheduling policies are not enabled wholesale. No FPS gain is
 claimed for this batch.
+
+
+## Second implementation batch: 0091-0093
+
+Completion/scan coherence and task ELF flag handling now have failing-before
+regressions. Byte-shift/rotate SIMD matches the architectural oracle, with a
+separately tested scalar fallback. All 79 Windows checks pass in Debug and
+Release. A hidden/muted saved-town comparison uses the exact old helper bodies
+and SIMD in one diagnostic build: early samples improve, but both paths slow
+later. Isolated helper speed improves; sustained town FPS gain remains unproven.
+No global reservation-lock redesign or wholesale SPURS scheduling replacement
+is included. See [implementation and evidence](FINDINGS.md#spurs-completion-coherence-and-spu-byte-operations-patches-0091-0093).

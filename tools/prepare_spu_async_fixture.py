@@ -32,6 +32,7 @@ preamble = r'''/* Generated from production source; not a copied implementation.
 #include <string.h>
 #include <stdatomic.h>
 #include "spu_async_lifetime.h"
+#include "spu_coherency.h"
 typedef void (*spu_lifted_entry_fn)(void*);
 static uint8_t* vm_base;
 static void fixture_entry(void* p) { (void)p; abort(); }
@@ -71,20 +72,23 @@ static void spu_async_run(spu_async_job* j) {
  if(j->lifetime.owner) assert(j->lifetime.owner->slots[j->lifetime.slot]==j->lifetime.serial);
  ++fixture_runs;
 }
-static void spu_coh_forget_range(uintptr_t lo,uintptr_t hi) {
+static void fixture_forget_range(uintptr_t lo,uintptr_t hi) {
  assert(lo<hi && fixture_running);
  if(fixture_running->lifetime.owner) {
   spu_async_ticket* t=&fixture_running->lifetime;
   assert(t->owner->slots[t->slot]==t->serial);
  }
  ++fixture_stack_cleanups;
+ spu_coh_forget_range(lo,hi);
 }
+#define spu_coh_forget_range fixture_forget_range
 #define CreateThread fixture_create_thread
 #define CloseHandle fixture_close_handle
 '''
 ending = r'''
 #undef CreateThread
 #undef CloseHandle
+#undef spu_coh_forget_range
 static void fixture_finish(unsigned i) {
  assert(i<fixture_jobs_count && !fixture_running);
  spu_async_job* j=fixture_jobs[i];
@@ -145,6 +149,16 @@ static void actual_dispatch_cases(void) {
  assert(fixture_jobs_count==1 && fixture_jobs[0]->taskid==8);
  assert(!(vm_base[ts+0x20+8/8]&(0x80u>>(8&7))));
  fixture_retire_all();
+ /* SPU-published task descriptors carry low ELF flag bits. A scan must mask
+  * them before sizing/fingerprinting the image, as the PM builder does. */
+ for(unsigned flags=1;flags<8;flags++) {
+  fixture_task(ts,7,elf,0);fixture_task(ts,8,elf|flags,0);
+  assert(spu_workload_dispatch_task_async(image,16,0,ts,7)==1);
+  fixture_finish(0);
+  assert(fixture_jobs_count==1 && fixture_jobs[0]->taskid==8);
+  assert(fixture_jobs[0]->image==image);
+  fixture_retire_all();
+ }
  /* Same guest slot and whole taskset address can be reused after all cleanup. */
  for(unsigned i=0;i<100;i++) {
   assert(spu_workload_taskset_close(ts));assert(spu_workload_taskset_begin(ts));

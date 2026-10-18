@@ -4,10 +4,10 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-18",
-    "native_probe": "20261018-193814",
-    "sdk_patch_count": 90,
-    "summary": "SPU absolute-address and multiply-accumulate fixes, four additional SPU integer operations and PPU VSUBUWS translation. Windows XInput now expands diagonal range, reserves an outer calibration margin and serializes complete pad reports. 90 SDK patches / 77 passing Windows checks in Debug and Release. Saved-town input delivery verified with synthetic raw values; physical controller feel and any FPS gain remain unverified.",
-    "gallery_image": "screenshots/2026-10-18-native-runtime-input-check.png",
+    "native_probe": "20261018-201939",
+    "sdk_patch_count": 93,
+    "summary": "Task completion and pending-bit updates now share the SPU reservation lock and notify reservation loss; task scans mask ELF flag bits. Byte shifts/rotates use SSSE3 where available with a scalar fallback. 93 SDK patches / 79 passing Windows checks in Debug and Release. Helper microbenchmarks improve; sustained town FPS gain and physical-controller gait remain unverified.",
+    "gallery_image": "screenshots/2026-10-18-native-task-byte-check.png",
     "remaining_limits": [
       "Town performance remains below the 30 fps target",
       "Black foot flicker and rotating Logic Stone light flicker remain open",
@@ -66,6 +66,12 @@
     "window_close_title_and_saved_town_settings": true
   },
   "captures": [
+    {
+      "file": "screenshots/2026-10-18-native-task-byte-check.png",
+      "sha256": "138371ab54f7c62369bdd43f7762f33d0c06277d728c279520b79c4e8d4b5515",
+      "source_ppm_sha256": "a85a9d025394b6818e2f6b8e7c4e262ebde94f9f89300c74a6cc7c781fec3db0",
+      "method": "Unmodified final Vulkan swapchain pixels after saved-town reload and short movement; hidden/muted diagnostic build with SIMD selected. No sustained FPS or visual-fix claim."
+    },
     {
       "file": "screenshots/2026-10-18-native-runtime-input-check.png",
       "sha256": "76b2fbc369918effc48b341099d564500a4d8e77e6a5b593da8e724bfba8fb87",
@@ -222,6 +228,8 @@
       "wkc2_spu_depth_guard_zero",
       "wkc2_spu_depth_guard_invalid",
       "wkc2_spu_cntb",
+      "wkc2_spu_byte_vector",
+      "wkc2_spu_byte_scalar",
       "wkc2_ppu_vsub",
       "wkc2_pad_exports",
       "wkc2_spurs_abi",
@@ -281,12 +289,12 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 90,
-    "last_verified_sdk_patch_count": 90,
-    "current_passed_count": 77,
-    "record_scope": "SPU absolute-address and multiply-accumulate fixes, four additional SPU integer operations and PPU VSUBUWS translation. Windows XInput now expands diagonal range, reserves an outer calibration margin and serializes complete pad reports. 90 SDK patches / 77 passing Windows checks in Debug and Release. Saved-town input delivery verified with synthetic raw values; physical controller feel and any FPS gain remain unverified.",
-    "normal_debug_elapsed_seconds": 12.1,
-    "optimized_release_elapsed_seconds": 11.8,
+    "current_sdk_patch_count": 93,
+    "last_verified_sdk_patch_count": 93,
+    "current_passed_count": 79,
+    "record_scope": "Task completion and pending-bit updates now share the SPU reservation lock and notify reservation loss; task scans mask ELF flag bits. Byte shifts/rotates use SSSE3 where available with a scalar fallback. 93 SDK patches / 79 passing Windows checks in Debug and Release. Helper microbenchmarks improve; sustained town FPS gain and physical-controller gait remain unverified.",
+    "normal_debug_elapsed_seconds": 11.11,
+    "optimized_release_elapsed_seconds": 10.79,
     "repeat_patch_application_files_changed": 0,
     "repeat_patch_application_verified_sdk_patch_count": 84
   },
@@ -2708,7 +2716,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling follows frame boundaries with an idle heartbeat. Menu features were verified in earlier native probes; current source adds the instruction/input follow-up, with 90 SDK patches and 77 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked tick scheduling follows frame boundaries with an idle heartbeat. Menu features were verified in earlier native probes; current source adds the task/byte-operation follow-up, with 93 SDK patches and 79 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -2795,5 +2803,33 @@
     "outer_margin_fraction": 0.05,
     "complete_report_serialization": true,
     "native_cached_input_angles_checked": 12
+  },
+  "task_completion_coherence": {
+    "sdk_patch": 91,
+    "actual_completion_function_regression": true,
+    "real_coherence_registry_regression": true,
+    "compare_commit_window_modelled": true,
+    "missing_notification_negative_control_fails": true,
+    "descriptor_snapshots_locked": true,
+    "worker_launch_under_reservation_lock": false,
+    "all_SPURS_producers_fixed": false
+  },
+  "task_elf_flags": {
+    "sdk_patch": 92,
+    "nonzero_flag_combinations_checked": 7,
+    "all_task_creation_races_fixed": false
+  },
+  "spu_byte_operations": {
+    "sdk_patch": 93,
+    "entry_points": 9,
+    "vector_path": "SSSE3",
+    "scalar_fallback_tested": true,
+    "architectural_comparisons_per_variant": 1652736,
+    "native_probe": "20261018-201939",
+    "save_reload_verified": true,
+    "normal_exit_code": 0,
+    "sustained_town_fps_gain_verified": false,
+    "floating_point_helpers_changed": false,
+    "ARM_execution_verified": false
   }
 }

@@ -634,5 +634,221 @@
     "tested_candidate_stall_observed": false,
     "earlier_rare_stall_independently_reproduced": false,
     "full_game_high_fps_stability_verified": false
+  },
+  "spu_byte_operations_0093": {
+    "date": "2026-10-18",
+    "sdk_patch": 93,
+    "probe": "20261018-201939",
+    "helper_microbenchmark": {
+      "compiler_options": "clang-cl /O2 /MD /arch:AVX2",
+      "passes": 5,
+      "calls_per_case_per_pass": 5000000,
+      "checksums_match": true,
+      "scope": "Synthetic register-count helpers with call/loop/state-update overhead; not game-frame timing",
+      "medians": {
+        "rotqby": {
+          "before_ns_per_call": 9.845,
+          "after_ns_per_call": 5.545,
+          "speedup": 1.775
+        },
+        "rotqbybi": {
+          "before_ns_per_call": 9.92,
+          "after_ns_per_call": 5.494,
+          "speedup": 1.806
+        },
+        "rotqmby": {
+          "before_ns_per_call": 6.443,
+          "after_ns_per_call": 5.468,
+          "speedup": 1.178
+        },
+        "rotqmbybi": {
+          "before_ns_per_call": 6.615,
+          "after_ns_per_call": 5.426,
+          "speedup": 1.219
+        },
+        "shlqby": {
+          "before_ns_per_call": 6.482,
+          "after_ns_per_call": 5.548,
+          "speedup": 1.169
+        },
+        "shlqbybi": {
+          "before_ns_per_call": 6.511,
+          "after_ns_per_call": 5.548,
+          "speedup": 1.174
+        }
+      }
+    },
+    "native_comparison": {
+      "window_visible": false,
+      "muted": true,
+      "renderer": "Vulkan",
+      "frame_limit": "Unlocked",
+      "vsync": true,
+      "anti_aliasing": "FXAA",
+      "same_process": true,
+      "mode_branch_instrumented": true,
+      "exact_old_helper_bodies": true,
+      "sampling_profiler": false,
+      "game_logs": "NUL",
+      "repeated_gpu_capture_during_samples": false,
+      "movement_during_samples": false,
+      "scene": "Saved town after short movement away from the Logic Stone; one NPC visible",
+      "mode_order": [
+        0,
+        1,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0
+      ],
+      "counter_scope": "Accepted presentations; not unique animation states or display scanout",
+      "phases": [
+        {
+          "phase": 0,
+          "mode": 0,
+          "seconds": 10.00188509997679,
+          "presentations": 188,
+          "presentations_per_second": 18.796456679994883,
+          "interval_count": 188,
+          "observed_interval_p50_ms": 52.70070000551641,
+          "observed_interval_p95_ms": 57.72869999054819,
+          "max_read_gap_ms": 9.778900013770908,
+          "missed_counter_steps": 0,
+          "observed_modes": {
+            "0": 3979
+          },
+          "helper_path": "exact_previous_loops"
+        },
+        {
+          "phase": 1,
+          "mode": 1,
+          "seconds": 10.00251630001003,
+          "presentations": 203,
+          "presentations_per_second": 20.294893196004736,
+          "interval_count": 203,
+          "observed_interval_p50_ms": 47.69679997116327,
+          "observed_interval_p95_ms": 55.63879996770993,
+          "max_read_gap_ms": 9.267000015825033,
+          "missed_counter_steps": 0,
+          "observed_modes": {
+            "1": 3974
+          },
+          "helper_path": "SIMD"
+        },
+        {
+          "phase": 2,
+          "mode": 1,
+          "seconds": 10.000215400010347,
+          "presentations": 203,
+          "presentations_per_second": 20.299562747397417,
+          "interval_count": 203,
+          "observed_interval_p50_ms": 48.06669999379665,
+          "observed_interval_p95_ms": 52.77000000933185,
+          "max_read_gap_ms": 12.786100036464632,
+          "missed_counter_steps": 0,
+          "observed_modes": {
+            "1": 3998
+          },
+          "helper_path": "SIMD"
+        },
+        {
+          "phase": 3,
+          "mode": 0,
+          "seconds": 10.001533000031486,
+          "presentations": 187,
+          "presentations_per_second": 18.697133729340422,
+          "interval_count": 187,
+          "observed_interval_p50_ms": 52.66960000153631,
+          "observed_interval_p95_ms": 57.61899997014552,
+          "max_read_gap_ms": 9.583599981851876,
+          "missed_counter_steps": 0,
+          "observed_modes": {
+            "0": 4014
+          },
+          "helper_path": "exact_previous_loops"
+        },
+        {
+          "phase": 4,
+          "mode": 0,
+          "seconds": 10.000254900020082,
+          "presentations": 181,
+          "presentations_per_second": 18.09953864272365,
+          "interval_count": 181,
+          "observed_interval_p50_ms": 54.378399974666536,
+          "observed_interval_p95_ms": 60.15330000082031,
+          "max_read_gap_ms": 10.81130001693964,
+          "missed_counter_steps": 0,
+          "observed_modes": {
+            "0": 4027
+          },
+          "helper_path": "exact_previous_loops"
+        },
+        {
+          "phase": 5,
+          "mode": 1,
+          "seconds": 10.000889600021765,
+          "presentations": 169,
+          "presentations_per_second": 16.898496709695927,
+          "interval_count": 169,
+          "observed_interval_p50_ms": 59.09059999976307,
+          "observed_interval_p95_ms": 64.79229999240488,
+          "max_read_gap_ms": 13.202000001911074,
+          "missed_counter_steps": 0,
+          "observed_modes": {
+            "1": 4019
+          },
+          "helper_path": "SIMD"
+        },
+        {
+          "phase": 6,
+          "mode": 1,
+          "seconds": 10.000941900012549,
+          "presentations": 166,
+          "presentations_per_second": 16.598436593236453,
+          "interval_count": 166,
+          "observed_interval_p50_ms": 60.10990001959726,
+          "observed_interval_p95_ms": 64.8151999921538,
+          "max_read_gap_ms": 4.789100028574467,
+          "missed_counter_steps": 0,
+          "observed_modes": {
+            "1": 4028
+          },
+          "helper_path": "SIMD"
+        },
+        {
+          "phase": 7,
+          "mode": 0,
+          "seconds": 10.001807100023143,
+          "presentations": 168,
+          "presentations_per_second": 16.79696462048456,
+          "interval_count": 168,
+          "observed_interval_p50_ms": 57.87330004386604,
+          "observed_interval_p95_ms": 69.41579998238012,
+          "max_read_gap_ms": 9.944899997208267,
+          "missed_counter_steps": 0,
+          "observed_modes": {
+            "0": 4029
+          },
+          "helper_path": "exact_previous_loops"
+        }
+      ],
+      "aggregate": {
+        "exact_previous_loops": {
+          "seconds": 40.0054801000515,
+          "presentations": 724,
+          "presentations_per_second": 18.097520594411463
+        },
+        "SIMD": {
+          "seconds": 40.00456320005469,
+          "presentations": 741,
+          "presentations_per_second": 18.522886909036092
+        }
+      },
+      "sustained_fps_gain_verified": false,
+      "reason": "Early SIMD samples improve, but later samples slow in both modes; moving NPCs and hidden diagnostic branch limit causal inference. Preliminary nonidentical scalar comparison excluded."
+    },
+    "macOS_ARM_verified": false
   }
 }

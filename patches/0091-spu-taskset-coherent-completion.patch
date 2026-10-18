@@ -1,0 +1,86 @@
+diff --git a/runtime/spu/spu_workload.c b/runtime/spu/spu_workload.c
+--- a/runtime/spu/spu_workload.c
++++ b/runtime/spu/spu_workload.c
+@@ -7,6 +7,7 @@
+  */
+ #include "spu_workload.h"
+ #include "spu_async_lifetime.h"
++#include "spu_coherency.h"
+ #include "spu_lifted_job.h"   /* spu_run_lifted_job */
+ #include "../ps3_log.h"      /* ps3_log_verbose */
+ #include <stdio.h>
+@@ -433,6 +434,27 @@
+ static void ts_lock(void)   { while (InterlockedExchange(&s_ts_lock, 1)) Sleep(0); }
+ static void ts_unlock(void) { InterlockedExchange(&s_ts_lock, 0); }
+ 
++/* Host lifetime ownership and SPU reservation ownership protect different
++ * things. Keep the short guest-state transaction under the same lock as
++ * GETLLAR/PUTLLC; never launch/allocate while holding that lock. Callers hold
++ * ts_lock first, and no reservation-locked path acquires the lifetime lock. */
++static void taskset_clear_bits(uint32_t ea, uint32_t task, unsigned fields)
++{
++    extern uint8_t* vm_base;
++    const uint8_t mask = (uint8_t)(0x80u >> (task & 7));
++    spu_lockline_lock();
++    for (unsigned field = 0; field < 3; field++) {
++        if (!(fields & (1u << field))) continue;
++        uint32_t address = ea + 0x10u * (field + 1) + task / 8;
++        uint8_t old = vm_base[address], next = old & (uint8_t)~mask;
++        if (next != old) {
++            vm_base[address] = next;
++            spu_coh_notify_write(address);
++        }
++    }
++    spu_lockline_unlock();
++}
++
+ void spu_workload_taskset_create_lock(void) { ts_lock(); }
+ void spu_workload_taskset_create_unlock(void) { ts_unlock(); }
+ int spu_workload_task_active(uint32_t ea,uint32_t task) { return async_owner_active(SPU_ASYNC_TASK,ea,0,task); }
+@@ -449,17 +471,28 @@
+     /* A duplicate/stale cleanup must not retire a newer guest slot. */
+     if (!async_owner_finish(&j->lifetime)) { ts_unlock(); return; }
+     uint8_t* ts = vm_base + taskset_ea;
+-    if (done_task < 128) {
+-        uint8_t m = (uint8_t)(0x80u >> (done_task & 7));
+-        ts[0x10 + done_task / 8] &= (uint8_t)~m;
+-        ts[0x20 + done_task / 8] &= (uint8_t)~m;
+-        ts[0x30 + done_task / 8] &= (uint8_t)~m;
+-    }
++    if (done_task < 128) taskset_clear_bits(taskset_ea, done_task, 7u);
++    /* One short snapshot avoids taking a contended atomic-line lock for
++     * every empty slot. Eligible descriptors are rechecked under that lock. */
++    uint8_t bits[0x30];
++    spu_lockline_lock();
++    memcpy(bits, ts + 0x10, sizeof bits);
++    spu_lockline_unlock();
+     for (uint32_t t = 0; t < 128; t++) {
+         uint8_t m = (uint8_t)(0x80u >> (t & 7));
+-        if (!(ts[0x30 + t / 8] & m) || async_owner_active(SPU_ASYNC_TASK,taskset_ea,0,t)) continue;
+-        if (!((ts[0x10 + t / 8] | ts[0x20 + t / 8]) & m)) continue;
+-        const uint8_t* ti = ts + 0x80 + 0x30 * t;
++        if (!(bits[0x20 + t / 8] & m) ||
++            !((bits[t / 8] | bits[0x10 + t / 8]) & m)) continue;
++        if (async_owner_active(SPU_ASYNC_TASK,taskset_ea,0,t)) continue;
++        uint8_t ti[0x30];
++        /* An SPU publishes descriptor/bitset changes with atomic line writes.
++         * Snapshot while excluded from those commits, then release before
++         * parsing the image and starting a host worker. */
++        spu_lockline_lock();
++        int ready = (ts[0x30 + t / 8] & m) &&
++                    ((ts[0x10 + t / 8] | ts[0x20 + t / 8]) & m);
++        if (ready) memcpy(ti, ts + 0x80 + 0x30 * t, sizeof ti);
++        spu_lockline_unlock();
++        if (!ready) continue;
+         uint32_t elf = ((uint32_t)ti[0x14] << 24) | ((uint32_t)ti[0x15] << 16) |
+                        ((uint32_t)ti[0x16] << 8) | ti[0x17];
+         uint32_t args = ((uint32_t)ti[0x1C] << 24) | ((uint32_t)ti[0x1D] << 16) |
+@@ -472,7 +505,7 @@
+          * eventual exit can safely wait on this lock. No other creator may
+          * destroy/reuse this taskset between reading the descriptor and claim. */
+         if (spu_workload_dispatch_task_async(vm_base+elf,(uint32_t)sz,args,taskset_ea,t))
+-            ts[0x20+t/8] &= (uint8_t)~m;  /* pending -> started */
++            taskset_clear_bits(taskset_ea, t, 2u); /* pending -> started */
+     }
+     ts_unlock();
+ }

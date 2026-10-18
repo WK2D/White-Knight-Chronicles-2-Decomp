@@ -10,6 +10,62 @@
 #include "spu_async_fixture.inc"
 static HANDLE start_event, release_event;
 static volatile LONG tried, winners, coalesced;
+static unsigned reservation_wakes;
+/* The real coherence registry calls this host-wake boundary. No SPU is parked
+ * in this fixture; reservation validity and LR are updated by production code. */
+void spu_ch_wake(spu_context* ctx) {(void)ctx;++reservation_wakes;}
+static HANDLE completion_entered,completion_done;
+static DWORD WINAPI complete_task(LPVOID opaque) {
+    SetEvent(completion_entered);
+    spu_taskset_task_exited((spu_async_job*)opaque);
+    SetEvent(completion_done);return 0;
+}
+static void coherent_completion(void) {
+    const uint32_t ea=0xb0000;
+    vm_base=(uint8_t*)calloc(1,2u<<20);assert(vm_base);
+    assert(spu_workload_taskset_begin(ea));
+    spu_async_job job={0};job.taskset_ea=ea;job.taskid=0;
+    assert(async_owner_claim(SPU_ASYNC_TASK,ea,0,0,&job.lifetime)==1);
+    vm_base[ea+0x10]=vm_base[ea+0x20]=vm_base[ea+0x30]=0x80;
+    completion_entered=CreateEvent(NULL,TRUE,FALSE,NULL);
+    completion_done=CreateEvent(NULL,TRUE,FALSE,NULL);assert(completion_entered && completion_done);
+    /* Model an SPU paused AFTER PUTLLC's comparison, before its line copy.
+     * The actual lock-line lock must exclude the actual completion function
+     * for that whole window. The peer sets task 1 in the same bitset bytes. */
+    spu_lockline_lock();
+    uint8_t commit[128];memcpy(commit,vm_base+ea,sizeof commit);
+    commit[0x10]|=0x40;commit[0x20]|=0x40;commit[0x30]|=0x40;
+    HANDLE worker=CreateThread(NULL,0,complete_task,&job,0,NULL);assert(worker);
+    assert(WaitForSingleObject(completion_entered,5000)==WAIT_OBJECT_0);
+    /* Owner release happens before the bit update; wait for that point so
+     * the test cannot pass merely because the worker was never scheduled. */
+    for(unsigned n=0;n<5000 && async_owner_active(SPU_ASYNC_TASK,ea,0,0);n++) Sleep(1);
+    assert(!async_owner_active(SPU_ASYNC_TASK,ea,0,0));
+    DWORD early=WaitForSingleObject(completion_done,50);
+    memcpy(vm_base+ea,commit,sizeof commit);
+    spu_lockline_unlock();
+    assert(WaitForSingleObject(worker,5000)==WAIT_OBJECT_0);
+    assert(early==WAIT_TIMEOUT);
+    /* No retired task can be resurrected by the peer's stale full-line copy;
+     * no newly posted sibling bit can be lost by the completion's clear. */
+    assert(vm_base[ea+0x10]==0x40 && vm_base[ea+0x20]==0x40 && vm_base[ea+0x30]==0x40);
+    CloseHandle(worker);CloseHandle(completion_entered);CloseHandle(completion_done);
+    /* Independently prove real reservation invalidation and LR delivery,
+     * including a task index in the last bitset byte. */
+    spu_context* observer=(spu_context*)malloc(sizeof *observer);assert(observer);
+    spu_context_init(observer,0);observer->resv_ea=ea;observer->resv_valid=1;
+    spu_lockline_lock();spu_coh_reserve(observer,ea);spu_lockline_unlock();
+    job.taskid=127;
+    assert(async_owner_claim(SPU_ASYNC_TASK,ea,0,127,&job.lifetime)==1);
+    vm_base[ea+0x1f]=vm_base[ea+0x2f]=vm_base[ea+0x3f]=1;
+    unsigned before=reservation_wakes;
+    spu_taskset_task_exited(&job);
+    assert(!observer->resv_valid && (observer->event_status&SPU_EVENT_LR));
+    assert(reservation_wakes==before+1);
+    assert(!vm_base[ea+0x1f] && !vm_base[ea+0x2f] && !vm_base[ea+0x3f]);
+    spu_coh_unregister(observer);free(observer);
+    assert(spu_workload_taskset_close(ea));free(vm_base);vm_base=NULL;
+}
 static DWORD WINAPI contend(LPVOID ignored) {
     (void)ignored;
     WaitForSingleObject(start_event,INFINITE);
@@ -86,6 +142,7 @@ int main(void) {
         assert(async_owner_close(SPU_ASYNC_TASK,ea,0));
     }
     actual_dispatch_cases();
+    coherent_completion();
     puts("SPU async lifetime: one active owner, slot reuse and stale cleanup passed");
     return 0;
 }

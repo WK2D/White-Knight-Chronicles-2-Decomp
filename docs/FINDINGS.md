@@ -2,7 +2,7 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 90 SDK patches / 77 Windows checks in Debug and
+**Current source checkpoint:** 93 SDK patches / 79 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -21,6 +21,56 @@ against the 84-patch stack. Missing SPU correctness paths, vector-helper/HLE
 performance leads, rendering gaps and service issues are recorded alongside
 existing equivalents. The original audit was read-only; the first implementation
 batch below addresses concrete instruction faults. No FPS gain is established. See the [complete comparison and priorities](KILLZONE_FIX_AUDIT.md).
+
+## SPURS completion coherence and SPU byte operations (patches 0091-0093)
+
+**0091:** task completion previously cleared ready/pending/enabled bits under
+the host lifetime lock, outside the lock used by SPU atomic line commits. It
+now updates those bits under the reservation lock and issues coherence
+notifications. The scan takes a short bitset snapshot, then rechecks eligible
+descriptors under that lock; image parsing and worker creation remain outside
+it. Lifetime claims and stale-completion protection are retained.
+
+The regression runs the production completion function against a modelled
+SPU compare/commit window while using the real lock and coherence registry.
+The old implementation permits completion inside that window; a subsequent
+full-line commit can resurrect the retired task. The fixed code preserves the
+new sibling bits and retires the completed task. A separate negative control
+removes notification and fails the reservation-loss/LR assertion. This covers
+completion/scan mutations, not every SPURS producer: shared bitset-builder
+read/modify/write helpers still need review.
+
+**0092:** task scans now mask the ELF pointer's low three flag bits before
+sizing/fingerprinting the image. All seven nonzero combinations launch the
+correct synthetic sibling image in the actual scheduler fixture; the old code
+fails. These are correctness fixes, not demonstrated WKC FPS fixes.
+
+**0093:** nine byte-shift/rotate entry points now use project-written SSSE3
+shuffle helpers on supported builds. The scalar path remains available and is
+tested separately. Comparisons use architectural byte order, every relevant
+count, random register high bits, wrap/zero-fill cases and extreme immediate
+values. An intentionally wrong byte-order mask fails the vector test. Exact
+FNMS and all floating-point modes are unchanged.
+
+Five alternating helper microbenchmark passes, with 5,000,000 calls per case
+and matching checksums, measure median speedups of **1.17-1.81x** for the six
+register-count forms. These are isolated helper calls with loop/call overhead,
+compiled at `/O2 /arch:AVX2`; they are not game-frame improvements.
+
+A hidden, muted Vulkan run reloads the saved town and exits with code 0. It
+alternates the exact previous helpers and SIMD in one diagnostic binary,
+using a live mode switch, neutral controls, no sampling profiler and no
+repeated GPU captures during measurement. Eight ten-second windows follow
+0/1/1/0/0/1/1/0. Early samples favour SIMD; later samples slow in both modes.
+A sustained FPS gain is **not established**. The counter measures accepted
+presentations, not unique game animation. The diagnostic mode branch and
+hidden window limit transfer to normal play. The preliminary comparison used
+a nonidentical scalar body and is excluded. See the
+[structured measurements](../verification/performance.json).
+
+All **79 Windows checks** pass in Debug and Release. The 93-patch stack
+reconstructs 72 SDK files from the pinned baseline. ARM/macOS execution,
+physical-controller gait and a smooth 30 fps during town traversal remain open.
 
 ## Runtime correctness and input follow-up (patches 0085-0090)
 

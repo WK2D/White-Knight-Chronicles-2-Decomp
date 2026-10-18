@@ -29,7 +29,7 @@ Use a project identity and a GitHub no-reply email for public commits when
 personal attribution is not desired. Configure them for this repository only.
 
 The runtime regressions run through `tools/build.ps1`; the current Windows Vulkan
-configuration passes 77 checks with 90 SDK patches in Debug and Release. See
+configuration passes 79 checks with 93 SDK patches in Debug and Release. See
 [BUILD.md](BUILD.md) for
 the pinned dependencies and regeneration workflow. When reporting a
 rendering improvement, inspect a real GPU readback; frame counters alone do not

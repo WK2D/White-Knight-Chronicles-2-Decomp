@@ -8,8 +8,8 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 90 SDK patches / 77 Windows checks. The newest town capture
-uses the 90-patch input/runtime follow-up; the menu captures use 83 patches. They
+Current source: 93 SDK patches / 79 Windows checks. The newest town capture
+uses the 93-patch task/byte-operation follow-up; the menu captures use 83 patches. They
 are final Vulkan swapchain readbacks, including window scaling and FXAA.
 The earlier LOD comparison is captured before window scaling. Saving and Continue
 reload work; normal shadow polarity is restored. Foot/Logic Stone flicker,
@@ -20,6 +20,19 @@ Historical entries retain their original test conditions and patch counts.
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-18 - Task scheduling and SPU byte-operation checks
+
+The 93-patch Vulkan build reloads the save and reaches this town view after
+short movement. Task completion now follows reservation locking, and task ELF
+flag bits are masked. Byte shifts/rotates have a tested SIMD implementation
+with a scalar fallback. All 79 checks pass in Debug and Release.
+
+This final swapchain readback comes from the hidden, muted diagnostic build
+with SIMD selected. The mixed native timing comparison does not establish a
+sustained FPS gain; the still image proves neither speed nor a rendering fix.
+
+![Saved town after task scheduling and SPU byte-operation changes](../verification/screenshots/2026-10-18-native-task-byte-check.png)
 
 ## 2026-10-18 - Runtime correctness and controller input follow-up
 

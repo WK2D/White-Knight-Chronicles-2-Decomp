@@ -1,0 +1,11 @@
+diff --git a/runtime/spu/spu_workload.c b/runtime/spu/spu_workload.c
+--- a/runtime/spu/spu_workload.c
++++ b/runtime/spu/spu_workload.c
+@@ -487,6 +487,7 @@
+         if (!ready) continue;
+         uint32_t elf = ((uint32_t)ti[0x14] << 24) | ((uint32_t)ti[0x15] << 16) |
+                        ((uint32_t)ti[0x16] << 8) | ti[0x17];
++        elf &= ~7u; /* task_info ELF low bits are flags, not address bits */
+         uint32_t args = ((uint32_t)ti[0x1C] << 24) | ((uint32_t)ti[0x1D] << 16) |
+                         ((uint32_t)ti[0x1E] << 8) | ti[0x1F];
+         if (!elf) continue;

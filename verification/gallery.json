@@ -4,6 +4,33 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "task_scheduling_and_spu_byte_checks",
+      "date": "2026-10-18",
+      "image": "screenshots/2026-10-18-native-task-byte-check.png",
+      "width": 1280,
+      "height": 720,
+      "renderer": "Vulkan shared RSX draw engine",
+      "source_format": "Final swapchain GPU readback PPM",
+      "source_sha256": "a85a9d025394b6818e2f6b8e7c4e262ebde94f9f89300c74a6cc7c781fec3db0",
+      "png_sha256": "138371ab54f7c62369bdd43f7762f33d0c06277d728c279520b79c4e8d4b5515",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "native_probe": "20261018-201939",
+      "native_readback": "exact-scene.ppm",
+      "sdk_patch_count_in_captured_run": 93,
+      "spu_image_inputs": 24,
+      "reload_verified": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false,
+      "performance_proven_by_still_image": false,
+      "capture_scope": "Unmodified final Vulkan swapchain pixels after saved-town reload and short movement; hidden/muted diagnostic build with SIMD selected. No sustained FPS or visual-fix claim."
+    },
+    {
       "milestone": "runtime_input_follow_up",
       "date": "2026-10-18",
       "image": "screenshots/2026-10-18-native-runtime-input-check.png",
