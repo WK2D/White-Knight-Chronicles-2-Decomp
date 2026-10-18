@@ -8,7 +8,11 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-**Current status:** the 76-patch native Windows Vulkan build verifies Logic Stone
+Current source: 78 SDK patches / 66 Windows checks. Patch 0078 reduces exact
+SPU math CPU work; it does not demonstrate an FPS gain. The latest image remains
+the patch-0076 capture. See [current results](FINDINGS.md#exact-spu-vector-math-patch-0078).
+
+**Latest captured checkpoint:** the 76-patch native Windows Vulkan build verifies Logic Stone
 proximity targeting, X opening its menu, Save writing a new local slot, and
 Continue returning to town after a full restart. All 64 Windows tests pass in
 normal Debug and optimized Release. Other NPC/object coverage and wider save

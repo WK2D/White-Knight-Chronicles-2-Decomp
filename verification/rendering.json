@@ -185,19 +185,20 @@
       "wkc2_spu_async_lifetime",
       "wkc2_shadow_compare",
       "wkc2_vk_arena_reserve",
-      "wkc2_frame_timeline"
+      "wkc2_frame_timeline",
+      "wkc2_spu_fnms_vector"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 77,
-    "last_verified_sdk_patch_count": 77,
-    "current_passed_count": 65,
-    "record_scope": "Patch 0077 preserves the current town checkpoint and adds an optional Windows frame timeline. All 65 Windows checks pass in Debug and Release. Movement remains uneven; locked 30 fps and a controlled improvement over patch 0076 are unverified. Earlier captures keep their original patch counts.",
-    "normal_debug_elapsed_seconds": 12.62,
-    "optimized_release_elapsed_seconds": 12.7,
+    "current_sdk_patch_count": 78,
+    "last_verified_sdk_patch_count": 78,
+    "current_passed_count": 66,
+    "record_scope": "Patch 0078 computes exact SPU FNMS in four AVX2 lanes, retaining the scalar fallback. All 66 Windows checks pass in Debug and Release. A matched hidden-town test reduces the busiest worker CPU time per presented frame by about 10%; presentation rate is 19.55 versus 19.90, so this is a CPU-efficiency change, not a demonstrated FPS improvement. Earlier captures keep their original patch counts.",
+    "normal_debug_elapsed_seconds": 12.61,
+    "optimized_release_elapsed_seconds": 12.69,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 77
+    "repeat_patch_application_verified_sdk_patch_count": 78
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2545,5 +2546,44 @@
     "user_feedback": "Slightly smoother but still bad",
     "controlled_speed_improvement_verified": false,
     "published_form_separate_native_run_verified": false
+  },
+  "exact_spu_vector_math": {
+    "date": "2026-10-18",
+    "sdk_patch_count": 78,
+    "semantics": "Existing scalar FNMS algorithm; AVX2 lanes or scalar fallback",
+    "differential_vectors": 16000000,
+    "differential_lane_results": 64000000,
+    "independent_oracle_vectors": 7099,
+    "rounding_ftz_daz_combinations": 16,
+    "mxcsr_unchanged_verified": true,
+    "native_ab_scope": "One loaded save and stationary camera, one executable, scalar/vector/scalar/vector; private switching removed from published patch",
+    "window_hidden": true,
+    "audio_output_muted": true,
+    "guest_audio_mixing_active": true,
+    "sampler_enabled": false,
+    "trace_recording_enabled": false,
+    "automatic_readbacks_enabled": false,
+    "sample_seconds": 40,
+    "presentations_per_second": [
+      19.899808165836465,
+      19.549511115604894,
+      19.899710061246427,
+      19.549185727542834
+    ],
+    "busiest_worker_percent_one_core": [
+      66.37,
+      57.89,
+      65.98,
+      58.71
+    ],
+    "busiest_worker_cpu_ms_per_presentation": [
+      33.35,
+      29.61,
+      33.16,
+      30.03
+    ],
+    "fps_gain_verified": false,
+    "published_binary_native_run_verified": false,
+    "scope": "CPU efficiency only; hidden-window measurements do not establish visible traversal smoothness or unique animation rate."
   }
 }

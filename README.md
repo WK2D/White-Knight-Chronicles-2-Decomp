@@ -1,9 +1,11 @@
 # White Knight Chronicles II native-port research
 
-**2026-10-18:** Vulkan batch scheduling improves the saved-town sample to
-**28.03 presentations/s**, compared with 27.18 in the repeated baseline.
-A locked 30 fps and RPCS3-equivalent smoothness remain goals. Logic Stone saving
-and Continue reload work; normal shadows are restored, while black foot flicker remains.
+**2026-10-18:** exact SPU vector math now uses less CPU on AVX2 builds.
+Town lag remains unresolved: the matched hidden-window comparison gives
+**19.55 presentations/s versus 19.90** with the original math, while one busy
+worker uses about 10% less CPU time per presented frame. This is an efficiency
+improvement, with no FPS gain established. Logic Stone saving and Continue
+reload work; normal shadows are restored, while black foot flicker remains.
 
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
 through **static recompilation**, followed by Apple Silicon portability testing.
@@ -40,8 +42,11 @@ Full rendering fidelity, sustained traversal and combat remain unverified.
 - [Progress gallery](docs/GALLERY.md): newest first
 - [Project icon](docs/ICON.md): approved WKCII artwork used by Windows builds
 
-The source stack contains **77 SDK patches** and passes **65 Windows regression
-checks** in normal Debug and optimized Release. Patch 0077 adds an optional Windows
+The source stack contains **78 SDK patches** and passes **66 Windows regression
+checks** in normal Debug and optimized Release. Patch 0078 keeps exact arithmetic
+while computing FNMS lanes together on AVX2; other builds keep the scalar path.
+See [conditions and limits](docs/FINDINGS.md#exact-spu-vector-math-patch-0078).
+Patch 0077 adds an optional Windows
 frame timeline; movement remains uneven, and a controlled speed gain is unverified. Patch 0076 fixes descriptor-pool
 submission churn and feeds small batches to the GPU when the spare slot is ready.
 It keeps the game's two-vblank pacing and the unchanged **Present/s** counter.
@@ -109,7 +114,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **65 Windows runtime regression checks** with **77 SDK patches** applied.
+- passes **66 Windows runtime regression checks** with **78 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are

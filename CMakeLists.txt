@@ -371,6 +371,10 @@ if(WKC2_BUILD_TESTS)
         "${CMAKE_BINARY_DIR}/spu-fp-fixture" "${PS3RECOMP_DIR}/runtime/spu")
     add_test(NAME wkc2_spu_fp COMMAND wkc2_spu_fp_test)
     set_tests_properties(wkc2_spu_fp PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_spu_fnms_vector_test tests/spu_fnms_vector_test.c)
+    target_include_directories(wkc2_spu_fnms_vector_test PRIVATE "${PS3RECOMP_DIR}/runtime/spu")
+    add_test(NAME wkc2_spu_fnms_vector COMMAND wkc2_spu_fnms_vector_test)
+    set_tests_properties(wkc2_spu_fnms_vector PROPERTIES TIMEOUT 15)
     # Compile the SDK's exact guard body, with isolated diagnostic/halt capture.
     set(SPU_DEPTH_FIXTURE "${CMAKE_BINARY_DIR}/spu-depth-fixture/spu_depth_guard_fixture.inc")
     add_custom_command(OUTPUT "${SPU_DEPTH_FIXTURE}"

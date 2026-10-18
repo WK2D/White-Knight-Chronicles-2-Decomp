@@ -2,12 +2,55 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** Patch 0077 preserves the current town checkpoint and adds an optional Windows frame timeline. All 65 Windows checks pass in Debug and Release. Movement remains uneven; locked 30 fps and a controlled improvement over patch 0076 are unverified. The latest gallery image remains the patch-0076 capture.
+**Current source checkpoint:** Patch 0078 computes exact SPU FNMS in four AVX2 lanes, retaining the scalar fallback. All 66 Windows checks pass in Debug and Release. A matched hidden-town test reduces the busiest worker CPU time per presented frame by about 10%; presentation rate is 19.55 versus 19.90, so this is a CPU-efficiency change, not a demonstrated FPS improvement. The latest gallery image remains the patch-0076 capture.
 Normal shadow polarity and the starting-town Logic Stone save/reload work.
 Black foot flicker, rotating Logic Stone light flicker, analogue walk/run
 inconsistency and broader game-speed fidelity remain open. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
+
+## Exact SPU vector math (patch 0078)
+
+The busy-town profile identified exact FNMS (fused negative multiply-subtract)
+inside repeated SPU geometry calculations. Patch 0078 runs the existing integer
+algorithm in four AVX2 lanes. Sticky alignment, truncation, zero handling,
+extended exponent-255 values and saturation are unchanged. Leading-bit lookup
+uses exact double subtractions, which preserve MXCSR under all tested rounding,
+FTZ and DAZ settings. Builds without AVX2 retain the scalar implementation;
+Apple Silicon remains untested.
+
+The standalone differential exercise matches 16 million vectors / 64 million
+lane results under all 16 host-control combinations. The independent FNMS
+oracle's 7,099 vectors also pass. A new production-helper regression compares
+1,048,576 independent-lane vectors against the scalar reference on x86 builds.
+All 66 Windows checks pass in Debug (scalar fallback) and optimized Release
+(AVX2). The isolated all-normal-input helper benchmark improves by about 2.9x;
+this is not a whole-game speedup.
+
+One executable alternated scalar/vector/scalar/vector with the same stationary
+camera and loaded save. The window was hidden, audio-session output muted,
+guest mixing active, and sampling, trace recording and automatic GPU readbacks
+off. A private control value was checked throughout every sample. Each sample
+lasted 40 seconds:
+
+| Path | Presentations/s | Busiest worker, % of one CPU core | Worker CPU ms/presentation |
+|---|---:|---:|---:|
+| Scalar 1 | 19.90 | 66.37 | 33.35 |
+| AVX2 1 | 19.55 | 57.89 | 29.61 |
+| Scalar 2 | 19.90 | 65.98 | 33.16 |
+| AVX2 2 | 19.55 | 58.71 | 30.03 |
+
+CPU time per presentation falls about 10% for that worker. Presentation rate is
+about 1.8% lower; a gameplay FPS gain is not established. A separate easier view
+stays near the 30-presentation ceiling with either path. These are presentation
+counts, not unique animation updates. Keep the change scoped to CPU efficiency;
+town smoothness, traversal and the 30 fps target remain open.
+
+The native A/B build uses the same vector calculation plus private switching
+and muted/hidden test controls. Those controls are not in patch 0078. The
+published source form is separately built and regression-tested; that exact
+executable has not had a separate native town run. No new gallery image is
+claimed for a math-only change; the patch-0076 image keeps its provenance.
 
 ## Frame timeline checkpoint (patch 0077)
 

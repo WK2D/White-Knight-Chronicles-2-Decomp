@@ -12,10 +12,12 @@ game-speed equivalence remain unverified. See the
 [latest gallery entry](GALLERY.md#2026-10-18---vulkan-batch-scheduling-in-the-saved-town)
 and [timing conditions](#vulkan-batch-scheduling-patch-0076).
 
-The current source stack contains 77 SDK patches. All 65 Windows Vulkan checks pass
-in normal Debug (12.62 seconds) and optimized Release (12.70 seconds). These suites
-ran three tests in parallel, so their elapsed times are not game performance.
-Reapplying the 77-patch stack changes no SDK files. Patch 0074 restores normal shadow
+The current source stack contains 78 SDK patches. All 66 Windows Vulkan checks pass
+in normal Debug and optimized Release. The suites run three tests in parallel;
+their elapsed times are not game performance. Patch 0078 adds exact AVX2 FNMS
+with a scalar fallback. It reduces CPU work in the measured town worker but
+does not establish an FPS gain; see [results](FINDINGS.md#exact-spu-vector-math-patch-0078).
+Reapplying the 78-patch stack changes no SDK files. Patch 0074 restores normal shadow
 polarity in the observed native town; black foot flicker remains. Patch 0075
 repairs the FIFO user-command route to the registered HLE callback. Its native Logic Stone
 interaction, save write and restart/Continue reload into town are verified.
@@ -1345,3 +1347,17 @@ Raw traces include host thread IDs, call sites and timings. Keep them private;
 the public tree contains the source and synthetic regression only. A native
 diagnostic precursor was used in town, while this portable publication form
 has so far been checked by the Windows build and regression suites.
+
+## Exact AVX2 SPU FNMS (patch 0078)
+
+`spu_fnms` uses four independent 64-bit lanes when compiled with AVX2. The
+normal Debug build retains the scalar fallback; the optimized `/arch:AVX2`
+build exercises the vector form. No CPU ISA requirement is added to the
+default build. The helper retains the scalar arithmetic contract, including
+finite exponent 255 and saturation. Apple Silicon remains untested.
+
+`wkc2_spu_fnms_vector` checks independent lanes, zero/subnormal inputs, extended
+values and cancellation against the scalar reference. On x86 it runs all
+rounding/FTZ/DAZ combinations and verifies unchanged MXCSR. The existing
+`wkc2_spu_fp` independent oracle remains enabled. Native A/B results and their
+limits are in [the findings](FINDINGS.md#exact-spu-vector-math-patch-0078).
