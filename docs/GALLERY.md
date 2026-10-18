@@ -8,7 +8,9 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 79 SDK patches / 67 Windows checks. The latest comparison
+Current source: 80 SDK patches / 68 Windows checks. Patch 0080 removes the
+intermediate window reduction in source; its native visual validation is pending.
+The latest patch-0079 comparison
 shows the texture LOD correction. Saving and Continue reload work; normal
 shadow polarity is restored. Foot/Logic Stone flicker, incomplete rendering
 state and town lag remain open. Still images do not prove smooth animation,

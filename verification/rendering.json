@@ -201,19 +201,20 @@
       "wkc2_vk_arena_reserve",
       "wkc2_frame_timeline",
       "wkc2_spu_fnms_vector",
-      "wkc2_vk_sampler_lod"
+      "wkc2_vk_sampler_lod",
+      "wkc2_vk_present_source"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 79,
-    "last_verified_sdk_patch_count": 79,
-    "current_passed_count": 67,
-    "record_scope": "Patch 0079 restores the game-requested negative texture LOD bias in Vulkan. Hidden same-camera captures show improved clothing, brick and foliage detail. All 67 Windows checks pass in Debug and Release. Rendering fidelity and town performance remain incomplete. Historical evidence retains its original patch counts.",
+    "current_sdk_patch_count": 80,
+    "last_verified_sdk_patch_count": 80,
+    "current_passed_count": 68,
+    "record_scope": "Patch 0080 presents the guest surface directly to the Vulkan window, removing the reduced intermediate image from normal presentation. All 68 Windows checks pass in Debug and Release; the new window path is not yet native-run verified. Patch 0079 texture detail improvement remains verified; broader rendering fidelity and lag remain open. The latest gallery captures retain their patch-0079 provenance.",
     "normal_debug_elapsed_seconds": 12.61,
     "optimized_release_elapsed_seconds": 12.69,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 79
+    "repeat_patch_application_verified_sdk_patch_count": 80
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2619,5 +2620,17 @@
       "texture-coordinate controls",
       "intermediate presentation downsampling"
     ]
+  },
+  "direct_window_presentation": {
+    "date": "2026-10-18",
+    "sdk_patch_count": 80,
+    "production_functions_recording_api_verified": true,
+    "old_implementation_fails_regression": true,
+    "normal_engine_frame_full_image_blits": 1,
+    "intermediate_720p_frame_omitted": true,
+    "native_run_verified": false,
+    "window_detail_improvement_verified": false,
+    "fps_gain_verified": false,
+    "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   }
 }

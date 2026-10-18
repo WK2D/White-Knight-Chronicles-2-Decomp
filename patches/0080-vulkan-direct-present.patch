@@ -1,0 +1,163 @@
+Present the guest color surface directly to the Vulkan swapchain at its own resolution.
+Avoid the reduced intermediate image during normal play; retain explicit diagnostics and hold behavior.
+
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -2006,10 +2006,11 @@
+     return 0;
+ }
+ 
+-/* Records the blit of the offscreen target into swapchain image `idx`, ending with the image ready to present. */
+-static void vk_window_blit(VkCommandBuffer cmd, u32 idx)
+-{
+-    vk_barrier_image_in(cmd, s_vk.color.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
++/* Scale the selected frame directly into the swapchain. The shared engine's
++ * guest surface need not match the legacy offscreen target's dimensions. */
++static void vk_window_blit(VkCommandBuffer cmd, u32 idx, VkImage source, u32 width, u32 height)
++{
++    vk_barrier_image_in(cmd, source, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
+     VkImageMemoryBarrier b = {
+         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+         .srcAccessMask = 0, .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+@@ -2021,14 +2022,15 @@
+                           0, 0, NULL, 0, NULL, 1, &b);
+     VkImageBlit blit = {
+         .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+-        .srcOffsets = { { 0, 0, 0 }, { (int32_t)s_vk.width, (int32_t)s_vk.height, 1 } },
++        .srcOffsets = { { 0, 0, 0 }, { (int32_t)width, (int32_t)height, 1 } },
+         .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+         .dstOffsets = { { 0, 0, 0 },
+                         { (int32_t)s_vk.sc_extent.width, (int32_t)s_vk.sc_extent.height, 1 } },
+     };
+-    pvkCmdBlitImage(cmd, s_vk.color.img, VK_IMAGE_LAYOUT_GENERAL,
++    pvkCmdBlitImage(cmd, source, VK_IMAGE_LAYOUT_GENERAL,
+                     s_vk.sc_images[idx], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+-                    1, &blit, VK_FILTER_LINEAR);
++                    1, &blit, (width == s_vk.sc_extent.width && height == s_vk.sc_extent.height)
++                              ? VK_FILTER_NEAREST : VK_FILTER_LINEAR);
+     b.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+     b.dstAccessMask = 0;
+     b.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+@@ -2087,8 +2089,9 @@
+     return 0;
+ }
+ 
+-/* Blit the offscreen target into the next swapchain image and present it. */
+-static void vk_present_window(void)
++/* Present a selected image; also used when the engine's second command-buffer
++ * allocation fails, without reverting to the reduced offscreen image. */
++static void vk_present_window(VkImage source, u32 width, u32 height)
+ {
+     if (!s_vk.windowed || !s_vk.swapchain) return;
+ 
+@@ -2096,7 +2099,7 @@
+     if (vk_window_acquire(&idx)) return;
+ 
+     if (vk_begin()) return;
+-    vk_window_blit(s_vk.cmd, idx);
++    vk_window_blit(s_vk.cmd, idx, source, width, height);
+     if (pvkEndCommandBuffer(s_vk.cmd) != VK_SUCCESS) { VK_LOG("vkEndCommandBuffer failed\n"); return; }
+     vk_window_submit_present(s_vk.cmd, idx);
+ }
+@@ -2135,7 +2138,7 @@
+     s_g.last_draws = s_g.draws;
+     s_g.draws = 0;
+     if (s_vk.dump_path && (s_vk.presented % s_vk.dump_every) == 0) vk_dump_ppm(px);
+-    vk_present_window();
++    vk_present_window(s_vk.color.img, s_vk.width, s_vk.height);
+ }
+ 
+ /* ---------------------------------------------------------------------------
+@@ -2675,13 +2678,13 @@
+     pvkCmdClearDepthStencilImage(s_vk.cmd, o->im.img, VK_IMAGE_LAYOUT_GENERAL, &d, 1, &r);
+ }
+ 
+-/* The engine's present into the window: the frame's batch (its draws, the blit onto the display image and the
+- * centre-pixel copy) is submitted as it is, the blit into the acquired swapchain image goes in a second command buffer
++/* The engine's present into the window: the frame's batch (its draws and the
++ * diagnostic pixel copy) is submitted as it is, the blit into the acquired swapchain image goes in a second command buffer
+  * that waits for the acquire, and one fence wait covers both. It used to be three submissions and three waits a
+  * frame, one of them a full-frame readback only the debug hooks read. */
+ static VkCommandBuffer s_cmd_win;
+ 
+-static void vk_eng_present_window(void)
++static void vk_eng_present_window(VkImage source, u32 width, u32 height)
+ {
+     if (!s_cmd_win) {
+         VkCommandBufferAllocateInfo cai = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+@@ -2691,7 +2694,7 @@
+     }
+     if (!s_vk.windowed || !s_vk.swapchain || !s_cmd_win || !s_batch.open) {
+         vk_batch_flush();
+-        if (s_vk.windowed && s_vk.swapchain && !s_cmd_win) vk_present_window();
++        if (s_vk.windowed && s_vk.swapchain && !s_cmd_win) vk_present_window(source, width, height);
+         return;
+     }
+     vk_batch_end_pass();
+@@ -2711,7 +2714,7 @@
+                                         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT };
+         pvkResetCommandBuffer(s_cmd_win, 0);
+         pvkBeginCommandBuffer(s_cmd_win, &bi);
+-        vk_window_blit(s_cmd_win, idx);
++        vk_window_blit(s_cmd_win, idx, source, width, height);
+         pvkEndCommandBuffer(s_cmd_win);
+         /* The fence signals after everything submitted before it on the queue: the frame's batch too. */
+         if (vk_window_submit_present(s_cmd_win, idx)) pvkDeviceWaitIdle(s_vk.device);
+@@ -2720,16 +2723,20 @@
+     vk_batch_retire();
+ }
+ 
+-/* The named surface becomes the frame: blit it onto the display image, copy out the centre pixel (the whole frame
+- * when this one is dumped) for the debug hooks, and present the display image into the window. */
++/* Present the guest surface directly. The fixed-size legacy image is only
++ * populated for explicit frame dumps or the optional shutdown hold; normal
++ * engine frames never pass through a reduced intermediate image. */
+ static void vk_eng_present(void* user, u32 surface)
+ {
+     vk_flush_report();
+     (void)user;
+     vk_eng_obj* o = vk_eng_get(surface, VK_ENG_COLOR);
+     if (!s_vk.device || vk_rec_begin()) return;
+-    vk_barrier_image(s_vk.color.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
+-    if (o) {
++    const VkImage source = o ? o->im.img : s_vk.color.img;
++    const u32 width = o ? o->w : s_vk.width, height = o ? o->h : s_vk.height;
++    const int dump = s_vk.dump_path && ((s_vk.presented + 1u) % s_vk.dump_every) == 0;
++    if (o && (dump || s_vk.hold_seconds > 0.0)) {
++        vk_barrier_image(s_vk.color.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
+         vk_barrier_image(o->im.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
+         VkImageBlit blit = {
+             .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+@@ -2743,15 +2750,17 @@
+                                                                     : VK_FILTER_LINEAR);
+         vk_barrier_image(s_vk.color.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
+     }
+-    const int dump = s_vk.dump_path && ((s_vk.presented + 1u) % s_vk.dump_every) == 0;
++    const VkImage read_source = dump ? s_vk.color.img : source;
++    const u32 read_width = dump ? s_vk.width : width, read_height = dump ? s_vk.height : height;
++    vk_barrier_image(read_source, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
+     VkBufferImageCopy region = {
+         .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+-        .imageOffset = { dump ? 0 : (int32_t)(s_vk.width / 2), dump ? 0 : (int32_t)(s_vk.height / 2), 0 },
+-        .imageExtent = { dump ? s_vk.width : 1u, dump ? s_vk.height : 1u, 1 },
++        .imageOffset = { dump ? 0 : (int32_t)(read_width / 2), dump ? 0 : (int32_t)(read_height / 2), 0 },
++        .imageExtent = { dump ? read_width : 1u, dump ? read_height : 1u, 1 },
+     };
+-    pvkCmdCopyImageToBuffer(s_vk.cmd, s_vk.color.img, VK_IMAGE_LAYOUT_GENERAL, s_vk.readback.buf, 1, &region);
++    pvkCmdCopyImageToBuffer(s_vk.cmd, read_source, VK_IMAGE_LAYOUT_GENERAL, s_vk.readback.buf, 1, &region);
+     vk_cmd_buffer_to_host(s_vk.readback.buf);
+-    vk_eng_present_window();
++    vk_eng_present_window(source, width, height);
+     vk_invalidate(&s_vk.readback);
+     const unsigned char* px = (const unsigned char*)s_vk.readback.ptr;
+     const size_t c = dump ? ((size_t)(s_vk.height / 2) * s_vk.width + s_vk.width / 2) * 4 : 0;
+@@ -4182,7 +4191,7 @@
+         const Uint32 end = SDL_GetTicks() + (Uint32)(s_vk.hold_seconds * 1000.0);
+         while (s_vk.windowed && !SDL_TICKS_PASSED(SDL_GetTicks(), end)) {
+             if (rsx_vulkan_backend_pump_messages() != 0) break;
+-            vk_present_window();         /* FIFO: paced by the display */
++            vk_present_window(s_vk.color.img, s_vk.width, s_vk.height); /* FIFO: paced by the display */
+         }
+     }
+     if (s_vk.windowed || s_vk.window) vk_window_drop(NULL);

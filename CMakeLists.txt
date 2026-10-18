@@ -586,6 +586,19 @@ if(WKC2_BUILD_TESTS)
             "${PS3RECOMP_DIR}/include" "${PS3RECOMP_VULKAN_INCLUDE_DIR}")
         add_test(NAME wkc2_vk_sampler_lod COMMAND wkc2_vk_sampler_lod_test)
         set_tests_properties(wkc2_vk_sampler_lod PROPERTIES TIMEOUT 10)
+        set(PRESENT_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/present-fixture.inc")
+        add_custom_command(OUTPUT "${PRESENT_FIXTURE}"
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_present_fixture.py"
+                --source "${PS3RECOMP_DIR}/libs/video/rsx_vulkan_backend.c"
+                --output "${PRESENT_FIXTURE}"
+            DEPENDS "${PS3RECOMP_DIR}/libs/video/rsx_vulkan_backend.c"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_present_fixture.py"
+            VERBATIM)
+        add_executable(wkc2_vk_present_source_test tests/vk_present_source_test.c "${PRESENT_FIXTURE}")
+        target_include_directories(wkc2_vk_present_source_test PRIVATE
+            "${CMAKE_CURRENT_BINARY_DIR}" "${PS3RECOMP_VULKAN_INCLUDE_DIR}")
+        add_test(NAME wkc2_vk_present_source COMMAND wkc2_vk_present_source_test)
+        set_tests_properties(wkc2_vk_present_source PROPERTIES TIMEOUT 10)
         set(VK_ARENA_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/vk-arena-fixture.inc")
         add_custom_command(OUTPUT "${VK_ARENA_FIXTURE}"
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_vk_arena_fixture.py"

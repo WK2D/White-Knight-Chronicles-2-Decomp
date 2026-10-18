@@ -2,12 +2,37 @@
 
 Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** Patch 0079 restores the game-requested negative texture LOD bias in Vulkan. Hidden same-camera captures show improved clothing, brick and foliage detail. All 67 Windows checks pass in Debug and Release. Rendering fidelity and town performance remain incomplete.
+**Current source checkpoint:** Patch 0080 presents the guest surface directly to the Vulkan window, removing the reduced intermediate image from normal presentation. All 68 Windows checks pass in Debug and Release; the new window path is not yet native-run verified. Patch 0079 texture detail improvement remains verified; broader rendering fidelity and lag remain open.
 Normal shadow polarity and the starting-town Logic Stone save/reload work.
 Black foot flicker, rotating Logic Stone light flicker, analogue walk/run
 inconsistency and broader game-speed fidelity remain open. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
+
+## Direct Vulkan window presentation (patch 0080)
+
+The shared engine rendered the guest's 1920x1080 presentation surface into a
+fixed 1280x720 image, then scaled that reduced image into the window. This
+could discard detail even after the texture LOD correction. Patch 0080 sends
+the selected guest image and dimensions directly to the swapchain blit. Normal
+presentation performs one scale and omits the intermediate full-frame copy.
+The debug center pixel comes from the guest surface; explicitly requested
+frame dumps and shutdown-hold captures preserve their previous format.
+
+The queue/submission arrangement, presentation counter and game timing are
+unchanged. The allocation-failure path preserves the full-resolution source.
+The recording-API regression fails against the previous code and covers equal,
+smaller and larger window sizes, diagnostic paths, missing/acquire-unavailable
+swapchains, headless operation and allocation fallback. All 68 Windows checks
+pass in Debug and Release. This exact new window path has not yet had a native
+run or side-by-side visual comparison. No FPS gain or completed fidelity is
+claimed, and no gallery image is presented as proof of this change.
+
+The discussion in [ps3recomp issue 183](https://github.com/sp00nznet/ps3recomp/issues/183#issuecomment-6136128339)
+explicitly identifies synchronous Vulkan submission and incomplete Windows
+validation upstream. Our local batching/Windows changes require their own
+measurements. The issue does not diagnose WKC's SPU behavior, establish a
+D3D12 speed advantage for this build, or remove the need for renderer A/B tests.
 
 ## Texture detail and rendering state audit (patch 0079)
 
@@ -39,7 +64,7 @@ were checked against the shared engine and Vulkan implementation:
 | Polygon offset | Fill offset enabled; nonzero negative bias and slope observed | Missing from Vulkan raster state; concrete flicker lead, effect unverified |
 | Depth clip limits | Changing clip-min/max values observed | Not forwarded separately; check interaction with the vertex depth transform before changing behavior |
 | Texture-coordinate controls | Several units toggle control bit 0 | Missing explicit forwarding; determine interpolation semantics and affected shaders |
-| Presentation scaling | Guest surface readbacks are 1920x1080; intermediate display image is fixed at 1280x720 | Current path can downsample and then enlarge; avoid the intermediate reduction in a separate change |
+| Presentation scaling | Guest surface readbacks are 1920x1080; intermediate display image is fixed at 1280x720 | Source path corrected by 0080; native window comparison pending |
 | Anisotropy / texture gamma / texture alpha kill | 1x / zero / disabled in sampled enabled units | General omissions remain, but these samples do not implicate them |
 | Fog / logic operations / depth bounds | Not enabled in sampled registers | No evidence these cause the current view's mismatch |
 | Extra render-target blend/masks | Written as zero in samples | Shared pipeline mirrors target A; inspect actual MRT passes before claiming a fault |

@@ -12,12 +12,12 @@ game-speed equivalence remain unverified. See the
 [latest gallery entry](GALLERY.md#2026-10-18---vulkan-batch-scheduling-in-the-saved-town)
 and [timing conditions](#vulkan-batch-scheduling-patch-0076).
 
-The current source stack contains 79 SDK patches. All 67 Windows Vulkan checks pass
+The current source stack contains 80 SDK patches. All 68 Windows Vulkan checks pass
 in normal Debug and optimized Release. The suites run three tests in parallel;
 their elapsed times are not game performance. Patch 0078 adds exact AVX2 FNMS
 with a scalar fallback. It reduces CPU work in the measured town worker but
 does not establish an FPS gain; see [results](FINDINGS.md#exact-spu-vector-math-patch-0078).
-Reapplying the 79-patch stack changes no SDK files. Patch 0074 restores normal shadow
+Reapplying the 80-patch stack changes no SDK files. Patch 0074 restores normal shadow
 polarity in the observed native town; black foot flicker remains. Patch 0075
 repairs the FIFO user-command route to the registered HLE callback. Its native Logic Stone
 interaction, save write and restart/Continue reload into town are verified.
@@ -1374,3 +1374,22 @@ covering cache reuse, signed bias, fine LOD steps, limits and comparison state.
 The regression fails against the old sampler builder. All 67 Windows checks
 pass in Debug and optimized Release. See [visual evidence and remaining
 state gaps](FINDINGS.md#texture-detail-and-rendering-state-audit-patch-0079).
+
+## Direct Vulkan window presentation (patch 0080)
+
+The shared engine passes the selected guest surface and its own dimensions to
+window presentation. A 1920x1080 frame no longer passes through the fixed
+1280x720 diagnostic image on its way to the swapchain. Normal presents omit
+that intermediate full-frame blit; a diagnostic center pixel is read directly
+from the guest surface. Explicit full-frame dumps and the optional shutdown
+hold retain their legacy image. The command-allocation fallback also uses the
+selected guest source. Matching dimensions use nearest filtering; differing
+window dimensions use one linear scaling operation.
+
+`wkc2_vk_present_source` executes the production functions against recording
+Vulkan calls. It covers source selection, larger/smaller/equal window extents,
+center readback, command-buffer allocation failure, unavailable swapchain,
+headless operation, explicit dumps and shutdown-hold behavior. The previous
+implementation fails the regression. All 68 Windows checks pass in Debug and
+Release. A real native run of this new presentation path remains pending;
+these synthetic checks do not establish visual parity or a speed improvement.

@@ -1,10 +1,10 @@
 # White Knight Chronicles II native-port research
 
-**2026-10-18:** Vulkan now honors the game's texture LOD bias. A hidden
-same-camera comparison restores fabric, brick and foliage detail previously
-lost to overly blurry mip selection. Full rendering fidelity remains open,
-including unnecessary window resampling and ignored polygon offset. Town lag
-also remains unresolved. Logic Stone saving and Continue reload work.
+**2026-10-18:** the game-requested texture LOD bias now restores fabric,
+brick and foliage detail. The next source change removes the extra reduction
+to 720p before window scaling; it passes regression checks, with a native
+window comparison still pending. Town lag, ignored polygon offset and broader
+rendering fidelity remain open. Logic Stone saving and Continue reload work.
 
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
 through **static recompilation**, followed by Apple Silicon portability testing.
@@ -41,8 +41,10 @@ Full rendering fidelity, sustained traversal and combat remain unverified.
 - [Progress gallery](docs/GALLERY.md): newest first
 - [Project icon](docs/ICON.md): approved WKCII artwork used by Windows builds
 
-The source stack contains **79 SDK patches** and passes **67 Windows regression
-checks** in normal Debug and optimized Release. Patch 0079 restores signed texture
+The source stack contains **80 SDK patches** and passes **68 Windows regression
+checks** in normal Debug and optimized Release. Patch 0080 presents the guest
+surface directly to the window; [validation scope](docs/FINDINGS.md#direct-vulkan-window-presentation-patch-0080).
+Patch 0079 restores signed texture
 LOD bias and distinct sampler-cache entries; see [rendering audit](docs/FINDINGS.md#texture-detail-and-rendering-state-audit-patch-0079).
 Patch 0078 keeps exact arithmetic
 while computing FNMS lanes together on AVX2; other builds keep the scalar path.
@@ -115,7 +117,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **67 Windows runtime regression checks** with **79 SDK patches** applied.
+- passes **68 Windows runtime regression checks** with **80 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are
