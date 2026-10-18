@@ -22,12 +22,23 @@ still flicker in that run. The 73-patch build passes 63 Windows checks; its
 worker-lifetime and shadow fixes still need native verification. Earlier
 64-patch timings used a hidden diagnostic window;
 [current timings and limits](FINDINGS.md#frame-pacing-and-game-speed) record both
-scopes. No new visual milestone is established, so the physics captures remain
-the newest images.
+scopes. The latest capture below records the current shadow regression;
+the earlier physics milestone remains separately documented.
 
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-18 — Current town build and remaining shadow fault
+
+The 73-patch native Vulkan build reaches the WKC1 town after character
+creation and the opening cutscenes. It passes 63 Windows regression checks.
+The bright patch beneath Leonard is a known rendering regression in the new
+depth-comparison path. Black flickering at his feet is also observed in motion.
+This unchanged game-frame readback records the fault; it does not establish
+correct shadows, sustained frame rate or complete gameplay.
+
+![Native WKC1 town with the bright foot-shadow regression beneath Leonard](../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png)
 
 ## 2026-10-17 — Town stretching fixed: secondary-bone physics
 

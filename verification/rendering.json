@@ -3,18 +3,17 @@
   "app_version": "01.00",
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
-    "date": "2026-10-17",
-    "native_probe": "20261017-202420",
-    "sdk_patch_count": 58,
-    "summary": "Secondary-bone physics removes the long stretched hair/clothing strips in inspected WKC1 town views; short movement and camera response rechecked",
-    "gallery_image": "screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png",
+    "date": "2026-10-18",
+    "native_probe": "20261018-051954",
+    "sdk_patch_count": 73,
+    "summary": "Native town progress capture with known bright foot-shadow regression and black flicker; shadow fidelity remains unverified",
+    "gallery_image": "screenshots/2026-10-18-native-wkc1-town-shadow-regression.png",
     "remaining_limits": [
-      "Full material/rendering and physics fidelity unverified",
+      "Bright foot-shadow regression and black flicker",
+      "Sustained town frame rate below target and still under test",
       "Sustained traversal, combat and save/load unverified",
       "SPU interpreter fallback remains enabled"
-    ],
-    "latest_recheck_probe": "20261017-233136",
-    "latest_recheck_sdk_patch_count": 64
+    ]
   },
   "verified": {
     "native_language_selection_rendered": true,
@@ -86,6 +85,15 @@
       "sha256": "57088f733ee95c95ee62a8386d757eb203f8099d07467c41b70660f15bc310b7",
       "method": "Visually inspected D3D12 GPU readback, published as a lossless PNG with optional metadata removed; source BMP remains private.",
       "source_bmp_sha256": "0f9d3939d686674ae878bf1e8b58c6ee56adb7751d28e3ce8e93cd909d55c603"
+    },
+    {
+      "file": "screenshots/2026-10-18-native-wkc1-town-shadow-regression.png",
+      "private_source_probe": "20261018-051954",
+      "sha256": "f9c2222fa82415b59fa839d611f770b98ec60ee14f4269cba9defb98820e7033",
+      "source_ppm_sha256": "fa3762b74fb5acaa57be516d566c7a53d4a344b8c347c0062b6c60cb3923031a",
+      "method": "Unchanged Vulkan GPU readback, lossless PNG with only IHDR/IDAT/IEND chunks",
+      "sdk_patch_count": 73,
+      "bright_foot_shadow_regression_visible": true
     }
   ],
   "checks": {
@@ -2380,5 +2388,21 @@
     "native_town_reached": true,
     "native_bright_foot_shadow_regression_observed": true,
     "native_black_foot_flicker_observed": true
-  }
+  },
+  "milestone_history": [
+    {
+      "date": "2026-10-17",
+      "native_probe": "20261017-202420",
+      "sdk_patch_count": 58,
+      "summary": "Secondary-bone physics removes the long stretched hair/clothing strips in inspected WKC1 town views; short movement and camera response rechecked",
+      "gallery_image": "screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png",
+      "remaining_limits": [
+        "Full material/rendering and physics fidelity unverified",
+        "Sustained traversal, combat and save/load unverified",
+        "SPU interpreter fallback remains enabled"
+      ],
+      "latest_recheck_probe": "20261017-233136",
+      "latest_recheck_sdk_patch_count": 64
+    }
+  ]
 }

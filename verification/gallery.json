@@ -4,6 +4,32 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_wkc1_town_shadow_regression",
+      "date": "2026-10-18",
+      "image": "screenshots/2026-10-18-native-wkc1-town-shadow-regression.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "Vulkan shared RSX draw engine",
+      "source_format": "Vulkan GPU readback PPM",
+      "source_sha256": "fa3762b74fb5acaa57be516d566c7a53d4a344b8c347c0062b6c60cb3923031a",
+      "png_sha256": "f9c2222fa82415b59fa839d611f770b98ec60ee14f4269cba9defb98820e7033",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IDAT",
+        "IEND",
+        "IHDR"
+      ],
+      "native_probe": "20261018-051954",
+      "native_readback": "burst_012.ppm",
+      "sdk_patch_count_in_captured_run": 73,
+      "spu_image_inputs": 24,
+      "bright_foot_shadow_regression_visible": true,
+      "foot_shadow_flicker_observed_in_motion": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false
+    },
+    {
       "milestone": "native_wkc1_secondary_bone_physics",
       "date": "2026-10-17",
       "image": "screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png",

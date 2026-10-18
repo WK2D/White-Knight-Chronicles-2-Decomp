@@ -54,11 +54,13 @@ reported in sync, but full audio synchronization remains unverified. See
 
 ## Progress
 
-[![Native WKC1 town after restoring secondary-bone physics; the long strips are gone](verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png)](docs/GALLERY.md)
+[![Native WKC1 town with the current bright foot-shadow regression](verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png)](docs/GALLERY.md)
 
-The latest image shows Leonard with his hair and clothing attached to the
-model, after restoring native execution of the secondary-bone physics job.
-Earlier captures and a rotated view are in the [gallery](docs/GALLERY.md).
+The latest capture shows the 73-patch native town build, including the known
+bright patch beneath Leonard's feet. Black foot flicker is also observed in
+motion; a still image cannot establish its cadence. This is a progress capture
+with a rendering fault, not a shadow-fix result. Earlier physics captures and
+a rotated view are in the [gallery](docs/GALLERY.md).
 
 The cutscene's red flashes came from a depth-only pass replacing display
 buffer 0 and from movie frames sampled through a stale GPU copy; see
