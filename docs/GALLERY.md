@@ -8,8 +8,8 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 97 SDK patches / 82 Windows checks. The newest town capture
-checks the 96-patch shader candidate; the menu captures use 83 patches. They
+Current source: 99 SDK patches / 84 Windows checks. The newest town captures
+check the 99-patch depth-range/query candidate; the menu captures use 83 patches. They
 are final Vulkan swapchain readbacks, including window scaling and FXAA.
 The earlier LOD comparison is captured before window scaling. Saving and Continue
 reload work; normal shadow polarity is restored. Foot/Logic Stone flicker,
@@ -20,6 +20,21 @@ Historical entries retain their original test conditions and patch counts.
 Newest milestones appear first. Future captures will be added at the top of the gallery.
 Each dated entry records what was verified at that checkpoint; later entries
 supersede earlier limitations when further testing establishes progress.
+
+## 2026-10-19 - Window-depth clip range check
+
+Patch 0098 pairs requested depth intervals with vertex normalization. The final
+99-patch candidate also initializes timezone and retail GPIO query outputs. All
+84 Windows checks pass in Debug and Release. It loads Continue and moves briefly
+in town in a hidden/muted run.
+
+These unmodified final readbacks show the save-point and ground views after
+the 99-patch reload. An earlier 98-patch candidate supplied the off/on comparison. No clear foot/Logic Stone flicker reduction is
+established. Still images do not prove smoothness, performance or full fidelity.
+
+![Town with paired depth-range handling](../verification/screenshots/2026-10-19-native-depth-range-front.png)
+
+![Overhead ground view with paired depth-range handling](../verification/screenshots/2026-10-19-native-depth-range-ground.png)
 
 ## 2026-10-18 - Fragment input and request coverage check
 

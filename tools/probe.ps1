@@ -61,6 +61,8 @@ if ($lastVerification) {
     $flips = [uint32]$lastVerification.Matches[0].Groups[1].Value
     $presented = [uint32]$lastVerification.Matches[0].Groups[2].Value
 }
+$missingSyscalls = @(Select-String -LiteralPath "$logRoot/$tag.stderr.log" -Pattern '\[ppu\] lv2_syscall (\d+) \(stub\)' | ForEach-Object { [uint64]$_.Matches[0].Groups[1].Value } | Sort-Object -Unique)
+if ($missingSyscalls.Count) { Write-Warning ('Unimplemented syscall IDs: ' + ($missingSyscalls -join ', ')) }
 $rsxReview = @()
 $rsxAuditProduced = $false
 if ($rsxAuditPath -and (Test-Path -LiteralPath $rsxAuditPath)) {
@@ -76,5 +78,5 @@ if ($rsxAuditPath -and (Test-Path -LiteralPath $rsxAuditPath)) {
 } elseif ($rsxAuditPath) {
     Write-Warning 'RSX audit was requested but no report was produced; coverage is unknown.'
 }
-[ordered]@{pid=$p.Id; renderer=$Renderer; timed_out=$timedOut; exit_code=$p.ExitCode; seconds_limit=$Seconds; guest_present_only=($env:WKC2_GUEST_PRESENT_ONLY -eq '1'); capture_directory=$(if ($Renderer -eq 'Vulkan') { $env:RSX_ENGINE_SNAP_DIR } else { $env:CELLMARK_DUMP_DIR }); capture_count=$CaptureFrameCount; capture_every=$CaptureEvery; capture_skip=$CaptureSkip; controller_script=$env:PAD_SCRIPT; spu_interp_profile=$interpProfilePath; rsx_audit=$rsxAuditPath; rsx_audit_produced=$rsxAuditProduced; rsx_requests_needing_review=$rsxReview; last_observed_guest_flips=$flips; last_observed_presented_frames=$presented; title_screen_verified=$false; gameplay_verified=$false} | ConvertTo-Json | Set-Content "$logRoot/$tag.result.json"
+[ordered]@{pid=$p.Id; renderer=$Renderer; timed_out=$timedOut; exit_code=$p.ExitCode; seconds_limit=$Seconds; guest_present_only=($env:WKC2_GUEST_PRESENT_ONLY -eq '1'); capture_directory=$(if ($Renderer -eq 'Vulkan') { $env:RSX_ENGINE_SNAP_DIR } else { $env:CELLMARK_DUMP_DIR }); capture_count=$CaptureFrameCount; capture_every=$CaptureEvery; capture_skip=$CaptureSkip; controller_script=$env:PAD_SCRIPT; spu_interp_profile=$interpProfilePath; unimplemented_syscall_ids=$missingSyscalls; rsx_audit=$rsxAuditPath; rsx_audit_produced=$rsxAuditProduced; rsx_requests_needing_review=$rsxReview; last_observed_guest_flips=$flips; last_observed_presented_frames=$presented; title_screen_verified=$false; gameplay_verified=$false} | ConvertTo-Json | Set-Content "$logRoot/$tag.result.json"
 Write-Output "Probe logs: $logRoot/$tag.*"

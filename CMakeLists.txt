@@ -654,6 +654,12 @@ if(WKC2_BUILD_TESTS)
         target_link_libraries(wkc2_vk_polygon_offset_gpu_test PRIVATE ps3recomp_runtime)
         add_test(NAME wkc2_vk_polygon_offset_gpu COMMAND wkc2_vk_polygon_offset_gpu_test)
         set_tests_properties(wkc2_vk_polygon_offset_gpu PROPERTIES TIMEOUT 30)
+        add_executable(wkc2_vk_depth_range_gpu_test tests/vk_depth_range_gpu_test.cpp)
+        target_include_directories(wkc2_vk_depth_range_gpu_test PRIVATE
+            "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_DIR}/include" "${PS3RECOMP_VULKAN_INCLUDE_DIR}")
+        target_link_libraries(wkc2_vk_depth_range_gpu_test PRIVATE ps3recomp_runtime)
+        add_test(NAME wkc2_vk_depth_range_gpu COMMAND wkc2_vk_depth_range_gpu_test)
+        set_tests_properties(wkc2_vk_depth_range_gpu PROPERTIES TIMEOUT 30)
         set(SAMPLER_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/sampler-fixture.inc")
         add_custom_command(OUTPUT "${SAMPLER_FIXTURE}"
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_sampler_fixture.py"
@@ -857,6 +863,10 @@ if(WKC2_BUILD_TESTS)
     target_link_libraries(wkc2_memory_test PRIVATE Threads::Threads)
     add_test(NAME wkc2_memory COMMAND wkc2_memory_test)
     set_tests_properties(wkc2_memory PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_platform_queries_test tests/platform_queries_test.c)
+    target_include_directories(wkc2_platform_queries_test PRIVATE "${PS3RECOMP_DIR}/runtime/syscalls" "${PS3RECOMP_DIR}/runtime/ppu")
+    target_link_libraries(wkc2_platform_queries_test PRIVATE Threads::Threads)
+    add_test(NAME wkc2_platform_queries COMMAND wkc2_platform_queries_test)
     add_executable(wkc2_ppu_thread_lifetime_test tests/ppu_thread_lifetime_test.c
         "${PS3RECOMP_DIR}/runtime/syscalls/sys_ppu_thread.c")
     target_include_directories(wkc2_ppu_thread_lifetime_test PRIVATE

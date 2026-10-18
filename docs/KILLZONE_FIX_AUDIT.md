@@ -11,7 +11,7 @@ upstream-status statements describe its author's earlier audit; this is not a
 new check of every upstream PR.
 
 The original 84-patch review was read-only. A follow-up implementation batch
-is recorded below; the current stack has **97 patches / 82 Windows tests**. The
+is recorded below; the current stack has **99 patches / 84 Windows tests**. The
 catalogue's tests and Killzone measurements have not been rerun here. A matching
 source defect does not establish the cause of WKC's lag or flicker.
 
@@ -25,7 +25,7 @@ source defect does not establish the cause of WKC's lag or flicker.
 | 4 | S8, R1 | 0091 makes completion/scan updates coherent with SPU reservations; other producer RMW helpers remain to review. Global lock redesign/contention is separate. |
 | 5 | P8, P9 | HLE lookup is linear and per-read HOTREAD TLS diagnostics remain. Measure their current clang-cl cost and test indexed lookup equivalence. |
 | 6 | G3, V11 | Reports stay host-side and ZPASS is fixed-visible. Town logs contain type-1 GET_REPORT requests. 0095 census finds reports but no conditional rendering in the sampled run. Trace requested publication before implementing Vulkan queries. |
-| 7 | V1-V3, V5; polygon offset | 0096 fixes arithmetic predication and TC0-7 overrides/perspective correction. Other shared shader/AA gaps remain. The [RSX command cross-check](FINDINGS.md#rsx-command-reference-cross-check) found dropped town polygon-offset requests; 0094 now forwards them and passes GPU tests. Native flicker improvement remains unverified. FXAA does not implement RSX AA memory layout. |
+| 7 | V1-V3, V5; polygon offset | 0096 fixes arithmetic predication and TC0-7 overrides/perspective correction. Other shared shader/AA gaps remain. The [RSX command cross-check](FINDINGS.md#rsx-command-reference-cross-check) found dropped town polygon-offset requests; 0094 now forwards them and passes GPU tests. 0098 pairs active window-depth intervals with vertex normalization and GPU clipping tests. Native flicker improvement remains unverified. FXAA does not implement RSX AA memory layout. |
 | 8 | P6, G1, G5 | TLS sizing/exhaustion, 16 IO-mapping slots/count-based reuse, and ownership-blind FIFO wrapping remain. Add allocation/reuse/context regressions. |
 
 Generated SPU sources contain 18,216 byte-shift/rotate helper call sites and

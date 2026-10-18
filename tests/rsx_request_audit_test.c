@@ -9,8 +9,11 @@ int main(int argc,char** argv)
     assert(argc==2);
     rsx_dispatch* r=(rsx_dispatch*)calloc(1,sizeof *r);assert(r);
     rsx_dispatch_init(r,NULL);
+    assert(rsx_dsp_reg(r,0x0398)==0x3F800000u);
     rsx_request_audit a;assert(!rsx_ra_init(&a,argv[1],RSX_RA_CAP_FILL_OFFSET));
 #define SET(m,v) rsx_dispatch_method(r,m,v)
+    SET(0x0394,0x3E800000u);rsx_ra_draw(&a,r,5,0,1);
+    assert(a.events[RSX_RA_CLIP_RANGE]==1);SET(0x0394,0);
     SET(0x1E98,0x01000000); /* Always, not conditional. */
     SET(0x1A04,0x30);SET(0x1A08,0x00F00000);SET(0x1A0C,4);
     rsx_ra_draw(&a,r,5,1,1);
@@ -67,5 +70,9 @@ int main(int argc,char** argv)
     assert(!rsx_ra_init(&a,argv[1],RSX_RA_CAP_TEXCOORD_2D));assert(!a.attempted_draws);
     assert(!strcmp(rsx_ra_status(&a,RSX_RA_TEXCOORD_2D),"implemented"));
     rsx_ra_draw(NULL,r,5,1,1);rsx_ra_program(NULL,"bad",1);rsx_ra_flush(NULL,r,1);
+    assert(!rsx_ra_init(&a,argv[1],RSX_RA_CAP_CLIP_RANGE));
+    assert(!strcmp(rsx_ra_status(&a,RSX_RA_CLIP_RANGE),"implemented"));
+    rsx_ra_note(&a,RSX_RA_CLIP_RANGE_FALLBACK);
+    assert(!strcmp(rsx_ra_status(&a,RSX_RA_CLIP_RANGE_FALLBACK),"unverified"));
     remove(argv[1]);free(r);puts("Feature gating, counts, status and no-data report pass.");return 0;
 }

@@ -1,6 +1,6 @@
 # White Knight Chronicles II native-port research
 
-**2026-10-18:** Triangle -> System now has its own **Graphics Settings** page:
+**2026-10-19:** Triangle -> System now has its own **Graphics Settings** page:
 window mode, named output resolution, VSync, anisotropic filtering, Off/FXAA,
 and 30/40/60/120/144/Unlocked frame limits. All controls now appear together in the game's full settings panel, with its
 native frame, selection arrows and scrollbar. This includes the FPS overlay and
@@ -25,8 +25,13 @@ constant/slope bias and reset. Saved-town comparisons have not established a
 foot/Logic Stone flicker improvement; see [offset validation](docs/FINDINGS.md#vulkan-polygon-offset-patch-0094).
 The renderer now honors texture-coordinate overrides and perspective correction,
 and shader predication preserves unselected values without arithmetic blending.
-Diagnostic probes automatically report known active rendering gaps; see
+Vulkan also pairs window-depth clip limits with vertex normalization; GPU tests
+verify clipping and stored depth. Saved-town comparisons show no clear flicker
+reduction. Diagnostic probes automatically report known active rendering gaps; see
 [request coverage and shader checks](docs/FINDINGS.md#active-rsx-request-coverage-and-fragment-inputs-patches-0095-0096).
+Timezone and retail GPIO queries now initialize their output buffers. Missing
+syscalls are reported once per valid ID, removing the old shared 30-message
+limit; see [query and reporting checks](docs/FINDINGS.md#platform-queries-and-missing-syscall-reporting-patch-0099).
 Draw distance, fog and removing menu background blur remain pending.
 
 Target: USA BLUS30784, disc version 01.00. The goal is native Windows execution
@@ -64,7 +69,7 @@ Full rendering fidelity, sustained traversal and combat remain unverified.
 - [Progress gallery](docs/GALLERY.md): newest first
 - [Project icon](docs/ICON.md): approved WKCII artwork used by Windows builds
 
-The source stack contains **97 SDK patches** and passes **82 Windows regression
+The source stack contains **99 SDK patches** and passes **84 Windows regression
 checks** in normal Debug and optimized Release. The menus, preferences, Vulkan
 FXAA initialization and save loading have been exercised in native runs; the
 experimental DirectX 12 path also reaches the saved scene and settings menu.
@@ -148,7 +153,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **82 Windows runtime regression checks** with **97 SDK patches** applied.
+- passes **84 Windows runtime regression checks** with **99 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are

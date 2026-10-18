@@ -1,0 +1,169 @@
+diff --git a/runtime/ppu/ppu_loader.cpp b/runtime/ppu/ppu_loader.cpp
+--- a/runtime/ppu/ppu_loader.cpp
++++ b/runtime/ppu/ppu_loader.cpp
+@@ -1,3 +1,4 @@
++#include "ppu_syscall_coverage.h"
+ #include "ps3emu/wkc_frame_trace.h"
+ /*
+  * ps3recomp - PPU runtime loader
+@@ -3315,11 +3316,9 @@
+                 return;
+             }
+         }
+-        static int logged = 0;
+-        if (logged < 30) {
++        static ppu_syscall_coverage missing_syscalls = {};
++        if (ppu_syscall_first_unhandled(&missing_syscalls,num))
+             fprintf(stderr, "[ppu] lv2_syscall %llu (stub)\n", (unsigned long long)num);
+-            logged++;
+-        }
+         /* The UNIMPLEMENTED syscalls are the ones a trace is most wanted for, and
+          * they were the only ones it skipped: sc_trace ran on both handled paths
+          * but not here, so PS3_SCTRACE showed everything except the gaps. Snapshot
+diff --git a/runtime/ppu/ppu_syscall_coverage.h b/runtime/ppu/ppu_syscall_coverage.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/ppu/ppu_syscall_coverage.h
+@@ -0,0 +1,21 @@
++/* Warn once per valid LV2 syscall number, independent of earlier calls.
++ * The loader's old shared 30-message budget hid newly encountered requests.
++ * Invalid numbers outside the dispatch table share one overflow warning. */
++#ifndef PS3RECOMP_PPU_SYSCALL_COVERAGE_H
++#define PS3RECOMP_PPU_SYSCALL_COVERAGE_H
++#include <stdint.h>
++#ifdef _MSC_VER
++#include <intrin.h>
++#endif
++typedef struct ppu_syscall_coverage { uint64_t words[17]; } ppu_syscall_coverage;
++static inline int ppu_syscall_first_unhandled(ppu_syscall_coverage* state,uint64_t num) {
++    unsigned index=num<1024?(unsigned)(num>>6):16u;
++    uint64_t mask=UINT64_C(1)<<(num<1024?(num&63):0);
++#ifdef _MSC_VER
++    uint64_t old=(uint64_t)_InterlockedOr64((volatile __int64*)&state->words[index],(__int64)mask);
++#else
++    uint64_t old=__atomic_fetch_or(&state->words[index],mask,__ATOMIC_RELAXED);
++#endif
++    return !(old&mask);
++}
++#endif
+diff --git a/runtime/syscalls/lv2_register.c b/runtime/syscalls/lv2_register.c
+--- a/runtime/syscalls/lv2_register.c
++++ b/runtime/syscalls/lv2_register.c
+@@ -4,10 +4,8 @@
+  * Calls all sys_X_init functions to populate the syscall dispatch table
+  * with real HLE handlers.
+  *
+- * Registration order matters for conflicting syscall numbers:
+- * timers are registered before events, so event handlers take precedence
+- * for the colliding numbers (141, 142, 145). Timer sleep/time functions
+- * remain available as direct C calls for the runtime to use.
++ * Timer and event numbers follow the LV2 ABI and occupy distinct entries.
++ * Direct C timer helpers remain available for the host runtime.
+  */
+ 
+ #include <stdlib.h>   /* calloc, free */
+@@ -20,6 +18,7 @@
+ #include "sys_rwlock.h"
+ #include "sys_event.h"
+ #include "sys_timer.h"
++#include "sys_platform_queries.h"
+ #include "sys_memory.h"
+ #include "sys_vm.h"
+ #include "sys_fs.h"
+@@ -2454,6 +2453,7 @@
+     /* Timer and time (registered before events so event handlers
+      * override the conflicting syscall numbers 141, 142, 145) */
+     sys_timer_init(tbl);
++    lv2_platform_queries_register(tbl);
+ 
+     /* Event queues, ports, and flags */
+     sys_event_init(tbl);
+diff --git a/runtime/syscalls/lv2_syscall_table.h b/runtime/syscalls/lv2_syscall_table.h
+--- a/runtime/syscalls/lv2_syscall_table.h
++++ b/runtime/syscalls/lv2_syscall_table.h
+@@ -139,6 +139,9 @@
+ #define SYS_TIMER_SLEEP                 142
+ 
+ /* Time */
++#define SYS_TIME_GET_TIMEZONE           144
++#define SYS_GPIO_SET                    630
++#define SYS_GPIO_GET                    631
+ #define SYS_TIME_GET_CURRENT_TIME       145
+ #define SYS_TIME_GET_TIMEBASE_FREQUENCY 147
+ 
+diff --git a/runtime/syscalls/sys_platform_queries.h b/runtime/syscalls/sys_platform_queries.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/syscalls/sys_platform_queries.h
+@@ -0,0 +1,71 @@
++/* Retail platform queries used by WKC. No console device is exposed to
++ * the host: GPIO reports a retail console's absent LEDs/DIP switches. */
++#ifndef PS3RECOMP_SYS_PLATFORM_QUERIES_H
++#define PS3RECOMP_SYS_PLATFORM_QUERIES_H
++#include "lv2_syscall_table.h"
++#include <string.h>
++#include <time.h>
++#ifdef _WIN32
++#ifndef WIN32_LEAN_AND_MEAN
++#define WIN32_LEAN_AND_MEAN
++#endif
++#include <windows.h>
++#endif
++extern uint8_t* vm_base;
++extern uint32_t ppu_vm_size;
++static inline int lv2_platform_output(uint32_t ea,uint32_t bytes) {
++    uint64_t limit=ppu_vm_size?ppu_vm_size:(UINT64_C(1)<<32);
++    return vm_base && ea && (uint64_t)ea+bytes<=limit;
++}
++static inline void lv2_platform_store32(uint32_t ea,int32_t value) {
++    uint32_t v=(uint32_t)value;uint8_t* p=vm_base+ea;
++    p[0]=(uint8_t)(v>>24);p[1]=(uint8_t)(v>>16);p[2]=(uint8_t)(v>>8);p[3]=(uint8_t)v;
++}
++/* Both fields are minutes east of UTC; summertime is separate from the
++ * standard-zone offset. Do not log host timezone configuration. */
++static inline int lv2_platform_timezone_host(int32_t* base,int32_t* summer) {
++#ifdef _WIN32
++    TIME_ZONE_INFORMATION zone;DWORD state=GetTimeZoneInformation(&zone);
++    if(state==TIME_ZONE_ID_INVALID)return 0;
++    *base=-zone.Bias;
++    *summer=state==TIME_ZONE_ID_DAYLIGHT?-zone.DaylightBias:
++            state==TIME_ZONE_ID_STANDARD?-zone.StandardBias:0;
++#else
++    time_t now=time(NULL);struct tm local,utc;
++    if(!localtime_r(&now,&local) || !gmtime_r(&now,&utc))return 0;
++    int days=local.tm_yday-utc.tm_yday;
++    if(days>1)days=-1;else if(days< -1)days=1; /* year boundary */
++    int32_t actual=days*1440+(local.tm_hour-utc.tm_hour)*60+local.tm_min-utc.tm_min;
++    *summer=0;
++    if(local.tm_isdst>0) {
++        struct tm standard=local;standard.tm_isdst=0;
++        time_t as_standard=mktime(&standard);if(as_standard==(time_t)-1)return 0;
++        *summer=(int32_t)(difftime(as_standard,now)/60.0);
++    }
++    *base=actual-*summer;
++#endif
++    return 1;
++}
++static int64_t lv2_platform_get_timezone(ppu_context* ctx) {
++    uint32_t a=LV2_ARG_PTR(ctx,0),b=LV2_ARG_PTR(ctx,1);int32_t zone,summer;
++    if(!lv2_platform_output(a,4) || !lv2_platform_output(b,4))
++        return (int64_t)(int32_t)CELL_EFAULT;
++    if(!lv2_platform_timezone_host(&zone,&summer))return (int64_t)(int32_t)CELL_EIO;
++    lv2_platform_store32(a,zone);lv2_platform_store32(b,summer);return CELL_OK;
++}
++static int64_t lv2_platform_gpio_get(ppu_context* ctx) {
++    uint64_t device=LV2_ARG_U64(ctx,0);uint32_t out=LV2_ARG_PTR(ctx,1);
++    if(device!=1 && device!=2)return (int64_t)(int32_t)CELL_ESRCH;
++    if(!lv2_platform_output(out,8))return (int64_t)(int32_t)CELL_EFAULT;
++    memset(vm_base+out,0,8);return CELL_OK;
++}
++static int64_t lv2_platform_gpio_set(ppu_context* ctx) {
++    uint64_t device=LV2_ARG_U64(ctx,0);
++    return device==1?CELL_OK:(int64_t)(int32_t)(device==2?CELL_EINVAL:CELL_ESRCH);
++}
++static inline void lv2_platform_queries_register(lv2_syscall_table* table) {
++    lv2_syscall_register(table,SYS_TIME_GET_TIMEZONE,lv2_platform_get_timezone);
++    lv2_syscall_register(table,SYS_GPIO_GET,lv2_platform_gpio_get);
++    lv2_syscall_register(table,SYS_GPIO_SET,lv2_platform_gpio_set);
++}
++#endif

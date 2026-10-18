@@ -1,0 +1,320 @@
+diff --git a/libs/video/rsx_depth_range.h b/libs/video/rsx_depth_range.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_depth_range.h
+@@ -0,0 +1,29 @@
++/* RSX window-depth clip interval. Keep viewport mapping and vertex
++ * normalization paired: changing only the viewport would rescale stored depth. */
++#ifndef PS3RECOMP_RSX_DEPTH_RANGE_H
++#define PS3RECOMP_RSX_DEPTH_RANGE_H
++#include <float.h>
++static inline int rsx_depth_range_finite(float x) {
++    return x <= FLT_MAX && x >= -FLT_MAX;
++}
++static inline int rsx_depth_range_valid(float n, float f) {
++    return rsx_depth_range_finite(n) && rsx_depth_range_finite(f) && n < f;
++}
++/* Return zero for an unsupported interval and reset to the ordinary viewport.
++ * Equal/reversed/nonfinite ranges need separate hardware validation. */
++static inline int rsx_depth_range_select(float n, float f, int unrestricted,
++                                         float range[2]) {
++    range[0]=0.0f;range[1]=1.0f;
++    if (!rsx_depth_range_valid(n,f) || (!unrestricted && (n<0.0f || f>1.0f)))return 0;
++    range[0]=n;range[1]=f;return 1;
++}
++static inline int rsx_depth_range_coefficients(float scale, float offset,
++    float n, float f, float out[2]) {
++    if (!rsx_depth_range_valid(n,f))return 0;
++    const double inv=1.0/((double)f-(double)n);
++    const float s=(float)((double)scale*inv);
++    const float t=(float)(((double)offset-(double)n)*inv);
++    if (!rsx_depth_range_finite(s) || !rsx_depth_range_finite(t))return 0;
++    out[0]=s;out[1]=t;return 1;
++}
++#endif
+diff --git a/libs/video/rsx_dispatch.c b/libs/video/rsx_dispatch.c
+--- a/libs/video/rsx_dispatch.c
++++ b/libs/video/rsx_dispatch.c
+@@ -158,6 +158,8 @@
+      * the seed, consumers substituted mask=ALL for 0 and force-wrote the
+      * depth-only pass's garbage FP output (the blue-character class). */
+     rsx->regs[M_COLOR_MASK >> 2] = 0x01010101u;
++    /* Hardware clip defaults must survive a write to only one endpoint. */
++    rsx->regs[0x0398 >> 2] = 0x3F800000u;
+ 
+     /* NV40 reset state is counter-clockwise front winding.  Leaving this
+      * register zero made a live stream that relied on the hardware default
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -13,6 +13,7 @@
+ #include "rsx_draw_engine.h"
+ 
+ #include "rsx_fp_decompiler.h"
++#include "rsx_depth_range.h"
+ #include "rsx_request_audit.h"
+ #include "rsx_primitives.h"
+ #include "rsx_restart_cuts.h"
+@@ -3027,6 +3028,24 @@
+         xf[4] = (vp.translate[0] - W * 0.5f) / (W * 0.5f);
+         xf[5] = -((vp.translate[1] - H * 0.5f) / (H * 0.5f));
+         xf[6] = vp.translate[2];
++    }
++    /* The guest clip interval is expressed in window Z, after its viewport
++     * scale/offset. Normalize into the host clip volume and restore the exact
++     * interval through its viewport. The callback is dynamic, not PSO identity. */
++    if (g.be->set_depth_range) {
++        float near_depth=0.0f,far_depth=1.0f,adjusted[2];
++        { /* Both values have hardware reset defaults in the dispatcher. */
++            u32 n=rsx_dsp_reg(&g.rsx,0x0394),f=rsx_dsp_reg(&g.rsx,0x0398);
++            memcpy(&near_depth,&n,4);memcpy(&far_depth,&f,4);
++        }
++        if (rsx_depth_range_coefficients(xf[2],xf[6],near_depth,far_depth,adjusted) &&
++            g.be->set_depth_range(g.be->user,near_depth,far_depth)) {
++            xf[2]=adjusted[0];xf[6]=adjusted[1];
++        } else {
++            g.be->set_depth_range(g.be->user,0.0f,1.0f);
++            if (near_depth!=0.0f || far_depth!=1.0f)
++                rsx_ra_note(s_request_audit,RSX_RA_CLIP_RANGE_FALLBACK);
++        }
+     }
+     memcpy(g.vp_cb, g.rsx.constants, RSX_DSP_NUM_CONSTANTS * 16u);
+     memcpy(g.vp_cb + RSX_DSP_NUM_CONSTANTS * 16u, xf, sizeof xf);
+@@ -3351,7 +3370,8 @@
+     if (audit_path && *audit_path) {
+         s_request_audit = (rsx_request_audit*)calloc(1, sizeof *s_request_audit);
+         if (s_request_audit && rsx_ra_init(s_request_audit, audit_path,
+-                RSX_RA_CAP_TEXCOORD_2D | (g.be->set_polygon_offset ? RSX_RA_CAP_FILL_OFFSET : 0)) < 0) {
++                RSX_RA_CAP_TEXCOORD_2D | (g.be->set_polygon_offset ? RSX_RA_CAP_FILL_OFFSET : 0) |
++                (g.be->set_depth_range ? RSX_RA_CAP_CLIP_RANGE : 0)) < 0) {
+             free(s_request_audit); s_request_audit = NULL;
+         }
+     }
+diff --git a/libs/video/rsx_draw_engine.h b/libs/video/rsx_draw_engine.h
+--- a/libs/video/rsx_draw_engine.h
++++ b/libs/video/rsx_draw_engine.h
+@@ -190,6 +190,9 @@
+     void (*bind_vertex_textures)(void* user, const u32* textures,
+                                  const rsx_be_sampler_desc* samplers, u32 mask);
+     void (*set_viewport)(void* user, float x, float y, float w, float h);
++    /* Optional. Accept the window-depth interval paired with normalized vertex
++     * Z. Return 1 when accepted; on failure reset to 0..1 and return 0. */
++    int (*set_depth_range)(void* user, float near_depth, float far_depth);
+     void (*set_scissor)(void* user, u32 x, u32 y, u32 w, u32 h);
+     void (*set_stencil_ref)(void* user, u32 ref);
+     /* One draw. `indices` is NULL for a non-indexed one. Everything the
+diff --git a/libs/video/rsx_request_audit.h b/libs/video/rsx_request_audit.h
+--- a/libs/video/rsx_request_audit.h
++++ b/libs/video/rsx_request_audit.h
+@@ -19,12 +19,13 @@
+     RSX_RA_POINT_LINE_OFFSET, RSX_RA_FILL_OFFSET,
+     RSX_RA_FP_OPCODE, RSX_RA_FP_CALL_RETURN, RSX_RA_FP_PREDICATION,
+     RSX_RA_PIPELINE_FAILED, RSX_RA_FRAMEBUFFER_SRGB,
+-    RSX_RA_DEPTH_EXPORT, RSX_RA_WINDOW_OFFSET, RSX_RA_COUNT
++    RSX_RA_DEPTH_EXPORT, RSX_RA_WINDOW_OFFSET, RSX_RA_CLIP_RANGE_FALLBACK, RSX_RA_COUNT
+ };
+ #define RSX_RA_CAP_TEXCOORD_2D 1u
+ #define RSX_RA_CAP_BLEND_CONSTANT 2u
+ #define RSX_RA_CAP_BACK_STENCIL 4u
+ #define RSX_RA_CAP_FILL_OFFSET 8u
++#define RSX_RA_CAP_CLIP_RANGE 16u
+ 
+ typedef struct rsx_ra_description {
+     const char* name;
+@@ -35,7 +36,7 @@
+ static const rsx_ra_description rsx_ra_features[RSX_RA_COUNT] = {
+     {"texcoord_2d_override",0x0B40,"missing",RSX_RA_CAP_TEXCOORD_2D},
+     {"texcoord_8_9_override",0x0B60,"missing",0},
+-    {"clip_range",0x0394,"unverified",0},
++    {"clip_range",0x0394,"unverified",RSX_RA_CAP_CLIP_RANGE},
+     {"visibility_reports",0x1800,"approximate",0},
+     {"conditional_render",0x1E98,"missing",0},
+     {"surface_multisampling",0x0208,"missing",0},
+@@ -59,7 +60,8 @@
+     {"pipeline_failed",0x08E4,"dropped",0},
+     {"framebuffer_srgb_output",0x1FEC,"missing",0},
+     {"fragment_depth_export",0x1D60,"missing",0},
+-    {"window_offset",0x02B8,"missing",0}
++    {"window_offset",0x02B8,"missing",0},
++    {"clip_range_fallback",0x0394,"unverified",0}
+ };
+ typedef struct rsx_request_audit {
+     char path[1024];
+@@ -120,7 +122,7 @@
+     for(unsigned u=0;u<10;u++)tc|=(R(0x0B40+u*4)&1u)<<u;
+     NOTE_IF(tc&255u,RSX_RA_TEXCOORD_2D);
+     NOTE_IF(tc&768u,RSX_RA_TEXCOORD_89);
+-    NOTE_IF(r->seen[0x0394/4] && r->seen[0x0398/4] &&
++    NOTE_IF((r->seen[0x0394/4] || r->seen[0x0398/4]) &&
+             (R(0x0394)!=0 || R(0x0398)!=0x3F800000u),RSX_RA_CLIP_RANGE);
+     NOTE_IF((R(0x1E98)>>24)==2u,RSX_RA_CONDITIONAL);
+     NOTE_IF(((R(0x0208)>>12)&15u)!=0,RSX_RA_AA_SURFACE);
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -55,6 +55,8 @@
+ #include "rsx_draw_engine.h"
+ #include "rsx_texture_compare.h"
+ #include "rsx_vk_depth_bias.h"
++#include "rsx_depth_range.h"
++static int s_depth_range_unrestricted;
+ #include "vulkan/rsx_vk_fallback_vert.spv.h"
+ #include "vulkan/rsx_vk_fallback_frag.spv.h"
+ 
+@@ -3497,6 +3499,8 @@
+     rsx_be_sampler_desc samp[RSX_BE_MAX_TEXTURES];
+     u32          tex_mask;
+     float        vp[4];
++    float        depth_range[2];
++    int          have_depth_range;
+     u32          sc[4];
+     int          have_vp, have_sc;
+     u32          stencil_ref;
+@@ -3899,6 +3903,11 @@
+     (void)user; (void)textures; (void)samplers;
+     if (mask && !(s_e2.warned & 8u)) { VK_LOG("engine: vertex textures not supported yet\n"); s_e2.warned |= 8u; }
+ }
++static int vk_eng_set_depth_range(void* user, float n, float f)
++{
++    (void)user;s_e2.have_depth_range=1;
++    return rsx_depth_range_select(n,f,s_depth_range_unrestricted,s_e2.depth_range);
++}
+ static void vk_eng_set_viewport(void* user, float x, float y, float w, float h)
+ {
+     (void)user;
+@@ -4236,6 +4245,9 @@
+     if (s_e2.have_vp && s_e2.vp[2] > 0.0f && s_e2.vp[3] > 0.0f) {
+         vp.x = s_e2.vp[0]; vp.y = s_e2.vp[1]; vp.width = s_e2.vp[2]; vp.height = s_e2.vp[3];
+     }
++    if (s_e2.have_depth_range) {
++        vp.minDepth=s_e2.depth_range[0];vp.maxDepth=s_e2.depth_range[1];
++    }
+     VkRect2D sc = { { 0, 0 }, { w, h } };
+     if (s_e2.have_sc) {                       /* clamped: Vulkan rejects negative or over-size */
+         u32 x0 = s_e2.sc[0] < w ? s_e2.sc[0] : w, y0 = s_e2.sc[1] < h ? s_e2.sc[1] : h;
+@@ -4288,6 +4300,7 @@
+     .bind_textures        = vk_eng_bind_textures,
+     .bind_vertex_textures = vk_eng_bind_vertex_textures,
+     .set_viewport         = vk_eng_set_viewport,
++    .set_depth_range      = vk_eng_set_depth_range,
+     .set_scissor          = vk_eng_set_scissor,
+     .set_stencil_ref      = vk_eng_set_stencil_ref,
+     .set_polygon_offset   = vk_eng_set_polygon_offset,
+@@ -4368,7 +4381,11 @@
+     VkDeviceQueueCreateInfo qci = { .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                                     .queueFamilyIndex = s_vk.queue_family,
+                                     .queueCount = 1, .pQueuePriorities = &prio };
+-    static const char* dev_exts[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
++    const char* dev_exts[2];u32 dev_ext_count=0;
++    if(s_vk.windowed)dev_exts[dev_ext_count++]=VK_KHR_SWAPCHAIN_EXTENSION_NAME;
++    s_depth_range_unrestricted=vk_has_device_extension(s_vk.phys,VK_EXT_DEPTH_RANGE_UNRESTRICTED_EXTENSION_NAME);
++    if(s_depth_range_unrestricted)dev_exts[dev_ext_count++]=VK_EXT_DEPTH_RANGE_UNRESTRICTED_EXTENSION_NAME;
++    VK_LOG("depth range unrestricted: %s\n",s_depth_range_unrestricted?"enabled":"unavailable");
+     /* DXT (BC1-3) is how PS3 titles ship most textures; Vulkan gates it
+      * behind a feature, enabled only when the device reports it. */
+     VkPhysicalDeviceFeatures have, want;
+@@ -4380,8 +4397,8 @@
+     s_vk.anisotropy_ok = have.samplerAnisotropy ? 1 : 0;
+     VkDeviceCreateInfo dci = { .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+                                .queueCreateInfoCount = 1, .pQueueCreateInfos = &qci,
+-                               .enabledExtensionCount = s_vk.windowed ? 1u : 0u,
+-                               .ppEnabledExtensionNames = s_vk.windowed ? dev_exts : NULL,
++                               .enabledExtensionCount = dev_ext_count,
++                               .ppEnabledExtensionNames = dev_ext_count ? dev_exts : NULL,
+                                .pEnabledFeatures = &want };
+     VK_CHECK(pvkCreateDevice(s_vk.phys, &dci, NULL, &s_vk.device), "vkCreateDevice");
+     if (vk_load_device_functions()) return -1;
+diff --git a/libs/video/tests/test_rsx_draw_engine.c b/libs/video/tests/test_rsx_draw_engine.c
+--- a/libs/video/tests/test_rsx_draw_engine.c
++++ b/libs/video/tests/test_rsx_draw_engine.c
+@@ -13,6 +13,7 @@
+  * Builds and runs on Linux as well as macOS; nothing in it is Apple-specific.
+  */
+ #include "rsx_draw_engine.h"
++#include "rsx_depth_range.h"
+ #include "rsx_test_programs.h"
+ #include "rsx_primitives.h"   /* RSX_PRIMITIVE_* */
+ 
+@@ -99,6 +100,8 @@
+     u32 stencil_ref;
+     float offset_scale, offset_bias;
+     unsigned offset_calls;
++    float depth_range[2],vp_zscale,vp_zoffset;
++    int reject_depth_range;
+     u32 last_created_texture, last_created_color;
+     u32 last_released;
+     float last_clear_depth;
+@@ -234,7 +237,16 @@
+     stub.bound_depth = d;
+ }
+ static void stub_bind_pipeline(void* u, u32 p) { (void)u; stub.bound_pipeline = p; }
+-static void stub_bind_vs(void* u, const void* d, u32 n) { (void)u; (void)d; (void)n; }
++static void stub_bind_vs(void* u, const void* d, u32 n) {
++    (void)u;if(n>=514u*16u){const float* p=(const float*)d;
++    stub.vp_zscale=p[512*4+2];stub.vp_zoffset=p[513*4+2];}
++}
++static int stub_depth_range(void* u,float n,float f) {
++    (void)u;if(stub.reject_depth_range && (n!=0 || f!=1)) {
++        stub.depth_range[0]=0;stub.depth_range[1]=1;return 0;
++    }
++    return rsx_depth_range_select(n,f,1,stub.depth_range);
++}
+ static void stub_bind_ps(void* u, const void* d, u32 n) { (void)u; (void)d; (void)n; }
+ 
+ static void stub_bind_textures(void* u, const u32* tex,
+@@ -369,6 +381,7 @@
+     .set_scissor = stub_scissor,
+     .set_stencil_ref = stub_stencil_ref,
+     .set_polygon_offset = stub_polygon_offset,
++    .set_depth_range = stub_depth_range,
+     .draw = stub_draw,
+     .clear_color = stub_clear_color,
+     .clear_depth_stencil = stub_clear_ds,
+@@ -465,6 +478,39 @@
+ 
+ /* ---- 1. the surface set -------------------------------------------------- */
+ 
++static void test_depth_range(void)
++{
++    printf("-- paired vertex/viewport depth range\n");engine_up();
++    m(0x0A30,0x44200000);m(0x0A38,0x3F000000);m(0x0A28,0x3F000000);
++    draw_triangle();const int pipelines=stub.n_pipeline_create;
++    CHECK(stub.depth_range[0]==0 && stub.depth_range[1]==1 &&
++          stub.vp_zscale==0.5f && stub.vp_zoffset==0.5f,"unwritten interval keeps ordinary depth");
++    m(0x0394,0x3E800000);draw_triangle();
++    CHECK(stub.depth_range[0]==0.25f && stub.depth_range[1]==1 &&
++          stub.vp_zscale>0.666666f && stub.vp_zscale<0.666667f,
++          "single near write retains default far plane");
++    m(0x0398,0x3F400000);draw_triangle();
++    CHECK(stub.depth_range[0]==0.25f && stub.depth_range[1]==0.75f &&
++          stub.vp_zscale==1 && stub.vp_zoffset==0.5f,"clip interval normalizes vertex Z and restores viewport depth");
++    CHECK(stub.n_pipeline_create==pipelines,"depth intervals do not create pipelines");
++    m(0x0394,0);m(0x0398,0x3F800000);draw_triangle();
++    CHECK(stub.depth_range[0]==0 && stub.depth_range[1]==1 && stub.vp_zscale==0.5f,
++          "ordinary draw resets a previous narrow viewport");
++    m(0x0394,0x3F000000);m(0x0398,0x3F000000);draw_triangle();
++    CHECK(stub.depth_range[0]==0 && stub.depth_range[1]==1 && stub.vp_zscale==0.5f,
++          "unverified degenerate interval preserves legacy mapping");
++    stub.reject_depth_range=1;m(0x0394,0x3E800000);m(0x0398,0x3F400000);draw_triangle();
++    CHECK(stub.depth_range[0]==0 && stub.depth_range[1]==1 &&
++          stub.vp_zscale==0.5f && stub.vp_zoffset==0.5f,"rejected viewport cannot leave normalized vertices behind");
++    engine_down();
++    rsx_draw_backend previous=g_stub_backend;previous.set_depth_range=NULL;
++    memset(&stub,0,sizeof stub);rsx_draw_engine_set_backend(&previous);
++    CHECK(rsx_draw_engine_init(1280,720)==0,"older backend initializes without range callback");
++    m(0x0A30,0x44200000);m(0x0A38,0x3F000000);m(0x0A28,0x3F000000);
++    m(0x0394,0x3E800000);m(0x0398,0x3F400000);draw_triangle();
++    CHECK(stub.vp_zscale==0.5f && stub.vp_zoffset==0.5f,"older backend keeps its vertex mapping");engine_down();
++}
++
+ static void test_polygon_offset(void)
+ {
+     printf("-- dynamic fill polygon offset\n");
+@@ -1735,6 +1781,7 @@
+     }
+ 
+     test_polygon_offset();
++    test_depth_range();
+     test_texcoord_pipeline_key();
+     test_sampler_lod_bias();
+     test_surface_set();

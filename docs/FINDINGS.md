@@ -1,8 +1,8 @@
 # Findings
 
-Updated 2026-10-18. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
+Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 97 SDK patches / 82 Windows checks in Debug and
+**Current source checkpoint:** 99 SDK patches / 84 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -13,6 +13,109 @@ fidelity remain open. Windows analogue mapping has a further diagonal-range and 
 physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
+
+## Platform queries and missing-syscall reporting (patch 0099)
+
+The broader log audit found two calls falling through to the loader's generic
+success stub: syscall 144 (`sys_time_get_timezone`) and 631 (`sys_gpio_get`).
+The generic stub did not initialize either query's output buffers. The runtime
+now registers timezone retrieval and retail GPIO get/set semantics. The timezone
+query stores signed standard-offset and summer-offset minutes as guest-endian
+32-bit values. Retail LED/DIP status stores eight zero bytes; unknown devices
+and invalid output buffers return errors. DIP writes are rejected; retail LED
+writes succeed without controlling a host device.
+
+Both timezone output ranges are checked before either is changed. Bounds checks
+use widened address arithmetic, including near-end and wrapping guest pointers.
+The host timezone configuration is not logged or published. Windows execution
+is verified; the POSIX host-offset path remains unverified on Linux/macOS.
+The ABI and retail behavior were checked against
+[RPCS3's syscall table](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Cell/lv2/lv2.cpp),
+[timezone query](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Cell/lv2/sys_time.cpp)
+and [GPIO implementation](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Cell/lv2/sys_gpio.cpp).
+
+The same audit exposed a logging blind spot: the loader stopped warning after
+30 unhandled calls in total. Repeated timezone requests consumed that budget.
+A thread-safe bitset now warns once for each valid ID, 0..1023, regardless of
+earlier traffic. Invalid IDs outside that table share one overflow warning.
+The return behavior of other unimplemented syscalls is unchanged. Probes list
+`unimplemented_syscall_ids` in their result JSON and console warnings. This
+does not detect every semantic approximation inside registered HLE handlers.
+
+`wkc2_platform_queries` tests production registration, output encoding, retail
+GPIO behavior, pointer boundaries and unchanged memory on failed queries.
+Restoring either missing output or omitting registration fails the regression.
+Eight concurrent workers make 163,840 reporting checks and obtain exactly one
+first report for each of the 1,024 valid IDs; a later distinct ID also survives
+1,000 repetitions of an earlier ID. All 84 Windows checks pass in Debug and
+Release; all 99 patches reconstruct the SDK and reapply without changes.
+
+The final hidden/muted candidate used Continue, moved briefly and exited 0
+(probe `20261019-004357`). Neither former stub warning appeared. The clip-range
+audit reports implemented handling with no fallback or pipeline-failure event.
+This confirms a native smoke run, not inspection of every returned guest byte,
+an FPS improvement or a flicker fix. The [latest gallery frames](GALLERY.md#2026-10-19---window-depth-clip-range-check)
+come from this final candidate. Visibility reports and window-origin semantics
+remain the active rendering-audit leads.
+
+## Vulkan window-depth intervals (patch 0098)
+
+A private, draw-correlated town census found 194,618 nondefault clip-range draws
+out of 7,464,866 sampled pipeline-stage attempts. All 194,618 had depth testing
+and depth writes enabled. Ten distinct intervals appeared, with 45,260 draws
+requesting a far limit slightly above 1. The census was reset after Continue;
+these are diagnostic execution counts, not frame or performance measurements.
+The old renderer ignored these limits and always clipped against the ordinary
+0..1 host volume.
+
+The engine now pairs two operations: normalize the guest viewport's window Z
+into the requested clip interval, and set that interval on the host viewport.
+This clips out-of-range geometry while preserving stored depth inside the
+interval. Dynamic state does not change pipeline identity. Every draw resets
+the range, so a narrow interval cannot leak into a later ordinary draw.
+The optional backend callback leaves older backends' vertex mapping unchanged.
+A follow-up seeds the hardware far-plane reset value and tests a write to only
+the near endpoint, retaining the far default.
+
+Vulkan enables `VK_EXT_depth_range_unrestricted` only when advertised, allowing
+the observed far limits above 1. Unsupported, nonfinite, equal or reversed ranges
+restore the previous 0..1 mapping and produce a separate `clip_range_fallback`
+audit warning. The implemented `clip_range` row and fallback row are distinct.
+Depth clamping and degenerate/reversed-interval hardware behavior remain open.
+Other backends have not implemented the callback. This does not establish full
+RSX precision or parity on other GPU vendors.
+
+The pairing was cross-checked with
+[RPCS3's vertex normalization](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl)
+and [Vulkan viewport state](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/VK/VKGSRender.cpp),
+plus the [Vulkan extension's clipping rules](https://docs.vulkan.org/refpages/latest/refpages/source/VK_EXT_depth_range_unrestricted.html).
+The port uses its existing vertex transform and a small independent coefficient
+helper; no RPCS3 implementation was imported.
+
+The synthetic GPU regression passes 12 cases on each of D32, D32S8, D24S8 and
+X8D24: stored-depth preservation, near/far rejection, narrow WKC-like intervals,
+different clip-W values, ordinary-range reset and an upper limit above 1.
+Expected depths are checked within 5e-7, not bit-for-bit hardware matching.
+Negative controls independently restore old vertex normalization or old viewport
+state; both fail GPU assertions. Disabling engine forwarding fails the engine
+regression. All 83 Windows checks pass in Debug and Release; all 98 patches
+reconstruct the build SDK and reapply without changes.
+
+The hidden/muted candidate used Continue and short movement, then alternated
+off/on/off/on in three fixed camera views (eight GPU readbacks per mode, 96
+frames total). The same executable supplied both modes. Idle character poses
+and Logic Stone animation differ, so these are not identical-frame comparisons.
+No clear foot/stone flicker reduction or FPS gain is established. The process
+exited normally (probe `20261019-002322`); unrestricted depth range was available,
+and the audit recorded no range fallbacks or failed pipeline builds. Visibility
+reports remain approximate and window-origin semantics remain unverified.
+See [the enabled-mode captures](GALLERY.md#2026-10-19---window-depth-clip-range-check).
+
+The broader log review also found stubbed syscall 144 (timezone query, 29 logged
+calls) and 631 (GPIO status, one logged call). These currently return success
+without filling their output buffers. Patch 0099 above implements these query
+outputs; those logged counts describe the earlier candidate. They are not established
+explanations of lag or visual corruption.
 
 ## Request-audit follow-up (patch 0097)
 

@@ -10,7 +10,7 @@ experimental DirectX 12 selector. Continue loads the verified Logic Stone save.
 See [menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
 and [settings and timing details](#native-graphics-settings-patches-0081-0082).
 
-The current stack contains 97 SDK patches. All 82 Windows checks pass in normal
+The current stack contains 99 SDK patches. All 84 Windows checks pass in normal
 Debug and optimized Release. Suite timings are not game performance. Reapplying
 the complete stack changes no SDK files. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain
@@ -113,6 +113,35 @@ in normal Debug and optimized Release; Wine's MinGW TLS workaround is not needed
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
+
+## Platform query outputs and syscall warnings (patch 0099)
+
+Timezone retrieval and retail GPIO queries now initialize guest output buffers
+with checked bounds and guest byte order. `wkc2_platform_queries` tests their
+production registration and error paths, plus concurrent per-ID warning gates.
+The loader reports each valid unhandled syscall ID once; the old global budget
+of 30 warnings is removed. IDs outside the 1024-entry table share one warning.
+Probes expose `unimplemented_syscall_ids`, independently of the RSX audit switch.
+Full logs remain private. An empty list does not verify registered handlers.
+
+All 84 Windows checks pass in Debug and Release. A hidden/muted final candidate
+reloads Continue and exits 0 without either old stub warning. POSIX host-timezone
+behavior and full guest-query usage remain unverified. See
+[the findings](FINDINGS.md#platform-queries-and-missing-syscall-reporting-patch-0099).
+
+## Vulkan window-depth clip range (patch 0098)
+
+The shared engine now pairs vertex-depth normalization and an optional backend
+viewport interval. Vulkan uses unrestricted depth range when supported. Unsupported
+or unverified intervals restore legacy mapping and appear as `clip_range_fallback`
+in the audit. The interval is dynamic, not a new pipeline variant. Other backends
+retain their earlier behavior.
+
+`wkc2_vk_depth_range_gpu` checks depth preservation and near/far clipping on four
+depth formats; `wkc2_draw_engine` checks forwarding, reset, rejection and pipeline
+reuse. All 83 checks pass in Debug and Release. A hidden/muted saved-town comparison
+exits normally without establishing a flicker fix or speed gain. See
+[the evidence and limits](FINDINGS.md#vulkan-window-depth-intervals-patch-0098).
 
 ## RSX request audit and fragment inputs (patches 0095-0096)
 

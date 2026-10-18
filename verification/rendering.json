@@ -3,11 +3,11 @@
   "app_version": "01.00",
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
-    "date": "2026-10-18",
-    "native_probe": "20261018-215910",
-    "sdk_patch_count": 97,
-    "summary": "Fragment coordinate/predication fixes and expanded RSX request reporting. 97 SDK patches / 82 Windows checks in Debug and Release. Hidden/muted Continue reaches town and exits normally. Output sRGB, depth export and nonzero window offsets were not active in this sample; FPS and flicker remain open.",
-    "gallery_image": "screenshots/2026-10-18-native-fragment-request-check.png",
+    "date": "2026-10-19",
+    "native_probe": "20261019-004357",
+    "sdk_patch_count": 99,
+    "summary": "Vulkan depth-interval handling and initialized timezone/retail GPIO query outputs. Unhandled syscall warnings now report each valid ID once instead of stopping after 30 messages. 99 SDK patches / 84 Windows checks in Debug and Release; hidden/muted Continue and short town movement pass. FPS and flicker remain open.",
+    "gallery_image": "screenshots/2026-10-19-native-depth-range-front.png",
     "remaining_limits": [
       "Town performance remains below the 30 fps target",
       "Black foot flicker and rotating Logic Stone light flicker remain open",
@@ -15,7 +15,7 @@
       "Sustained traversal, combat, other save slots/scenes and PS3/RPCS3 save interchange unverified",
       "SPU interpreter fallback remains enabled"
     ],
-    "gallery_capture_sdk_patch_count": 96
+    "gallery_capture_sdk_patch_count": 99
   },
   "verified": {
     "native_language_selection_rendered": true,
@@ -67,6 +67,20 @@
     "window_close_title_and_saved_town_settings": true
   },
   "captures": [
+    {
+      "file": "screenshots/2026-10-19-native-depth-range-front.png",
+      "private_source_probe": "20261019-004357/final-town.ppm",
+      "sha256": "fdc80f74b5fa87b27588ed510f9ee6a71f046941d1703890d4e7116544d5d22d",
+      "source_ppm_sha256": "10b52e974a3652fb9e9484e00c5d869383611a3f2b53c5e0768714ad89eb5481",
+      "scope": "Unmodified final swapchain frame from the hidden/muted 99-patch candidate after Continue and short town movement. Clip-range handling enabled. Earlier off/on comparison used the 98-patch candidate; these final frames do not establish flicker reduction, performance or complete query semantics."
+    },
+    {
+      "file": "screenshots/2026-10-19-native-depth-range-ground.png",
+      "private_source_probe": "20261019-004357/final-ground.ppm",
+      "sha256": "9946822a0e2a2e68a913832de506b7c912c33febf0fdc41f269e3d78703815f5",
+      "source_ppm_sha256": "8dbfe1f317cae3ed17fdf555398fd75f5a5f0e7460abdb6c0a38ff3d45e8c23e",
+      "scope": "Unmodified final swapchain frame from the hidden/muted 99-patch candidate after Continue and short town movement. Clip-range handling enabled. Earlier off/on comparison used the 98-patch candidate; these final frames do not establish flicker reduction, performance or complete query semantics."
+    },
     {
       "file": "screenshots/2026-10-18-native-fragment-request-check.png",
       "private_source_probe": "20261018-212515/frame.ppm",
@@ -309,19 +323,21 @@
       "wkc2_event_queue",
       "wkc2_vk_polygon_offset_gpu",
       "wkc2_rsx_request_audit",
-      "wkc2_rsx_shader_requests_gpu"
+      "wkc2_rsx_shader_requests_gpu",
+      "wkc2_vk_depth_range_gpu",
+      "wkc2_platform_queries"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 97,
-    "last_verified_sdk_patch_count": 97,
-    "current_passed_count": 82,
-    "record_scope": "Fragment coordinate/predication fixes and expanded RSX request reporting. 97 SDK patches / 82 Windows checks in Debug and Release. Hidden/muted Continue reaches town and exits normally. Output sRGB, depth export and nonzero window offsets were not active in this sample; FPS and flicker remain open.",
-    "normal_debug_elapsed_seconds": 12.55,
-    "optimized_release_elapsed_seconds": 12.53,
+    "current_sdk_patch_count": 99,
+    "last_verified_sdk_patch_count": 99,
+    "current_passed_count": 84,
+    "record_scope": "Vulkan depth-interval handling and initialized timezone/retail GPIO query outputs. Unhandled syscall warnings now report each valid ID once instead of stopping after 30 messages. 99 SDK patches / 84 Windows checks in Debug and Release; hidden/muted Continue and short town movement pass. FPS and flicker remain open.",
+    "normal_debug_elapsed_seconds": 12.64,
+    "optimized_release_elapsed_seconds": 12.75,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 97
+    "repeat_patch_application_verified_sdk_patch_count": 99
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2741,7 +2757,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 97 SDK patches / 82 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 99 SDK patches / 84 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -2961,5 +2977,103 @@
     "draw_attempts": 1486350,
     "backend_submissions": 1486350,
     "scope": "Coverage-only extension; missing output features remain unimplemented. Counts do not prove GPU completion. Historical shader-file review found no direct WPOS/fog reads in 6224 captured files; unsuspended state samples do not attribute individual draws."
+  },
+  "window_depth_range": {
+    "sdk_patch": 98,
+    "windows_regression_verified": true,
+    "gpu_formats_verified": [
+      "D32_SFLOAT",
+      "D32_SFLOAT_S8_UINT",
+      "D24_UNORM_S8_UINT",
+      "X8_D24_UNORM_PACK32"
+    ],
+    "gpu_cases_per_format": 12,
+    "gpu_absolute_depth_tolerance": 5e-07,
+    "negative_controls_failed_as_expected": [
+      "old vertex normalization",
+      "old viewport range",
+      "disabled engine forwarding"
+    ],
+    "draw_correlated_census": {
+      "draws": 7464866,
+      "nondefault_clip_draws": 194618,
+      "nondefault_depth_test_and_write": 194618,
+      "outside_unit_interval_draws": 45260,
+      "nonascending_or_nonfinite_ranges": 0,
+      "unique_clip_intervals": 10,
+      "census_rows": 144
+    },
+    "native_probe": "20261019-002322",
+    "hidden": true,
+    "muted": true,
+    "save_reload_verified": true,
+    "short_movement_verified": true,
+    "exit_code": 0,
+    "unrestricted_depth_range_available": true,
+    "native_range_fallback_events": 0,
+    "native_pipeline_failure_events": 0,
+    "comparison": "One executable; off/on/off/on, eight readbacks per mode, three fixed camera views; 96 frames. Different animation poses.",
+    "native_flicker_fix_verified": false,
+    "fps_gain_verified": false,
+    "full_rsx_precision_verified": false,
+    "other_backends_implemented": false,
+    "degenerate_reversed_ranges_verified": false,
+    "remaining_requests": [
+      {
+        "feature": "visibility_reports",
+        "status": "approximate",
+        "events": 47218
+      },
+      {
+        "feature": "shader_window_origin",
+        "status": "unverified",
+        "events": 7254115
+      }
+    ],
+    "final_query_candidate_probe": "20261019-004357",
+    "final_query_candidate_sdk_patch_count": 99
+  },
+  "platform_query_outputs": {
+    "sdk_patch": 99,
+    "windows_regression_verified": true,
+    "timezone_output_bytes": 8,
+    "gpio_output_bytes": 8,
+    "guest_endian_and_bounds_verified": true,
+    "error_paths_leave_output_unchanged_verified": true,
+    "retail_gpio_semantics_verified": true,
+    "negative_controls_failed_as_expected": [
+      "missing timezone output",
+      "missing GPIO output",
+      "missing timezone registration"
+    ],
+    "native_probe": "20261019-004357",
+    "hidden": true,
+    "muted": true,
+    "save_reload_verified": true,
+    "short_movement_verified": true,
+    "exit_code": 0,
+    "previous_logged_stub_ids": [
+      144,
+      631
+    ],
+    "current_logged_stub_ids": [],
+    "native_output_bytes_independently_inspected": false,
+    "posix_host_timezone_verified": false,
+    "fps_gain_verified": false,
+    "registered_syscall_ids": [
+      144,
+      630,
+      631
+    ]
+  },
+  "missing_syscall_reporting": {
+    "sdk_patch": 99,
+    "valid_syscall_ids": 1024,
+    "warning_policy": "Once per valid ID; one shared overflow warning for invalid IDs",
+    "thread_safe": true,
+    "concurrent_test_calls": 163840,
+    "concurrent_first_reports": 1024,
+    "probe_result_field": "unimplemented_syscall_ids",
+    "registered_handler_semantics_fully_verified": false
   }
 }
