@@ -1,0 +1,510 @@
+Keep sampled depth on the GPU, and add frame-pacing diagnostics.
+
+A texture reading a depth target took a GPU wait, a full readback, a CPU
+conversion and a texture re-upload whenever the depth was the bound target
+or had only been cleared. WKC2 does both every frame (its 2560x2560 shadow
+map and a cleared depth in the character creator). DEPTH24_D8 reads now use a
+snapshot retaken after the last depth write, and a cleared target can be
+snapshotted; the creator went from ~37 to a steady 60 fps.
+
+Also added, off by default:
+- RSX_ENGINE_ZTEX_GPU=1: re-encode a Z24S8 depth read as A8R8G8B8 on the GPU
+  (compute pass; adds a compute stage to the HLSL->SPIR-V helper). Its output
+  still blurs WKC2's depth of field, so the guest-memory path stays default.
+- RSX_ENGINE_ZTEX_LOG=<file>: formats of depth targets sampled as textures.
+- RSX_ENGINE_PRESENT_LOG: a "fresh" count beside fps -- presents whose surface
+  some draw wrote since it was last shown.
+- RSX_ENGINE_BURST_DIR=<dir> (+RSX_ENGINE_BURST_N): on <dir>/arm, write the
+  next presented frames with present times.
+- RSX_ENGINE_SNAP_EVERY_S accepts fractions of a second.
+- PAD_FILE: a negative hold count is a hold in milliseconds, logged with
+  start/end times to <PAD_FILE>.log.
+
+diff --git a/libs/input/cellPad.c b/libs/input/cellPad.c
+--- a/libs/input/cellPad.c
++++ b/libs/input/cellPad.c
+@@ -677,6 +677,7 @@
+     { static int s_pf = -1; static char pf_path[512];
+       static unsigned held_mask = 0; static int held_n = 0;
+       static int held_sticks = 0; static u8 stick_values[4];
++      static double held_until_ms = 0;
+       if (s_pf < 0) { const char* e = getenv("PAD_FILE");
+                       s_pf = (e && *e) ? 1 : 0;
+                       if (s_pf) { strncpy(pf_path, e, sizeof pf_path - 1); pf_path[sizeof pf_path - 1] = 0; } }
+@@ -694,6 +695,19 @@
+                       int analog = fields == 4 && a<=255 && b<=255 && c<=255 && d<=255;
+                       if ((fields == EOF || fields == 0 || analog) && (m || analog)) {
+                           held_mask = m; held_n = n > 0 ? n : 40;
++                          /* A negative count is a hold in milliseconds; start and
++                           * end are logged to <PAD_FILE>.log (UTC ms) so input can
++                           * be lined up against captured frames. */
++                          held_until_ms = 0;
++                          if (n < 0) {
++                              struct timespec ts; timespec_get(&ts, TIME_UTC);
++                              const double now = ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
++                              held_until_ms = now - (double)n;
++                              held_n = 0x7FFFFFFF;
++                              char lp[600]; snprintf(lp, sizeof lp, "%s.log", pf_path);
++                              FILE* lf = fopen(lp, "a");
++                              if (lf) { fprintf(lf, "start %.1f\n", now); fclose(lf); }
++                          }
+                           held_sticks = analog;
+                           stick_values[0]=(u8)a;stick_values[1]=(u8)b;
+                           stick_values[2]=(u8)c;stick_values[3]=(u8)d;
+@@ -702,6 +716,16 @@
+                   }
+                   fclose(f);
+                   if (held_n > 0) { FILE* w = fopen(pf_path, "wb"); if (w) fclose(w); }
++              }
++          }
++          if (held_n > 0 && held_until_ms > 0) {
++              struct timespec ts; timespec_get(&ts, TIME_UTC);
++              const double now = ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
++              if (now >= held_until_ms) {
++                  held_n = 0; held_until_ms = 0;
++                  char lp[600]; snprintf(lp, sizeof lp, "%s.log", pf_path);
++                  FILE* lf = fopen(lp, "a");
++                  if (lf) { fprintf(lf, "end %.1f\n", now); fclose(lf); }
+               }
+           }
+           if (held_n > 0) { held_n--;
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -114,6 +114,7 @@
+     int had_write;
+     int snapshot_valid;
+     u64 depth_serial;      /* g.write_serial of the last depth write or clear */
++    u64 snapshot_serial;   /* depth_serial the snapshot was taken at          */
+     int guest_dirty;       /* written since guest memory last got a copy     */
+     u32 zfmt, pitch;       /* SURFACE_FORMAT depth field and zeta pitch then */
+     u32 used_w, used_h;    /* the clip that write went through              */
+@@ -1187,7 +1188,10 @@
+ static u32 eng_zdepth_snapshot(u32 slot)
+ {
+     eng_zdepth* z = &g.zdepths[slot];
+-    if (!z->handle || !z->had_write) return 0;
++    /* A cleared target is as defined as a drawn one: refusing it sent a
++     * sampled, just-cleared depth through guest memory (a GPU wait and a full
++     * readback) every frame of WKC2's character creator. */
++    if (!z->handle || !(z->had_write || z->cleared)) return 0;
+     if (z->snapshot_valid && z->snapshot) return z->snapshot;
+     if (!g.be->depth_snapshot) return 0;
+     const u32 tex = g.be->depth_snapshot(g.be->user, z->handle, z->w, z->h);
+@@ -1198,6 +1202,7 @@
+     if (z->snapshot && z->snapshot != tex) g.be->texture_release(g.be->user, z->snapshot);
+     z->snapshot = tex;
+     z->snapshot_valid = 1;
++    z->snapshot_serial = z->depth_serial;
+     return tex;
+ }
+ 
+@@ -2110,12 +2115,51 @@
+             break;
+         }
+         if (zsrc >= 0) {
++            /* A Z24S8 depth read as A8R8G8B8 (WKC2's depth-of-field and soft
++             * effects): re-encode the snapshot on the GPU. Through guest memory
++             * it cost a full GPU wait, a 3.6 MB readback, a CPU conversion and
++             * a texture rehash and upload every frame -- most of the
++             * character creator's frame. RSX_ENGINE_ZTEX_GPU=0 restores that. */
++            { static int on = -1;
++              /* Off by default: its output still blurs WKC2's depth of field
++               * where the guest-memory path does not. RSX_ENGINE_ZTEX_GPU=1. */
++              if (on < 0) { const char* e = getenv("RSX_ENGINE_ZTEX_GPU"); on = e && *e == '1'; }
++              const eng_zdepth* zz = &g.zdepths[zsrc];
++              if (on && base_fmt == RSX_TEX_FMT_A8R8G8B8 && (t.remap & 0xFFFFu) == 0xAAE4u &&
++                  zz->zfmt == 2u && g.be->depth_to_argb8 && zz->had_write &&
++                  zz->w == t.width && zz->h == t.height && !t.cubemap) {
++                  /* The bound depth is read through a copy, so no feedback; the
++                   * copy must postdate the last depth write, though, which the
++                   * clear-only invalidation does not ensure for a bound target. */
++                  if (g.zdepths[zsrc].snapshot_serial != g.zdepths[zsrc].depth_serial)
++                      g.zdepths[zsrc].snapshot_valid = 0;
++                  const u32 snap = eng_zdepth_snapshot((u32)zsrc);
++                  const u32 tex = snap ? g.be->depth_to_argb8(g.be->user, snap, t.width, t.height,
++                                                                  t.remap & 0xFFFFu, t.format) : 0;
++                  if (tex) { textures[u] = tex; continue; }
++              } }
+             /* DEPTH24_D8 keeps the backend's own snapshot when it has one;
+              * anything else goes through guest memory. */
+-            if (base_fmt == RSX_TEX_FMT_DEPTH24_D8 && current_zslot != (u32)zsrc) {
++            if (base_fmt == RSX_TEX_FMT_DEPTH24_D8) {
++                /* The bound depth too, through a copy taken after its last
++                 * write: it went through guest memory, a GPU wait and a 26 MB
++                 * readback per frame for WKC2's 2560x2560 shadow map. */
++                if (current_zslot == (u32)zsrc &&
++                    g.zdepths[zsrc].snapshot_serial != g.zdepths[zsrc].depth_serial)
++                    g.zdepths[zsrc].snapshot_valid = 0;
+                 const u32 snap = eng_zdepth_snapshot((u32)zsrc);
+                 if (snap) { textures[u] = snap; continue; }
+             }
++            { static int zl = -1; static u32 seen[16][3]; static u32 nseen;
++              if (zl < 0) zl = getenv("RSX_ENGINE_ZTEX_LOG") != NULL;
++              if (zl) { u32 k = 0;
++                for (; k < nseen; k++) if (seen[k][0] == t.format && seen[k][1] == t.width && seen[k][2] == t.remap) break;
++                if (k == nseen && nseen < 16) {
++                  seen[nseen][0] = t.format; seen[nseen][1] = t.width; seen[nseen][2] = t.remap; nseen++;
++                  FILE* f = fopen(getenv("RSX_ENGINE_ZTEX_LOG"), "a");
++                  if (f) { fprintf(f, "ztex fmt=0x%02X base=0x%02X %ux%u pitch=%u remap=0x%08X zfmt=%u zpitch=%u unit=%u\n",
++                                   t.format, base_fmt, t.width, t.height, t.pitch, t.remap,
++                                   g.zdepths[zsrc].zfmt, g.zdepths[zsrc].pitch, u); fclose(f); } } } }
+             if (eng_zdepth_to_guest((u32)zsrc)) {
+                 textures[u] = eng_texture_slot(t.location, t.offset, t.format,
+                                                t.width, t.height, t.mipmaps, t.pitch,
+@@ -2501,17 +2545,63 @@
+         if (e && atof(e) > 0.0) every = atof(e);
+     }
+     if (!dir || !*dir || presented == ENG_INVALID) return;
+-    const time_t now = time(NULL);
+-    if (!t0) { t0 = now; last = now - (time_t)every; }
+-    if (difftime(now, last) < every) return;
+-    last = now;
++    /* Millisecond clock, so intervals below a second work; files are named by
++     * whole seconds since the first present, plus milliseconds when needed. */
++    struct timespec ts; timespec_get(&ts, TIME_UTC);
++    const double now_ms = ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
++    static double t0_ms, last_ms;
++    (void)t0; (void)last;
++    if (!t0_ms) { t0_ms = now_ms; last_ms = now_ms - every * 1000.0; }
++    if (now_ms - last_ms < every * 1000.0) return;
++    last_ms = now_ms;
++    const long el = (long)(now_ms - t0_ms);
+     char path[1024];
+-    snprintf(path, sizeof path, "%s/snap_%04ld.ppm", dir, (long)(now - t0));
++    if (every >= 1.0) snprintf(path, sizeof path, "%s/snap_%04ld.ppm", dir, el / 1000);
++    else              snprintf(path, sizeof path, "%s/snap_%04ld_%03ld.ppm", dir, el / 1000, el % 1000);
+     pd_write_surface(presented, path);
+ }
+ 
++/* RSX_ENGINE_BURST_DIR=<dir>: once <dir>/arm exists, write the next 40
++ * presented surfaces as burst_NNN.ppm and their present times (ms) to
++ * burst.txt, then delete arm. Telling a game that renders often from one that
++ * changes its picture often needs consecutive frames; the readback slows the
++ * frames it captures, so compare pictures, not the times. */
++static void pd_burst(u32 presented)
++{
++    static const char* dir = (const char*)-1;
++    static int left;
++    static u32 polls;
++    static FILE* log;
++    static int burst_n = 90;
++    if (dir == (const char*)-1) dir = getenv("RSX_ENGINE_BURST_DIR");
++    if (!dir || !*dir || presented == ENG_INVALID) return;
++    char path[1024];
++    if (!left) {
++        if (++polls % 15) return;
++        snprintf(path, sizeof path, "%s/arm", dir);
++        FILE* f = fopen(path, "rb");
++        if (!f) return;
++        fclose(f);
++        remove(path);
++        { const char* e = getenv("RSX_ENGINE_BURST_N"); burst_n = (e && atoi(e) > 0) ? atoi(e) : 90; }
++        left = burst_n;
++        snprintf(path, sizeof path, "%s/burst.txt", dir);
++        log = fopen(path, "w");
++    }
++    const int i = burst_n - left--;
++    struct timespec ts;
++    timespec_get(&ts, TIME_UTC);
++    if (log) {
++        fprintf(log, "%03d %.1f\n", i, ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6);
++        if (!left) { fclose(log); log = NULL; }
++    }
++    snprintf(path, sizeof path, "%s/burst_%03d.ppm", dir, i);
++    pd_write_surface(presented, path);
++}
++
+ static void pd_present(u32 presented)
+ {
++    pd_burst(presented);
+     pd_snapshot(presented);
+     if (s_pd.state == 0) pd_capturing();
+     if (s_pd.state == 1 && !s_pd.after_s && g.guest_draws >= s_pd.min_draws) {
+@@ -3088,14 +3178,19 @@
+         if (plog < 0) { const char* e = getenv("RSX_ENGINE_PRESENT_LOG"); plog = e && atoi(e); }
+         if (plog) {
+             /* Presented frames per second, every five seconds. */
++            /* `fresh` counts presents of a surface some draw wrote since it
++             * was last shown: frames with new content. A title can flip at
++             * full rate while drawing far less often, and then `fps` (every
++             * present) overstates what the player sees. */
+             static time_t fps_t0;
+-            static u32 fps_frames;
++            static u32 fps_frames, fps_fresh;
+             const time_t now = time(NULL);
+             if (!fps_t0) fps_t0 = now;
+             fps_frames++;
++            if (g.surfaces[target].color_serial != shown_serial[target]) fps_fresh++;
+             if (difftime(now, fps_t0) >= 5.0) {
+-                fprintf(stderr, "[present] fps %.1f (%u guest draws last frame) syncs/frame:",
+-                        fps_frames / difftime(now, fps_t0), g.guest_draws);
++                fprintf(stderr, "[present] fps %.1f fresh %.1f (%u guest draws last frame) syncs/frame:",
++                        fps_frames / difftime(now, fps_t0), fps_fresh / difftime(now, fps_t0), g.guest_draws);
+                 for (int k = 1; k < 8; k++)
+                     if (s_sync[k].n)
+                         fprintf(stderr, " site%d %.1fx %.2fms", k, (double)s_sync[k].n / fps_frames,
+@@ -3103,11 +3198,12 @@
+                 fprintf(stderr, "\n");
+                 { static FILE* ff = (FILE*)-1;
+                   if (ff == (FILE*)-1) { const char* e = getenv("RSX_ENGINE_FPS_FILE"); ff = e ? fopen(e, "w") : NULL; }
+-                  if (ff) { fprintf(ff, "%u fps %.1f draws %u\n", g.frames,
+-                                    fps_frames / difftime(now, fps_t0), g.guest_draws); fflush(ff); } }
++                  if (ff) { fprintf(ff, "%u fps %.1f fresh %.1f draws %u\n", g.frames,
++                                    fps_frames / difftime(now, fps_t0), fps_fresh / difftime(now, fps_t0),
++                                    g.guest_draws); fflush(ff); } }
+                 memset(s_sync, 0, sizeof s_sync);
+                 fps_t0 = now;
+-                fps_frames = 0;
++                fps_frames = fps_fresh = 0;
+             }
+             const u64 s = g.surfaces[target].color_serial;
+             if (s == shown_serial[target] && reports < 400) {
+diff --git a/libs/video/rsx_draw_engine.h b/libs/video/rsx_draw_engine.h
+--- a/libs/video/rsx_draw_engine.h
++++ b/libs/video/rsx_draw_engine.h
+@@ -227,6 +227,15 @@
+      * rather than reading the picture back. */
+     int  (*color_target_copy)(void* user, u32 dst, u32 dx, u32 dy, u32 src,
+                               u32 sx, u32 sy, u32 w, u32 h);
++    /* A depth snapshot (from depth_snapshot) re-encoded on the GPU as the
++     * texels an A8R8G8B8 texture reads from a Z24S8 buffer: A, R, G = the
++     * depth's high, middle and low bytes, B = stencil (0) -- stored and
++     * swizzled exactly as texture_create would store and view those bytes
++     * decoded from guest memory with this remap and format. Returns a texture
++     * the backend owns and refills on each call; 0 when it cannot, and the
++     * engine then goes through guest memory as before. Optional. */
++    u32  (*depth_to_argb8)(void* user, u32 snapshot, u32 w, u32 h,
++                           u32 remap, u32 rsx_fmt);
+ } rsx_draw_backend;
+ 
+ /* ---- the engine --------------------------------------------------------- */
+diff --git a/libs/video/rsx_shader_msl.h b/libs/video/rsx_shader_msl.h
+--- a/libs/video/rsx_shader_msl.h
++++ b/libs/video/rsx_shader_msl.h
+@@ -35,6 +35,7 @@
+ 
+ #define RSX_SHADER_STAGE_VERTEX   0
+ #define RSX_SHADER_STAGE_FRAGMENT 1
++#define RSX_SHADER_STAGE_COMPUTE  2   /* SPIR-V only: backend-internal passes */
+ 
+ /* 1 when the translator was built with glslang and spirv-cross, 0 when the
+  * stub is in. A backend asks this once and picks its shader path. */
+diff --git a/libs/video/rsx_shader_spirv.cpp b/libs/video/rsx_shader_spirv.cpp
+--- a/libs/video/rsx_shader_spirv.cpp
++++ b/libs/video/rsx_shader_spirv.cpp
+@@ -60,7 +60,8 @@
+         put_log(log, log_size, "bad arguments", nullptr);
+         return -1;
+     }
+-    if (stage != RSX_SHADER_STAGE_VERTEX && stage != RSX_SHADER_STAGE_FRAGMENT) {
++    if (stage != RSX_SHADER_STAGE_VERTEX && stage != RSX_SHADER_STAGE_FRAGMENT &&
++        stage != RSX_SHADER_STAGE_COMPUTE) {
+         put_log(log, log_size, "unknown shader stage", nullptr);
+         return -1;
+     }
+@@ -69,8 +70,9 @@
+         return -1;
+     }
+ 
+-    const EShLanguage lang = (stage == RSX_SHADER_STAGE_VERTEX) ? EShLangVertex
+-                                                                : EShLangFragment;
++    const EShLanguage lang = (stage == RSX_SHADER_STAGE_VERTEX)  ? EShLangVertex
++                           : (stage == RSX_SHADER_STAGE_COMPUTE) ? EShLangCompute
++                                                                 : EShLangFragment;
+     const EShMessages msgs =
+         (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules | EShMsgReadHlsl);
+ 
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -115,7 +115,8 @@
+     X(vkCmdBindVertexBuffers) X(vkCmdBindDescriptorSets) X(vkCmdPushConstants) \
+     X(vkCmdSetViewport) X(vkCmdSetScissor) X(vkCmdDraw) \
+     X(vkCmdSetStencilReference) X(vkCmdBindIndexBuffer) X(vkCmdDrawIndexed) \
+-    X(vkCreateSemaphore) X(vkDestroySemaphore) X(vkCmdBlitImage)
++    X(vkCreateSemaphore) X(vkDestroySemaphore) X(vkCmdBlitImage) \
++    X(vkCreateComputePipelines) X(vkCmdDispatch)
+ /* Window-system entry points, loaded only when a window was requested, so a
+  * headless run never depends on a driver that can present. */
+ #define VK_WSI_INSTANCE_FNS(X) \
+@@ -2955,6 +2956,171 @@
+     }
+     return rc ? 0 : snap;
+ }
++/* depth_to_argb8: one compute pass from a depth snapshot (R32_SFLOAT) to the
++ * RGBA8 texels an A8R8G8B8 fetch of the Z24S8 bytes gives -- the same rounding
++ * the engine's CPU conversion uses. Each snapshot keeps its own output image
++ * and descriptor set; neither changes while the snapshot lives. */
++static const char s_zconv_hlsl[] =
++    "[[vk::binding(0, 0)]] Texture2D<float> zsrc;\n"
++    "[[vk::binding(1, 0)]] [[vk::image_format(\"rgba8\")]] RWTexture2D<float4> zdst;\n"
++    "[numthreads(8, 8, 1)]\n"
++    "void main(uint3 id : SV_DispatchThreadID) {\n"
++    "    uint w, h; zdst.GetDimensions(w, h);\n"
++    "    if (id.x >= w || id.y >= h) return;\n"
++    "    float d = zsrc.Load(int3(id.xy, 0));\n"
++    "    d = (d > 0.0) ? min(d, 1.0) : 0.0;\n"
++    "    uint v = (uint)(d * 16777215.0 + 0.5);\n"
++    "    float a = float(v >> 16), r = float((v >> 8) & 255u), g = float(v & 255u), b = 0.0;\n"
++    "    zdst[id.xy] = ZCONV_STORE / 255.0;\n"
++    "}\n";
++#define VK_ZCONV_MAX 8
++static struct {
++    int failed, ready;
++    VkDescriptorSetLayout dsl;
++    VkPipelineLayout pl;
++    VkPipeline pipe;
++    VkDescriptorPool pool;
++    struct { u32 snap, remap, rsx_fmt; VkImageView src_view, store_view; u32 tex; VkDescriptorSet set; } e[VK_ZCONV_MAX];
++    u32 n;
++} s_zc;
++
++static int vk_zconv_init(void)
++{
++    if (s_zc.ready) return 0;
++    if (s_zc.failed) return -1;
++    s_zc.failed = 1;
++    static u32 spv[16384];
++    char log[1024];
++    u32 n = 0;
++    /* Store the bytes the CPU decode would: guest A,R,G,B as they are when the
++     * backend keeps A8R8G8B8 unswizzled, else reordered to R,G,B,A. */
++    static char hlsl[2048];
++    snprintf(hlsl, sizeof hlsl, "#define ZCONV_STORE %s\n%s",
++             rsx_texture_argb_is_rgba() ? "float4(a, r, g, b)" : "float4(r, g, b, a)", s_zconv_hlsl);
++    if (rsx_hlsl_to_spirv(hlsl, RSX_SHADER_STAGE_COMPUTE, spv, 16384, &n, log, sizeof log) != 0) {
++        VK_LOG("engine: depth re-encode shader: %s\n", log);
++        return -1;
++    }
++    VkShaderModuleCreateInfo mci = { .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
++                                     .codeSize = (size_t)n * 4u, .pCode = spv };
++    VkShaderModule mod = VK_NULL_HANDLE;
++    if (pvkCreateShaderModule(s_vk.device, &mci, NULL, &mod) != VK_SUCCESS) return -1;
++    VkDescriptorSetLayoutBinding b[2] = {
++        { 0, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, NULL },
++        { 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, NULL },
++    };
++    VkDescriptorSetLayoutCreateInfo dci = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
++                                            .bindingCount = 2, .pBindings = b };
++    VkPipelineLayoutCreateInfo plci = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
++                                        .setLayoutCount = 1, .pSetLayouts = &s_zc.dsl };
++    VkDescriptorPoolSize ps[2] = { { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, VK_ZCONV_MAX },
++                                   { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_ZCONV_MAX } };
++    VkDescriptorPoolCreateInfo pci = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
++                                       .maxSets = VK_ZCONV_MAX, .poolSizeCount = 2, .pPoolSizes = ps };
++    int ok = pvkCreateDescriptorSetLayout(s_vk.device, &dci, NULL, &s_zc.dsl) == VK_SUCCESS &&
++             pvkCreatePipelineLayout(s_vk.device, &plci, NULL, &s_zc.pl) == VK_SUCCESS &&
++             pvkCreateDescriptorPool(s_vk.device, &pci, NULL, &s_zc.pool) == VK_SUCCESS;
++    if (ok) {
++        VkComputePipelineCreateInfo cci = {
++            .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
++            .stage = { .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
++                       .stage = VK_SHADER_STAGE_COMPUTE_BIT, .module = mod, .pName = "main" },
++            .layout = s_zc.pl };
++        ok = pvkCreateComputePipelines(s_vk.device, VK_NULL_HANDLE, 1, &cci, NULL, &s_zc.pipe) == VK_SUCCESS;
++    }
++    pvkDestroyShaderModule(s_vk.device, mod, NULL);
++    if (!ok) { VK_LOG("engine: depth re-encode pipeline could not be built\n"); return -1; }
++    s_zc.failed = 0;
++    s_zc.ready = 1;
++    return 0;
++}
++
++static u32 vk_eng_depth_to_argb8(void* user, u32 snapshot, u32 w, u32 h, u32 remap, u32 rsx_fmt)
++{
++    (void)user;
++    vk_eng_obj* src = vk_eng_get(snapshot, VK_ENG_TEXTURE);
++    if (!src || src->fmt != VK_FORMAT_R32_SFLOAT || src->w != w || src->h != h || vk_zconv_init())
++        return 0;
++    u32 i = 0;
++    for (; i < s_zc.n; i++)
++        if (s_zc.e[i].snap == snapshot && s_zc.e[i].remap == remap && s_zc.e[i].rsx_fmt == rsx_fmt) break;
++    if (i < s_zc.n && s_zc.e[i].src_view != src->im.view) {
++        /* The snapshot handle was reused for a new image: its set may be in a
++         * batch in flight, so finish the GPU work before rewriting it. */
++        if (vk_batch_flush()) return 0;
++        vk_eng_obj* old = vk_eng_get(s_zc.e[i].tex, VK_ENG_TEXTURE);
++        if (old && (old->w != w || old->h != h)) {
++            if (s_zc.e[i].store_view) pvkDestroyImageView(s_vk.device, s_zc.e[i].store_view, NULL);
++            s_zc.e[i].store_view = VK_NULL_HANDLE;
++            vk_eng_release(user, s_zc.e[i].tex); s_zc.e[i].tex = 0;
++        }
++        s_zc.e[i].src_view = VK_NULL_HANDLE;
++        src = vk_eng_get(snapshot, VK_ENG_TEXTURE);
++        if (!src) return 0;
++    }
++    if (i == s_zc.n) {
++        if (s_zc.n >= VK_ZCONV_MAX) return 0;
++        VkDescriptorSetAllocateInfo ai = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
++                                           .descriptorPool = s_zc.pool, .descriptorSetCount = 1,
++                                           .pSetLayouts = &s_zc.dsl };
++        VkDescriptorSet set = VK_NULL_HANDLE;
++        if (pvkAllocateDescriptorSets(s_vk.device, &ai, &set) != VK_SUCCESS) return 0;
++        s_zc.e[i].snap = snapshot; s_zc.e[i].set = set; s_zc.e[i].tex = 0; s_zc.e[i].src_view = VK_NULL_HANDLE;
++        s_zc.e[i].remap = remap; s_zc.e[i].rsx_fmt = rsx_fmt; s_zc.e[i].store_view = VK_NULL_HANDLE;
++        s_zc.n++;
++    }
++    if (!s_zc.e[i].tex) {
++        const u32 t = vk_eng_alloc();
++        if (!t) return 0;
++        vk_eng_obj* o = &s_eobj[t];
++        if (vk_create_image(&o->im, VK_FORMAT_R8G8B8A8_UNORM, w, h,
++                            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
++                            VK_IMAGE_ASPECT_COLOR_BIT)) {
++            vk_destroy_image(&o->im); memset(o, 0, sizeof *o); return 0;
++        }
++        /* The compute pass writes through the plain view; sampling goes
++         * through the remapped one, as a texture_create view would. */
++        s_zc.e[i].store_view = o->im.view;
++        o->im.view = VK_NULL_HANDLE;
++        if (vk_eng_make_view(o->im.img, VK_FORMAT_R8G8B8A8_UNORM, 1, vk_remap(remap, rsx_fmt), 0, &o->im.view)) {
++            pvkDestroyImageView(s_vk.device, s_zc.e[i].store_view, NULL);
++            s_zc.e[i].store_view = VK_NULL_HANDLE;
++            vk_destroy_image(&o->im); memset(o, 0, sizeof *o); return 0;
++        }
++        o->kind = VK_ENG_TEXTURE; o->fmt = VK_FORMAT_R8G8B8A8_UNORM; o->bpp = 4; o->w = w; o->h = h;
++        s_zc.e[i].tex = t;
++        s_zc.e[i].src_view = VK_NULL_HANDLE;
++        if (vk_rec_begin()) return 0;
++        vk_barrier_image(o->im.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED);
++        src = vk_eng_get(snapshot, VK_ENG_TEXTURE);
++        if (!src) return 0;
++    }
++    vk_eng_obj* dst = vk_eng_get(s_zc.e[i].tex, VK_ENG_TEXTURE);
++    if (!dst) return 0;
++    if (s_zc.e[i].src_view != src->im.view) {
++        VkDescriptorImageInfo ii[2] = {
++            { VK_NULL_HANDLE, src->im.view, VK_IMAGE_LAYOUT_GENERAL },
++            { VK_NULL_HANDLE, s_zc.e[i].store_view, VK_IMAGE_LAYOUT_GENERAL },
++        };
++        VkWriteDescriptorSet wr[2] = {
++            { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = s_zc.e[i].set, .dstBinding = 0,
++              .descriptorCount = 1, .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .pImageInfo = &ii[0] },
++            { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = s_zc.e[i].set, .dstBinding = 1,
++              .descriptorCount = 1, .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .pImageInfo = &ii[1] },
++        };
++        pvkUpdateDescriptorSets(s_vk.device, 2, wr, 0, NULL);
++        s_zc.e[i].src_view = src->im.view;
++    }
++    if (vk_rec_begin()) return 0;
++    vk_barrier_image(src->im.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
++    vk_barrier_image(dst->im.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
++    pvkCmdBindPipeline(s_vk.cmd, VK_PIPELINE_BIND_POINT_COMPUTE, s_zc.pipe);
++    pvkCmdBindDescriptorSets(s_vk.cmd, VK_PIPELINE_BIND_POINT_COMPUTE, s_zc.pl, 0, 1, &s_zc.e[i].set, 0, NULL);
++    pvkCmdDispatch(s_vk.cmd, (w + 7u) / 8u, (h + 7u) / 8u, 1);
++    vk_barrier_image(dst->im.img, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_GENERAL);
++    return s_zc.e[i].tex;
++}
++
+ /* The depth aspect of a D32_SFLOAT target copies out as 32-bit floats, which
+  * is what the engine asks for; other depth formats report failure. */
+ static int vk_eng_depth_readback(void* user, u32 depth, u32 x, u32 y, u32 w, u32 h,
+@@ -3713,6 +3879,7 @@
+     .depth_readback       = vk_eng_depth_readback,
+     .color_target_write   = vk_eng_color_target_write,
+     .color_target_copy    = vk_eng_color_target_copy,
++    .depth_to_argb8       = vk_eng_depth_to_argb8,
+ };
+ 
+ static rsx_backend s_vulkan_backend = {

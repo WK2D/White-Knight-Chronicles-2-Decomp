@@ -13,10 +13,17 @@ Full material/rendering fidelity, sustained traversal, combat and save/load
 remain unverified. See the
 [latest gallery entry](GALLERY.md).
 
-The source stack now contains 65 SDK patches. Its Windows Vulkan build and all
-59 regression checks pass. Patch 0065's counter updates are verified in the
-visible title menu and initial character creator; rotation stutter remains
-unresolved. The verified 64-patch town results above retain their original scope.
+The source stack now contains 66 SDK patches. Its Windows Vulkan build and all
+59 regression checks pass. The verified 64-patch town results above retain their
+original scope.
+
+The port sets two frame-pacing defaults at startup, each overridable by setting
+it first: `GCM_FLIPCB_ONTICK=1` (the game's flip handler runs only when a flip is
+shown, at vblank) and `RSX_VK_PRESENT_MODE=mailbox` (presenting never blocks on
+the monitor). Flips wait for the next vblank (`WKC2_FLIP_ON_VBLANK=0` turns that
+off). Vblanks are timed on the high-resolution counter at 59.94 Hz. Note that the
+window-title FPS counts presents; a frame the game repeats still counts, so it
+can read higher than the game's own update rate.
 
 The source checkout and private working directory can be separate. Pass the
 private workspace with `-Workspace`; the build script gets project sources from

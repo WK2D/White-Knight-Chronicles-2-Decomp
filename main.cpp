@@ -572,8 +572,27 @@ static DWORD WINAPI frame_clock(LPVOID)
     fprintf(stderr, "[rsx] %s backend init %s\n", RSX_BACKEND_NAME,
             rsx_ok ? "OK -- window open" : "FAILED");
 
-    ULONGLONG next_tick = GetTickCount64();
-    ULONGLONG next_report = next_tick + 5000;
+    /* Vblank pacing runs on the high-resolution counter at the PS3's 59.94 Hz.
+     * It used GetTickCount64, which moves in ~15.6 ms steps, plus a flat 16 ms
+     * period (62.5 Hz): ticks then arrived in pairs or not at all, and a game
+     * that advances by the vblanks it counts between frames (WKC2's fades and
+     * animation) stepped unevenly -- a visible hitch every few frames. */
+    LARGE_INTEGER qpf, qpc;
+    QueryPerformanceFrequency(&qpf);
+    QueryPerformanceCounter(&qpc);
+    const double vblank_ms = 1000.0 * 1001.0 / 60000.0;   /* 59.94 Hz */
+    double next_tick_ms = (double)qpc.QuadPart * 1000.0 / (double)qpf.QuadPart;
+    ULONGLONG next_report = GetTickCount64() + 5000;
+    /* Flips on vblank: in vsync flip mode the RSX holds the command stream at
+     * a flip until the next vblank, so a title can finish at most one frame
+     * per vblank and each frame it shows is one vblank later than the last.
+     * Running on past flips let WKC2 finish ~67 frames a second against a
+     * 59.94 Hz vblank, and every frame that saw no vblank came out unchanged:
+     * a repeated frame, felt as a hitch, every 10-15 frames.
+     * WKC2_FLIP_ON_VBLANK=0 restores the old behaviour. */
+    const char* fov = getenv("WKC2_FLIP_ON_VBLANK");
+    const bool flip_on_vblank = !(fov && *fov == '0');
+    bool hold_for_vblank = false;
     const bool report_progress = getenv("WKC2_PROGRESS") != nullptr;
     const bool guest_present_only = getenv("WKC2_GUEST_PRESENT_ONLY") != nullptr;
 
@@ -582,11 +601,18 @@ static DWORD WINAPI frame_clock(LPVOID)
         /* Fence polling already signals the SDK's auto-reset kick event.
          * Wait for it so each pass can resume immediately; a flat Sleep(4)
          * leaves that event unread and adds latency to every fence wave. */
-        cellGcm_fifo_kick_wait(4);
+        {
+            /* Wake for the next vblank as well as for a FIFO kick. */
+            QueryPerformanceCounter(&qpc);
+            const double until = next_tick_ms - (double)qpc.QuadPart * 1000.0 / (double)qpf.QuadPart;
+            cellGcm_fifo_kick_wait(until <= 0.0 ? 0u : until >= 4.0 ? 4u : (unsigned)until);
+        }
 #else
         Sleep(4);
 #endif
         ULONGLONG now = GetTickCount64();
+        QueryPerformanceCounter(&qpc);
+        const double now_ms = (double)qpc.QuadPart * 1000.0 / (double)qpf.QuadPart;
         if (report_progress && now >= next_report) {
             fprintf(stderr, "[verification] guest_flip_requests=%u guest_frames_presented=%u\n",
                 cellGcm_flip_request_count(), ppu_boot_frames_presented());
@@ -606,7 +632,7 @@ static DWORD WINAPI frame_clock(LPVOID)
         }
 
         int fired = 0;
-        while ((long long)(now - next_tick) >= 0 && fired < 240) {
+        while (now_ms >= next_tick_ms && fired < 240) {
             cellGcmTickVBlank();
             cellGcmTickFlip();
             /* Present a pending flip BEFORE draining any further. The flip
@@ -617,33 +643,46 @@ static DWORD WINAPI frame_clock(LPVOID)
             if (rsx_ok && cellGcm_take_flip_pending()) {
                 present_guest_frame();
             }
+            hold_for_vblank = false;
             /* Drain the FIFO every tick. This is what writes the RSX sync-fence
              * labels the game's per-frame logic blocks on, so it has to keep
              * advancing at 60 Hz even while present() throttles. */
-            if (rsx_ok) cellGcm_rsx_process_fifo();
-            next_tick += 16;             /* ~60 Hz */
+            if (rsx_ok) {
+                const uint32_t flips = cellGcm_flip_request_count();
+                cellGcm_rsx_process_fifo();
+                if (flip_on_vblank && cellGcm_flip_request_count() != flips) hold_for_vblank = true;
+            }
+            next_tick_ms += vblank_ms;
             fired++;
         }
-        if (fired >= 240) next_tick = now;   /* fell too far behind -- resync */
+        if (fired >= 240) next_tick_ms = now_ms;   /* fell too far behind -- resync */
 
         /* Drain at the outer cadence too, not only on the 16 ms tick: titles
          * fence every render pass on a label the drain writes, and one wave of
          * those at 16 ms apiece paces the guest into single-figure frame rates.
          * The real RSX writes them in microseconds. */
-        if (rsx_ok) {
+        if (rsx_ok && hold_for_vblank) {
+            /* A flip is waiting for its vblank: like the RSX in vsync flip
+             * mode, run no further commands until it is shown. */
+            if (rsx_backend_pump() != 0) { rsx_ok = 0; continue; }
+        } else if (rsx_ok) {
             if (cellGcm_take_flip_pending()) {
                 present_guest_frame();
             }
+            const uint32_t flips = cellGcm_flip_request_count();
             cellGcm_rsx_process_fifo();
 
             if (rsx_backend_pump() != 0) {
                 rsx_ok = 0;              /* window closed */
                 continue;
             }
-            /* A drain can decode a flip. Consume that pending boundary here;
+            /* A drain can decode a flip. With flips on vblank it waits for the
+             * next tick; otherwise consume that pending boundary here --
              * observing only the request counter leaves the pending bit set
              * and presents the same boundary again on the next iteration. */
-            if (cellGcm_take_flip_pending()) {
+            if (flip_on_vblank && cellGcm_flip_request_count() != flips) {
+                hold_for_vblank = true;
+            } else if (cellGcm_take_flip_pending()) {
                 present_guest_frame();
             } else if (cellGcm_flip_request_count() == 0 && !guest_present_only) {
                 rsx_backend_present();
@@ -783,6 +822,16 @@ int main(int argc, char** argv)
      * inflates every shorter wait the title makes and throttles the whole
      * thing. POSIX timers are already fine-grained. */
     timeBeginPeriod(1);
+    /* WKC2's frame pacing defaults, each overridable by setting it first:
+     *  - GCM_FLIPCB_ONTICK=1: the flip handler runs when the flip is shown (at
+     *    vblank), not also when it is requested. With the early call the game
+     *    believed every frame was on screen at once, rendered flat out, and its
+     *    logic ran about 4x slow (avatar turn 49 deg/s; RPCS3 200; paced, 195).
+     *  - RSX_VK_PRESENT_MODE=mailbox: presenting never blocks on the monitor,
+     *    so the thread that times the vblanks is not stalled by it.
+     * Flips themselves wait for vblank by default (WKC2_FLIP_ON_VBLANK). */
+    if (!getenv("GCM_FLIPCB_ONTICK")) _putenv("GCM_FLIPCB_ONTICK=1");
+    if (!getenv("RSX_VK_PRESENT_MODE")) _putenv("RSX_VK_PRESENT_MODE=mailbox");
     SetUnhandledExceptionFilter(wkc2_crash_filter);
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     SymInitialize(GetCurrentProcess(), NULL, TRUE);

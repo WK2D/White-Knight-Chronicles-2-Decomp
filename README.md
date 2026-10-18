@@ -31,11 +31,13 @@ combat and save/load remain unverified, so this is not a playable port yet.
 - [Findings log](docs/FINDINGS.md): verified results, open issues and next steps
 - [Progress gallery](docs/GALLERY.md): newest first
 
-The source stack now contains **65 SDK patches**. Patch 0065 adds an FPS and
-maximum presentation-interval readout to the Vulkan window title. The Windows
-build and all 59 regression checks pass. Counter updates are verified in the
-visible title menu and initial character creator. Rotation stutter remains
-unresolved; see [counter scope](docs/BUILD.md#vulkan-window-title-counter-patch-0065).
+The source stack now contains **66 SDK patches**. The Windows build and all 59
+regression checks pass. Game speed now matches RPCS3 in the character creator:
+the port paces flips like the RSX (see
+[frame pacing](docs/FINDINGS.md#frame-pacing-and-game-speed)), and patch 0066
+keeps sampled depth on the GPU, taking the creator from about 37 to a steady
+60 fps. The town (about 15-20 fps) and heavy cutscene shots (dips below 30 fps,
+so their animation trails the audio) are still too slow.
 
 ## Progress
 
@@ -89,7 +91,7 @@ Verified progress, with the latest milestone first:
   with description and dialog text rendering correctly;
 - renders the title menu over an animated background and plays LPCM startup logos
   and AC-3 title/attract movies through the native movie pipeline;
-- passes **59 Windows runtime regression checks** with **65 SDK patches** applied.
+- passes **59 Windows runtime regression checks** with **66 SDK patches** applied.
 
 Short movement, facing changes, walking animation and camera rotation now
 respond to analog input in the starting town. The long stretched strips are

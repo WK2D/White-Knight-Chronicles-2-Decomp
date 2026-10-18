@@ -153,7 +153,7 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 65,
+    "sdk_patch_count": 66,
     "runtime_checks_passed": 59,
     "town_native_run_sdk_patch_count": 64,
     "patches_0040_0041_native_game_run_verified": true,
@@ -215,7 +215,9 @@
     "patch_0065_windows_build_verified": true,
     "patch_0065_existing_windows_regressions_verified": true,
     "patch_0065_native_title_counter_verified": true,
-    "patch_0065_creator_rotation_rechecked": false
+    "patch_0065_creator_rotation_rechecked": false,
+    "patch_0066_windows_regression_verified": true,
+    "creator_speed_matches_rpcs3": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -263,7 +265,10 @@
     "sdk_patch": 65,
     "renderer": "Vulkan",
     "scope": "Accepted Vulkan queue presentations per monotonic elapsed second and maximum interval between accepted presentations, updated approximately once per second",
-    "accepted_present_results": ["VK_SUCCESS", "VK_SUBOPTIMAL_KHR"],
+    "accepted_present_results": [
+      "VK_SUCCESS",
+      "VK_SUBOPTIMAL_KHR"
+    ],
     "unique_guest_animation_frames_counted": false,
     "exact_display_scanout_counted": false,
     "stalled_title_updates_on_rendering_resume": true,

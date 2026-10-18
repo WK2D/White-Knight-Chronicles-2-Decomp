@@ -1367,6 +1367,31 @@ behavior and are not recovered original symbols.
 
 Generated game code, memory snapshots and raw captures remain private.
 
+## Frame pacing and game speed
+
+RPCS3 runs WKC2 at a locked 30 fps. Measured from frame captures of the same
+avatar turn (right stick held fully), one revolution takes 1.80 s there
+(200 deg/s). The port took 4.87 s at about 49 deg/s, so the game ran about four
+times slower. It was presenting 67-74 frames a second, and the more frames it
+presented, the slower its logic advanced.
+
+Three causes, fixed in the port's frame loop:
+
+- Vblanks were timed with `GetTickCount64` (about 15.6 ms steps) and a flat
+  16 ms period (62.5 Hz). Ticks arrived in pairs or not at all, and fades
+  stepped unevenly. They now run on the high-resolution counter at 59.94 Hz.
+- The command stream ran on past flips. In vsync flip mode the RSX holds it at
+  a flip until the next vblank. The frame loop now does the same.
+- The flip handler was also called when a flip was requested, so the game
+  believed every frame was already on screen and rendered flat out. With the
+  handler called only at vblank, the turn measures 195 deg/s at a steady 60 fps.
+
+Patch 0066 removed the creator's per-frame depth readbacks (the bound 2560x2560
+shadow map and a sampled, just-cleared depth), taking it from about 37 to 60 fps.
+Heavy cutscene shots still drop to 17-30 fps and the town runs at 14-21 fps, so
+both still run slower than real time. Cutscene audio, which plays in real time,
+gets ahead. The window-title FPS counts presents, not game updates.
+
 ## Update 1.01 and DLC integration
 
 Planned scope includes the USA 1.01 update and matching DLC. Local package

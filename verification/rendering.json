@@ -153,7 +153,7 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 65,
+    "current_sdk_patch_count": 66,
     "last_verified_sdk_patch_count": 65,
     "current_passed_count": 59,
     "record_scope": "The 65-patch Windows Vulkan build passes all 59 checks in the normal build. The private optimized Release-CRT build passes 54 non-media checks and all five media checks when rerun with their decoder-library environment. Earlier named records, including the 64-patch town run, retain their original counts."
@@ -2220,7 +2220,12 @@
     "window_visibility_verified_with_windows_api": true,
     "sampling_profiler_enabled": false,
     "gpu_readback_interval_seconds": 5,
-    "title_updates_observed_in": ["title menu", "initial character creator", "name entry", "Body tab"],
+    "title_updates_observed_in": [
+      "title menu",
+      "initial character creator",
+      "name entry",
+      "Body tab"
+    ],
     "desktop_shortcut_same_binary_verified": true,
     "creator_fps_benchmark_verified": false,
     "creator_rotation_smoothness_fixed": false,
