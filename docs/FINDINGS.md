@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 108 SDK patches / 96 Windows checks in Debug and
+**Current source checkpoint:** 109 SDK patches / 98 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -266,12 +266,12 @@ Read-only renderer state and window dimensions confirm the changes reached the
 backend. The [patch notes](PATCHES.md#directx-display-and-sampler-preferences-patch-0107)
 and [capture](GALLERY.md#2026-10-19--directx-graphics-settings) record the scope.
 
-This does not establish rendering or performance parity. DirectX still lacks
-FXAA/overlay integration, texture comparison sampling and the shared engine's
-portrait readback route; stored portraits generated earlier can display.
-Fullscreen is covered by recording-API tests, with interactive validation still
-pending. Its old title telemetry also retains a long averaging window and the
-initial size; telemetry correction is separate work.
+This does not establish rendering or performance parity. Patch 0109 adds and
+verifies the native menu's transparent FPS overlay; FXAA, texture comparison
+sampling and the shared engine's portrait readback route remain open. Stored
+portraits generated earlier can display. Fullscreen is covered by recording-API
+tests, with interactive validation still pending. Patch 0108 removes window-title
+statistics on both renderers. See the [counter captures](GALLERY.md#2026-10-19--directx-fps-counter).
 
 ## Above-30 FPS transition regression (deferred)
 
@@ -1417,8 +1417,9 @@ Patch 0081 adds Vulkan preferences and a transparent text FPS overlay. Patch
 window scaling/overlay, and deferred flip plus dimension-matched scanout for the
 experimental DirectX 12 live-draw path. The published source contains no private
 capture, hidden-window or mute controls. DirectX 12 loads the saved scene and
-its Graphics Settings page, but differs visually and lacks Vulkan's display
-preferences/FXAA/overlay integration. Changing API requires restarting.
+its Graphics Settings page. At the initial 0082 checkpoint it lacked Vulkan's
+display preferences, FXAA and overlay; 0107/0109 add display controls and the
+counter. FXAA and full visual parity remain open. Changing API requires restarting.
 
 The first frame-rate menu only raised a host limiter; the original game still
 released its render semaphore after two vblanks, leaving a 30 FPS ceiling.

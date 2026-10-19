@@ -67,10 +67,10 @@ values and the window client resized to 1920x1080. See the
 [DirectX capture](GALLERY.md#2026-10-19--directx-graphics-settings).
 
 Output size is separate from internal rendering resolution. Real fullscreen
-switches, FXAA, the in-game FPS overlay, comparison sampling, fresh DirectX avatar
-capture and complete transition parity remain open. Higher FPS defects are
-deferred; the native run stayed at 30. The desktop installation remains on its
-earlier Vulkan checkpoint.
+switches, FXAA, comparison sampling, fresh DirectX avatar capture and complete
+transition parity remain open. Patch 0109 adds the in-game FPS overlay and
+verifies its menu toggle. Higher FPS defects are deferred; the native run stayed
+at 30. Vulkan remains the default until a different API is selected and restarted.
 
 ## DirectX live clear rectangles (patch 0106)
 
@@ -1219,3 +1219,28 @@ does not alter frame pacing or rendering.
 All 96 Windows checks pass in Debug and Release. Hidden, muted startup runs
 confirmed static captions on Vulkan and live DirectX after 12 seconds without
 controller input. Standalone DirectX was compiled, but was not launched.
+
+## DirectX in-game FPS overlay (patch 0109)
+
+The live DirectX renderer honors the native FPS Counter option. A small mapped
+upload buffer holds original bitmap glyphs; foreground-only copy spans preserve
+all background pixels. The existing presentation fence retires those reads
+before the next CPU update or destruction. Off records no overlay work and
+allocates no overlay storage. The movie and ordinary presentation paths use
+the same composition helper; movie playback itself has not been rechecked.
+
+Count S_OK presentations, excluding positive occlusion statuses and failures.
+Publish an estimate after a one-second window and return zero after a two-second
+presentation stall. This measures accepted presentations, not guest animation
+updates or display scanout. Window captions remain static. LD_FRAME_DUMP now
+reads the final backbuffer after composition; guest render targets are untouched.
+LD_RECORD and individual surface diagnostics retain their original-surface scope.
+
+The new wkc2_present_metrics check covers clock origin/reset, errors, occlusion,
+stalls and bounded glyph generation. wkc2_d3d12_counter_gpu checks seven WARP
+cases through the production helper, including every RGBA background pixel,
+clipping, Off and fenced buffer reuse. The native menu regression checks that
+DirectX can toggle this setting independently while FXAA remains unavailable.
+All 98 Windows checks pass in both Debug and Release. An isolated saved-town run
+verifies the menu Off/On selections against renderer state and real backbuffer
+captures. No frame-rate improvement or broad rendering-parity claim follows.

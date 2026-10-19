@@ -4,8 +4,8 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-19):** the stack contains 108 SDK patches. All
-96 Windows checks pass in normal Debug and optimized Release. Reapplying the
+**Current validation (2026-10-19):** the stack contains 109 SDK patches. All
+98 Windows checks pass in normal Debug and optimized Release. Reapplying the
 complete stack changes no SDK files. Vulkan Continue and short town movement
 were rechecked on patch 0105; isolated DirectX Continue and menu captures are
 checked on patch 0106.
@@ -134,7 +134,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 108 numbered SDK patches, and all 96 checks
+The current source stack contains 109 numbered SDK patches, and all 98 checks
 pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
@@ -205,7 +205,7 @@ private game data and is not distributed by this repository.
 
 Window titles show only the game name on Vulkan and DirectX. Patch 0108
 removes the former title-bar statistics. The optional in-game FPS overlay is
-controlled separately in Graphics Settings; DirectX overlay support is pending.
+controlled separately in Graphics Settings and now works on live DirectX too.
 
 Runtime switches, all off unless set:
 

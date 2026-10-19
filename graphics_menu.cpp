@@ -30,7 +30,7 @@ bool pending(wkc::GraphicsOption o) {
 }
 bool available(wkc::GraphicsOption o) {
     return !pending(o) && (!wkc::graphics_active_renderer() ||
-        (o!=wkc::GraphicsOption::anti_aliasing && o!=wkc::GraphicsOption::fps_counter));
+        (o!=wkc::GraphicsOption::anti_aliasing));
 }
 uint32_t call(ppu_context* source,void (*function)(ppu_context*),uint32_t a,uint32_t b,uint32_t c,uint32_t d=0) {
     ppu_context nested=*source;

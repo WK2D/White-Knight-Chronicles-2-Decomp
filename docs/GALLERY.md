@@ -8,9 +8,9 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 108 SDK patches / 96 Windows checks. The shader-translation
+Current source: 109 SDK patches / 98 Windows checks. The shader-translation
 cache reduces measured compilation stalls; existing images retain their original
-build provenance. The newest capture shows DirectX Graphics Settings in the 107-patch build.
+build provenance. The newest captures show the DirectX FPS Counter switched On and Off in the 109-patch build.
 Earlier town captures use the native FPS overlay after Continue in the 104-patch
 Vulkan build, with 30 and Unlocked frame limits; those are final swapchain
 readbacks after the overlay. The earlier depth-range captures use
@@ -32,6 +32,7 @@ Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-19 | [DirectX FPS Counter On/Off](#2026-10-19--directx-fps-counter) | <a href="#2026-10-19--directx-fps-counter"><img src="../verification/screenshots/2026-10-19-native-directx-fps-on.png" width="200" alt="DirectX in-game counter enabled"></a> |
 | 2026-10-19 | [DirectX display and filtering controls](#2026-10-19--directx-graphics-settings) | <a href="#2026-10-19--directx-graphics-settings"><img src="../verification/screenshots/2026-10-19-native-directx-graphics-settings.png" width="200" alt="DirectX graphics settings"></a> |
 | 2026-10-19 | [Town FPS checkpoint](#2026-10-19---town-fps-checkpoint) | <a href="#2026-10-19---town-fps-checkpoint"><img src="../verification/screenshots/2026-10-19-native-town-fps-unlocked.png" width="200" alt="Town with native FPS overlay"></a> |
 | 2026-10-19 | [Depth range check](#2026-10-19---window-depth-clip-range-check) | <a href="#2026-10-19---window-depth-clip-range-check"><img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="200" alt="Depth range check"></a> |
@@ -55,6 +56,23 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
+
+## 2026-10-19 — DirectX FPS Counter
+
+The native Graphics Settings panel now switches the DirectX counter On and Off.
+The foreground text has no background box. These images show that control in
+the same hidden, muted saved-scene run at the 30 FPS setting.
+
+![DirectX FPS Counter On](../verification/screenshots/2026-10-19-native-directx-fps-on.png)
+
+![DirectX FPS Counter Off](../verification/screenshots/2026-10-19-native-directx-fps-off.png)
+
+Source checkpoint: 109 SDK patches / 98 Windows checks in Debug and Release.
+These are completed final-backbuffer GPU readbacks, including the overlay,
+before DXGI Present and output scaling. The window is 720p while the guest
+scanout is 1920x1080. The counter measures accepted presentations; the stills
+do not establish smooth gameplay, unique animation speed or a performance gain.
+FXAA, fresh DirectX avatar capture and complete transition parity remain open.
 
 ## 2026-10-19 — DirectX graphics settings
 
@@ -217,8 +235,9 @@ anisotropic filtering, Off/FXAA and 30/40/60/120/144/Unlocked limits:
 More Settings contains the renderer choice, draw-distance submenu and FPS toggle.
 The asterisk means DirectX 12 has been selected for the next restart; this capture
 is still Vulkan. DirectX 12 also reaches the save and menu in a separate test, but
-has visible differences and does not implement the Vulkan display preferences,
-FXAA or overlay. Vulkan remains the default:
+at this 0082 checkpoint had visible differences and lacked the Vulkan display
+preferences, FXAA and overlay. Later 0107/0109 entries supersede the display and
+overlay limitations. Vulkan remains the default:
 
 ![Native API selector with the restart requirement](../verification/screenshots/2026-10-18-native-graphics-api.png)
 

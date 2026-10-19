@@ -1,0 +1,403 @@
+Add the optional DirectX foreground-only FPS overlay and accepted-present timing.
+Exclude occluded/error presents, use a one-second measurement window, and capture the composed backbuffer.
+
+diff --git a/libs/video/rsx_live_draw.c b/libs/video/rsx_live_draw.c
+--- a/libs/video/rsx_live_draw.c
++++ b/libs/video/rsx_live_draw.c
+@@ -105,6 +105,8 @@
+ #include <dxgi1_5.h>
+ #include "rsx_d3d12_sampler.h"
+ #include "rsx_d3d12_window.h"
++#include "rsx_d3d12_counter.h"
++#include "rsx_present_metrics.h"
+ #include <d3dcompiler.h>
+ #include "rsx_vertex_formats.h"
+ #include <sys/stat.h>
+@@ -388,6 +390,9 @@
+ } ld_state;
+ 
+ static ld_state g;
++static rsx_d3d12_counter s_ld_counter;
++static rsx_present_metrics s_ld_present_metrics;
++static SRWLOCK s_ld_metrics_lock = SRWLOCK_INIT;
+ 
+ /* Only the render owner applies host preferences. Guest geometry and render
+  * target dimensions stay independent of the requested display/window size. */
+@@ -616,6 +621,9 @@
+     LARGE_INTEGER frequency;
+     memset(g_ld_present_ring, 0, sizeof(g_ld_present_ring));
+     g_ld_present_total = 0;
++    AcquireSRWLockExclusive(&s_ld_metrics_lock);
++    memset(&s_ld_present_metrics, 0, sizeof s_ld_present_metrics);
++    ReleaseSRWLockExclusive(&s_ld_metrics_lock);
+     g_ld_present_dumped = 0;
+     g_ld_schedule_diag = getenv("RSX_SCHEDULE_DIAG") != NULL;
+     if (QueryPerformanceFrequency(&frequency))
+@@ -626,6 +634,9 @@
+ 
+ static void ld_present_measure_record(u32 guest_frame)
+ {
++    AcquireSRWLockExclusive(&s_ld_metrics_lock);
++    rsx_present_metrics_record(&s_ld_present_metrics, GetTickCount64(), 0);
++    ReleaseSRWLockExclusive(&s_ld_metrics_lock);
+ #if defined(YZ_PPU_SAMPLE)
+     if (!g_ld_present_thread_handle) {
+         HANDLE duplicate = NULL;
+@@ -8213,43 +8224,25 @@
+ 
+ double rsx_live_draw_get_present_fps(void)
+ {
+-    const u64 total = g_ld_present_total;
+-    if (total < 2u || g_ld_qpc_frequency <= 0)
+-        return 0.0;
+-
+-    const u64 available =
+-        total < LD_PRESENT_RING_CAP ? total : LD_PRESENT_RING_CAP;
+-    const ld_present_sample* newest =
+-        &g_ld_present_ring[(total - 1u) & (LD_PRESENT_RING_CAP - 1u)];
+-    if (newest->present_id != total)
+-        return 0.0;
+-
+-    const ld_present_sample* oldest = newest;
+-    u64 intervals = 0;
+-    for (u64 back = 1u; back < available; ++back) {
+-        const u64 present_id = total - back;
+-        const ld_present_sample* candidate =
+-            &g_ld_present_ring[(present_id - 1u) &
+-                               (LD_PRESENT_RING_CAP - 1u)];
+-        if (candidate->present_id != present_id)
+-            break;
+-        oldest = candidate;
+-        intervals = back;
+-        const double elapsed =
+-            (double)(newest->qpc - oldest->qpc) /
+-            (double)g_ld_qpc_frequency;
+-        /*
+-         * Keep at least a 15-second view and about 30 intervals when possible;
+-         * cap at 30 seconds so sub-1-FPS operation still updates usefully.
+-         */
+-        if (elapsed >= 30.0 || (elapsed >= 15.0 && intervals >= 30u))
+-            break;
+-    }
+-
+-    const LONGLONG ticks = newest->qpc - oldest->qpc;
+-    return intervals != 0u && ticks > 0
+-        ? (double)intervals * (double)g_ld_qpc_frequency / (double)ticks
+-        : 0.0;
++    AcquireSRWLockShared(&s_ld_metrics_lock);
++    const double fps = rsx_present_metrics_fps(&s_ld_present_metrics, GetTickCount64());
++    ReleaseSRWLockShared(&s_ld_metrics_lock);
++    return fps;
++}
++
++static void ld_counter_draw(ID3D12Resource* destination)
++{
++    if (!s_ld_graphics.fps_counter) return;
++    D3D12_RESOURCE_DESC desc;
++    destination->lpVtbl->GetDesc(destination, &desc);
++    const HRESULT hr = rsx_d3d12_counter_draw(&s_ld_counter, g.dev, g.list,
++        destination, (unsigned)desc.Width, desc.Height, 1,
++        rsx_live_draw_get_present_fps());
++    if (FAILED(hr)) {
++        static int reported;
++        if (!reported) fprintf(stderr,"[live-draw] FPS overlay upload failed hr=0x%08lX\n",(unsigned long)hr);
++        reported = 1;
++    }
+ }
+ 
+ void rsx_live_draw_dump_present_samples(void)
+@@ -8348,6 +8341,8 @@
+     src.PlacedFootprint.Footprint.RowPitch = pitch;
+     g.list->lpVtbl->CopyTextureRegion(g.list, &dst, 0, 0, 0, &src, NULL);
+ 
++    ld_counter_draw(bb);
++
+     b.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+     b.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+     g.list->lpVtbl->ResourceBarrier(g.list, 1, &b);
+@@ -8356,9 +8351,9 @@
+     {
+         const HRESULT present_hr = g.swap->lpVtbl->Present(g.swap, s_ld_graphics.vsync ? 1 : 0,
+             rsx_d3d12_present_flags(s_ld_graphics.vsync, s_ld_swap_flags != 0, s_ld_window_state.fullscreen));
+-        if (SUCCEEDED(present_hr))
++        if (present_hr == S_OK)
+             ld_present_measure_record(g_ld_frames);
+-        else {
++        else if (FAILED(present_hr)) {
+             fprintf(stderr,
+                     "[d3d-fail] movie Present hr=0x%08lX frame=%u\n",
+                     (unsigned long)present_hr, g_ld_frames);
+@@ -8402,7 +8397,8 @@
+  * through here while recording). */
+ static FILE* g_ld_record_to;
+ 
+-static u64 ld_dump_surface_ppm(const char* path, const surface_t* surface)
++static u64 ld_dump_surface_state_ppm(const char* path, const surface_t* surface,
++                                      D3D12_RESOURCE_STATES state)
+ {
+     ID3D12Resource* rt = surface ? surface->tex : NULL;
+     if (!rt) return UINT64_MAX;
+@@ -8429,7 +8425,7 @@
+     b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+     b.Transition.pResource = rt;
+     b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+-    b.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
++    b.Transition.StateBefore = state;
+     b.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+     g.list->lpVtbl->ResourceBarrier(g.list, 1, &b);
+ 
+@@ -8444,7 +8440,7 @@
+     g.list->lpVtbl->CopyTextureRegion(g.list, &dst, 0, 0, 0, &src, NULL);
+ 
+     b.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+-    b.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
++    b.Transition.StateAfter = state;
+     g.list->lpVtbl->ResourceBarrier(g.list, 1, &b);
+ 
+     ld_flush(LD_FLUSH_READBACK);                   /* copy completes on the GPU */
+@@ -8496,6 +8492,11 @@
+     }
+     rb->lpVtbl->Release(rb);
+     return nonblack;
++}
++
++static u64 ld_dump_surface_ppm(const char* path, const surface_t* surface)
++{
++    return ld_dump_surface_state_ppm(path, surface, D3D12_RESOURCE_STATE_RENDER_TARGET);
+ }
+ 
+ #if !defined(YZ_PERF_CLEAN)
+@@ -8718,7 +8719,7 @@
+           }
+       } }
+     /* LD_FRAME_DUMP=<dir> [+ LD_FRAME_DUMP_EVERY=<n>, default 300]: write the
+-     * PRESENTED surface to a .ppm every n flips. The engine could already dump
++     * final swap-chain backbuffer to a .ppm every n flips, including the overlay. The engine could already dump
+      * a surface, but only at shutdown or behind the parity harness -- neither
+      * reachable when a title is simply left running, which is exactly when you
+      * want to see what is on screen. PrintWindow and CopyFromScreen both come
+@@ -8770,15 +8771,6 @@
+         return;
+     }
+     g_ld_last_present_target = target;
+-    if (dump_now) {
+-        char path[MAX_PATH * 2];
+-        snprintf(path, sizeof(path), "%s\\frame_%06u.ppm", dump_dir, dump_n - 1u);
+-        const u64 nb = ld_dump_surface_ppm(path, &g.surfaces[target]);
+-        fprintf(stderr, "[frame-dump] %s %ux%u nonblack=%llu\n", path,
+-                g.surfaces[target].w, g.surfaces[target].h,
+-                (unsigned long long)(nb == UINT64_MAX ? 0 : nb));
+-        fflush(stderr);
+-    }
+     /* LD_RECORD=<out.mp4> (boot_main's --record): every presented frame, as
+      * PPM, into an ffmpeg pipe -- ffmpeg's image2pipe reads concatenated PPMs
+      * as a stream. Fragmented MP4 so a run that is killed rather than exiting
+@@ -8892,6 +8884,7 @@
+     g.list->lpVtbl->ResourceBarrier(g.list, 2, bar);
+ 
+     g.list->lpVtbl->CopyResource(g.list, bb, srcimg);
++    ld_counter_draw(bb);
+ 
+     bar[0].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+     bar[0].Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+@@ -8900,12 +8893,24 @@
+     g.list->lpVtbl->ResourceBarrier(g.list, 2, bar);
+ 
+     ld_flush(LD_FLUSH_PRESENT);
++    if (dump_now && g.ready) {
++        D3D12_RESOURCE_DESC desc;
++        bb->lpVtbl->GetDesc(bb, &desc);
++        surface_t output = {0};
++        output.tex = bb; output.w = (u32)desc.Width; output.h = desc.Height; output.fmt = desc.Format;
++        char path[MAX_PATH * 2];
++        snprintf(path, sizeof(path), "%s\\frame_%06u.ppm", dump_dir, dump_n - 1u);
++        const u64 nb = ld_dump_surface_state_ppm(path, &output, D3D12_RESOURCE_STATE_PRESENT);
++        fprintf(stderr, "[frame-dump] final-backbuffer %s %ux%u nonblack=%llu\n",
++            path, output.w, output.h, (unsigned long long)(nb == UINT64_MAX ? 0 : nb));
++        fflush(stderr);
++    }
+     {
+         const HRESULT present_hr = g.swap->lpVtbl->Present(g.swap, s_ld_graphics.vsync ? 1 : 0,
+             rsx_d3d12_present_flags(s_ld_graphics.vsync, s_ld_swap_flags != 0, s_ld_window_state.fullscreen));
+-        if (SUCCEEDED(present_hr))
++        if (present_hr == S_OK)
+             ld_present_measure_record(g_ld_frames + 1u);
+-        else {
++        else if (FAILED(present_hr)) {
+             fprintf(stderr,
+                     "[d3d-fail] Present hr=0x%08lX frame=%u "
+                     "target=%u size=%ux%u window=%ux%u\n",
+@@ -9773,6 +9778,7 @@
+     /* let the GPU drain, then release. (Best-effort; process teardown also
+      * reclaims.) */
+     ld_flush(LD_FLUSH_SHUTDOWN);
++    rsx_d3d12_counter_release(&s_ld_counter);
+ #if defined(YZ_PERF_PROFILE)
+     fprintf(stderr,
+             "[rsx-perf-summary] frames=%u "
+diff --git a/libs/video/rsx_present_metrics.h b/libs/video/rsx_present_metrics.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_present_metrics.h
+@@ -0,0 +1,45 @@
++#ifndef RSX_PRESENT_METRICS_H
++#define RSX_PRESENT_METRICS_H
++#include <stdint.h>
++#include <string.h>
++
++/* Caller serializes access. Count accepted presentations, not guest updates or
++ * display scanout. Positive status codes (including occlusion) are not frames. */
++typedef struct rsx_present_metrics {
++    uint64_t epoch_ms, last_ms, intervals, maximum_ms;
++    double fps;
++    uint64_t published_maximum_ms;
++    int started;
++} rsx_present_metrics;
++
++static void rsx_present_metrics_record(rsx_present_metrics* m,
++                                      uint64_t now_ms, int32_t result)
++{
++    if (result != 0) return; /* S_OK only */
++    if (!m->started || now_ms < m->last_ms) {
++        memset(m, 0, sizeof(*m));
++        m->started = 1;
++        m->epoch_ms = m->last_ms = now_ms;
++        return;
++    }
++    const uint64_t interval = now_ms - m->last_ms;
++    m->last_ms = now_ms;
++    if (interval > m->maximum_ms) m->maximum_ms = interval;
++    ++m->intervals;
++    const uint64_t elapsed = now_ms - m->epoch_ms;
++    if (elapsed >= 1000) {
++        m->fps = (double)m->intervals * 1000.0 / (double)elapsed;
++        m->published_maximum_ms = m->maximum_ms;
++        m->epoch_ms = now_ms;
++        m->intervals = m->maximum_ms = 0;
++    }
++}
++
++static double rsx_present_metrics_fps(const rsx_present_metrics* m,
++                                     uint64_t now_ms)
++{
++    if (!m->started || now_ms < m->last_ms || now_ms - m->last_ms > 2000)
++        return 0.0;
++    return m->fps;
++}
++#endif
+diff --git a/libs/video/rsx_fps_bitmap.h b/libs/video/rsx_fps_bitmap.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_fps_bitmap.h
+@@ -0,0 +1,41 @@
++#ifndef RSX_FPS_BITMAP_H
++#define RSX_FPS_BITMAP_H
++#include <stdint.h>
++#include <stdio.h>
++#include <string.h>
++
++#define RSX_FPS_BITMAP_WIDTH 128u
++#define RSX_FPS_BITMAP_HEIGHT 16u
++#define RSX_FPS_BITMAP_PITCH (RSX_FPS_BITMAP_WIDTH * 4u)
++/* Original 5x7 bitmap font, enlarged 2x. Only lit texels are composited. */
++static void rsx_fps_bitmap(uint8_t* rgba, double fps)
++{
++    static const uint8_t glyphs[13][7] = {
++        {14,17,19,21,25,17,14}, {4,12,4,4,4,4,14},
++        {14,17,1,2,4,8,31}, {30,1,1,14,1,1,30},
++        {2,6,10,18,31,2,2}, {31,16,16,30,1,1,30},
++        {14,16,16,30,17,17,14}, {31,1,2,4,8,8,8},
++        {14,17,17,14,17,17,14}, {14,17,17,15,1,1,14},
++        {31,16,16,30,16,16,16}, /* F */
++        {30,17,17,30,16,16,16}, /* P */
++        {15,16,16,14,1,1,30}    /* S */
++    };
++    if (!(fps >= 0.0)) fps = 0.0;
++    if (fps > 9999.9) fps = 9999.9;
++    char text[16];
++    snprintf(text, sizeof(text), "FPS %.1f", fps);
++    memset(rgba, 0, RSX_FPS_BITMAP_PITCH * RSX_FPS_BITMAP_HEIGHT);
++    for (unsigned n=0; text[n] && n*12+10<=RSX_FPS_BITMAP_WIDTH; ++n) {
++        const char c=text[n];
++        const int glyph=c>='0' && c<='9' ? c-'0' : c=='F' ? 10 : c=='P' ? 11 : c=='S' ? 12 : -1;
++        for (unsigned y=0; y<7; ++y) for (unsigned x=0; x<5; ++x) {
++            const int lit=glyph>=0 ? ((glyphs[glyph][y]>>(4-x))&1) : c=='.' && y==6 && x==2;
++            if (!lit) continue;
++            for (unsigned dy=0; dy<2; ++dy) for (unsigned dx=0; dx<2; ++dx) {
++                uint8_t* p=rgba+(y*2+dy)*RSX_FPS_BITMAP_PITCH+(n*12+x*2+dx)*4;
++                p[0]=p[1]=p[2]=240; p[3]=255;
++            }
++        }
++    }
++}
++#endif
+diff --git a/libs/video/rsx_d3d12_counter.h b/libs/video/rsx_d3d12_counter.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_d3d12_counter.h
+@@ -0,0 +1,65 @@
++#ifndef RSX_D3D12_COUNTER_H
++#define RSX_D3D12_COUNTER_H
++#include <d3d12.h>
++#include "rsx_fps_bitmap.h"
++
++typedef struct rsx_d3d12_counter {
++    ID3D12Resource* upload;
++    uint8_t* mapped;
++} rsx_d3d12_counter;
++
++/* Owner must retire all recorded copies before reuse or destruction. The live
++ * renderer waits for its presentation fence before returning from each frame. */
++static void rsx_d3d12_counter_release(rsx_d3d12_counter* c)
++{
++    if (c->upload) {
++        if (c->mapped) c->upload->lpVtbl->Unmap(c->upload, 0, NULL);
++        c->upload->lpVtbl->Release(c->upload);
++    }
++    c->upload=NULL; c->mapped=NULL;
++}
++
++/* Destination must be RGBA8 in COPY_DEST. Off performs no allocation or copy.
++ * Copy foreground spans only: untouched background bytes stay exactly intact,
++ * without a framebuffer readback, alpha pipeline or black rectangle. */
++static HRESULT rsx_d3d12_counter_draw(rsx_d3d12_counter* c, ID3D12Device* device,
++    ID3D12GraphicsCommandList* list, ID3D12Resource* destination,
++    unsigned width, unsigned height, int enabled, double fps)
++{
++    const unsigned origin=8;
++    if (!enabled || width<=origin || height<=origin) return S_OK;
++    if (!c->upload) {
++        D3D12_HEAP_PROPERTIES hp={0}; hp.Type=D3D12_HEAP_TYPE_UPLOAD;
++        D3D12_RESOURCE_DESC desc={0};
++        desc.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER;
++        desc.Width=RSX_FPS_BITMAP_PITCH*RSX_FPS_BITMAP_HEIGHT;
++        desc.Height=1; desc.DepthOrArraySize=1; desc.MipLevels=1;
++        desc.SampleDesc.Count=1; desc.Layout=D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
++        HRESULT hr=device->lpVtbl->CreateCommittedResource(device,&hp,D3D12_HEAP_FLAG_NONE,
++            &desc,D3D12_RESOURCE_STATE_GENERIC_READ,NULL,&IID_ID3D12Resource,(void**)&c->upload);
++        if (FAILED(hr)) return hr;
++        D3D12_RANGE no_reads={0,0};
++        hr=c->upload->lpVtbl->Map(c->upload,0,&no_reads,(void**)&c->mapped);
++        if (FAILED(hr)) { rsx_d3d12_counter_release(c); return hr; }
++    }
++    rsx_fps_bitmap(c->mapped,fps);
++    D3D12_TEXTURE_COPY_LOCATION src={0}, dst={0};
++    src.pResource=c->upload; src.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
++    src.PlacedFootprint.Footprint.Format=DXGI_FORMAT_R8G8B8A8_UNORM;
++    src.PlacedFootprint.Footprint.Width=RSX_FPS_BITMAP_WIDTH;
++    src.PlacedFootprint.Footprint.Height=RSX_FPS_BITMAP_HEIGHT;
++    src.PlacedFootprint.Footprint.Depth=1;
++    src.PlacedFootprint.Footprint.RowPitch=RSX_FPS_BITMAP_PITCH;
++    dst.pResource=destination; dst.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
++    const unsigned w=width-origin<RSX_FPS_BITMAP_WIDTH ? width-origin : RSX_FPS_BITMAP_WIDTH;
++    const unsigned h=height-origin<RSX_FPS_BITMAP_HEIGHT ? height-origin : RSX_FPS_BITMAP_HEIGHT;
++    for (unsigned y=0; y<h; ++y) for (unsigned x=0; x<w;) {
++        if (!c->mapped[y*RSX_FPS_BITMAP_PITCH+x*4+3]) { ++x; continue; }
++        const unsigned begin=x++;
++        while (x<w && c->mapped[y*RSX_FPS_BITMAP_PITCH+x*4+3]) ++x;
++        D3D12_BOX box={begin,y,0,x,y+1,1};
++        list->lpVtbl->CopyTextureRegion(list,&dst,origin+begin,origin+y,0,&src,&box);
++    }
++    return S_OK;
++}
++#endif

@@ -4,12 +4,12 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-19",
-    "native_probe": "20261019-143540",
-    "sdk_patch_count": 107,
-    "summary": "DirectX native display/filtering controls verified through the game menu and renderer applied state at 30 FPS. Both Windows suites pass 96 checks. Full rendering and transition parity remain open.",
-    "gallery_image": "screenshots/2026-10-19-native-directx-graphics-settings.png",
-    "gallery_image_sdk_patch_count": 107,
-    "gallery_image_scope": "DirectX presented-surface GPU readback before window scaling; real menu changes, not a performance benchmark",
+    "native_probe": "20261019-152513",
+    "sdk_patch_count": 109,
+    "summary": "DirectX optional FPS overlay verified with the native menu Off/On control. Both Windows suites pass 98 checks. FXAA and broader rendering/transition parity remain open.",
+    "gallery_image": "screenshots/2026-10-19-native-directx-fps-on.png",
+    "gallery_image_sdk_patch_count": 109,
+    "gallery_image_scope": "Final DirectX backbuffer readback including the native overlay; functional menu check, not a performance benchmark",
     "remaining_limits": [
       "Smooth 30 FPS traversal and console-equivalent animation speed unverified",
       "First-use shader compilation and other CPU/graphics costs remain",
@@ -359,19 +359,21 @@
       "wkc2_graphics_readback",
       "wkc2_lwmutex_user",
       "wkc2_lwmutex_kernel",
-      "wkc2_d3d12_graphics"
+      "wkc2_d3d12_graphics",
+      "wkc2_present_metrics",
+      "wkc2_d3d12_counter_gpu"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 108,
-    "last_verified_sdk_patch_count": 108,
-    "current_passed_count": 96,
-    "record_scope": "108 SDK patches / 96 Windows checks pass in Debug and Release; media checks ran without skips.",
-    "normal_debug_elapsed_seconds": 27.06,
-    "optimized_release_elapsed_seconds": 23.53,
+    "current_sdk_patch_count": 109,
+    "last_verified_sdk_patch_count": 109,
+    "current_passed_count": 98,
+    "record_scope": "109 SDK patches / 98 Windows checks pass in Debug and Release; media checks ran without skips.",
+    "normal_debug_elapsed_seconds": 26.99,
+    "optimized_release_elapsed_seconds": 24.33,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 108
+    "repeat_patch_application_verified_sdk_patch_count": 109
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2806,10 +2808,10 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 108 SDK patches / 96 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 109 SDK patches / 98 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
-    "directx12": "Experimental live renderer; restart required; window mode, output size, VSync and filtering integrated; FXAA/overlay and rendering parity remain open",
+    "directx12": "Experimental live renderer; restart required; window mode, output size, VSync, filtering and FPS overlay integrated; FXAA and rendering parity remain open",
     "frame_limits": [
       30,
       40,
@@ -3180,11 +3182,10 @@
     "desktop_installed": false,
     "known_remaining": [
       "Interactive fullscreen validation",
-      "FXAA and in-game FPS overlay",
+      "FXAA",
       "Texture comparison sampling",
       "Guest-readback hook targets the separate shared engine",
-      "Partial component color clears",
-      "Title telemetry averaging and stale size"
+      "Partial component color clears"
     ],
     "display_preferences_native_probe": "20261019-143540",
     "display_preferences_verified": [
@@ -3211,5 +3212,25 @@
     "native_live_directx_caption_verified": true,
     "native_validation_scope": "Hidden, muted startup windows inspected after 12 seconds with no injected controller input; standalone DirectX compiled but not launched.",
     "full_gameplay_revalidated": false
+  },
+  "directx_fps_overlay": {
+    "sdk_patch_count": 109,
+    "windows_debug_checks_passed": 98,
+    "windows_release_checks_passed": 98,
+    "warp_gpu_cases": 7,
+    "native_saved_scene_menu_toggle_verified": true,
+    "native_probe": "20261019-152513",
+    "counter_background_box": false,
+    "occluded_presentations_counted": false,
+    "measurement_window_ms": 1000,
+    "stale_after_ms": 2000,
+    "accepted_present_result": "S_OK",
+    "counts_unique_animation_updates": false,
+    "counts_display_scanout": false,
+    "source_surface_changed": false,
+    "normal_startup_automatic_input": false,
+    "cutscene_overlay_native_verified": false,
+    "full_gameplay_verified": false,
+    "fxaa_implemented": false
   }
 }
