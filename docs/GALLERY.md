@@ -8,7 +8,10 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 119 SDK patches / 111 Windows checks. The newest captures show
+Current source: 119 SDK patches / 111 Windows checks. The newest capture shows
+native C++ matrix blending and position transforms on a strict DirectX
+town-to-plains route. It verifies an inspected frame, not a performance gain.
+The earlier captures show
 the DirectX near/far clipping fix in Balastor Plain after a town transition,
 walking and camera rotation, plus the earlier broken view. The foreground no
 longer incorrectly covers Leonard's lower body in these inspected views.
@@ -37,6 +40,7 @@ Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-19 | [Native C++ geometry positions](#2026-10-19--native-c-geometry-positions) | <a href="#2026-10-19--native-c-geometry-positions"><img src="../verification/screenshots/2026-10-19-native-cpp-geometry-positions.png" width="200" alt="Native C++ geometry positions"></a> |
 | 2026-10-19 | [DirectX plains clipping fixed](#2026-10-19--directx-plains-clipping-fixed) | <a href="#2026-10-19--directx-plains-clipping-fixed"><img src="../verification/screenshots/2026-10-19-native-directx-plains-clipping-fixed-front.png" width="200" alt="DirectX plains clipping fixed"></a> |
 | 2026-10-19 | [DirectX Off/FXAA](#2026-10-19--directx-fxaa) | <a href="#2026-10-19--directx-fxaa"><img src="../verification/screenshots/2026-10-19-native-directx-fxaa-on.png" width="200" alt="DirectX native FXAA enabled"></a> |
 | 2026-10-19 | [DirectX FPS Counter On/Off](#2026-10-19--directx-fps-counter) | <a href="#2026-10-19--directx-fps-counter"><img src="../verification/screenshots/2026-10-19-native-directx-fps-on.png" width="200" alt="DirectX in-game counter enabled"></a> |
@@ -63,6 +67,23 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
+
+## 2026-10-19 — Native C++ geometry positions
+
+The native C++ matrix blend and position transforms execute through Continue,
+a town-to-plains transition, walking and camera rotation on both DirectX and
+Vulkan. Both strict routes record zero interpreter/microstep entries; trace
+markers show at least 16,777,216 transformed blocks per run. All 111 Windows
+checks pass in Debug and Release. Full-state replays and 8,000 fuzz cases are
+recorded in [native execution work](NATIVE_CODE.md#readable-c-geometry-prefix).
+
+![DirectX plains with native C++ geometry positions](../verification/screenshots/2026-10-19-native-cpp-geometry-positions.png)
+
+Capture: 19 October, published 20 October. Unmodified final swap-chain pixels,
+optional metadata removed. The FPS overlay reads 18.4 in this diagnostic frame;
+logging, tracing and GPU captures were enabled. This is not an uninstrumented
+performance comparison. Normal processing and job/output handling remain
+compiled, and broader gameplay/CPU coverage and rendering parity remain open.
 
 ## 2026-10-19 — DirectX plains clipping fixed
 

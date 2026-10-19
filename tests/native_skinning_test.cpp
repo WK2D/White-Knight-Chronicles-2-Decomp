@@ -37,6 +37,23 @@ int wkc2_test_native_skinning() {
     auto unnormalized=blend_skin_matrix(vertex.weights,vertex.influences);
     for(unsigned phase=0;phase<3;++phase)for(unsigned lane=0;lane<4;++lane)
         assert(unnormalized[phase][lane]==2*vertex.influences[0][phase][lane]-vertex.influences[1][phase][lane]);
+    // Independent row-major signed-minor oracle, including singular matrices.
+    for(unsigned trial=0;trial<64;++trial) {
+        float m[3][4],cofactor[3][4]{};
+        for(unsigned row=0;row<3;++row)for(unsigned col=0;col<4;++col)
+            m[row][col]=float(int((trial+row*7+col*3)%13)-6);
+        for(unsigned row=0;row<3;++row)for(unsigned col=0;col<3;++col) {
+            unsigned rows[2],cols[2],nr=0,nc=0;
+            for(unsigned i=0;i<3;++i){if(i!=row)rows[nr++]=i;if(i!=col)cols[nc++]=i;}
+            float minor=m[rows[0]][cols[0]]*m[rows[1]][cols[1]]-m[rows[0]][cols[1]]*m[rows[1]][cols[0]];
+            cofactor[row][col]=((row+col)&1)?-minor:minor;
+        }
+        const auto expected_cofactor=cyclic(cofactor);
+        const auto actual_cofactor=cofactor_skin_matrix(cyclic(m));
+        for(unsigned phase=0;phase<3;++phase)for(unsigned lane=0;lane<3;++lane)
+            assert(actual_cofactor[phase][lane]==expected_cofactor[phase][lane]);
+        assert(actual_cofactor[0][3]==1 && actual_cofactor[1][3]==0 && actual_cofactor[2][3]==0);
+    }
 
     std::mt19937 random(0xCE08);unsigned simd_cases=0;
     for(unsigned trial=0;trial<32000;++trial) {
@@ -54,9 +71,22 @@ int wkc2_test_native_skinning() {
                 value=std::fma(vertex.weights[influence],vertex.influences[influence][phase][lane],value);
             assert(std::memcmp(&value,&scalar.blended[phase][lane],4)==0);
         }
+        const auto stages=transform_skin_position(scalar.blended,vertex.position);
+        for(unsigned lane=0;lane<4;++lane) {
+            float value=std::fma(vertex.position[lane],lane==3?1.f:scalar.blended[0][lane],
+                                 lane==3?0.f:scalar.blended[lane][3]);
+            assert(!std::memcmp(&value,&stages.first[lane],4));
+            value=std::fma(vertex.position[lane==3?3:(lane+1)%3],lane==3?0.f:scalar.blended[1][lane],value);
+            assert(!std::memcmp(&value,&stages.second[lane],4));
+            value=std::fma(vertex.position[lane==3?3:(lane+2)%3],lane==3?0.f:scalar.blended[2][lane],value);
+            assert(!std::memcmp(&value,&scalar.position[lane],4));
+        }
 #ifdef WKC_NATIVE_SKINNING_HOST_FMA
         auto vector=skin_vertex<HostFmaMath>(vertex);
         assert(std::memcmp(&scalar,&vector,sizeof scalar)==0);++simd_cases;
+        auto cofactor=cofactor_skin_matrix(scalar.blended);
+        auto vector_cofactor=cofactor_skin_matrix<HostFmaMath>(scalar.blended);
+        assert(!std::memcmp(&cofactor,&vector_cofactor,sizeof cofactor));
 #endif
     }
 
@@ -86,6 +116,34 @@ int wkc2_test_native_skinning() {
         if(!allowed)assert(!std::memcmp(&ctx->gpr[reg],&before->gpr[reg],16));
     }
     std::memcpy(before->gpr,ctx->gpr,sizeof ctx->gpr);
+    assert(!std::memcmp(before.get(),ctx.get(),sizeof *ctx));
+    assert(!wkc_native_transform_geometry(nullptr));
+    assert(!wkc_native_transform_geometry(ctx.get()));
+    assert(!std::memcmp(before.get(),ctx.get(),sizeof *ctx));
+    const unsigned xyz[]={0xffffffffu,0xffffffffu,0xffffffffu,0};
+    const unsigned translation[]={0x1c1d1e1fu,0x04050607u,0x08090a0bu,0x80808080u};
+    const unsigned transpose[]={0x80808080u,0x0c0d0e0fu,0x1c1d1e1fu,0x80808080u};
+    ctx->gpr[66]=spu_splat_u32(0x3f800000u);
+    std::memcpy(&ctx->gpr[73],xyz,16);std::memcpy(&ctx->gpr[122],translation,16);std::memcpy(&ctx->gpr[123],transpose,16);
+    const unsigned positions[]={82,81,80,83},second[]={10,31,22,21},third[]={6,46,48,61};
+    const unsigned matrix[4][3]={{45,50,41},{23,49,32},{24,36,15},{42,13,14}};
+    const Float4 p{2,3,5,1},q{3,5,2,1},r{5,2,3,1},diagonal{1,1,1,0};
+    for(unsigned v=0;v<4;++v) {
+        std::memcpy(&ctx->gpr[positions[v]],p.data(),16);
+        std::memcpy(&ctx->gpr[second[v]],q.data(),16);
+        std::memcpy(&ctx->gpr[third[v]],r.data(),16);
+        std::memcpy(&ctx->gpr[matrix[v][0]],diagonal.data(),16);
+        ctx->gpr[matrix[v][1]]=u128();ctx->gpr[matrix[v][2]]=u128();
+    }
+    // An inconsistent late vertex must decline without partially writing the earlier ones.
+    ctx->gpr[61]._u32[0]^=1;std::memcpy(before.get(),ctx.get(),sizeof *ctx);
+    assert(!wkc_native_transform_geometry(ctx.get()));assert(!std::memcmp(before.get(),ctx.get(),sizeof *ctx));
+    ctx->gpr[61]._u32[0]^=1;std::memcpy(before.get(),ctx.get(),sizeof *ctx);
+    assert(wkc_native_transform_geometry(ctx.get()));
+    for(unsigned reg:{57u,56u,83u,81u,60u}) {
+        assert(!std::memcmp(&ctx->gpr[reg],p.data(),16));
+        before->gpr[reg]=ctx->gpr[reg];
+    }
     assert(!std::memcmp(before.get(),ctx.get(),sizeof *ctx));
     std::printf("Native skinning: independent affine oracle, 32000 finite arithmetic cases, %u x86 FMA cases, and bridge state guards pass.\n",simd_cases);
     return 0;

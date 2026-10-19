@@ -7,17 +7,22 @@ from unittest.mock import patch
 spec=importlib.util.spec_from_file_location('hook',Path(__file__).with_name('apply_native_geometry.py'))
 hook=importlib.util.module_from_spec(spec);spec.loader.exec_module(hook)
 block=('void '+hook.ENTRY+'(spu_context* ctx) {\n'
-       '    /* Synthetic test-only prefix; no game code. */\n'+hook.TAIL+'\n}\n')
+       '    /* Synthetic test-only prefix; no game code. */\n'+hook.TAIL+'\n'
+       + ''.join('        ctx->gpr[0] = spu_fma(a,b,c);\n' for _ in range(12))+'}\n')
 text=block+'\nvoid synthetic_next(spu_context* ctx) {}\n'
 try:hook.apply(text)
 except ValueError:pass
 else:raise AssertionError('Unrecognized generated body accepted')
 replace=hook.replacement
+replace_v1=hook.replacement_v1
 digest=hashlib.sha256(block.encode()).hexdigest()
-with patch.object(hook,'replacement',lambda value:replace(value,digest)):
+with patch.object(hook,'replacement',lambda value:replace(value,digest)), \
+     patch.object(hook,'replacement_v1',lambda value,expected=digest:replace_v1(value,digest)):
     modified=hook.apply(text)
     assert hook.apply(modified)==modified
-    assert hook.REFERENCE in modified and 'wkc_native_blend_geometry' in modified
+    assert hook.REFERENCE in modified and 'wkc_native_transform_geometry' in modified
+    legacy=replace_v1(block,digest)+'\nvoid synthetic_next(spu_context* ctx) {}\n'
+    assert hook.apply(legacy)==modified
     for corrupt in (modified.replace('return;}','return; }'),modified+hook.BEGIN,modified.replace(hook.END,'')):
         try:hook.apply(corrupt)
         except ValueError:pass

@@ -1,22 +1,24 @@
-"""Install the project-written blend prefix into the pinned private SPU lift.
+"""Install project-written matrix blending and position transforms into the pinned private SPU lift.
 
 No generated game source is stored here. Refuse changed function bodies rather
 than guessing a new boundary. The unchanged compiled body remains the fallback.
 """
 import argparse
 import hashlib
+import re
 from pathlib import Path
 
 IMAGE = 'zz_raw_job_01283D80'
 ENTRY = IMAGE + '_spu_func_0000CE08'
 REFERENCE = 'wkc_geometry_compiled_reference_ce08'
+TAIL_REFERENCE = 'wkc_geometry_compiled_tail_ce08'
 EXPECTED = '712fbd652b754c8fba66c9d2619e21ed3fca0dca74790609fe650ca028e1883a'
 TAIL = '        ctx->gpr[40] = spu_shufb(ctx->gpr[50], ctx->gpr[41], ctx->gpr[123]);'
 BEGIN = '/* WKC_NATIVE_GEOMETRY_BEGIN */\n'
 END = '/* WKC_NATIVE_GEOMETRY_END */\n'
 
 
-def replacement(block, expected=EXPECTED):
+def replacement_v1(block, expected=EXPECTED):
     if hashlib.sha256(block.encode('utf-8')).hexdigest() != expected:
         raise ValueError('Geometry block differs from the validated baseline lift')
     if block.count(TAIL) != 1:
@@ -29,6 +31,26 @@ def replacement(block, expected=EXPECTED):
     return BEGIN + original + '\n' + wrapper + END
 
 
+def replacement(block, expected=EXPECTED):
+    # Validate the original complete block, not just the rewritten fragment.
+    replacement_v1(block, expected)
+    tail = block[block.index(TAIL):]
+    lines = tail.splitlines(True)
+    position_fma = [line for line in lines if '= spu_fma(' in line]
+    if len(position_fma) != 12:
+        raise ValueError('Position transform boundary changed')
+    native_tail = ''.join(line for line in lines if '= spu_fma(' not in line)
+    original = block.replace('void ' + ENTRY, 'static void ' + REFERENCE, 1)
+    tail_reference = 'static void ' + TAIL_REFERENCE + '(spu_context* ctx) {\n' + tail
+    wrapper = ('extern int wkc_native_blend_geometry(spu_context* ctx);\n'
+               'extern int wkc_native_transform_geometry(spu_context* ctx);\n'
+               'void ' + ENTRY + '(spu_context* ctx) {\n'
+               '    if (!wkc_native_blend_geometry(ctx)) {' + REFERENCE + '(ctx);return;}\n'
+               '    if (!wkc_native_transform_geometry(ctx)) {' + TAIL_REFERENCE + '(ctx);return;}\n'
+               + native_tail)
+    return BEGIN + original + '\n' + tail_reference + '\n' + wrapper + END
+
+
 def apply(text):
     if BEGIN in text:
         if text.count(BEGIN) != 1 or text.count(END) != 1:
@@ -36,9 +58,15 @@ def apply(text):
         start = text.index(BEGIN)
         stop = text.index(END, start) + len(END)
         ref = text.index('static void ' + REFERENCE, start)
-        ref_end = text.index('\nextern int wkc_native_blend_geometry', ref)
-        block = text[ref:ref_end].replace('static void ' + REFERENCE, 'void ' + ENTRY, 1)
-        if text[start:stop] != replacement(block):
+        match = re.search(r'^}\n', text[ref:], re.M)
+        if not match:
+            raise ValueError('Missing compiled geometry reference boundary')
+        block = text[ref:ref + match.end()].replace('static void ' + REFERENCE, 'void ' + ENTRY, 1)
+        installed = text[start:stop]
+        updated = replacement(block)
+        if installed == replacement_v1(block):
+            return text[:start] + updated + text[stop:]
+        if installed != updated:
             raise ValueError('Installed geometry hook has changed')
         return text
     start = text.index('void ' + ENTRY + '(spu_context* ctx) {')

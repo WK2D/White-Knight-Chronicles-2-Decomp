@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Readable C++ matrix blending is integrated for one image-19 geometry prefix, with full-state replays/fuzz comparisons and strict DirectX/Vulkan town-to-plains routes. Desktop clean-play mode clears inherited diagnostics; DirectX benchmark recording is opt-in. 119 SDK patches / 111 Windows checks pass in Debug and Release. Full geometry-job recovery, broader static coverage and rendering/performance parity remain open.",
+    "current_milestone": "Readable C++ matrix blending and position transforms are integrated in image-19 geometry, with 72 full-state replays, 8,000 fuzz cases and strict DirectX/Vulkan town-to-plains routes. Normal-cofactor arithmetic is tested separately but not yet in live dispatch. 119 SDK patches / 111 Windows checks pass in Debug and Release; broader static coverage, complete jobs and rendering/performance parity remain open.",
     "updated": "2026-10-19"
   },
   "native_data_installation_verified": true,
@@ -1140,7 +1140,7 @@
       "strict_guard_enabled": true,
       "performance_benchmark": false
     },
-    "readable_geometry_kernel_scope": "Four-influence matrix-blend prefix only, image19 0xCE08; compiled tail retained. Guest-state bridge uses SDK float helpers; unsupported masks retain compiled reference."
+    "readable_geometry_kernel_scope": "Matrix blending and four position transforms in image19 0xCE08; normal processing, local-store stores and job scheduling still compiled. SDK float helpers retain host/exact/audit behavior; unsupported layouts retain compiled reference paths."
   },
   "directx_plains_lower_body": {
     "status": "fixed_in_inspected_route",
@@ -1180,10 +1180,10 @@
     "mixed_capture_max_bone_index": 35,
     "complete_block_replay_matches": 72,
     "recovered_position_outputs_compared": 256,
-    "position_tail_replacement_integrated": false,
-    "full_state_fuzz_cases": 4000,
-    "host_mode_fuzz_cases": 2000,
-    "exact_mode_fuzz_cases": 2000,
+    "position_tail_replacement_integrated": true,
+    "full_state_fuzz_cases": 8000,
+    "host_mode_fuzz_cases": 4000,
+    "exact_mode_fuzz_cases": 4000,
     "arbitrary_float_bits_and_index_wrap_tested": true,
     "unsupported_mask_controls_tested": true,
     "finite_arithmetic_cases": 32000,
@@ -1216,7 +1216,47 @@
         "instrumented": true,
         "performance_benchmark": false
       }
-    ]
+    ],
+    "position_complete_block_replay_matches": 72,
+    "output_stack_alias_controls_tested": true,
+    "late_vertex_layout_rejection_tested": true,
+    "position_bridge_gprs_written": 5,
+    "position_routes": [
+      {
+        "id": "20261019-234935",
+        "renderer": "DirectX 12",
+        "frame_limit": 30,
+        "scope": "Continue, town gate, Balastor Plain transition, short walking and camera rotation",
+        "native_transform_call_lower_bound": 16777216,
+        "interpreter_sessions": 0,
+        "microstep_sessions": 0,
+        "strict_guard_enabled": true,
+        "instrumented": true,
+        "sampling_profiler": false,
+        "performance_benchmark": false
+      },
+      {
+        "id": "20261019-235407",
+        "renderer": "Vulkan",
+        "frame_limit": 30,
+        "scope": "Continue, town gate, Balastor Plain transition, short walking and camera rotation",
+        "native_transform_call_lower_bound": 16777216,
+        "interpreter_sessions": 0,
+        "microstep_sessions": 0,
+        "strict_guard_enabled": true,
+        "instrumented": true,
+        "sampling_profiler": true,
+        "performance_benchmark": false
+      }
+    ],
+    "cofactor_core": {
+      "portable_cpp_tested": true,
+      "captured_vectors_matched": 864,
+      "independent_minor_matrices": 64,
+      "finite_x86_fma_cases": 32000,
+      "live_dispatch_integrated": false,
+      "scope": "Cyclic 3x3 cofactor arithmetic only; scaled-normal work, guest register timing and complete job remain compiled."
+    }
   },
   "desktop_clean_play": {
     "native_guard": "play_environment.cpp",
@@ -1248,5 +1288,18 @@
     ],
     "hidden_poisoned_startup_diagnostic_outputs": 0,
     "functional_shader_cache_preserved": true
+  },
+  "cpu_profile_refresh": {
+    "native_probe": "20261019-235407",
+    "renderer": "Vulkan",
+    "scene": "Final ten-second sampled plains window after town transition/walk/camera",
+    "sampling_profiler_enabled": true,
+    "trace_and_gpu_captures_enabled": true,
+    "timer_yield_thread_cpu_percent_one_core": 96,
+    "dominant_timer_samples": "Windows DLL calls with approximate caller attribution to sys_timer_usleep yield/QPC deadline loop; native loop instructions inspected",
+    "whole_frame_cost_measured": false,
+    "npc_spawn_cause_established": false,
+    "performance_gain_measured": false,
+    "remaining": "Controlled NPC-heavy town profile and matched uninstrumented timing"
   }
 }

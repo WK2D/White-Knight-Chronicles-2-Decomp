@@ -88,3 +88,43 @@ extern "C" int wkc_native_blend_geometry(spu_context* ctx) {
     }
     return 1;
 }
+
+extern "C" int wkc_native_transform_geometry(spu_context* ctx) {
+    if(!ctx || !ctx->ls || ctx->image_id!=19)return 0;
+    // These control words establish the affine xyz/w layout. Do not guess
+    // semantics for a different packing program, even if its values look alike.
+    const unsigned xyz_mask[]={0xffffffffu,0xffffffffu,0xffffffffu,0};
+    const unsigned translation_mask[]={0x1c1d1e1fu,0x04050607u,0x08090a0bu,0x80808080u};
+    const unsigned transpose_mask[]={0x80808080u,0x0c0d0e0fu,0x1c1d1e1fu,0x80808080u};
+    const auto ones=spu_splat_u32(0x3f800000u);
+    if(std::memcmp(&ctx->gpr[66],&ones,16) ||
+       std::memcmp(&ctx->gpr[73],&xyz_mask,16) ||
+       std::memcmp(&ctx->gpr[122],&translation_mask,16) ||
+       std::memcmp(&ctx->gpr[123],&transpose_mask,16))return 0;
+    const unsigned matrices[4][3]={{45,50,41},{23,49,32},{24,36,15},{42,13,14}};
+    const unsigned positions[]={82,81,80,83};
+    const unsigned second_coordinates[]={10,31,22,21};
+    const unsigned third_coordinates[]={6,46,48,61};
+    PositionStages result[4];
+    for(unsigned vertex=0;vertex<4;++vertex) {
+        const auto position=unpack(ctx->gpr[positions[vertex]]);
+        const Float4 second{position[1],position[2],position[0],position[3]};
+        const Float4 third{position[2],position[0],position[1],position[3]};
+        if(std::memcmp(second.data(),&ctx->gpr[second_coordinates[vertex]],16) ||
+           std::memcmp(third.data(),&ctx->gpr[third_coordinates[vertex]],16))return 0;
+        CyclicAffine matrix;
+        for(unsigned phase=0;phase<3;++phase)matrix[phase]=unpack(ctx->gpr[matrices[vertex][phase]]);
+        result[vertex]=transform_skin_position<RuntimeMath>(matrix,position);
+    }
+    // Decode all four inputs before changing overlapping input/output GPRs.
+    ctx->gpr[57]=pack(result[0].position);ctx->gpr[56]=pack(result[1].position);
+    ctx->gpr[83]=pack(result[2].position);ctx->gpr[81]=pack(result[3].position);
+    ctx->gpr[60]=pack(result[3].second); // still live at the compiled block exit
+    static const bool trace=std::getenv("WKC_NATIVE_SKINNING_TRACE")!=nullptr;
+    if(trace) {
+        static std::atomic<unsigned long long> calls{0};
+        const auto count=calls.fetch_add(1,std::memory_order_relaxed)+1;
+        if(count<=4 || !(count&(count-1)))std::fprintf(stderr,"[native-skinning] transformed_blocks=%llu\n",count);
+    }
+    return 1;
+}

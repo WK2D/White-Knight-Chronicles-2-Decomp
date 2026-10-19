@@ -4,7 +4,7 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-19):** the stack contains 119 SDK patches. All
+**Current validation (2026-10-20):** the stack contains 119 SDK patches. All
 111 Windows checks pass in normal Debug and optimized Release. Reapplying the
 complete stack changes no SDK files. Vulkan Continue and short town movement
 were rechecked on patch 0105; isolated DirectX Continue, menu FXAA toggling
@@ -116,7 +116,8 @@ movement and camera response are observed there. Starting-town local saving
 and Continue reload are verified separately; sustained traversal, combat, wider
 save compatibility and full rendering fidelity remain unverified.
 `tools/apply_native_geometry.py` then installs the hash-checked native C++
-matrix-blend hook; rerunning it validates the retained reference and wrapper.
+matrix-blend and position hooks; rerunning it validates the retained references
+and wrapper. The earlier blend-only version upgrades after the same validation.
 See [kernel evidence and limits](NATIVE_CODE.md#readable-c-geometry-prefix).
 `tools/import_spu_misses.py` is available for discovering additional jobs.
 

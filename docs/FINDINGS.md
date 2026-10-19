@@ -1,6 +1,6 @@
 # Findings
 
-Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
+Updated 2026-10-20. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
 **Current source checkpoint:** 119 SDK patches / 111 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
@@ -14,8 +14,9 @@ physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
-The readable C++ four-influence matrix blend is now integrated for one image-19
-geometry prefix. Complete-state replay and fuzz comparisons, plus strict
+Readable C++ matrix blending and position transforms now replace parts of one
+image-19 geometry block. A separately tested normal-cofactor core remains outside
+live dispatch. Complete-state replay and fuzz comparisons, plus strict
 DirectX/Vulkan town-to-plains routes, are recorded in [native work](NATIVE_CODE.md).
 This is partial semantic recovery; no FPS improvement is claimed. Desktop
 clean-play mode also removes inherited diagnostics, and patch 0119 disables the

@@ -4,6 +4,37 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_cpp_geometry_positions",
+      "date": "2026-10-19",
+      "image": "screenshots/2026-10-19-native-cpp-geometry-positions.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "DirectX 12 live draw renderer",
+      "source_format": "Unmodified final swap-chain GPU readback with in-game counter",
+      "source_sha256": "6e18f31dfde81825705993e731f0a1abd6482134c57e1b948172df28af379191",
+      "png_sha256": "c4d26926151cd66fe0f200f05272c761a4159b0ca49b44c1ac85eae5b93e2aa5",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IHDR",
+        "IDAT",
+        "IEND"
+      ],
+      "native_probe": "20261019-234935",
+      "native_readback": "frame_003300.ppm",
+      "native_executable_sha256": "efe0cf340b39b2140cd1ad5172f7b8e94fa6f4cb4f9154b0db3d054e79012b67",
+      "sdk_patch_count_in_captured_run": 119,
+      "spu_image_inputs": 24,
+      "frame_limit": 30,
+      "fps_counter": true,
+      "vsync": false,
+      "capture_only_backend_instrumentation": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false,
+      "performance_proven_by_still_image": false,
+      "capture_scope": "Hidden, muted, isolated DirectX Continue-to-plains route with native C++ matrix blending and position transforms. Strict fallback entries zero. Trace and automatic GPU captures enabled; displayed FPS is an instrumented instant, not a performance comparison. Normal/cofactor integration, complete jobs and rendering parity remain incomplete."
+    },
+    {
       "milestone": "directx_plains_clip_front",
       "date": "2026-10-19",
       "image": "screenshots/2026-10-19-native-directx-plains-clipping-fixed-front.png",

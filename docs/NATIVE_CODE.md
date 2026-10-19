@@ -37,16 +37,21 @@ completes transition, short movement and camera rotation with zero strict fallba
 ## Readable C++ geometry prefix
 
 The image-19 `0xCE08` block now calls a project-written C++ four-influence matrix
-blend in `native_skinning.h`, through `native_skinning_bridge.cpp`. The core uses
+blend and four position transforms in `native_skinning.h`, through
+`native_skinning_bridge.cpp`. The core uses
 named vertex, weight and cyclic affine-matrix types; it has no guest registers,
 addresses or DMA interface. The bridge decodes packed indices and local-store
 palettes, preserves the original multiply/FMA order and exports the required
-register boundary. The remaining compiled block tail still handles normal/position
-packing and local-store stores. This is one prefix, not a complete geometry job.
+register boundary. The position bridge checks affine masks and cyclic input
+layout before writing five registers; unsupported layouts keep the compiled tail.
+The remaining compiled tail still handles normal processing and local-store
+stores. These are parts of one block, not a complete geometry job.
 
 `tools/apply_native_geometry.py` checks the complete original block hash, retains
-its compiled reference and installs the native call idempotently. Unknown image
-or weight masks decline without changing state and use that compiled reference.
+its compiled reference and installs the native calls idempotently. An existing
+blend-only hook upgrades only after its exact retained reference and wrapper
+match. Unknown image or weight masks decline without changing state and use
+that compiled reference.
 `WKC_NATIVE_SKINNING=0` selects the reference for research comparisons. No game
 function body or capture bytes are published.
 
@@ -57,20 +62,31 @@ Validation on Windows x86-64:
   bone indices up to 35. All 72 complete block replays match the reference's
   context, all registers, local store, PC/status and continuation.
 - A separate recovered position operation matches all 256 positions from the
-  64 mixed-weight captures. That position operation is tested but is not yet
-  installed in place of the compiled tail.
-- 4,000 full-state fuzz cases pass against the retained compiled reference:
-  2,000 host-mode and 2,000 exact-SPU-mode cases, including arbitrary float bit
-  patterns, 16-bit index wrap and unsupported-mask fallback controls.
+  64 mixed-weight captures. The position operation is now installed; all 72
+  full-block capture replays still match the complete state and continuation.
+- 8,000 full-state fuzz cases pass against the retained compiled reference:
+  4,000 host-mode and 4,000 exact-SPU-mode cases, including arbitrary weight and
+  position float bits, 16-bit index wrap, overlapping output/stack addresses,
+  unsupported masks and inconsistent late-vertex cyclic layouts.
 - The portable arithmetic test checks 32,000 finite cases against a lane oracle.
   A further 32,000 finite cases match the optional x86 FMA policy bit for bit.
   Live execution keeps SDK float helpers to preserve host/exact/audit semantics;
   the finite host-FMA test does not establish exceptional-value SPU equivalence.
+- A separate portable cofactor operation matches all 864 matrix vectors from the
+  72 captures. It passes 64 independent signed-minor matrix tests and 32,000
+  finite scalar/x86 FMA comparisons. It is not yet installed in live dispatch;
+  the compiled tail still owns its register-write timing and scaled normal work.
 - Strict DirectX route `20261019-230123` and Vulkan route `20261019-231203` load
   Continue, enter Balastor Plain, walk and rotate the camera with zero fallback
   entries. Trace markers establish at least 16,777,216 native blend calls per
   run. Inspected final frames retain Leonard's lower body and the surrounding
   scene; these instrumented runs are not performance benchmarks.
+
+New strict routes `20261019-234935` (DirectX) and `20261019-235407` (Vulkan)
+complete the same transition/walking/camera path with the position replacement,
+zero fallback and at least 16,777,216 transformed blocks in each run. Both final
+frames were inspected. The Vulkan run additionally samples CPU time; profiling,
+tracing and GPU captures make it unsuitable as an FPS benchmark.
 
 Both Windows suites now pass 111 checks with 119 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
@@ -88,8 +104,9 @@ is claimed.
    transitions and cutscenes with `SPU_FALLBACK_STRICT=1`; investigate any new
    entry before promoting a wider interpreter-free claim.
 3. **Take semantic control of hot jobs.** An earlier profile identifies image-19
-   geometry code, including entry `0xCE08`, as a useful candidate. The matrix-blend prefix is integrated beside its compiled reference. Recover
-   the remaining position/normal packing and establish complete job boundaries
+   geometry code, including entry `0xCE08`, as a useful candidate. Matrix blending
+   and position transforms are integrated beside compiled references. Recover
+   the remaining normal processing/output packing and establish job boundaries
    before replacing more of the compiled tail. Preserve SPU float
    behavior, byte order, alignment, aliasing, DMA visibility and job ordering.
    The older profile is a lead; a current NPC-heavy profile must confirm priority.
@@ -136,3 +153,15 @@ its 64–74 range. Two `rchcnt 113` sites occur beside undecoded words in images
 as confirmed runtime requests. It does not establish that WKC uses a missing channel. Add behavior
 only after an actual decoded instruction or runtime request establishes the need;
 do not substitute guessed channel results for correct native execution.
+
+## Refreshed CPU sample limits
+
+The final ten-second Vulkan plains window in `20261019-235407` records one
+thread using about 96% of one CPU core. Most of its samples stop inside Windows
+calls whose nearest game-side caller is the short `sys_timer_usleep` yield/QPC
+loop. Native instructions confirm the two-call deadline loop. This is active
+polling overhead, not evidence of SPU arithmetic time or an NPC-spawn cause.
+Other samples include guest-memory helpers and renderer conversion/texture work.
+DLL-side caller attribution uses a stack scan and is approximate. A controlled
+NPC-heavy town profile and matched timing comparison remain required before
+choosing a performance fix or assigning whole-frame percentages.

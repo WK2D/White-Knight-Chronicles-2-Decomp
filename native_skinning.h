@@ -20,6 +20,11 @@ struct SkinResult {
     CyclicAffine blended;
     Float4 position;
 };
+struct PositionStages {
+    Float4 first;
+    Float4 second;
+    Float4 position;
+};
 
 // Arithmetic is explicit so a caller can preserve SPU extended-float behavior.
 // This default implements host IEEE math; it is not an exact-SPU specification.
@@ -34,7 +39,26 @@ struct HostScalarMath {
         for(unsigned i=0;i<4;++i) out[i]=std::fma(a[i],b[i],c[i]);
         return out;
     }
+    static Float4 multiply_subtract(const Float4& a,const Float4& b,const Float4& c) {
+        Float4 out{};
+        for(unsigned i=0;i<4;++i)out[i]=std::fma(a[i],b[i],-c[i]);
+        return out;
+    }
 };
+
+// Cofactors transform a normal without dividing by the determinant. Keep the
+// rounded subtrahend product distinct from the fused multiply-subtract. The w
+// lanes retain homogeneous identity (1,0,0), rather than matrix translation.
+template<class Math=HostScalarMath>
+CyclicAffine cofactor_skin_matrix(const CyclicAffine& matrix) {
+    const auto& a=matrix[0];const auto& b=matrix[1];const auto& c=matrix[2];
+    const Float4 ay{a[1],a[2],a[0],1},az{a[2],a[0],a[1],1};
+    const Float4 by{b[1],b[2],b[0],0},bz{b[2],b[0],b[1],0};
+    const Float4 cy{c[1],c[2],c[0],0},cz{c[2],c[0],c[1],0};
+    return {Math::multiply_subtract(ay,az,Math::multiply(cz,by)),
+            Math::multiply_subtract(bz,by,Math::multiply(cy,az)),
+            Math::multiply_subtract(cy,cz,Math::multiply(bz,ay))};
+}
 
 // Preserve a rounded first product followed by three fused accumulations.
 // Do not normalize weights or discard zero-weight influences: those changes
@@ -55,18 +79,23 @@ CyclicAffine blend_skin_matrix(const Float4& weights,const std::array<CyclicAffi
     return out;
 }
 template<class Math=HostScalarMath>
-SkinResult skin_vertex(const SkinVertex& input) {
-    SkinResult out{};
-    out.blended=blend_skin_matrix<Math>(input.weights,input.influences);
-    const auto& a=out.blended[0];const auto& b=out.blended[1];const auto& c=out.blended[2];
+PositionStages transform_skin_position(const CyclicAffine& blended,const Float4& p) {
+    const auto& a=blended[0];const auto& b=blended[1];const auto& c=blended[2];
     const Float4 translation{a[3],b[3],c[3],0};
     const Float4 x{a[0],a[1],a[2],1};
     const Float4 y{b[0],b[1],b[2],0};
     const Float4 z{c[0],c[1],c[2],0};
-    const auto& p=input.position;
-    auto value=Math::multiply_add(p,x,translation);
-    value=Math::multiply_add(Float4{p[1],p[2],p[0],p[3]},y,value);
-    out.position=Math::multiply_add(Float4{p[2],p[0],p[1],p[3]},z,value);
+    PositionStages out;
+    out.first=Math::multiply_add(p,x,translation);
+    out.second=Math::multiply_add(Float4{p[1],p[2],p[0],p[3]},y,out.first);
+    out.position=Math::multiply_add(Float4{p[2],p[0],p[1],p[3]},z,out.second);
+    return out;
+}
+template<class Math=HostScalarMath>
+SkinResult skin_vertex(const SkinVertex& input) {
+    SkinResult out{};
+    out.blended=blend_skin_matrix<Math>(input.weights,input.influences);
+    out.position=transform_skin_position<Math>(out.blended,input.position).position;
     return out;
 }
 }
