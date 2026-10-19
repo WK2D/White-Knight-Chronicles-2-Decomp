@@ -14,6 +14,36 @@ physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
+## Drakengard 3 performance and settings comparison
+
+Source review on 2026-10-19: Drakengard 3 port
+[`96df4c3`](https://github.com/soyjxck/dod3-recomp/tree/96df4c364a20c306724a48886a43f8f14ce5bedd),
+whose SDK submodule points to
+[`bbcf9a5`](https://github.com/soyjxck/ps3recomp/tree/bbcf9a53c7efef9fe7ca84c058f0292ed998d0cb).
+Compared with the current WKC stack, this identifies implementation gaps rather
+than a measured WKC speedup. No runtime code changes or new game benchmark were
+made for this review.
+
+| Area | Source comparison | WKC follow-up |
+| --- | --- | --- |
+| Guest memory | Their [inline accessors](https://github.com/soyjxck/ps3recomp/blob/bbcf9a53c7efef9fe7ca84c058f0292ed998d0cb/runtime/ppu/ppu_vm_fast.h) use page eligibility bits and retain slow paths for special accesses. WKC generated code calls out-of-line `vm_read*`/`vm_write*`; its loader still performs diagnostic and reservation checks there. | Measure these calls during movement, then test an equivalent fast path that preserves MMIO, bounds, diagnostic hooks and SPU reservation invalidation. This requires runtime integration, not just including the header. |
+| Generated CPU code | Their [lifter documentation](https://github.com/soyjxck/ps3recomp/blob/bbcf9a53c7efef9fe7ca84c058f0292ed998d0cb/docs/PPU_RECOMP.md#registers-in-locals---nonvolatile-locals) describes local registers, selective write-back, split condition fields and grouped memory checks. WKC's build invokes the older lifter without this pass. | Evaluate a separate regenerated candidate with differential checks. Preserve WKC's existing instruction fixes and native hooks across direct calls, indirect calls and callback boundaries. |
+| Texture validation | Their [draw engine](https://github.com/soyjxck/ps3recomp/blob/bbcf9a53c7efef9fe7ca84c058f0292ed998d0cb/libs/video/rsx_draw_engine.c) uses protected-page write tracking to skip unchanged texture hashes, with an optional verification hash. WKC hashes cached texture contents once per presented frame. | Measure bytes and CPU time spent hashing. Test tracking against the full-hash path, covering PPU, SPU, host/HLE and GPU-to-guest writes before trusting skipped work. |
+| Graphics allocation | Their [technical notes](https://github.com/soyjxck/dod3-recomp/blob/96df4c364a20c306724a48886a43f8f14ce5bedd/docs/TECHNICAL.md#rendering) describe pooled uploads and Vulkan memory suballocation. WKC's Vulkan image and buffer helpers allocate device memory per resource. | Measure allocation and upload stalls during traversal; test pooled resource retirement against in-flight GPU work. |
+| Resolution and AA | Their rendering implementation scales internal targets and related pass state and supports multisampled scene targets. WKC's menu changes output resolution and offers present-stage FXAA; it does not implement internal-resolution scaling or scene MSAA. | Treat internal scale and MSAA as separate renderer features, with depth, viewport, scissor, screen-coordinate, resolve and UI checks. Output enlargement alone does not establish higher scene detail. |
+
+Their [runner](https://github.com/soyjxck/dod3-recomp/blob/96df4c364a20c306724a48886a43f8f14ce5bedd/src/main.cpp)
+also separates fence wakeups from frame limiting. Its UE3 tick-rate, loading and
+movie hooks are specific to that engine; WKC needs its own equivalent behavior
+traced. Their reported benchmark gains are not predictions for WKC.
+
+Priority is to profile movement from the verified save, separate guest CPU,
+memory-access, texture-validation and GPU/upload costs, and compare one candidate
+at a time on the same route. Native hooks should have comparison modes wherever
+possible. A higher presentation count alone does not establish smoother motion
+or correct game speed. The earlier Drakengard frame-clock review remains recorded
+in the [town performance investigation](#town-performance-after-the-physics-fix).
+
 ## Platform queries and missing-syscall reporting (patch 0099)
 
 The broader log audit found two calls falling through to the loader's generic
