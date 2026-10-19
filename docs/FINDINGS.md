@@ -14,6 +14,228 @@ physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
+## Contents
+
+**Status and scope**
+
+- [Goal and reporting](#goal-and-reporting)
+- [CPU execution qualification](#cpu-execution-qualification)
+- [Verified](#verified)
+- [Still unverified](#still-unverified)
+- [Implemented fixes](#implemented-fixes)
+
+**Performance, timing and presentation**
+
+- [Frame pacing and game speed](#frame-pacing-and-game-speed)
+- [Drakengard 3 performance and settings comparison](#drakengard-3-performance-and-settings-comparison)
+- [Native graphics settings and frame-rate control](#native-graphics-settings-and-frame-rate-control)
+- [Full Graphics Settings panel and window close](#full-graphics-settings-panel-and-window-close)
+- [Direct Vulkan window presentation (patch 0080)](#direct-vulkan-window-presentation-patch-0080)
+- [Frame timeline checkpoint (patch 0077)](#frame-timeline-checkpoint-patch-0077)
+- [Vulkan batch scheduling (patch 0076)](#vulkan-batch-scheduling-patch-0076)
+- [Window-title presentation timing](#window-title-presentation-timing)
+- [Town performance after the physics fix](#town-performance-after-the-physics-fix)
+- [Cutscene red flash and frame rate](#cutscene-red-flash-and-frame-rate)
+
+**Rendering and RSX**
+
+- [Vulkan window-depth intervals (patch 0098)](#vulkan-window-depth-intervals-patch-0098)
+- [Request-audit follow-up (patch 0097)](#request-audit-follow-up-patch-0097)
+- [Active RSX request coverage and fragment inputs (patches 0095-0096)](#active-rsx-request-coverage-and-fragment-inputs-patches-0095-0096)
+- [Vulkan polygon offset (patch 0094)](#vulkan-polygon-offset-patch-0094)
+- [RSX command-reference cross-check](#rsx-command-reference-cross-check)
+- [Texture detail and rendering state audit (patch 0079)](#texture-detail-and-rendering-state-audit-patch-0079)
+- [Secondary-bone physics and town stretching](#secondary-bone-physics-and-town-stretching)
+- [NV0039 memory transfers](#nv0039-memory-transfers)
+- [Vertex-program co-issue review](#vertex-program-co-issue-review)
+- [Shared renderer and colour feedback](#shared-renderer-and-colour-feedback)
+- [Avatar normals and fragment shading](#avatar-normals-and-fragment-shading)
+- [Guest flip presentation through scene changes](#guest-flip-presentation-through-scene-changes)
+- [Ordered surface clears](#ordered-surface-clears)
+- [Scene render targets and descriptor ranges](#scene-render-targets-and-descriptor-ranges)
+- [Scene draw-record capacity](#scene-draw-record-capacity)
+
+**SPU, SPURS and CPU execution**
+
+- [SPURS completion coherence and SPU byte operations (patches 0091-0093)](#spurs-completion-coherence-and-spu-byte-operations-patches-0091-0093)
+- [Exact SPU vector math (patch 0078)](#exact-spu-vector-math-patch-0078)
+- [Reproducing the SPU inputs from the executable](#reproducing-the-spu-inputs-from-the-executable)
+- [WKC1 town and SPU completion-label polling](#wkc1-town-and-spu-completion-label-polling)
+- [SPU fallback census and host-runtime review](#spu-fallback-census-and-host-runtime-review)
+- [Native census and limited town controls](#native-census-and-limited-town-controls)
+
+**Runtime services, input and saving**
+
+- [Platform queries and missing-syscall reporting (patch 0099)](#platform-queries-and-missing-syscall-reporting-patch-0099)
+- [Runtime correctness and input follow-up (patches 0085-0090)](#runtime-correctness-and-input-follow-up-patches-0085-0090)
+- [Windows stick magnitude and walk/run response (patch 0084)](#windows-stick-magnitude-and-walkrun-response-patch-0084)
+- [Proximity interaction and saving (patch 0075)](#proximity-interaction-and-saving-patch-0075)
+- [Character-name input](#character-name-input)
+- [Reviewed allocator suggestion and probe input](#reviewed-allocator-suggestion-and-probe-input)
+
+**Startup and early checkpoints**
+
+- [Startup investigation](#startup-investigation)
+- [Startup and early WKC1 checkpoints](#startup-and-early-wkc1-checkpoints)
+
+**Reviews and comparisons**
+
+- [Killzone 3 SDK comparison](#killzone-3-sdk-comparison)
+- [Second runtime review](#second-runtime-review)
+
+**Content and history**
+
+- [Update 1.01 and DLC integration](#update-101-and-dlc-integration)
+- [Investigation history](#investigation-history)
+
+## Goal and reporting
+
+Develop native Windows C/C++ execution through the title screen, gameplay and
+verified save/load, with an architecture suitable for later Apple Silicon work.
+Completion remains unproven until those behaviors have been tested.
+Start gameplay validation with White Knight Chronicles I, included on the disc.
+Provide an in-game keyboard operated entirely by gamepad for both Windows and
+macOS. The native Windows text-entry window is a temporary development interface.
+
+Maintain this log as research progresses. Publish checked code, concise findings
+and new verified screenshots together when a meaningful milestone is reached.
+Keep full traces, generated game code, assets and local paths in the private workspace.
+
+## CPU execution qualification
+
+The current build uses ahead-of-time PPU/SPU recompilation plus a PS3 runtime
+layer. An audit of the running build found actual SPU interpreter fallback use
+from the runtime-code microstep path in image 17. It is therefore a hybrid;
+neither complete static CPU coverage nor an interpreter-free port is verified.
+The build compiles 56,580 generated PPU functions and 24 known SPU image/job
+inputs. The latest retained fallback census contains six image-17 entry
+fingerprints; its share of execution has not been measured. See
+[architecture and modding scope](ARCHITECTURE.md) for the distinction from a
+source-level decompilation and the remaining work. Rendering milestones below
+do not establish interpreter-free execution.
+
+## Verified
+
+| Result | Evidence | Limit |
+| --- | --- | --- |
+| Native Windows build succeeds | 76-patch Clang build and 64 runtime regression checks in Debug and Release | Compilation alone does not verify gameplay |
+| Logic Stone proximity targeting and local saving work | Patch 0075: X opens the stone menu, Save writes a slot, restart/Continue returns to town; patch 0076 also loads that slot | One starting-town slot; other scenes/slots and PS3/RPCS3 interchange unverified; occlusion samples remain a conservative fallback |
+| Normal shadow polarity is restored | Patch 0074 GPU comparison and user-confirmed native town view | Black foot flicker and complete shadow fidelity remain open |
+| Saved-town presentation throughput approaches the 30 fps target | Separate clean one-minute samples: patch 0075 27.18 presentations/s; patch 0076 28.03; [conditions](../verification/performance.json) | Stationary view, not locked 30 fps, distinct animation updates or RPCS3-equivalent game speed |
+| Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | This colour-fix capture covers character creation; later town validation is recorded below; full visual fidelity remains unverified |
+| WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
+| WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | The long strips are removed with patch 0058 ([secondary-bone physics](#secondary-bone-physics-and-town-stretching)); NPC surfaces improve with patch 0052 ([NV0039 transfers](#nv0039-memory-transfers)); full material fidelity unverified; short movement and camera response verified; starting-town save/reload verified below; sustained traversal, combat and wider save compatibility unverified |
+| Initial town movement and camera response work | First observed with 42 patches; rechecked with 58 patches after the physics fix, including walking/facing changes and camera rotation | Short starting-town probes only; sustained traversal, combat and analogue walk/run consistency unverified; local save/reload verified separately |
+| Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
+| Language selection accepts input | CROSS through the controller path advances startup | This check covers startup input; limited town controls are verified above |
+| Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
+| Lifted SPU decoder produces correct output for sampled assets | Eight outputs match independent raw-DEFLATE decoding byte for byte; [record](../decompression-verification.json) | Sampled blocks, not all assets |
+| Native guest installer writes the large data archives | Three installed archives, totaling 4,364,470,879 bytes, hash-identical to their disc data; [record](../verification/installation.json) | Installation progress, not gameplay or save/load |
+| First movie header parses through the guest ABI | Real header reports two streams and 1280x720 video; native execution advances to demux/decoder startup | Header parsing scope; later playback is recorded below |
+| MPEG-2 access-unit extraction matches independent decoding | All 210 logo frames and 3,596 opening-movie frames match FFmpeg's direct demux/decode pixel for pixel; [record](../verification/movie-demux.json) | Offline validation, not native playback |
+| Extracted opening-movie AC-3 decodes | 3,750 audio frames / 5,760,000 samples per channel at 48 kHz | Elementary-stream decode; native API comparison is recorded below |
+| Native demux bridge delivers actual access units | Guest video decoder receives the first 19,356-byte unit; audio decoder receives a 960-byte LPCM unit | Decoder delivery evidence; later native playback is recorded below |
+| Real video decoding matches reference pixels through the guest API | All 210 logo frames match on two sequence passes, including B-frame reordering; [record](../verification/movie-demux.json) | Standalone decoder validation, not continuous in-game playback |
+| Decoded first-logo image renders natively | D3D12 GPU readback in the [gallery](GALLERY.md) | First-image milestone; later playback is recorded below |
+| Two LPCM startup movies advance natively | Successive readbacks, decoder lifecycle and later Havok/Dolby capture in one 120-second probe with no input after movie start | Startup-clip evidence; title rendering is recorded below |
+| Native LPCM sample conversion matches FFmpeg | All 336,480 stereo sample frames from the first logo match; [record](../verification/movie-demux.json) | Assembled elementary input; independent audio demux and final mix fidelity unverified |
+| Native title menu renders over an animated background | GPU readback shows New Game, Continue and Options; idle execution proceeds to the attract movie | Menu rendering checkpoint; menu input and limited town controls were verified later |
+| AC-3 samples match the reference through the guest API | Opening: 3,750 frames in stereo and 5.1; title: 938 frames in 5.1; two sequence passes each | Assembled elementary input; original-console mix fidelity unverified |
+| Guest flips continued during an early black-screen investigation | A 120-second probe observed 6,171 flips and 6,171 presentation calls | Historical diagnostic; counters alone did not establish visible rendering; later screenshots verify startup and town output |
+
+## Still unverified
+
+Open audio issue: audible distortion in character-creation music. Device buffer
+starvation, guest mixer scheduling and source decoding have not yet been
+distinguished. Decoder comparisons do not establish real-time mixer fidelity.
+
+The long-strip fix and NPC surface improvement establish specific rendering
+corrections. Full material, lighting and physics fidelity still need wider
+validation. The remaining work includes:
+
+- Sustained traversal, combat, later scenes and broader save compatibility.
+  Starting-town local save/reload is verified on patch 0075; patch 0076 also loads that slot.
+- Sustained visible performance: the clean patch-0076 one-minute saved-town
+  sample averages 28.03 presentations/s versus 27.18 for patch 0075. This does
+  not establish locked 30 fps, smooth traversal or full game-speed fidelity.
+  The earlier ten-minute worker-stability test used patch 0073 and different
+  diagnostic conditions. Validated 60 fps support remains a later goal.
+- Flickering foot shadows, the rotating Logic Stone light, and complete in-engine
+  audio/animation synchronization.
+- Physical-controller walk/run comparison after patches 0087-0088, and loading/cutscene speed compared with RPCS3.
+- All character-creation options and an in-game keyboard usable by gamepad.
+- Complete static SPU coverage, including the six observed image-17 fallback
+  fingerprints; source-level reconstruction and a supported modding framework.
+- Linux and macOS Apple Silicon platform integration and native testing.
+- Update 1.01, regional DLC, translated Japanese-exclusive content and optional
+  Japanese voiceovers, including content and save compatibility.
+- Online functionality.
+
+Fresh extraction and static generation supply all 24 known SPU inputs and the
+PPU code used by the current town build. This does not establish complete job
+coverage across untested gameplay.
+
+See the [build limitations](BUILD.md) and [capture manifest](../verification/gallery.json)
+for reproduction requirements and screenshot provenance.
+
+## Implemented fixes
+
+The investigation sections record successive checkpoints, including failures
+later resolved. Test counts, proposed next steps and limitations within those
+accounts describe that checkpoint. They are not the current task list. The
+verified table above and the opening source checkpoint record the current status;
+[Still unverified](#still-unverified) records the remaining validation work.
+
+- Correct lightweight-condition layout and wait/signal behavior.
+- Allocate and account for memory-container allocations instead of acknowledging
+  allocation without providing memory.
+- Support large archive offsets and authenticated, atomic SDAT caches.
+- Lift observed heap-backed SPU jobs and avoid duplicate synthetic completions.
+- Preserve SPU-produced FIFO segments while their producer fills them.
+- Bind all 16 fragment texture units, preserve inline constants, and use the
+  current shader-decompiler interfaces.
+- Publish event queues only after host synchronization objects are initialized.
+- Wait for a pending background content check before entering the original
+  installation request, preventing that request from being dropped.
+- Implement the nine imported PAMF reader APIs with guest-endian fields,
+  64-bit file sizes, actual stream descriptors and copyable guest reader state.
+- Parse MPEG program-stream packets incrementally and assemble MPEG-2, LPCM and
+  AC-3 access units across packet and input-buffer boundaries.
+- Supply demux work-memory queries, guest-resident AU records and payloads,
+  guest callback messages, queue backpressure, flush and release lifetimes.
+- Give callback threads separate guest stack slots, with separate slices for
+  nested callbacks and slot reuse when host threads exit.
+- Implement imported Vpost open/query/close/exec interfaces, with the actual
+  argument/field layout and progressive YUV420 crop, bilinear resize and RGBA output.
+- Enable real FFmpeg MPEG-2 decoding using pinned public headers and a separately
+  supplied library. The optional decoder check reports a skip if no library loads.
+- Render the avatar under normal depth/culling, preserve frame presentation
+  through scene changes, and restore Vulkan colour-target feedback.
+- Implement the observed NV0039 transfers and isolate their methods from 3D
+  state; inspected town NPC surfaces improve with patch 0052.
+- Preserve depth-only targets and reload GPU surfaces after video conversion
+  writes; patch 0053 removes the observed cutscene red flashes.
+- Reduce SPURS dispatch/setup costs and avoid Vulkan mid-frame fence waits
+  with patches 0054-0057; town performance remains below the immediate 30 fps
+  target and the later 60 fps goal.
+- Execute the statically compiled secondary-bone physics job through its
+  SPURS queue/port imports; patch 0058 removes the long town strips in the
+  inspected views.
+
+Patches 0059-0061 cache launch diagnostics, avoid repeated SPU conversion-scale
+CRT calls and keep each logical SPU context's DMA engine independent. The
+[town measurements](#town-performance-after-the-physics-fix) record their scope.
+
+Regression checks cover real video decoding, sparse video timestamps, LPCM sample
+conversion/concurrent queues, stereo/surround AC-3, Vpost conversion/windows, callback
+stacks, demux ABI/lifetimes, packet/access-unit parsing, PAMF reader ABI,
+lightweight conditions, memory containers, LFQueue, event-queue recycling,
+SPURS job chains/queues, SPU arithmetic, 2D transfers and shared rendering.
+PAMF checks use synthetic video/audio descriptors,
+including declared data larger than 4 GiB, copied readers and malformed headers.
+An optional private-header check also passes against the first logo file.
+Their scope is narrower than full-game compatibility.
+
 ## Drakengard 3 performance and settings comparison
 
 Source review on 2026-10-19: Drakengard 3 port
@@ -417,7 +639,7 @@ before this production conversion. Short town probes show partial-tilt movement
 and a stronger full-tilt running response. This does not establish controller
 calibration, every directional gait transition or sustained traversal. Actual
 physical-controller feel still needs user comparison.
-See [implementation and reference scope](BUILD.md#windows-analogue-response-patch-0084).
+See [implementation and reference scope](PATCHES.md#windows-analogue-response-patch-0084).
 
 ## Full Graphics Settings panel and window close
 
@@ -452,7 +674,7 @@ All controls, including the renderer selector and FPS overlay, now appear
 together in the full native settings panel.
 World/NPC distance and fog are visibly pending and do not change the game.
 The background blur has not been removed. Output size does not alter internal
-render-target resolution. See [controls and limitations](BUILD.md#native-graphics-settings-patches-0081-0082)
+render-target resolution. See [controls and limitations](PATCHES.md#native-graphics-settings-patches-0081-0082)
 and [actual menu captures](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close).
 
 Patch 0081 adds Vulkan preferences and a transparent text FPS overlay. Patch
@@ -719,119 +941,6 @@ less smooth motion despite a nominal 30 reading, inconsistent analogue walk/run
 selection, and flicker in the Logic Stone's rotating inner light. The lag, stick response and flicker reports remain open; the Logic Stone
 interaction is verified above. These performance reports do not establish their causes. Presentation throughput alone
 does not verify game-clock progression or cutscene playback speed.
-
-## Goal and reporting
-
-Develop native Windows C/C++ execution through the title screen, gameplay and
-verified save/load, with an architecture suitable for later Apple Silicon work.
-Completion remains unproven until those behaviors have been tested.
-Start gameplay validation with White Knight Chronicles I, included on the disc.
-Provide an in-game keyboard operated entirely by gamepad for both Windows and
-macOS. The native Windows text-entry window is a temporary development interface.
-
-Maintain this log as research progresses. Publish checked code, concise findings
-and new verified screenshots together when a meaningful milestone is reached.
-Keep full traces, generated game code, assets and local paths in the private workspace.
-
-## CPU execution qualification
-
-The current build uses ahead-of-time PPU/SPU recompilation plus a PS3 runtime
-layer. An audit of the running build found actual SPU interpreter fallback use
-from the runtime-code microstep path in image 17. It is therefore a hybrid;
-neither complete static CPU coverage nor an interpreter-free port is verified.
-The build compiles 56,580 generated PPU functions and 24 known SPU image/job
-inputs. The latest retained fallback census contains six image-17 entry
-fingerprints; its share of execution has not been measured. See
-[architecture and modding scope](ARCHITECTURE.md) for the distinction from a
-source-level decompilation and the remaining work. Rendering milestones below
-do not establish interpreter-free execution.
-
-## Verified
-
-| Result | Evidence | Limit |
-| --- | --- | --- |
-| Native Windows build succeeds | 76-patch Clang build and 64 runtime regression checks in Debug and Release | Compilation alone does not verify gameplay |
-| Logic Stone proximity targeting and local saving work | Patch 0075: X opens the stone menu, Save writes a slot, restart/Continue returns to town; patch 0076 also loads that slot | One starting-town slot; other scenes/slots and PS3/RPCS3 interchange unverified; occlusion samples remain a conservative fallback |
-| Normal shadow polarity is restored | Patch 0074 GPU comparison and user-confirmed native town view | Black foot flicker and complete shadow fidelity remain open |
-| Saved-town presentation throughput approaches the 30 fps target | Separate clean one-minute samples: patch 0075 27.18 presentations/s; patch 0076 28.03; [conditions](../verification/performance.json) | Stationary view, not locked 30 fps, distinct animation updates or RPCS3-equivalent game speed |
-| Vulkan renders the WKC1 avatar and room without its initial red tint | Native GPU readback in the [gallery](GALLERY.md); production-engine feedback regression | This colour-fix capture covers character creation; later town validation is recorded below; full visual fidelity remains unverified |
-| WKC1 reaches avatar Review with the entered name retained | Readable UI, room, full default male avatar, face shading and textured clothing; [capture](GALLERY.md) | Avatar acceptance and entry into the town are now observed; full visual fidelity remains unverified |
-| WKC1 enters the live town after the opening cutscenes | Native Vulkan [readback](GALLERY.md) shows Leonard, NPCs, minimap and save crystal; pause/resume responds in the same run | The long strips are removed with patch 0058 ([secondary-bone physics](#secondary-bone-physics-and-town-stretching)); NPC surfaces improve with patch 0052 ([NV0039 transfers](#nv0039-memory-transfers)); full material fidelity unverified; short movement and camera response verified; starting-town save/reload verified below; sustained traversal, combat and wider save compatibility unverified |
-| Initial town movement and camera response work | First observed with 42 patches; rechecked with 58 patches after the physics fix, including walking/facing changes and camera rotation | Short starting-town probes only; sustained traversal, combat and analogue walk/run consistency unverified; local save/reload verified separately |
-| Language-selection screen renders | GPU readback in the [gallery](GALLERY.md) | Startup UI only |
-| Language selection accepts input | CROSS through the controller path advances startup | This check covers startup input; limited town controls are verified above |
-| Warning and autosave notices render | Separate GPU readbacks in the gallery | The autosave notice does not verify saving |
-| Lifted SPU decoder produces correct output for sampled assets | Eight outputs match independent raw-DEFLATE decoding byte for byte; [record](../decompression-verification.json) | Sampled blocks, not all assets |
-| Native guest installer writes the large data archives | Three installed archives, totaling 4,364,470,879 bytes, hash-identical to their disc data; [record](../verification/installation.json) | Installation progress, not gameplay or save/load |
-| First movie header parses through the guest ABI | Real header reports two streams and 1280x720 video; native execution advances to demux/decoder startup | Header parsing scope; later playback is recorded below |
-| MPEG-2 access-unit extraction matches independent decoding | All 210 logo frames and 3,596 opening-movie frames match FFmpeg's direct demux/decode pixel for pixel; [record](../verification/movie-demux.json) | Offline validation, not native playback |
-| Extracted opening-movie AC-3 decodes | 3,750 audio frames / 5,760,000 samples per channel at 48 kHz | Elementary-stream decode; native API comparison is recorded below |
-| Native demux bridge delivers actual access units | Guest video decoder receives the first 19,356-byte unit; audio decoder receives a 960-byte LPCM unit | Decoder delivery evidence; later native playback is recorded below |
-| Real video decoding matches reference pixels through the guest API | All 210 logo frames match on two sequence passes, including B-frame reordering; [record](../verification/movie-demux.json) | Standalone decoder validation, not continuous in-game playback |
-| Decoded first-logo image renders natively | D3D12 GPU readback in the [gallery](GALLERY.md) | First-image milestone; later playback is recorded below |
-| Two LPCM startup movies advance natively | Successive readbacks, decoder lifecycle and later Havok/Dolby capture in one 120-second probe with no input after movie start | Startup-clip evidence; title rendering is recorded below |
-| Native LPCM sample conversion matches FFmpeg | All 336,480 stereo sample frames from the first logo match; [record](../verification/movie-demux.json) | Assembled elementary input; independent audio demux and final mix fidelity unverified |
-| Native title menu renders over an animated background | GPU readback shows New Game, Continue and Options; idle execution proceeds to the attract movie | Menu rendering checkpoint; menu input and limited town controls were verified later |
-| AC-3 samples match the reference through the guest API | Opening: 3,750 frames in stereo and 5.1; title: 938 frames in 5.1; two sequence passes each | Assembled elementary input; original-console mix fidelity unverified |
-| Guest flips continued during an early black-screen investigation | A 120-second probe observed 6,171 flips and 6,171 presentation calls | Historical diagnostic; counters alone did not establish visible rendering; later screenshots verify startup and town output |
-
-## Implemented fixes
-
-The investigation sections record successive checkpoints, including failures
-later resolved. Test counts, proposed next steps and limitations within those
-accounts describe that checkpoint. They are not the current task list. The
-verified table above and the opening source checkpoint record the current status;
-[Still unverified](#still-unverified) records the remaining validation work.
-
-- Correct lightweight-condition layout and wait/signal behavior.
-- Allocate and account for memory-container allocations instead of acknowledging
-  allocation without providing memory.
-- Support large archive offsets and authenticated, atomic SDAT caches.
-- Lift observed heap-backed SPU jobs and avoid duplicate synthetic completions.
-- Preserve SPU-produced FIFO segments while their producer fills them.
-- Bind all 16 fragment texture units, preserve inline constants, and use the
-  current shader-decompiler interfaces.
-- Publish event queues only after host synchronization objects are initialized.
-- Wait for a pending background content check before entering the original
-  installation request, preventing that request from being dropped.
-- Implement the nine imported PAMF reader APIs with guest-endian fields,
-  64-bit file sizes, actual stream descriptors and copyable guest reader state.
-- Parse MPEG program-stream packets incrementally and assemble MPEG-2, LPCM and
-  AC-3 access units across packet and input-buffer boundaries.
-- Supply demux work-memory queries, guest-resident AU records and payloads,
-  guest callback messages, queue backpressure, flush and release lifetimes.
-- Give callback threads separate guest stack slots, with separate slices for
-  nested callbacks and slot reuse when host threads exit.
-- Implement imported Vpost open/query/close/exec interfaces, with the actual
-  argument/field layout and progressive YUV420 crop, bilinear resize and RGBA output.
-- Enable real FFmpeg MPEG-2 decoding using pinned public headers and a separately
-  supplied library. The optional decoder check reports a skip if no library loads.
-- Render the avatar under normal depth/culling, preserve frame presentation
-  through scene changes, and restore Vulkan colour-target feedback.
-- Implement the observed NV0039 transfers and isolate their methods from 3D
-  state; inspected town NPC surfaces improve with patch 0052.
-- Preserve depth-only targets and reload GPU surfaces after video conversion
-  writes; patch 0053 removes the observed cutscene red flashes.
-- Reduce SPURS dispatch/setup costs and avoid Vulkan mid-frame fence waits
-  with patches 0054-0057; town performance remains below the immediate 30 fps
-  target and the later 60 fps goal.
-- Execute the statically compiled secondary-bone physics job through its
-  SPURS queue/port imports; patch 0058 removes the long town strips in the
-  inspected views.
-
-Patches 0059-0061 cache launch diagnostics, avoid repeated SPU conversion-scale
-CRT calls and keep each logical SPU context's DMA engine independent. The
-[town measurements](#town-performance-after-the-physics-fix) record their scope.
-
-Regression checks cover real video decoding, sparse video timestamps, LPCM sample
-conversion/concurrent queues, stereo/surround AC-3, Vpost conversion/windows, callback
-stacks, demux ABI/lifetimes, packet/access-unit parsing, PAMF reader ABI,
-lightweight conditions, memory containers, LFQueue, event-queue recycling,
-SPURS job chains/queues, SPU arithmetic, 2D transfers and shared rendering.
-PAMF checks use synthetic video/audio descriptors,
-including declared data larger than 4 GiB, copied readers and malformed headers.
-An optional private-header check also passes against the first logo file.
-Their scope is narrower than full-game compatibility.
 
 ## Startup investigation
 
@@ -1346,7 +1455,7 @@ A normal native run now shows the avatar, clothing and room without the red tint
 with no render-state overrides or debugger writes. The screenshot is an unchanged
 GPU readback; it is not evidence of interactive gameplay or a completed renderer.
 The implementations actually used, with pinned revisions, are linked in
-[the build instructions](BUILD.md#windows-renderer).
+[the build instructions](SUBSYSTEMS.md#windows-renderer).
 
 The shared engine tracks separate depth targets and sampleable depth snapshots.
 The existing D3D12 path still has its shared-depth limitations described earlier.
@@ -1614,7 +1723,7 @@ overlap staging, report-record sources and shared-renderer RGBA8 coherence.
 Notification completion, other GPU layouts, transfers over 64 MiB and D3D12
 GPU-owned surface copies remain limited or unverified. The report path exposes
 the runtime's existing records without establishing accurate GPU queries.
-See [build and diagnostic details](BUILD.md#earlier-runtime-fixes-and-validation-history).
+See [build and diagnostic details](PATCHES.md#earlier-runtime-fixes-and-validation-history).
 
 ## Vertex-program co-issue review
 
@@ -1795,7 +1904,7 @@ time, with an update after approximately one second. The maximum interval in
 milliseconds helps reveal long gaps that an average can hide. Neither value
 establishes unique guest animation frames or exact display scanout. A stalled
 renderer can leave the previous title visible until it resumes. See the
-[implementation scope](BUILD.md#vulkan-window-title-counter-patch-0065).
+[implementation scope](PATCHES.md#vulkan-window-title-counter-patch-0065).
 
 ## Town performance after the physics fix
 
@@ -2406,38 +2515,3 @@ secondary-bone strips removed in inspected views. The 70-patch idle run exposes 
 ten-minute idle test does not reproduce its accumulating SPU workers. Full rendering
 fidelity, broader gameplay, wider save compatibility and imports needed on untested
 paths remain unverified. Starting-town local save/reload was verified at patch 0075 and used again for patch 0076.
-
-## Still unverified
-
-Open audio issue: audible distortion in character-creation music. Device buffer
-starvation, guest mixer scheduling and source decoding have not yet been
-distinguished. Decoder comparisons do not establish real-time mixer fidelity.
-
-The long-strip fix and NPC surface improvement establish specific rendering
-corrections. Full material, lighting and physics fidelity still need wider
-validation. The remaining work includes:
-
-- Sustained traversal, combat, later scenes and broader save compatibility.
-  Starting-town local save/reload is verified on patch 0075; patch 0076 also loads that slot.
-- Sustained visible performance: the clean patch-0076 one-minute saved-town
-  sample averages 28.03 presentations/s versus 27.18 for patch 0075. This does
-  not establish locked 30 fps, smooth traversal or full game-speed fidelity.
-  The earlier ten-minute worker-stability test used patch 0073 and different
-  diagnostic conditions. Validated 60 fps support remains a later goal.
-- Flickering foot shadows, the rotating Logic Stone light, and complete in-engine
-  audio/animation synchronization.
-- Physical-controller walk/run comparison after patches 0087-0088, and loading/cutscene speed compared with RPCS3.
-- All character-creation options and an in-game keyboard usable by gamepad.
-- Complete static SPU coverage, including the six observed image-17 fallback
-  fingerprints; source-level reconstruction and a supported modding framework.
-- Linux and macOS Apple Silicon platform integration and native testing.
-- Update 1.01, regional DLC, translated Japanese-exclusive content and optional
-  Japanese voiceovers, including content and save compatibility.
-- Online functionality.
-
-Fresh extraction and static generation supply all 24 known SPU inputs and the
-PPU code used by the current town build. This does not establish complete job
-coverage across untested gameplay.
-
-See the [build limitations](BUILD.md) and [capture manifest](../verification/gallery.json)
-for reproduction requirements and screenshot provenance.

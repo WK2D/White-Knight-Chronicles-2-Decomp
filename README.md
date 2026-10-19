@@ -10,6 +10,11 @@ Linux and Apple Silicon support are longer-term goals.
 *Native Windows town capture, 19 October 2026. [View the progress gallery](docs/GALLERY.md)
 for more screenshots, including the Graphics Settings menu. Newest images appear first.*
 
+**Contents:** [Current status](#current-status) · [What needs work](#what-needs-work) ·
+[Documentation](#documentation) · [Building and contributing](#building-and-contributing) ·
+[How it works](#how-it-works) · [Update 1.01 and DLC plans](#update-101-and-dlc-plans) ·
+[Credits and license](#credits-and-license)
+
 ## Current status
 
 The native build reaches the WKC1 starting town and can resume from a local save.
@@ -51,6 +56,21 @@ counter measures presentations and can include repeated animation states.
 See the [findings log](docs/FINDINGS.md) for evidence, measurements and investigation
 history, and the [runtime audit](docs/KILLZONE_FIX_AUDIT.md) for remaining implementation gaps.
 
+## Documentation
+
+| Page | What it covers |
+| --- | --- |
+| [Build guide](docs/BUILD.md) | Requirements, private workspace layout, building, regression checks, play and diagnostic options |
+| [Findings log](docs/FINDINGS.md) | Verified results, measurements, open issues and investigation history, grouped by topic |
+| [Runtime patch notes](docs/PATCHES.md) | What each numbered SDK patch changes and how it was checked, newest first |
+| [Runtime subsystem notes](docs/SUBSYSTEMS.md) | Renderer, movie decoding, guest frame presentation and native text entry |
+| [Architecture](docs/ARCHITECTURE.md) | Execution model, remaining SPU fallback and modding scope |
+| [Progress gallery](docs/GALLERY.md) | Dated screenshots, newest first |
+| [Runtime audit](docs/KILLZONE_FIX_AUDIT.md) | Killzone 3 runtime-fix comparison and remaining implementation gaps |
+| [Code review history](docs/CODE_REVIEW.md) | Review findings, fixes and the checks that were run |
+| [Contributing](docs/CONTRIBUTING.md) | Contribution workflow and where new notes belong |
+| [Project icon](docs/ICON.md) | Icon used by Windows builds |
+
 ## Building and contributing
 
 This repository contains project source, build tools, SDK patches and verification
@@ -64,16 +84,12 @@ repository.
 - [Progress gallery](docs/GALLERY.md)
 - [Project icon used by Windows builds](docs/ICON.md)
 
+## How it works
+
 The game code is translated to C/C++ ahead of time and compiled with a runtime
 that implements the PS3 services it uses. Some SPU paths still use an interpreter
 fallback. This is not yet a fully static port or a recovered version of the
 original source; the architecture page explains the execution model and remaining work.
-
-The project uses the [PS3Recomp SDK](https://github.com/sp00nznet/ps3recomp).
-Its pinned revision is recorded in [project.json](project.json), its license is
-retained in [LICENSE.ps3recomp](LICENSE.ps3recomp), and local runtime changes are
-maintained as patches. Engineering details and patch history live in the
-[build documentation](docs/BUILD.md) and [findings log](docs/FINDINGS.md).
 
 ## Update 1.01 and DLC plans
 
@@ -91,3 +107,12 @@ Future content work includes:
 
 These are planned additions; update, DLC and cross-region runtime support are not
 verified yet. GeoNet compatibility is separate later research.
+
+## Credits and license
+
+The project uses the [PS3Recomp SDK](https://github.com/sp00nznet/ps3recomp).
+Its pinned revision is recorded in [project.json](project.json), its license is
+retained in [LICENSE.ps3recomp](LICENSE.ps3recomp), and local runtime changes are
+maintained as patches. Engineering details and patch history live in the
+[build documentation](docs/BUILD.md), [runtime patch notes](docs/PATCHES.md) and
+[findings log](docs/FINDINGS.md).

@@ -39,7 +39,7 @@ That comparison predates the NV0039 and physics fixes linked above.
 | 0051 | The shared draw engine stored 2D-object methods (NV3062, NV308A, NV3089) in NV4097 registers: a blit's `SET_OPERATION` and `IMAGE_OUT_POINT` became the following draws' alpha-test and blend enables. Vulkan only. | `wkc2_draw_engine` |
 
 Each patch is described in
-[Earlier runtime fixes and validation history](BUILD.md#earlier-runtime-fixes-and-validation-history)
+[Earlier runtime fixes and validation history](PATCHES.md#earlier-runtime-fixes-and-validation-history)
 in BUILD.md.
 
 ### Findings and remaining work

@@ -63,7 +63,7 @@ Graphics Settings adjusts both the host frame cap and the guest timing hooks;
 raising a host cap alone does not unlock the game. The window-title `Present/s`
 counter measures accepted queue presentations and the maximum interval. It does
 not count distinct guest animation updates or display scanout. See
-[graphics settings and timing](BUILD.md#native-graphics-settings-patches-0081-0082)
+[graphics settings and timing](PATCHES.md#native-graphics-settings-patches-0081-0082)
 for the current controls and validation limits.
 
 Vulkan translates the game's rendering state and shaders to the host GPU.

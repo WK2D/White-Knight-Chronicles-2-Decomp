@@ -22,7 +22,7 @@ extensions = {'tools': {'.py', '.ps1', '.java'}, 'tests': {'.cpp', '.c'},
               'patches': {'.patch'}, 'docs': {'.md'}}
 patterns = {
     'personal filesystem path': r'(?:[A-Za-z]:[\\/](?:Users|Documents and Settings)[\\/][^\s]+|/(?:Users|home)/[^\s]+)',
-    'credential': r'(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----)',
+    'credential': r'(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----)',
     'conversation artifact': r'(?:<(?:codex_internal_context|environment_context|in-app-browser-context|external_codex_apps_open_page)(?:\s[^>]*|)>|"role"\s*:\s*"(?:user|assistant|system)")',
 }
 findings = []
