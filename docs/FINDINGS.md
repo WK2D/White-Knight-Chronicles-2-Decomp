@@ -27,6 +27,7 @@ logging, profiler and visibility conditions; they are not interchangeable.
 **Performance, timing and presentation**
 
 - [Shader translation stalls and cache](#shader-translation-stalls-and-cache-patch-0100)
+- [Guest memory and write-tracking follow-up](#guest-memory-and-write-tracking-follow-up)
 - [SPURS polling stalls and register-local candidates](#spurs-polling-stalls-and-register-local-candidates)
 - [GPU command spans and the town wait chain](#gpu-command-spans-and-the-town-wait-chain)
 - [Saved-town movement baseline](#saved-town-movement-baseline)
@@ -291,6 +292,41 @@ progress. Presentation counts do not establish unique animation updates, visible
 scanout or console-equivalent game speed. A roughly 100 ms hitch still misses
 three 30 Hz frame budgets. Consistently smooth traversal remains open, as do
 first-use compilation and the remaining CPU/graphics work.
+
+## Guest memory and write-tracking follow-up
+
+**Problem.** With repeated shader compilation removed, guest-memory access,
+texture hashing and vertex decoding remain visible CPU costs.
+
+**Experiment.** A private candidate keeps patch 0100's shader cache enabled and
+switches only ordinary guest reads between the original and guarded paths inside
+one process. Special pages and diagnostics retain their slow paths; writes and
+SPU reservation handling are unchanged. Six twelve-second stationary samples use
+fast/original/original/fast/original/fast order after the Continue movement route.
+
+**Evidence.** Mean presentation throughput is 25.22/s with fast reads and 25.80/s
+with original reads; mean process CPU time per presentation is 165.08 ms and
+168.70 ms respectively. The phases vary enough that this does not establish a
+frame-rate improvement. The private read path is not in the desktop build.
+The [aggregate record](../verification/performance.json) retains all six phases.
+
+A separate private Windows write-watch prototype passes synthetic checks for
+native stores, concurrent writers, atomic stores, overlapping ranges, unchanged
+page protection after reserved-only commits and nested kernel-write leases.
+A real `ReadFile` writes into the leased guest destination, and a lease held
+longer than the normal hot-page quarantine prevents reprotection. Removing the
+write-generation update makes the regression fail. Page generations are compared
+individually rather than trusting a combined hash of their counters.
+
+**Next work.** Connect tracking to every commit/protection and relevant I/O path,
+then compare actual resource hashes against every proposed cache reuse in native
+runs before enabling hash skipping. In particular, a kernel write must keep its
+pages unprotected until completion; a timeout alone cannot establish completion.
+
+**Limits.** This is a tested tracker core, not an integrated texture/vertex cache,
+a measured tracking speedup or verified macOS support. Live NPC movement changes
+stationary scene cost. Presentation counts and untraced game-clock accumulators
+do not prove unique animation updates or correct game speed.
 
 ## SPURS polling stalls and register-local candidates
 

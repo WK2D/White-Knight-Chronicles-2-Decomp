@@ -1610,5 +1610,148 @@
         "No smoothness or animation-speed proof"
       ]
     }
+  },
+  "post_shader_read_comparison_2026_10_19": {
+    "date": "2026-10-19",
+    "baseline_sdk_patches": 100,
+    "candidate_sha256": "cd21c9d480d104b4e874aad0a83bd97108ac123f38f7a6129287616882381e26",
+    "hidden": true,
+    "muted": true,
+    "shader_cache_enabled": true,
+    "same_process_no_input": true,
+    "sequence": [
+      1,
+      0,
+      0,
+      1,
+      0,
+      1
+    ],
+    "samples": [
+      {
+        "phase": 0,
+        "mode": 1,
+        "seconds": 12.001720200001728,
+        "frames": 289,
+        "presentations_per_second": 24.079881482319376,
+        "process_cpu_ms_per_present": 168.73918685121106,
+        "p50_ms": 39.574950002133846,
+        "p95_ms": 50.277700007427484,
+        "max_ms": 60.14669995056465,
+        "over_40ms": 143,
+        "observer_max_gap_ms": 5.867800035048276,
+        "clock_deltas": [
+          10.874619148671627,
+          10.874619148671627,
+          326.23857390880585
+        ]
+      },
+      {
+        "phase": 1,
+        "mode": 0,
+        "seconds": 12.001005699974485,
+        "frames": 313,
+        "presentations_per_second": 26.081147515884062,
+        "process_cpu_ms_per_present": 166.7332268370607,
+        "p50_ms": 35.074799990979955,
+        "p95_ms": 50.09140004403889,
+        "max_ms": 51.56719998922199,
+        "over_40ms": 95,
+        "observer_max_gap_ms": 4.376399971079081,
+        "clock_deltas": [
+          11.307388488203287,
+          11.307388488203287,
+          339.2216554880142
+        ]
+      },
+      {
+        "phase": 2,
+        "mode": 0,
+        "seconds": 12.000763699994422,
+        "frames": 334,
+        "presentations_per_second": 27.83156208634916,
+        "process_cpu_ms_per_present": 159.66504491017963,
+        "p50_ms": 34.21010001329705,
+        "p95_ms": 49.38010004116222,
+        "max_ms": 55.19459996139631,
+        "over_40ms": 49,
+        "observer_max_gap_ms": 5.132900027092546,
+        "clock_deltas": [
+          11.413375512696803,
+          11.411932886578143,
+          342.3579869568348
+        ]
+      },
+      {
+        "phase": 3,
+        "mode": 1,
+        "seconds": 12.001710800046567,
+        "frames": 317,
+        "presentations_per_second": 26.41290106730201,
+        "process_cpu_ms_per_present": 159.0102523659306,
+        "p50_ms": 35.06629995536059,
+        "p95_ms": 49.933900008909404,
+        "max_ms": 67.47950002318248,
+        "over_40ms": 83,
+        "observer_max_gap_ms": 5.010599968954921,
+        "clock_deltas": [
+          11.765120938420296,
+          11.765120938420296,
+          352.9536284208298
+        ]
+      },
+      {
+        "phase": 4,
+        "mode": 0,
+        "seconds": 12.000131500011776,
+        "frames": 282,
+        "presentations_per_second": 23.499742481965576,
+        "process_cpu_ms_per_present": 179.6875,
+        "p50_ms": 45.12660001637414,
+        "p95_ms": 50.634799990803,
+        "max_ms": 65.77599997399375,
+        "over_40ms": 153,
+        "observer_max_gap_ms": 11.194900027476251,
+        "clock_deltas": [
+          10.311581879854202,
+          10.311434350907803,
+          309.3430298566818
+        ]
+      },
+      {
+        "phase": 5,
+        "mode": 1,
+        "seconds": 12.000002799963113,
+        "frames": 302,
+        "presentations_per_second": 25.166660794523175,
+        "process_cpu_ms_per_present": 167.47723509933775,
+        "p50_ms": 35.50490003544837,
+        "p95_ms": 50.19229999743402,
+        "max_ms": 52.71590000484139,
+        "over_40ms": 115,
+        "observer_max_gap_ms": 7.938600028865039,
+        "clock_deltas": [
+          10.927363697439432,
+          10.927363697439432,
+          327.8209104835987
+        ]
+      }
+    ],
+    "summary": {
+      "0": {
+        "mean_presentations_per_second": 25.804150694732932,
+        "mean_process_cpu_ms_per_present": 168.6952572490801
+      },
+      "1": {
+        "mean_presentations_per_second": 25.219814448048187,
+        "mean_process_cpu_ms_per_present": 165.07555810549314
+      }
+    },
+    "conclusion": "No consistent frame-rate gain established; candidate not promoted",
+    "limits": [
+      "Live NPC motion changes scene cost",
+      "Twelve-second samples; presentation counts do not establish unique game updates",
+      "Game clock fields have not been traced to authoritative animation semantics"
+    ]
   }
 }
