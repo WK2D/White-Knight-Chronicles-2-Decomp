@@ -91,7 +91,7 @@ repository.
 | [Runtime subsystem notes](docs/SUBSYSTEMS.md) | Renderer, movie decoding, guest frame presentation and native text entry |
 | [Architecture](docs/ARCHITECTURE.md) | Execution model, remaining SPU fallback and modding scope |
 | [Progress gallery](docs/GALLERY.md) | Dated screenshots, newest first |
-| [Runtime audit](docs/KILLZONE_FIX_AUDIT.md) | Killzone 3 runtime-fix comparison and remaining implementation gaps |
+| [Runtime audit](docs/KILLZONE_FIX_AUDIT.md) | Runtime-fix comparison and remaining implementation gaps |
 | [Code review history](docs/CODE_REVIEW.md) | Review findings, fixes and the checks that were run |
 | [Contributing](docs/CONTRIBUTING.md) | Contribution workflow and where new notes belong |
 
