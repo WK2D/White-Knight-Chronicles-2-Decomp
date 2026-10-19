@@ -4,8 +4,8 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-19):** the stack contains 111 SDK patches. All
-100 Windows checks pass in normal Debug and optimized Release. Reapplying the
+**Current validation (2026-10-19):** the stack contains 115 SDK patches. All
+103 Windows checks pass in normal Debug and optimized Release. Reapplying the
 complete stack changes no SDK files. Vulkan Continue and short town movement
 were rechecked on patch 0105; isolated DirectX Continue, menu FXAA toggling
 and a short world movement are checked on patch 0110.
@@ -134,7 +134,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 111 numbered SDK patches, and all 100 checks
+The current source stack contains 115 numbered SDK patches, and all 103 checks
 pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
@@ -312,3 +312,27 @@ the previous host code fails that regression. The new wkc2_d3d12_surface_readbac
 uses WARP to verify eight exact ARGB/RGBA cases, including 256x144 portrait data,
 padding, partial pixels/rows and invalid ranges. All 100 Windows checks pass
 in Debug and Release. Normal launch still sends no automatic controller input.
+
+### DirectX clears, comparison sampling and polygon bias (patches 0112–0114)
+
+`wkc2_d3d12_masked_clear` checks 128 WARP cases for individual RGBA masks,
+RGBA8/FP16, clipping and depth/stencil preservation. `wkc2_d3d12_shadow` checks
+144 comparison/PCF/border results using the production sampler decoder.
+`wkc2_d3d12_depth_bias` checks sixteen D32 depth cases using the production
+bias decoder. `wkc2_shadow_compare` additionally checks the literal-constant
+comparison entry and zero-mask compatibility. The complete stack has 103
+passing Windows checks in Debug and Release at patch 0115.
+
+Native Continue/movement/camera runs execute the comparison path and polygon
+bias. The character shadow still needs visual validation; there is no complete
+shadow, darker-grass or flicker fix claim. The [parity audit](DIRECTX_PARITY.md)
+tracks other Vulkan features that the live DirectX caller does not yet forward.
+
+### Kernel mutex deadline (patch 0115)
+
+An existing optional-kernel-lock test returned before its 15 ms timeout.
+The kernel path now retries early timeout results until a monotonic deadline;
+other errors, successful acquires and infinite/zero waits retain their behavior.
+The regression forces three early results and still requires the full deadline.
+Both complete suites and ten repeated Release kernel tests pass. The default
+user-token backend is unchanged.

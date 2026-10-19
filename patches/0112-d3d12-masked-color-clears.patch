@@ -1,0 +1,147 @@
+Honor partial color-clear masks in the live DirectX renderer.
+Use write-masked constant draws for partial RGBA clears, preserving depth/stencil and clipping.
+
+diff --git a/libs/video/rsx_live_draw.c b/libs/video/rsx_live_draw.c
+--- a/libs/video/rsx_live_draw.c
++++ b/libs/video/rsx_live_draw.c
+@@ -102,6 +102,7 @@
+ #include <initguid.h>
+ #include <d3d12.h>
+ #include "rsx_d3d12_clear.h"
++#include "rsx_d3d12_masked_clear.h"
+ #include <d3d12sdklayers.h>
+ #include <dxgi1_5.h>
+ #include "rsx_d3d12_sampler.h"
+@@ -395,6 +396,7 @@
+ } ld_state;
+ 
+ static ld_state g;
++static rsx_d3d12_masked_clear s_ld_masked_clear;
+ static rsx_d3d12_counter s_ld_counter;
+ static rsx_d3d12_fxaa s_ld_fxaa;
+ static rsx_present_metrics s_ld_present_metrics;
+@@ -7457,7 +7459,13 @@
+         { static int ct = -1;
+           if (ct < 0) ct = getenv("LD_CLEAR_TEST") ? 1 : 0;
+           if (ct) { col[0] = 1.0f; col[1] = 0.0f; col[2] = 1.0f; col[3] = 1.0f; } }
+-        g.list->lpVtbl->ClearRenderTargetView(g.list, rtv, col, 1, &clear_rect);
++        const HRESULT clear_hr = rsx_d3d12_clear_masked(&s_ld_masked_clear,
++            g.dev,g.list,&clear,col,rtv,g.surfaces[target].w,g.surfaces[target].h,
++            g.surfaces[target].fmt);
++        if (FAILED(clear_hr)) {
++            fprintf(stderr,"[d3d-fail] masked color clear hr=0x%08lX mask=0x%X\n",(unsigned long)clear_hr,mask);
++            g.ready=0; return;
++        }
+         ld_surface_note_write(target, LD_SURFACE_WRITE_CLEAR);
+     }
+     if ((mask & (RSX_CLEAR_DEPTH | RSX_CLEAR_STENCIL)) && g.depth) {
+@@ -9860,6 +9868,7 @@
+     ld_flush(LD_FLUSH_SHUTDOWN);
+     rsx_d3d12_counter_release(&s_ld_counter);
+     rsx_d3d12_fxaa_release(&s_ld_fxaa);
++    rsx_d3d12_masked_clear_release(&s_ld_masked_clear);
+ #if defined(YZ_PERF_PROFILE)
+     fprintf(stderr,
+             "[rsx-perf-summary] frames=%u "
+diff --git a/libs/video/rsx_d3d12_masked_clear.h b/libs/video/rsx_d3d12_masked_clear.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_d3d12_masked_clear.h
+@@ -0,0 +1,97 @@
++#ifndef RSX_D3D12_MASKED_CLEAR_H
++#define RSX_D3D12_MASKED_CLEAR_H
++#include "rsx_d3d12_clear.h"
++#include <d3dcompiler.h>
++#include <string.h>
++#include <limits.h>
++
++/* Immutable pipelines; owner retires all GPU references before release. */
++typedef struct rsx_d3d12_masked_clear {
++    ID3D12RootSignature* root;
++    ID3DBlob* vs;
++    ID3DBlob* ps;
++    ID3D12PipelineState* pipelines[2][16];
++} rsx_d3d12_masked_clear;
++
++static void rsx_d3d12_masked_clear_release(rsx_d3d12_masked_clear* clear)
++{
++    for(unsigned f=0;f<2;++f) for(unsigned m=0;m<16;++m)
++        if(clear->pipelines[f][m]) clear->pipelines[f][m]->lpVtbl->Release(clear->pipelines[f][m]);
++    if(clear->vs) clear->vs->lpVtbl->Release(clear->vs);
++    if(clear->ps) clear->ps->lpVtbl->Release(clear->ps);
++    if(clear->root) clear->root->lpVtbl->Release(clear->root);
++    memset(clear,0,sizeof(*clear));
++}
++static HRESULT rsx_d3d12_masked_clear_init(rsx_d3d12_masked_clear* clear,ID3D12Device* device)
++{
++    if(clear->root) return S_OK;
++    const char vs[]="float4 main(uint id:SV_VertexID):SV_Position { float2 p=id==0?float2(-1,-1):id==1?float2(-1,3):float2(3,-1);return float4(p,0,1);}";
++    const char ps[]="cbuffer Clear:register(b0){float4 color;} float4 main():SV_Target0{return color;}";
++    ID3DBlob* error=NULL;
++    HRESULT hr=D3DCompile(vs,sizeof vs-1,"masked_clear_vs",NULL,NULL,"main","vs_5_0",D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&clear->vs,&error);
++    if(error) error->lpVtbl->Release(error);
++    if(SUCCEEDED(hr)){
++        error=NULL;hr=D3DCompile(ps,sizeof ps-1,"masked_clear_ps",NULL,NULL,"main","ps_5_0",D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&clear->ps,&error);
++        if(error) error->lpVtbl->Release(error);
++    }
++    ID3DBlob* signature=NULL;
++    if(SUCCEEDED(hr)){
++        D3D12_ROOT_PARAMETER param={0};param.ParameterType=D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
++        param.Constants.Num32BitValues=4;param.ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;
++        D3D12_ROOT_SIGNATURE_DESC desc={0};desc.NumParameters=1;desc.pParameters=&param;
++        error=NULL;hr=D3D12SerializeRootSignature(&desc,D3D_ROOT_SIGNATURE_VERSION_1,&signature,&error);
++        if(error) error->lpVtbl->Release(error);
++    }
++    if(SUCCEEDED(hr))hr=device->lpVtbl->CreateRootSignature(device,0,signature->lpVtbl->GetBufferPointer(signature),
++        signature->lpVtbl->GetBufferSize(signature),&IID_ID3D12RootSignature,(void**)&clear->root);
++    if(signature)signature->lpVtbl->Release(signature);
++    if(FAILED(hr))rsx_d3d12_masked_clear_release(clear);
++    return hr;
++}
++
++/* Source remains a render target. Full RGBA uses ClearRenderTargetView; partial
++ * masks draw a constant full-screen triangle with per-component writes. No
++ * texture copy/readback is needed, and depth/stencil are never attached. The
++ * caller rebinds its ordinary draw state after a partial clear. */
++static HRESULT rsx_d3d12_clear_masked(rsx_d3d12_masked_clear* cache,
++    ID3D12Device* device,ID3D12GraphicsCommandList* list,
++    const rsx_surface_clear* clear,const float rgba[4],
++    D3D12_CPU_DESCRIPTOR_HANDLE target,unsigned width,unsigned height,DXGI_FORMAT format)
++{
++    const unsigned mask=(clear->flags>>4)&15;
++    D3D12_RECT rect;
++    if(!mask || !rsx_clear_rect(clear,width,height,&rect))return S_FALSE;
++    if(mask==15){list->lpVtbl->ClearRenderTargetView(list,target,rgba,1,&rect);return S_OK;}
++    const unsigned f=format==DXGI_FORMAT_R16G16B16A16_FLOAT;
++    if(!f && format!=DXGI_FORMAT_R8G8B8A8_UNORM)return E_INVALIDARG;
++    HRESULT hr=rsx_d3d12_masked_clear_init(cache,device);
++    if(FAILED(hr))return hr;
++    if(!cache->pipelines[f][mask]){
++        D3D12_GRAPHICS_PIPELINE_STATE_DESC p={0};p.pRootSignature=cache->root;
++        p.VS.pShaderBytecode=cache->vs->lpVtbl->GetBufferPointer(cache->vs);p.VS.BytecodeLength=cache->vs->lpVtbl->GetBufferSize(cache->vs);
++        p.PS.pShaderBytecode=cache->ps->lpVtbl->GetBufferPointer(cache->ps);p.PS.BytecodeLength=cache->ps->lpVtbl->GetBufferSize(cache->ps);
++        D3D12_RENDER_TARGET_BLEND_DESC* blend=&p.BlendState.RenderTarget[0];
++        blend->SrcBlend=blend->SrcBlendAlpha=D3D12_BLEND_ONE;blend->DestBlend=blend->DestBlendAlpha=D3D12_BLEND_ZERO;
++        blend->BlendOp=blend->BlendOpAlpha=D3D12_BLEND_OP_ADD;blend->LogicOp=D3D12_LOGIC_OP_NOOP;
++        blend->RenderTargetWriteMask=(UINT8)mask;
++        p.SampleMask=UINT_MAX;p.SampleDesc.Count=1;
++        p.RasterizerState.FillMode=D3D12_FILL_MODE_SOLID;p.RasterizerState.CullMode=D3D12_CULL_MODE_NONE;p.RasterizerState.DepthClipEnable=TRUE;
++        p.DepthStencilState.DepthWriteMask=D3D12_DEPTH_WRITE_MASK_ZERO;p.DepthStencilState.DepthFunc=D3D12_COMPARISON_FUNC_ALWAYS;
++        p.DepthStencilState.StencilReadMask=p.DepthStencilState.StencilWriteMask=0xff;
++        p.DepthStencilState.FrontFace.StencilFailOp=p.DepthStencilState.FrontFace.StencilDepthFailOp=p.DepthStencilState.FrontFace.StencilPassOp=D3D12_STENCIL_OP_KEEP;
++        p.DepthStencilState.FrontFace.StencilFunc=D3D12_COMPARISON_FUNC_ALWAYS;p.DepthStencilState.BackFace=p.DepthStencilState.FrontFace;
++        p.PrimitiveTopologyType=D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;p.NumRenderTargets=1;p.RTVFormats[0]=format;
++        hr=device->lpVtbl->CreateGraphicsPipelineState(device,&p,&IID_ID3D12PipelineState,(void**)&cache->pipelines[f][mask]);
++        if(FAILED(hr))return hr;
++    }
++    D3D12_VIEWPORT viewport={0,0,(float)width,(float)height,0,1};
++    list->lpVtbl->SetPipelineState(list,cache->pipelines[f][mask]);
++    list->lpVtbl->SetGraphicsRootSignature(list,cache->root);
++    list->lpVtbl->SetGraphicsRoot32BitConstants(list,0,4,rgba,0);
++    list->lpVtbl->RSSetViewports(list,1,&viewport);list->lpVtbl->RSSetScissorRects(list,1,&rect);
++    list->lpVtbl->OMSetRenderTargets(list,1,&target,FALSE,NULL);
++    list->lpVtbl->IASetPrimitiveTopology(list,D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
++    list->lpVtbl->DrawInstanced(list,3,1,0,0);
++    return S_OK;
++}
++#endif

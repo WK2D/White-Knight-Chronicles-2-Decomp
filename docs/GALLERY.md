@@ -8,18 +8,21 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 111 SDK patches / 100 Windows checks. The shader-translation
+Current source: 115 SDK patches / 103 Windows checks. The shader-translation
 cache reduces measured compilation stalls; existing images retain their original
 build provenance. The newest captures show DirectX Off/FXAA menu selection and the filtered world
 in the 110-patch build; the counter is composed afterward and stays sharp.
-The current 111-patch source also verifies fresh DirectX portrait capture;
-same-session portrait menu/reload checks remain pending and have no new gallery image.
+Fresh DirectX portrait capture is verified, while same-session portrait menu/reload
+checks remain pending. The latest source also adds tested DirectX comparison
+sampling, per-channel clears and polygon bias; a visible character-shadow fix
+is not established, so these changes have no new gallery image.
 Earlier town captures use the native FPS overlay after Continue in the 104-patch
 Vulkan build, with 30 and Unlocked frame limits; those are final swapchain
 readbacks after the overlay. The earlier depth-range captures use
 99 patches and the menu captures use 83 patches, with their original settings.
 The earlier LOD comparison is captured before window scaling. Saving and Continue
-reload work; normal shadow polarity is restored. Foot/Logic Stone flicker,
+reload work; normal shadow polarity was restored in inspected Vulkan views.
+DirectX character shadows remain unresolved. Foot/Logic Stone flicker,
 incomplete rendering state and town lag remain open. Still images do not prove
 smooth animation, performance, full gameplay or interpreter-free execution.
 Historical entries retain their original test conditions and patch counts.

@@ -43,7 +43,19 @@ unsigned long long ppu_thread_cpu_us(unsigned) { return 0; }
 unsigned ppu_thread_prof_pc(unsigned) { return 0; }
 void wkc2_register_lwcond();
 }
+// Deterministic early kernel timeouts exercise the production deadline loop.
+// Zero-time trylocks and infinite waits keep the real Windows behavior.
+static std::atomic<unsigned> forced_early_timeouts{0};
+static DWORD test_kernel_wait(HANDLE semaphore, DWORD milliseconds) {
+    if (milliseconds && milliseconds != INFINITE && forced_early_timeouts.load()) {
+        forced_early_timeouts.fetch_sub(1);
+        return WAIT_TIMEOUT;
+    }
+    return WaitForSingleObject(semaphore, milliseconds);
+}
+#define WaitForSingleObject test_kernel_wait
 #include "lwmutex-fixture.inc"
+#undef WaitForSingleObject
 
 static uint32_t call(ppu_context& ctx, const char* name, uint32_t address, uint64_t second = 0) {
     ctx.gpr[3] = address; ctx.gpr[4] = second;
@@ -113,9 +125,11 @@ static void guest_abi() {
     assert(vm_read32(mutex) == 1 && vm_read32(mutex + 12) == 2);
     assert(call(other, "sys_lwmutex_trylock", mutex) == 0x8001000bu);
     assert(call(owner, "sys_lwmutex_unlock", mutex) == 0);
+    if (lwm_kernel_backend()) forced_early_timeouts.store(3);
     const auto start = std::chrono::steady_clock::now();
     assert(call(other, "sys_lwmutex_lock", mutex, 15000) == 0x8001000bu);
     assert(std::chrono::steady_clock::now() - start >= std::chrono::milliseconds(15));
+    assert(forced_early_timeouts.load() == 0);
     assert(vm_read32(mutex) == 1 && vm_read32(mutex + 12) == 1);
     // A different host/guest thread can release a transferred lock.
     std::thread cross([&] { assert(call(other, "sys_lwmutex_unlock", mutex) == 0); }); cross.join();

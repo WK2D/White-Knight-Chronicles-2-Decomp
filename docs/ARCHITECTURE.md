@@ -101,6 +101,10 @@ that a supported WKC modding framework currently exists.
 
 ## Remaining CPU work
 
+The [native execution work plan](NATIVE_CODE.md) separates removal of interpreter
+fallback from readable replacements for already compiled hot jobs. Python tools
+perform build-time generation and diagnostics; they are not the gameplay CPU path.
+
 The intended interpreter-free path requires covering missing SPU entries and
 any runtime-generated code with validated static or specific native implementations.
 The first census finds six entry fingerprints in image 17 matching the

@@ -78,12 +78,21 @@ int main()
                     1u << 4, hlsl, sizeof hlsl, &constants) > 0 && constants == 0,
                     "Synthetic comparison program failed to decompile")) return 1;
             if (!compile(hlsl, opcode == 0x2f || opcode == 0x31, mixed)) return 2;
+            if (!require(rsx_fp_decompile_shadow_ex(code, bytes, 0x40, 0,
+                    1u << 4, legacy, sizeof legacy) > 0,
+                    "Literal-constant comparison program failed to decompile") ||
+                !compile(legacy, opcode == 0x2f || opcode == 0x31, mixed)) return 8;
             const u32 dimensions[16][2] = {{0,0},{0,0},{0,0},{64,32},{128,64}};
             if (!require(rsx_fp_apply_unnorm_scale(hlsl, sizeof hlsl,
                     (1u << 3) | (1u << 4), dimensions, 0) >= 1,
                     "Unnormalized comparison coordinates were not scaled")) return 3;
             if (!compile(hlsl, opcode == 0x2f || opcode == 0x31, mixed)) return 4;
             for (u32 cube : {0u,1u << 3}) {
+                if (!require(rsx_fp_decompile_ex(code, bytes, 0x40, cube,
+                        legacy, sizeof legacy) > 0 &&
+                        rsx_fp_decompile_shadow_ex(code, bytes, 0x40, cube,
+                        0, hlsl, sizeof hlsl) > 0 && !std::strcmp(hlsl, legacy),
+                        "Zero comparison mask changed a literal backend shader")) return 9;
                 if (!require(rsx_fp_decompile_buffered_ex(code, bytes, 0x40, cube,
                         legacy, sizeof legacy, nullptr) > 0 &&
                         rsx_fp_decompile_buffered_shadow_ex(code, bytes, 0x40, cube,

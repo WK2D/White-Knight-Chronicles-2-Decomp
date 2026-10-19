@@ -1,0 +1,103 @@
+Apply live DirectX D32 polygon bias for filled guest primitives.
+Key pipeline state on applied integer bias and finite slope; preserve zero/disabled behavior.
+
+diff --git a/libs/video/rsx_live_draw.c b/libs/video/rsx_live_draw.c
+--- a/libs/video/rsx_live_draw.c
++++ b/libs/video/rsx_live_draw.c
+@@ -106,6 +106,7 @@
+ #include <d3d12sdklayers.h>
+ #include <dxgi1_5.h>
+ #include "rsx_d3d12_sampler.h"
++#include "rsx_d3d12_depth_bias.h"
+ #include "rsx_d3d12_window.h"
+ #include "rsx_d3d12_counter.h"
+ #include "rsx_d3d12_fxaa.h"
+@@ -1389,6 +1390,8 @@
+     u32 depth_test, depth_write, depth_func;
+     u32 cull_enable, cull_face, front_face;
+     u32 color_mask;
++    INT polygon_bias;
++    float polygon_slope;
+     /* TM: this title renders HDR into FP16 (SURFACE_FORMAT 0xB) targets;
+      * the RTV format is PSO state, so it belongs in the key. */
+     u32 rt_fp16;
+@@ -1490,6 +1493,9 @@
+         b->BlendOpAlpha  = gcm_blend_op(rs->eq_a);
+     }
+     pd->RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
++    pd->RasterizerState.DepthBias = rs->polygon_bias;
++    pd->RasterizerState.SlopeScaledDepthBias = rs->polygon_slope;
++    pd->RasterizerState.DepthBiasClamp = 0.0f;
+     if (rs->cull_enable && rs->cull_face) {
+         const u32 f = rs->cull_face;
+         pd->RasterizerState.CullMode = (f == 0x0404) ? D3D12_CULL_MODE_FRONT
+@@ -3687,6 +3693,8 @@
+     LD_HASH_RENDER_FIELD(cull_face);
+     LD_HASH_RENDER_FIELD(front_face);
+     LD_HASH_RENDER_FIELD(color_mask);
++    LD_HASH_RENDER_FIELD(polygon_bias);
++    LD_HASH_RENDER_FIELD(polygon_slope);
+     LD_HASH_RENDER_FIELD(rt_fp16);
+     LD_HASH_RENDER_FIELD(rt_count);
+     LD_HASH_RENDER_FIELD(stencil_enable);
+@@ -4180,7 +4188,7 @@
+     do { static int _said_ = 0; ld_pso_bail(&_said_, (reason)); } while (0)
+ 
+ static ID3D12PipelineState* get_pso(
+-    const rsx_vertex_layout_plan* masked_layout, int packed_payload)
++    const rsx_vertex_layout_plan* masked_layout, int packed_payload, u32 primitive)
+ {
+     memset(&g_ld_current_pso, 0, sizeof(g_ld_current_pso));
+     const u32 start = rsx_dsp_vp_start(&g.rsx);
+@@ -4284,6 +4292,10 @@
+ 
+     render_state_t rs;
+     decode_render_state(&rs);
++    rsx_d3d12_depth_bias bias = rsx_d3d12_depth_bias_decode(
++        primitive, rsx_dsp_reg(&g.rsx,0x0A68),
++        rsx_dsp_reg(&g.rsx,0x0A78),rsx_dsp_reg(&g.rsx,0x0A7C));
++    rs.polygon_bias=bias.constant; rs.polygon_slope=bias.slope;
+     if (rsx_fp_collect_constants(
+             fp_uc, fp_size, &g.fp_constants) < 0) {
+         LD_PSO_BAIL("fragment program constant collection failed");
+@@ -6702,7 +6714,7 @@
+ 
+     ID3D12PipelineState* pso = get_pso(
+         ld_vertex_mask_signature() ? &used_layout : NULL,
+-        ld_vertex_compact_payload());
++        ld_vertex_compact_payload(), prim);
+     if (!pso) {
+ #if defined(YZ_PERF_PROFILE)
+         ld_profile_note_rejected_pso();
+diff --git a/libs/video/rsx_d3d12_depth_bias.h b/libs/video/rsx_d3d12_depth_bias.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_d3d12_depth_bias.h
+@@ -0,0 +1,27 @@
++/* Live DirectX currently uses D32_FLOAT_S8X24 depth. D3D's float-depth
++ * rasterizer applies constant bias in exponent-relative ULPs, like the Vulkan
++ * D32 path. Its baseline PSO field is integer: fractional RSX constants round
++ * to nearest, with ties away from zero. Other guest/host precision is unverified.
++ * https://learn.microsoft.com/en-us/windows/win32/direct3d11/d3d10-graphics-programming-guide-output-merger-stage-depth-bias */
++#ifndef RSX_D3D12_DEPTH_BIAS_H
++#define RSX_D3D12_DEPTH_BIAS_H
++#include <stdint.h>
++#include <limits.h>
++#include <float.h>
++#include <math.h>
++#include <string.h>
++typedef struct rsx_d3d12_depth_bias { int32_t constant; float slope; } rsx_d3d12_depth_bias;
++static inline rsx_d3d12_depth_bias rsx_d3d12_depth_bias_decode(
++    uint32_t primitive, uint32_t enabled, uint32_t scale_bits, uint32_t bias_bits)
++{
++    rsx_d3d12_depth_bias out={0,0};
++    /* RSX primitive numbers: points=1, lines=2/3/4, triangles through polygon=5..10. */
++    if (!(enabled&1u) || primitive<5u || primitive>10u) return out;
++    float scale,bias;memcpy(&scale,&scale_bits,4);memcpy(&bias,&bias_bits,4);
++    if (!(scale>=-FLT_MAX && scale<=FLT_MAX) || !(bias>=-FLT_MAX && bias<=FLT_MAX)) return out;
++    const double rounded=round((double)bias);
++    out.constant=rounded>INT_MAX?INT_MAX:rounded<INT_MIN?INT_MIN:(int32_t)rounded;
++    out.slope=scale==0?0:scale;
++    return out;
++}
++#endif

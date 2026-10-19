@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 111 SDK patches / 100 Windows checks in Debug and
+**Current source checkpoint:** 115 SDK patches / 103 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -288,6 +288,56 @@ The current higher-frame-rate implementation changes the guest vblank cadence;
 that is a lead, not an established root cause. Keep the stable 30 FPS baseline
 for the DirectX 12 work. Higher-frame-rate synchronization and game-speed
 corrections are deferred at the user's request.
+
+## DirectX shadow follow-up and parity review (patches 0112–0115)
+
+Live DirectX did not use the comparison shader/sampler path previously added
+for Vulkan. Patch 0113 supplies per-unit comparison bindings, the same reversed
+texture ZFUNC mapping, comparison-aware shader identity and full-precision D24
+guest uploads through R32 views. Both buffered and literal constant modes use
+the new path; ordinary depth/stencil comparisons are unchanged. A WARP oracle
+checks 144 results across six comparison functions, three references, point/PCF
+filtering and border coordinates. Existing shader tests also cover the literal
+entry and zero-mask compatibility.
+
+The saved-scene run `20261019-201636` invokes comparison sampling on the actual
+2560x2560 map. The inspected views do not show a convincing character shadow;
+the user reports the same. This is **not a verified visual shadow fix**.
+A private GPU readback in `20261019-202542` contains 5,152,267 nonclear depth
+texels, spanning 0.078705 to 1.0. The map is populated, but correct production,
+projection, binding and final shadow appearance are not established by that fact.
+
+That producer requests enabled polygon bias, including negative constants.
+Live DirectX previously ignored it. Patch 0114 decodes filled-primitive state,
+keys the applied values and applies D32 rasterizer bias. Sixteen WARP cases
+check constant sign/units, disable, primitive isolation and rounding. Fractional
+constants round to the baseline D3D integer field; full guest depth precision
+and nonzero-slope hardware parity remain unverified. The native follow-up
+`20261019-203224` reaches the save and responds to short movement/camera inputs,
+but still does not establish a visible character-shadow correction.
+
+Patch 0112 separately fixes partial color clears, which previously cleared all
+RGBA channels. Its WARP test checks 128 RGBA8/FP16/mask/rectangle cases and
+unchanged depth/stencil. The sampled town trace has full-color and depth masks;
+no town visual improvement is attributed to partial clearing.
+
+All 103 Windows checks pass in Debug and Release at patch 0115. The first
+114 Release suite exposed an existing optional-kernel mutex early timeout,
+also reproduced in isolation. Patch 0115 retries early Windows timeouts up
+to a monotonic deadline; a deterministic test forces three early expirations.
+Ten repeat kernel tests pass. The default user-token backend is unchanged;
+there is no measured gameplay performance claim for this correction.
+
+The [DirectX parity table](DIRECTX_PARITY.md) records missing TC0–7 overrides,
+window-depth ranges, request census integration and further coherence/performance
+reviews. The user's faster empty areas, slower NPC scenes and darker grass are
+observations awaiting matched measurements. No new gallery image is presented
+as a shadow fix. The [native execution plan](NATIVE_CODE.md) separately tracks
+SPU coverage and readable C/C++ kernels, rather than cosmetic build-tool rewrites.
+
+The old enlarged portrait/empty geometry after cutscene skips also reproduce
+in the 110-patch baseline (`20261019-193929`), before the portrait readback change.
+Their cause remains open; this establishes that they predate patch 0111.
 
 ## Custom avatar portrait readback
 

@@ -27,7 +27,7 @@ can resume from a local save.
   Continue after restarting.
 - A dedicated **Triangle → System → Graphics Settings** panel with persistent
   preferences, the game's menu frame and a scrollbar.
-- **100 Windows regression checks** pass in both Debug and optimized Release. The
+- **103 Windows regression checks** pass in both Debug and optimized Release. The
   latest native check loads Continue and moves briefly in town.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
@@ -47,8 +47,9 @@ overlay measures presentations and can include repeated animation states.
 - **Performance and game timing:** movement still stutters, and loading and cutscene
   timing need further comparison with RPCS3. Consistent frame pacing is a priority.
 - **Rendering:** black flicker at Leonard's feet and the rotating Logic Stone effect
-  remain open. The earlier stretched hair/clothing strips and inverted shadows are
-  fixed in the inspected town views; full visual fidelity still needs work.
+  remain open. Earlier stretched hair/clothing strips and inverted shadows were
+  fixed in inspected Vulkan views. DirectX character shadows and darker grass
+  remain under investigation; full visual fidelity still needs work.
 - **Controls:** analogue walk/run conversion has improved, but physical-controller
   consistency, especially at angles, still needs comparison.
 - **Gameplay coverage:** sustained traversal, combat, a complete playthrough and
@@ -101,6 +102,8 @@ repository.
 | [Architecture](docs/ARCHITECTURE.md) | Execution model, remaining SPU fallback and modding scope |
 | [Progress gallery](docs/GALLERY.md) | Dated screenshots, newest first |
 | [Runtime audit](docs/KILLZONE_FIX_AUDIT.md) | Runtime-fix comparison and remaining implementation gaps |
+| [Native C/C++ execution work](docs/NATIVE_CODE.md) | Remaining SPU fallback, hot-job replacements and validation requirements |
+| [DirectX parity audit](docs/DIRECTX_PARITY.md) | Vulkan fixes still missing from live DirectX, with evidence and next checks |
 | [Code review history](docs/CODE_REVIEW.md) | Review findings, fixes and the checks that were run |
 | [Contributing](docs/CONTRIBUTING.md) | Contribution workflow and where new notes belong |
 

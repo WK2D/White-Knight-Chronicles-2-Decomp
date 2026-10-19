@@ -1,0 +1,32 @@
+Honor monotonic deadlines when the optional kernel mutex backend returns an early timeout.
+
+diff --git a/runtime/ppu/ppu_sysprx.cpp b/runtime/ppu/ppu_sysprx.cpp
+--- a/runtime/ppu/ppu_sysprx.cpp
++++ b/runtime/ppu/ppu_sysprx.cpp
+@@ -233,8 +233,24 @@
+ }
+ static bool lwm_wait(LwmSlot* slot, DWORD milliseconds)
+ {
+-    return lwm_kernel_backend() ? WaitForSingleObject(slot->sem, milliseconds) == WAIT_OBJECT_0
+-                                : slot->token.acquire(milliseconds);
++    if (!lwm_kernel_backend()) return slot->token.acquire(milliseconds);
++    if (!milliseconds || milliseconds == INFINITE)
++        return WaitForSingleObject(slot->sem, milliseconds) == WAIT_OBJECT_0;
++    // A Windows relative wait can expire before the monotonic deadline.
++    // Retry only early timeouts; do not consume/release an unowned token.
++    const auto deadline = std::chrono::steady_clock::now() +
++                          std::chrono::milliseconds(milliseconds);
++    DWORD remaining = milliseconds;
++    for (;;) {
++        const DWORD result = WaitForSingleObject(slot->sem, remaining);
++        if (result == WAIT_OBJECT_0) return true;
++        if (result != WAIT_TIMEOUT) return false;
++        const auto now = std::chrono::steady_clock::now();
++        if (now >= deadline) return false;
++        const auto left = std::chrono::duration_cast<std::chrono::microseconds>(deadline - now).count();
++        remaining = (DWORD)((left + 999) / 1000);
++        if (!remaining) remaining = 1;
++    }
+ }
+ static void lwm_release(LwmSlot* slot)
+ {

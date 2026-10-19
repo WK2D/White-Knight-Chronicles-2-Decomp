@@ -8,6 +8,8 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patches 0112–0115 | [DirectX clear/comparison/bias and kernel deadline](#directx-clearcomparisonbias-and-kernel-deadline-patches-01120115) |
+| Patch 0107 |
 | Patch 0107 | [DirectX display and sampler preferences](#directx-display-and-sampler-preferences-patch-0107) |
 | Patch 0106 | [DirectX live clear rectangles](#directx-live-clear-rectangles-patch-0106) |
 | Patch 0105 | [Guest lightweight mutex tokens](#guest-lightweight-mutex-tokens-patch-0105) |
@@ -42,6 +44,20 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## DirectX clear/comparison/bias and kernel deadline (patches 0112–0115)
+
+0112 preserves unselected color channels during partial clears. 0113 supplies
+live DirectX comparison shaders/samplers with texture-specific reversed operand
+order and D24 precision. 0114 forwards fill polygon bias through keyed D32
+pipeline state. 0115 fixes early optional-kernel mutex timeouts against a
+monotonic deadline. All 103 Windows tests pass in Debug and Release.
+
+The GPU tests cover 128 clear cases, 144 comparison results and sixteen constant
+bias cases. Native tests execute the new rendering paths, but character-shadow
+appearance remains unresolved. See [findings](FINDINGS.md#directx-shadow-follow-up-and-parity-review-patches-01120115),
+[build checks](BUILD.md#directx-clears-comparison-sampling-and-polygon-bias-patches-01120114),
+and the [remaining parity gaps](DIRECTX_PARITY.md).
 
 ## DirectX display and sampler preferences (patch 0107)
 
