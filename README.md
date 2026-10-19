@@ -111,14 +111,14 @@ numbered patches.
 
 ## Special thanks
 
-This port leans on work that other people published openly. Thank you to:
+Thank you to these projects for the ideas, references and improvements this
+port has drawn on:
 
-| Project | What it gave this port |
-| --- | --- |
-| [PS3Recomp](https://github.com/sp00nznet/ps3recomp) by sp00nznet and contributors | The recompiler and runtime everything here is built on |
-| [Drakengard 3 recomp](https://github.com/soyjxck/dod3-recomp) by soyjxck | Frame pacing, rendering and graphics-memory comparisons ([findings](docs/FINDINGS.md#drakengard-3-performance-and-settings-comparison)), plus fixes in [soyjxck's PS3Recomp fork](https://github.com/soyjxck/ps3recomp) |
-| [Killzone 3 fix catalogue](https://gist.github.com/undecuple/2845432bf13e485634de122084d3fd56) by undecuple | A 62-entry list of runtime fixes, compared entry by entry in the [runtime audit](docs/KILLZONE_FIX_AUDIT.md) |
-| [Soulcalibur II HD recomp](https://github.com/n0madic/Soulcalibur2HD-recomp) by n0madic | The shared draw engine and Windows Vulkan backend used by patches 0035 and 0036 |
-| [RPCS3](https://github.com/RPCS3/rpcs3) | The reference for RSX, SPU, input and system-call behavior, and the speed target |
-| [envytools](https://github.com/envytools/envytools) and the [PS3 Developer Wiki](https://www.psdevwiki.com/ps3/) | Hardware register and command documentation |
-| [FFmpeg](https://ffmpeg.org/) and [SDL](https://www.libsdl.org/) | Movie and audio decoding (FFmpeg); windows, events and controller input (SDL) |
+- [PS3Recomp](https://github.com/sp00nznet/ps3recomp) by sp00nznet and contributors
+- [Drakengard 3 recomp](https://github.com/soyjxck/dod3-recomp) and [PS3Recomp fork](https://github.com/soyjxck/ps3recomp) by soyjxck
+- [inFAMOUS 2 recomp](https://github.com/erikomis/infamous2-recomp) by erikomis
+- [Killzone 3 fix catalogue](https://gist.github.com/undecuple/2845432bf13e485634de122084d3fd56) by undecuple
+- [Soulcalibur II HD recomp](https://github.com/n0madic/Soulcalibur2HD-recomp) by n0madic
+- [RPCS3](https://github.com/RPCS3/rpcs3)
+- [envytools](https://github.com/envytools/envytools) and the [PS3 Developer Wiki](https://www.psdevwiki.com/ps3/)
+- [FFmpeg](https://ffmpeg.org/) and [SDL](https://www.libsdl.org/)
