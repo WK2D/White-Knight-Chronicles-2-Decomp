@@ -4,10 +4,10 @@ A native C++ port of **White Knight Chronicles II** built by statically recompil
 the PS3 game code. Development targets **Windows with Vulkan** and starts with
 **White Knight Chronicles I**, which is included on the disc.
 
-![White Knight Chronicles I town running in the native Vulkan build](verification/screenshots/2026-10-19-native-depth-range-front.png)
+[![White Knight Chronicles I town running in the native Vulkan build](verification/screenshots/2026-10-19-native-depth-range-front.png)](docs/GALLERY.md)
 
-<sub>Native Windows town capture, 19 October 2026. More screenshots, including the
-Graphics Settings menu, are in the progress gallery.</sub>
+<sub>Native Windows town capture, 19 October 2026. Select the image for the progress
+gallery, including the Graphics Settings menu, newest first.</sub>
 
 ## Status
 
