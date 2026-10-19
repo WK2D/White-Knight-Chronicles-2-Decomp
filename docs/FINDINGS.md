@@ -26,6 +26,7 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 **Performance, timing and presentation**
 
+- [NPC visibility and continuing geometry work](#npc-visibility-and-continuing-geometry-work)
 - [Vulkan batch resource lifetimes](#vulkan-batch-resource-lifetimes-patch-0102)
 - [Grouped vertex conversion](#grouped-vertex-conversion-patch-0101)
 - [Shader translation stalls and cache](#shader-translation-stalls-and-cache-patch-0100)
@@ -247,6 +248,48 @@ PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
+
+## NPC visibility and continuing geometry work
+
+**Problem.** The user noticed NPCs fading out when outside the view and asked
+whether visibility changes explain the lag. Earlier movement probes mixed this
+with texture loading, camera changes and different character positions.
+
+**Cause.** Not established. The measurements support an ongoing geometry/animation
+cost after streaming, but do not isolate NPCs from buildings, shadows or camera
+collision. Fading-specific work has not been identified.
+
+**Investigation.** A private one-object backend census counts device allocations,
+texture uploads, draws, submitted vertices and constant-upload bytes. After
+Continue, six stationary views change only the right stick. Each inspected GPU
+frame is captured before a separate 12-second timing window; an eight-second host
+CPU sample follows. Tests remain hidden and verified muted.
+
+**Evidence.** At one saved position, the initial stone-facing view measures
+30.00 presentations/s and the first NPC-facing view 26.67, with no new texture
+allocations or image uploads in either. Geometry-worker CPU rises from 62.29%
+to 75.38% of one core even though submitted vertices decrease. Returning near
+the original angle restores 29.91; a second NPC-facing angle measures 28.92.
+Other nearby angles measure 25.83 and 23.25, so this is not a clean NPC-only test.
+
+A separate route records 20 new textures going forward, 168 coming back and ten
+during camera movement. The final slow idle window has zero allocations and zero
+image uploads. Vertex, index and constant uploads still occur; the stationary
+views submit roughly 12–17 MB of constants per present callback.
+
+The existing private local-register geometry-kernel candidate is rechecked on
+the current runtime: 226,404 sampled complete-context/local-store/continuation
+comparisons have zero mismatches. Its 1,536 synthetic cases also pass. Six
+same-process original/local timing phases average 26.77/28.02 presentations/s,
+but one local phase is worse and carries more geometry. This remains an
+experiment, with no consistent end-to-end FPS gain claimed or runtime promotion.
+
+**Limits.** Camera angles are approximate and NPCs continue moving. CPU samples
+are separate from timing windows; neither their percentages nor the live
+comparison measure identical game work. Completed presentations do not establish
+correct animation speed. Next isolate per-kernel cost on identical inputs and
+reduce repeated per-draw work without removing NPCs or changing their visibility
+rules. Reviewed aggregates are in [the performance record](../verification/performance.json).
 
 ## Vulkan batch resource lifetimes (patch 0102)
 

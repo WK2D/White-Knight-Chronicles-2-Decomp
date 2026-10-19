@@ -2211,5 +2211,476 @@
       "Not a complete device-loss recovery implementation",
       "Further pooling and GPU-lifetime audit remain; allocation totals include loading"
     ]
+  },
+  "npc_visibility_and_geometry_2026_10_19": {
+    "base_sdk_patches": 102,
+    "private_census_exe_sha256": "bb3fd2bfb978432e3e34c1cacf12ee637ab42dc950b1a69a5cb132c480454203",
+    "hidden": true,
+    "muted": true,
+    "saved_town_camera_comparison": {
+      "probe": "20261019-075033",
+      "left_stick_movement": false,
+      "gpu_readback": "One inspected frame before each timing window; no readback during timing",
+      "timing_seconds_per_view": 12,
+      "cpu_sampling": "Separate eight-second instruction-pointer/CPU-time sample after each timing window",
+      "views": [
+        {
+          "label": "save-view-a",
+          "view": "Logic Stone facing, initial",
+          "seconds": 12.000762700045016,
+          "presentations_per_second": 29.998093371069626,
+          "process_cpu_ms_per_present": 138.10763888888889,
+          "resource_delta": {
+            "memory_allocations": 0,
+            "allocated_bytes": 0,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_creates": 0,
+            "uploads": 0,
+            "upload_bytes": 0,
+            "wait_failures": 0
+          },
+          "render_per_present_callback": {
+            "draws": 1629.293059125964,
+            "vertices": 262148.177377892,
+            "indices": 489040.66580976866,
+            "vertex_upload_bytes": 12100712.143958868,
+            "index_upload_bytes": 1956162.6632390746,
+            "blended_draws": 1514.1645244215938,
+            "alpha_test_draws": 1567.1362467866325,
+            "depth_write_draws": 1180.5938303341902,
+            "constant_bytes": 13562824.267352184
+          },
+          "geometry_worker_percent_of_one_core": 62.28900235080908,
+          "renderer_percent_of_one_core": 50.96372919611652
+        },
+        {
+          "label": "save-view-b",
+          "view": "NPC group visible",
+          "seconds": 12.000548499985598,
+          "presentations_per_second": 26.665447833520613,
+          "process_cpu_ms_per_present": 144.091796875,
+          "resource_delta": {
+            "memory_allocations": 0,
+            "allocated_bytes": 0,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_creates": 0,
+            "uploads": 0,
+            "upload_bytes": 0,
+            "wait_failures": 0
+          },
+          "render_per_present_callback": {
+            "draws": 1517.3826086956522,
+            "vertices": 198819.0,
+            "indices": 369259.3217391304,
+            "vertex_upload_bytes": 10686351.165217392,
+            "index_upload_bytes": 1477037.2869565217,
+            "blended_draws": 1370.3652173913044,
+            "alpha_test_draws": 1455.3130434782609,
+            "depth_write_draws": 1173.9565217391305,
+            "constant_bytes": 12698470.214492753
+          },
+          "geometry_worker_percent_of_one_core": 75.37656350195267,
+          "renderer_percent_of_one_core": 52.72453923711716
+        },
+        {
+          "label": "save-view-a2",
+          "view": "Logic Stone at another angle",
+          "seconds": 12.000180699978955,
+          "presentations_per_second": 25.832944332291902,
+          "process_cpu_ms_per_present": 156.60282258064515,
+          "resource_delta": {
+            "memory_allocations": 1,
+            "allocated_bytes": 8192,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_creates": 1,
+            "uploads": 1,
+            "upload_bytes": 8192,
+            "wait_failures": 0
+          },
+          "render_per_present_callback": {
+            "draws": 1761.4660766961651,
+            "vertices": 280945.3657817109,
+            "indices": 525599.3539823008,
+            "vertex_upload_bytes": 13039595.563421829,
+            "index_upload_bytes": 2102397.4159292034,
+            "blended_draws": 1615.5870206489676,
+            "alpha_test_draws": 1699.5722713864307,
+            "depth_write_draws": 1316.3923303834808,
+            "constant_bytes": 14665157.050147492
+          },
+          "geometry_worker_percent_of_one_core": 65.03284942415634,
+          "renderer_percent_of_one_core": 54.29168810785424
+        },
+        {
+          "label": "save-view-a3",
+          "view": "Stone plus NPCs down the steps",
+          "seconds": 12.001419400039595,
+          "presentations_per_second": 23.247250237674347,
+          "process_cpu_ms_per_present": 174.11514336917563,
+          "resource_delta": {
+            "memory_allocations": 0,
+            "allocated_bytes": 0,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_creates": 0,
+            "uploads": 0,
+            "upload_bytes": 0,
+            "wait_failures": 0
+          },
+          "render_per_present_callback": {
+            "draws": 2028.3145695364237,
+            "vertices": 267134.0960264901,
+            "indices": 490808.0165562914,
+            "vertex_upload_bytes": 12547244.609271523,
+            "index_upload_bytes": 1963232.0662251655,
+            "blended_draws": 1809.7649006622516,
+            "alpha_test_draws": 1966.3145695364237,
+            "depth_write_draws": 1580.0165562913908,
+            "constant_bytes": 16894901.61589404
+          },
+          "geometry_worker_percent_of_one_core": 74.78951177299994,
+          "renderer_percent_of_one_core": 52.72367670681458
+        },
+        {
+          "label": "save-view-a4",
+          "view": "Returned near initial stone-facing angle",
+          "seconds": 12.001887600054033,
+          "presentations_per_second": 29.911961514985673,
+          "process_cpu_ms_per_present": 137.2301532033426,
+          "resource_delta": {
+            "memory_allocations": 0,
+            "allocated_bytes": 0,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_creates": 0,
+            "uploads": 0,
+            "upload_bytes": 0,
+            "wait_failures": 0
+          },
+          "render_per_present_callback": {
+            "draws": 1643.613810741688,
+            "vertices": 261370.61125319693,
+            "indices": 487461.2762148338,
+            "vertex_upload_bytes": 12052923.948849104,
+            "index_upload_bytes": 1949845.104859335,
+            "blended_draws": 1528.7877237851662,
+            "alpha_test_draws": 1581.4884910485935,
+            "depth_write_draws": 1194.1406649616367,
+            "constant_bytes": 13682055.120204603
+          },
+          "geometry_worker_percent_of_one_core": 67.37256934342399,
+          "renderer_percent_of_one_core": 52.33579299721052
+        },
+        {
+          "label": "save-view-b2",
+          "view": "NPCs visible at another angle",
+          "seconds": 12.000472499988973,
+          "presentations_per_second": 28.9155281177736,
+          "process_cpu_ms_per_present": 131.30403458213257,
+          "resource_delta": {
+            "memory_allocations": 0,
+            "allocated_bytes": 0,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_creates": 0,
+            "uploads": 0,
+            "upload_bytes": 0,
+            "wait_failures": 0
+          },
+          "render_per_present_callback": {
+            "draws": 1473.077747989276,
+            "vertices": 183741.36997319036,
+            "indices": 338058.32975871314,
+            "vertex_upload_bytes": 9808656.72922252,
+            "index_upload_bytes": 1352233.3190348526,
+            "blended_draws": 1331.6675603217159,
+            "alpha_test_draws": 1411.034852546917,
+            "depth_write_draws": 1134.2520107238606,
+            "constant_bytes": 12330969.522788204
+          },
+          "geometry_worker_percent_of_one_core": 72.05368971407968,
+          "renderer_percent_of_one_core": 52.72221198591197
+        }
+      ]
+    },
+    "allocation_route": {
+      "probe": "20261019-073858",
+      "census_exe_sha256": "c825c51e648597ac57d796ac36dbc2ef041e8a22c1f46fb48ca54f1e12c1e6a0",
+      "scope": "After Continue and warm-up; short movement/camera route. Counter windows include observer setup/teardown and are not exact ten-second rates.",
+      "phases": [
+        {
+          "phase": "idle",
+          "resource_delta": {
+            "memory_allocations": 0,
+            "allocated_bytes_cumulative": 0,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_create_calls": 0,
+            "upload_calls": 0,
+            "upload_bytes": 0,
+            "wait_failures": 0
+          }
+        },
+        {
+          "phase": "forward",
+          "resource_delta": {
+            "memory_allocations": 20,
+            "allocated_bytes_cumulative": 718848,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_create_calls": 20,
+            "upload_calls": 88,
+            "upload_bytes": 676224,
+            "wait_failures": 0
+          }
+        },
+        {
+          "phase": "back",
+          "resource_delta": {
+            "memory_allocations": 168,
+            "allocated_bytes_cumulative": 4269056,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_create_calls": 168,
+            "upload_calls": 668,
+            "upload_bytes": 4007920,
+            "wait_failures": 0
+          }
+        },
+        {
+          "phase": "camera",
+          "resource_delta": {
+            "memory_allocations": 10,
+            "allocated_bytes_cumulative": 540160,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_create_calls": 10,
+            "upload_calls": 67,
+            "upload_bytes": 515096,
+            "wait_failures": 0
+          }
+        },
+        {
+          "phase": "idle_after",
+          "resource_delta": {
+            "memory_allocations": 0,
+            "allocated_bytes_cumulative": 0,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_create_calls": 0,
+            "upload_calls": 0,
+            "upload_bytes": 0,
+            "wait_failures": 0
+          }
+        }
+      ]
+    },
+    "private_spu_local_register_recheck": {
+      "base_sdk_patches": 102,
+      "verification_probe": "20261019-080559",
+      "verification_exe_sha256": "4b8474b323a4b77f8fe78aa094aae835f87af5543374e18949a1cfe4a55789ca",
+      "actual_context_comparisons": 226404,
+      "mismatches": 0,
+      "sampling": "One in 256 geometry-kernel calls; complete context, local store and continuation",
+      "synthetic_cases": 1536,
+      "synthetic_original_cycles": 58302654,
+      "synthetic_local_cycles": 39144648,
+      "synthetic_benchmark_scope": "100,000 zero-state calls; not native-game work or FPS",
+      "performance_probe": "20261019-080854",
+      "performance_exe_sha256": "376481bb87aaf97eb53da435953a6e7ab4bc1a96859f94a70a77d22f44523bb5",
+      "one_process_modes": "1 local, 0 original; 1,0,0,1,0,1, without input; no verification/CPU sampler during timing",
+      "phases": [
+        {
+          "phase": 0,
+          "mode": 1,
+          "seconds": 12.002028400020208,
+          "frames": 348,
+          "presentations_per_second": 28.995098861740242,
+          "process_cpu_ms_per_present": 131.7798132183908,
+          "p95_ms": 47.253800032194704,
+          "max_ms": 52.42190003627911,
+          "render_delta": {
+            "draws": 582158,
+            "vertices": 72616622,
+            "indices": 133198662,
+            "vertex_upload_bytes": 3877902560,
+            "index_upload_bytes": 532794648,
+            "blended_draws": 523082,
+            "alpha_test_draws": 558584,
+            "depth_write_draws": 449292,
+            "constant_bytes": 4871355424,
+            "present_callbacks": 380
+          },
+          "geometry_worker_cpu_ms_per_present": 24.604885057471265
+        },
+        {
+          "phase": 1,
+          "mode": 0,
+          "seconds": 12.00196770002367,
+          "frames": 311,
+          "presentations_per_second": 25.91241767792682,
+          "process_cpu_ms_per_present": 147.85972668810288,
+          "p95_ms": 50.1211000373587,
+          "max_ms": 57.2764000389725,
+          "render_delta": {
+            "draws": 539545,
+            "vertices": 64104131,
+            "indices": 117337587,
+            "vertex_upload_bytes": 3452426928,
+            "index_upload_bytes": 469350348,
+            "blended_draws": 491165,
+            "alpha_test_draws": 518332,
+            "depth_write_draws": 399361,
+            "constant_bytes": 4516201040,
+            "present_callbacks": 342
+          },
+          "geometry_worker_cpu_ms_per_present": 28.084807073954984
+        },
+        {
+          "phase": 2,
+          "mode": 0,
+          "seconds": 12.001375799998641,
+          "frames": 325,
+          "presentations_per_second": 27.080228585129117,
+          "process_cpu_ms_per_present": 143.94230769230768,
+          "p95_ms": 49.86919998191297,
+          "max_ms": 58.152199955657125,
+          "render_delta": {
+            "draws": 543832,
+            "vertices": 65729508,
+            "indices": 120389349,
+            "vertex_upload_bytes": 3538758256,
+            "index_upload_bytes": 481557396,
+            "blended_draws": 494374,
+            "alpha_test_draws": 521699,
+            "depth_write_draws": 408913,
+            "constant_bytes": 4551945280,
+            "present_callbacks": 356
+          },
+          "geometry_worker_cpu_ms_per_present": 27.01923076923077
+        },
+        {
+          "phase": 3,
+          "mode": 1,
+          "seconds": 12.001695699989796,
+          "frames": 303,
+          "presentations_per_second": 25.2464324687267,
+          "process_cpu_ms_per_present": 151.96988448844886,
+          "p95_ms": 50.62019999604672,
+          "max_ms": 57.269100041594356,
+          "render_delta": {
+            "draws": 541774,
+            "vertices": 67382721,
+            "indices": 122996199,
+            "vertex_upload_bytes": 3578561008,
+            "index_upload_bytes": 491984796,
+            "blended_draws": 483736,
+            "alpha_test_draws": 521169,
+            "depth_write_draws": 425363,
+            "constant_bytes": 4532525584,
+            "present_callbacks": 332
+          },
+          "geometry_worker_cpu_ms_per_present": 29.702970297029704
+        },
+        {
+          "phase": 4,
+          "mode": 0,
+          "seconds": 12.001038999995217,
+          "frames": 328,
+          "presentations_per_second": 27.330966927124454,
+          "process_cpu_ms_per_present": 140.00571646341464,
+          "p95_ms": 50.10009999386966,
+          "max_ms": 51.01159994956106,
+          "render_delta": {
+            "draws": 542841,
+            "vertices": 67167711,
+            "indices": 123227946,
+            "vertex_upload_bytes": 3596316032,
+            "index_upload_bytes": 492911784,
+            "blended_draws": 489347,
+            "alpha_test_draws": 520666,
+            "depth_write_draws": 417352,
+            "constant_bytes": 4542727360,
+            "present_callbacks": 357
+          },
+          "geometry_worker_cpu_ms_per_present": 27.534298780487806
+        },
+        {
+          "phase": 5,
+          "mode": 1,
+          "seconds": 12.001496000040788,
+          "frames": 358,
+          "presentations_per_second": 29.829614574614972,
+          "process_cpu_ms_per_present": 129.84462290502793,
+          "p95_ms": 35.19819997018203,
+          "max_ms": 50.25899998145178,
+          "render_delta": {
+            "draws": 576922,
+            "vertices": 71783434,
+            "indices": 131614002,
+            "vertex_upload_bytes": 3846119936,
+            "index_upload_bytes": 526456008,
+            "blended_draws": 521452,
+            "alpha_test_draws": 552635,
+            "depth_write_draws": 438924,
+            "constant_bytes": 4828666240,
+            "present_callbacks": 392
+          },
+          "geometry_worker_cpu_ms_per_present": 24.13582402234637
+        }
+      ],
+      "means": {
+        "0": {
+          "presentations_per_second": 26.77453773006013,
+          "process_cpu_ms_per_present": 143.93591694794173,
+          "geometry_worker_cpu_ms_per_present": 27.546112207891188
+        },
+        "1": {
+          "presentations_per_second": 28.023715301693972,
+          "process_cpu_ms_per_present": 137.8647735372892,
+          "geometry_worker_cpu_ms_per_present": 26.14789312561578
+        }
+      },
+      "sustained_fps_gain_verified": false,
+      "promoted_to_public_runtime": false
+    },
+    "findings": [
+      "Camera direction changes ongoing geometry workload after texture streaming stops",
+      "One NPC-facing sample uses fewer submitted vertices than the stone-facing sample but more geometry-worker CPU",
+      "Texture allocation bursts can contribute to traversal hitches; persistent slower idle views can have no texture allocations or image uploads"
+    ],
+    "limits": [
+      "NPCs, background geometry, shadows and camera collision vary together; NPC-only causality and fade cost are unproven",
+      "Timed camera pulses do not reproduce exact angles; autonomous NPC positions differ",
+      "Present callbacks normalize draw counters across a slightly wider counter window; presentation rates do not establish unique animation updates",
+      "CPU samples are separate from timing windows; percentages are not normalized costs for identical game work",
+      "All GPU vertex/index/constant uploads continue even when image-upload counters are zero",
+      "Skinning-local candidate means improve but one local phase is worse and carries more geometry; no consistent end-to-end win established"
+    ]
   }
 }

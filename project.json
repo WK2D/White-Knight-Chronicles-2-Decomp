@@ -942,5 +942,14 @@
     "skipped_window_presentation_native_verified": false,
     "fps_gain_verified": false,
     "measurement": "verification/performance.json#vulkan_batch_lifetimes_2026_10_19"
+  },
+  "npc_visibility_investigation": {
+    "status": "Ongoing geometry/animation work is a lead; NPC-only or fade-specific cause unverified",
+    "texture_streaming_explains_persistent_lag": false,
+    "npc_only_cause_verified": false,
+    "public_runtime_changed": false,
+    "private_spu_local_context_comparisons": 226404,
+    "private_spu_local_mismatches": 0,
+    "measurement": "verification/performance.json#npc_visibility_and_geometry_2026_10_19"
   }
 }
