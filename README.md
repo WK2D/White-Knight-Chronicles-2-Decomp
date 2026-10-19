@@ -10,11 +10,6 @@ Linux and Apple Silicon support are longer-term goals.
 *Native Windows town capture, 19 October 2026. [View the progress gallery](docs/GALLERY.md)
 for more screenshots, including the Graphics Settings menu. Newest images appear first.*
 
-**Contents:** [Current status](#current-status) · [What needs work](#what-needs-work) ·
-[Documentation](#documentation) · [Building and contributing](#building-and-contributing) ·
-[How it works](#how-it-works) · [Update 1.01 and DLC plans](#update-101-and-dlc-plans) ·
-[Credits and license](#credits-and-license)
-
 ## Current status
 
 The native build reaches the WKC1 starting town and can resume from a local save.
@@ -69,20 +64,13 @@ history, and the [runtime audit](docs/KILLZONE_FIX_AUDIT.md) for remaining imple
 | [Runtime audit](docs/KILLZONE_FIX_AUDIT.md) | Killzone 3 runtime-fix comparison and remaining implementation gaps |
 | [Code review history](docs/CODE_REVIEW.md) | Review findings, fixes and the checks that were run |
 | [Contributing](docs/CONTRIBUTING.md) | Contribution workflow and where new notes belong |
-| [Project icon](docs/ICON.md) | Icon used by Windows builds |
 
-## Building and contributing
+## Building
 
 This repository contains project source, build tools, SDK patches and verification
 records. Building requires privately prepared game files from the **USA BLUS30784
 version 01.00 disc**. Game files and generated game sources are kept outside this
-repository.
-
-- [Build instructions and diagnostic tools](docs/BUILD.md)
-- [Architecture, remaining SPU fallback and modding scope](docs/ARCHITECTURE.md)
-- [Contribution workflow](docs/CONTRIBUTING.md)
-- [Progress gallery](docs/GALLERY.md)
-- [Project icon used by Windows builds](docs/ICON.md)
+repository. See the [build guide](docs/BUILD.md).
 
 ## How it works
 
@@ -113,6 +101,5 @@ verified yet. GeoNet compatibility is separate later research.
 The project uses the [PS3Recomp SDK](https://github.com/sp00nznet/ps3recomp).
 Its pinned revision is recorded in [project.json](project.json), its license is
 retained in [LICENSE.ps3recomp](LICENSE.ps3recomp), and local runtime changes are
-maintained as patches. Engineering details and patch history live in the
-[build documentation](docs/BUILD.md), [runtime patch notes](docs/PATCHES.md) and
-[findings log](docs/FINDINGS.md).
+maintained as patches. Engineering details and patch history are in the
+[documentation](#documentation) listed above.
