@@ -26,33 +26,33 @@ supersede earlier limitations when further testing establishes progress.
 
 ## Milestones at a glance
 
-From the first native screen to a saved town in five days. Select a row for
-the full entry and its limits.
+Newest first: from the first native screen to a saved town in five days.
+Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
 | 2026-10-19 | [Town FPS checkpoint](#2026-10-19---town-fps-checkpoint) | <a href="#2026-10-19---town-fps-checkpoint"><img src="../verification/screenshots/2026-10-19-native-town-fps-unlocked.png" width="200" alt="Town with native FPS overlay"></a> |
-| 2026-10-15 | [First native screen](#2026-10-15--language-selection) | <a href="#2026-10-15--language-selection"><img src="../verification/screenshots/2026-10-15-language-selection.png" width="200" alt="First native screen"></a> |
-| 2026-10-16 | [Startup logos play](#2026-10-16--d3publisher-logo-playback) | <a href="#2026-10-16--d3publisher-logo-playback"><img src="../verification/screenshots/2026-10-16-d3publisher-logo.png" width="200" alt="Startup logos play"></a> |
-| 2026-10-16 | [Title menu](#2026-10-16--title-menu) | <a href="#2026-10-16--title-menu"><img src="../verification/screenshots/2026-10-16-title-menu.png" width="200" alt="Title menu"></a> |
-| 2026-10-16 | [First 3D room](#2026-10-16--3d-room-with-normal-depth) | <a href="#2026-10-16--3d-room-with-normal-depth"><img src="../verification/screenshots/2026-10-16-native-3d-room.png" width="200" alt="First 3D room"></a> |
-| 2026-10-16 | [Avatar creation](#2026-10-16--vulkan-avatar-colours-restored) | <a href="#2026-10-16--vulkan-avatar-colours-restored"><img src="../verification/screenshots/2026-10-16-native-vulkan-avatar-colours.png" width="200" alt="Avatar creation"></a> |
-| 2026-10-16 | [Town reached](#2026-10-16--wkc1-town-world-view) | <a href="#2026-10-16--wkc1-town-world-view"><img src="../verification/screenshots/2026-10-16-native-wkc1-town.png" width="200" alt="Town reached"></a> |
-| 2026-10-17 | [Walking and camera](#2026-10-17--town-movement-and-camera-response) | <a href="#2026-10-17--town-movement-and-camera-response"><img src="../verification/screenshots/2026-10-17-native-wkc1-town-controls.png" width="200" alt="Walking and camera"></a> |
-| 2026-10-17 | [Stretching fixed](#2026-10-17--town-stretching-fixed-secondary-bone-physics) | <a href="#2026-10-17--town-stretching-fixed-secondary-bone-physics"><img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="200" alt="Stretching fixed"></a> |
-| 2026-10-18 | [Save and Continue](#2026-10-18---logic-stone-saving-and-restartcontinue-reload) | <a href="#2026-10-18---logic-stone-saving-and-restartcontinue-reload"><img src="../verification/screenshots/2026-10-18-native-wkc1-save-reloaded.png" width="200" alt="Save and Continue"></a> |
-| 2026-10-18 | [Graphics Settings](#2026-10-18---native-graphics-settings) | <a href="#2026-10-18---native-graphics-settings"><img src="../verification/screenshots/2026-10-18-native-graphics-settings.png" width="200" alt="Graphics Settings"></a> |
 | 2026-10-19 | [Depth range check](#2026-10-19---window-depth-clip-range-check) | <a href="#2026-10-19---window-depth-clip-range-check"><img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="200" alt="Depth range check"></a> |
+| 2026-10-18 | [Graphics Settings](#2026-10-18---native-graphics-settings) | <a href="#2026-10-18---native-graphics-settings"><img src="../verification/screenshots/2026-10-18-native-graphics-settings.png" width="200" alt="Graphics Settings"></a> |
+| 2026-10-18 | [Save and Continue](#2026-10-18---logic-stone-saving-and-restartcontinue-reload) | <a href="#2026-10-18---logic-stone-saving-and-restartcontinue-reload"><img src="../verification/screenshots/2026-10-18-native-wkc1-save-reloaded.png" width="200" alt="Save and Continue"></a> |
+| 2026-10-17 | [Stretching fixed](#2026-10-17--town-stretching-fixed-secondary-bone-physics) | <a href="#2026-10-17--town-stretching-fixed-secondary-bone-physics"><img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="200" alt="Stretching fixed"></a> |
+| 2026-10-17 | [Walking and camera](#2026-10-17--town-movement-and-camera-response) | <a href="#2026-10-17--town-movement-and-camera-response"><img src="../verification/screenshots/2026-10-17-native-wkc1-town-controls.png" width="200" alt="Walking and camera"></a> |
+| 2026-10-16 | [Town reached](#2026-10-16--wkc1-town-world-view) | <a href="#2026-10-16--wkc1-town-world-view"><img src="../verification/screenshots/2026-10-16-native-wkc1-town.png" width="200" alt="Town reached"></a> |
+| 2026-10-16 | [Avatar creation](#2026-10-16--vulkan-avatar-colours-restored) | <a href="#2026-10-16--vulkan-avatar-colours-restored"><img src="../verification/screenshots/2026-10-16-native-vulkan-avatar-colours.png" width="200" alt="Avatar creation"></a> |
+| 2026-10-16 | [First 3D room](#2026-10-16--3d-room-with-normal-depth) | <a href="#2026-10-16--3d-room-with-normal-depth"><img src="../verification/screenshots/2026-10-16-native-3d-room.png" width="200" alt="First 3D room"></a> |
+| 2026-10-16 | [Title menu](#2026-10-16--title-menu) | <a href="#2026-10-16--title-menu"><img src="../verification/screenshots/2026-10-16-title-menu.png" width="200" alt="Title menu"></a> |
+| 2026-10-16 | [Startup logos play](#2026-10-16--d3publisher-logo-playback) | <a href="#2026-10-16--d3publisher-logo-playback"><img src="../verification/screenshots/2026-10-16-d3publisher-logo.png" width="200" alt="Startup logos play"></a> |
+| 2026-10-15 | [First native screen](#2026-10-15--language-selection) | <a href="#2026-10-15--language-selection"><img src="../verification/screenshots/2026-10-15-language-selection.png" width="200" alt="First native screen"></a> |
 
 ## Before and after
 
-Fixes with a visible difference. Each entry below gives the test conditions.
+Fixes with a visible difference, newest first. Each entry below gives the test conditions.
 
 | Change | Before | After |
 | --- | --- | --- |
+| [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
-| [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 
 ## 2026-10-19 - Town FPS checkpoint
 
