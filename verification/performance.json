@@ -3012,5 +3012,793 @@
       "No new general image/allocation pool, internal-resolution scaling or scene MSAA",
       "No claim of fixing foot or Logic Stone flicker; Mac and Linux native runs remain unverified"
     ]
+  },
+  "spu_shufb_host_layout_2026_10_19": {
+    "sdk_patch": 104,
+    "source": "https://github.com/JonathanDC64/ps3recomp/commit/6a019d53d4ce195d1f469c75ad1c9564513b7f85",
+    "regression": {
+      "tests": [
+        "wkc2_spu_shufb_default",
+        "wkc2_spu_shufb_scalar"
+      ],
+      "synthetic_cases_per_test": 204352,
+      "oracle": "Numerical SPU-word bytes; independent of SPU_W and both helper implementations",
+      "removing_host_lane_xor_fails": true,
+      "debug_checks_passed": 92,
+      "release_checks_passed": 92,
+      "debug_seconds": 25.62,
+      "release_seconds": 22.38,
+      "test_temp_directories": "Separate private directories for each build; no shared temporary settings files"
+    },
+    "native_verifier": {
+      "probe": "20261019-091606",
+      "sampled_calls": 5351813,
+      "mismatches": 0,
+      "one_in": 1024,
+      "scope": "Image 19 only; actual helper operands compared to scalar reference during Continue and a short town route",
+      "exe_sha256": "6f1df077b0e893ec12ab517066bbb3b10a6c98184ef3f8e806aa9a17768a5f6b",
+      "timing_eligible": false
+    },
+    "fixed_work_benchmark": {
+      "operations_per_sample": 4000000,
+      "samples": [
+        {
+          "phase": 0,
+          "mode": 0,
+          "operations": 4000000,
+          "elapsed_ns": 4601900,
+          "ns_per_operation": 1.150475,
+          "checksum": "934180001dbe99807f64476c2edca400"
+        },
+        {
+          "phase": 1,
+          "mode": 1,
+          "operations": 4000000,
+          "elapsed_ns": 3299700,
+          "ns_per_operation": 0.824925,
+          "checksum": "934180001dbe99807f64476c2edca400"
+        },
+        {
+          "phase": 2,
+          "mode": 1,
+          "operations": 4000000,
+          "elapsed_ns": 3289200,
+          "ns_per_operation": 0.8223,
+          "checksum": "934180001dbe99807f64476c2edca400"
+        },
+        {
+          "phase": 3,
+          "mode": 0,
+          "operations": 4000000,
+          "elapsed_ns": 4588900,
+          "ns_per_operation": 1.147225,
+          "checksum": "934180001dbe99807f64476c2edca400"
+        },
+        {
+          "phase": 4,
+          "mode": 1,
+          "operations": 4000000,
+          "elapsed_ns": 3292900,
+          "ns_per_operation": 0.823225,
+          "checksum": "934180001dbe99807f64476c2edca400"
+        },
+        {
+          "phase": 5,
+          "mode": 0,
+          "operations": 4000000,
+          "elapsed_ns": 4678500,
+          "ns_per_operation": 1.169625,
+          "checksum": "934180001dbe99807f64476c2edca400"
+        },
+        {
+          "phase": 6,
+          "mode": 0,
+          "operations": 4000000,
+          "elapsed_ns": 4670200,
+          "ns_per_operation": 1.16755,
+          "checksum": "934180001dbe99807f64476c2edca400"
+        },
+        {
+          "phase": 7,
+          "mode": 1,
+          "operations": 4000000,
+          "elapsed_ns": 3356200,
+          "ns_per_operation": 0.83905,
+          "checksum": "934180001dbe99807f64476c2edca400"
+        }
+      ],
+      "mean_elapsed_ns": {
+        "0": 4634875,
+        "1": 3309500
+      },
+      "elapsed_reduction_percent": 28.595701070686907,
+      "private_record_sha256": "b186a23b58ec2b39165cb8da2ce338da139fe3b3e2ed2256544369cde626bedf",
+      "scope": "Four independent dependent-value streams over synthetic operand/control arrays; one host and one compiler, not game frame time"
+    },
+    "capped_native_comparison": {
+      "base_sdk_patches": 103,
+      "order": [
+        "reference",
+        "candidate",
+        "candidate",
+        "reference"
+      ],
+      "private_record_sha256": "2a857ad766470eb35e72949d025bb045f2d65f9b07e73bbfe2c2fa183028e8b5",
+      "hidden": true,
+      "core_audio_mute_verified": true,
+      "camera_input": "Same saved position; right-stick pulse 1600 ms, then settle and inspect one GPU frame before timing",
+      "timing": "12 seconds per view, no input, GPU readback or instruction-pointer sampling during timing",
+      "difference": "Only image-19 SHUFB body; both builds use the same current-SDK render census object",
+      "shared_render_census_obj_sha256": "2f9872d11d03603195cc362188378b8a9d2a8597491ebbf4ee648fac80d042bb",
+      "samples": [
+        {
+          "variant": "reference",
+          "probe": "20261019-092543",
+          "exe_sha256": "fa9f9847f19298b45a9eb7b41ff36aaaae929f59da0235ca0f1aa0eeccc2df56",
+          "presentations_per_second": 28.91291425231609,
+          "process_cpu_ms_per_present": 128.5122478386167,
+          "seconds": 12.00155739998445,
+          "resource_delta": {
+            "memory_allocations": 0,
+            "allocated_bytes": 0,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_creates": 0,
+            "uploads": 0,
+            "upload_bytes": 0,
+            "wait_failures": 0
+          },
+          "render_per_callback": {
+            "draws": 1448.920424403183,
+            "vertices": 184244.4403183024,
+            "indices": 338523.19893899205,
+            "vertex_upload_bytes": 9786666.73740053,
+            "index_upload_bytes": 1354092.7957559682,
+            "blended_draws": 1303.7135278514588,
+            "alpha_test_draws": 1386.8567639257294,
+            "depth_write_draws": 1102.6684350132625,
+            "constant_bytes": 12122963.734748011
+          },
+          "game_clock_deltas": [
+            12.005493592470884,
+            12.005493592470884,
+            360.16480779647827
+          ],
+          "inspected_view_png_sha256": "8f3141b96038b0ab649279449892e23cd1c4a65a9e5b689873a588a066babd91"
+        },
+        {
+          "variant": "candidate",
+          "probe": "20261019-092652",
+          "exe_sha256": "7344f1678203f5a2d85acb8a7e754728463d6eb34ef70e214032784e7dedc633",
+          "presentations_per_second": 29.91351228686355,
+          "process_cpu_ms_per_present": 127.65494428969359,
+          "seconds": 12.001265399972908,
+          "resource_delta": {
+            "memory_allocations": 0,
+            "allocated_bytes": 0,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_creates": 0,
+            "uploads": 0,
+            "upload_bytes": 0,
+            "wait_failures": 0
+          },
+          "render_per_callback": {
+            "draws": 1424.70737913486,
+            "vertices": 191578.04325699745,
+            "indices": 357530.7404580153,
+            "vertex_upload_bytes": 10261509.781170484,
+            "index_upload_bytes": 1430122.9618320612,
+            "blended_draws": 1288.0966921119593,
+            "alpha_test_draws": 1362.7582697201017,
+            "depth_write_draws": 1081.2213740458014,
+            "constant_bytes": 11922641.302798983
+          },
+          "game_clock_deltas": [
+            11.977741584181786,
+            11.977741584181786,
+            359.3322474360466
+          ],
+          "inspected_view_png_sha256": "fa840f24743ec7f22b14ba15d30ee19f2f663bf1431c27875b6c6263da468838"
+        },
+        {
+          "variant": "candidate",
+          "probe": "20261019-092800",
+          "exe_sha256": "7344f1678203f5a2d85acb8a7e754728463d6eb34ef70e214032784e7dedc633",
+          "presentations_per_second": 29.915770689332305,
+          "process_cpu_ms_per_present": 130.00522284122562,
+          "seconds": 12.000359400000889,
+          "resource_delta": {
+            "memory_allocations": 0,
+            "allocated_bytes": 0,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_creates": 0,
+            "uploads": 0,
+            "upload_bytes": 0,
+            "wait_failures": 0
+          },
+          "render_per_callback": {
+            "draws": 1420.3035714285713,
+            "vertices": 194439.7219387755,
+            "indices": 363296.762755102,
+            "vertex_upload_bytes": 10297425.265306123,
+            "index_upload_bytes": 1453187.051020408,
+            "blended_draws": 1283.1632653061224,
+            "alpha_test_draws": 1358.3979591836735,
+            "depth_write_draws": 1077.7244897959183,
+            "constant_bytes": 11883978.24489796
+          },
+          "game_clock_deltas": [
+            12.010590799152851,
+            12.010590799152851,
+            360.31772577762604
+          ],
+          "inspected_view_png_sha256": "9fe20f58b360e242c22bf8c2ac53b4628f81268b7735054aa0cbb5278e29f30b"
+        },
+        {
+          "variant": "reference",
+          "probe": "20261019-092909",
+          "exe_sha256": "fa9f9847f19298b45a9eb7b41ff36aaaae929f59da0235ca0f1aa0eeccc2df56",
+          "presentations_per_second": 29.91335999392081,
+          "process_cpu_ms_per_present": 127.78551532033426,
+          "seconds": 12.0013265000307,
+          "resource_delta": {
+            "memory_allocations": 0,
+            "allocated_bytes": 0,
+            "memory_frees": 0,
+            "texture_releases": 0,
+            "closed_release_with_spare_pending": 0,
+            "deferred_list_full": 0,
+            "texture_creates": 0,
+            "uploads": 0,
+            "upload_bytes": 0,
+            "wait_failures": 0
+          },
+          "render_per_callback": {
+            "draws": 1410.0613810741688,
+            "vertices": 186579.4347826087,
+            "indices": 347287.59590792836,
+            "vertex_upload_bytes": 9959473.759590793,
+            "index_upload_bytes": 1389150.3836317135,
+            "blended_draws": 1270.987212276215,
+            "alpha_test_draws": 1348.0613810741688,
+            "depth_write_draws": 1066.2557544757033,
+            "constant_bytes": 11798407.283887468
+          },
+          "game_clock_deltas": [
+            11.99428639933467,
+            11.99428639933467,
+            359.8285907506943
+          ],
+          "inspected_view_png_sha256": "e298edc044abcd78c337bd3ee9906125258c1856d170ae03cc20d4276d016c30"
+        }
+      ],
+      "means": {
+        "reference": {
+          "presentations_per_second": 29.41313712311845,
+          "process_cpu_ms_per_present": 128.14888157947547
+        },
+        "candidate": {
+          "presentations_per_second": 29.914641488097928,
+          "process_cpu_ms_per_present": 128.8300835654596
+        }
+      },
+      "consistent_game_fps_gain_verified": false,
+      "limits": [
+        "30 FPS cap obscures headroom",
+        "Camera angles and autonomous NPC/geometry workloads differ",
+        "Candidate process CPU per presentation is not lower in these live samples",
+        "Presentations do not identify unique animation states"
+      ]
+    },
+    "patch_stack": [
+      {
+        "case": "clean",
+        "result": "SDK patch stack: 104 patches, prefix 0, 84 files updated"
+      },
+      {
+        "case": "upgrade103",
+        "result": "SDK patch stack: 104 patches, prefix 103, 1 files updated"
+      },
+      {
+        "case": "reapply",
+        "result": "SDK patch stack: 104 patches, prefix 104, 0 files updated"
+      }
+    ],
+    "regular_native": {
+      "probe": "20261019-094217",
+      "exe_sha256": "6e2e0969bdab0ec9127681859b3855a093954fcf96ab1ed8615ae1a0a375b782",
+      "continue_reload": true,
+      "short_forward_back_movement": true,
+      "hidden": true,
+      "core_audio_mute_verified": true,
+      "inspected_gpu_readbacks": true,
+      "automatic_gpu_readbacks": true,
+      "timing_comparison_eligible": false,
+      "frame_sha256": {
+        "regular-town.png": "83fb427ed016a5b8cebc5d9cd5aecd0fb69ff2cfe0f77aaa647c6ae446b4b6e3",
+        "regular-moved.png": "2daa98b994d0ed46856b7688cd5575a309633d217dfe2015da9ddfff0e7b409d"
+      }
+    },
+    "limits": [
+      "Default optimized path is SSE4.1 only; other targets retain the portable helper",
+      "Native Mac/Linux, sustained traversal, unique-animation cadence and steady 30/60 FPS remain unverified"
+    ]
+  },
+  "unlocked_headroom_2026_10_19": {
+    "sdk_patches": 104,
+    "probe": "20261019-093938",
+    "exe_sha256": "c82d9d50518dfa1fa005dd948540146c00e99deb3edb8691a199d0f2311e06dc",
+    "mode": "Unlocked, VSync off, output 720p; current private render census on all current Release objects",
+    "hidden": true,
+    "core_audio_mute_verified": true,
+    "unique_animation_frames_counted": false,
+    "stationary_npc_view": {
+      "presentations_per_second": 32.660307704655416,
+      "process_cpu_ms_per_present": 121.57206632653062,
+      "seconds": 12.002336400037166,
+      "game_clock_rates": [
+        0.9977922973537365,
+        0.9977922973537365,
+        29.933768950408616
+      ],
+      "inspected_view_png_sha256": "313973b8b833b058bffa444737636f2a730b8dc4df1dc2ff99ef9a874c1d8866"
+    },
+    "short_movement_route": [
+      {
+        "phase": "idle",
+        "seconds": 10.001211700029671,
+        "presentations_per_second": 28.596534957774317,
+        "game_clock_rates": [
+          0.9999896847103479,
+          0.9999896847103479,
+          29.999690542800373
+        ]
+      },
+      {
+        "phase": "forward",
+        "seconds": 10.00069130002521,
+        "presentations_per_second": 33.0977119550891,
+        "game_clock_rates": [
+          0.9961044151201826,
+          0.9925834560194592,
+          29.77750368021127
+        ]
+      },
+      {
+        "phase": "back",
+        "seconds": 10.001022699987516,
+        "presentations_per_second": 40.09589939241919,
+        "game_clock_rates": [
+          1.003040278951805,
+          1.003040278951805,
+          30.09120834639094
+        ]
+      }
+    ],
+    "steady_60_fps_verified": false,
+    "limits": [
+      "One saved view and short route; no fixed-work comparison with the capped runs",
+      "Sampled clock rates do not establish correct animation, input or cutscene speed",
+      "No end-to-end 60+ FPS gameplay claim; current default remains 30 FPS"
+    ]
+  },
+  "exact_float_fork_review_2026_10_19": {
+    "sources": {
+      "math_commit": "517fc717f73030d62dbaa9a991c118c6bd3cd6a2",
+      "compare_commit": "ef060b373f4f7794caa9bab83528c36f88e5f452"
+    },
+    "scope": "Standalone exact-helper adaptation experiments; default host arithmetic and production FNMS unchanged",
+    "per_rounding_evidence": [
+      {
+        "configuration": "release-default",
+        "cases": [
+          {
+            "rounding": 0,
+            "ftz_daz": 0,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 0,
+            "ftz_daz": 1,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 1,
+            "ftz_daz": 0,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              1024,
+              1077,
+              1636
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 1,
+            "ftz_daz": 1,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              1024,
+              1077,
+              1636
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 2,
+            "ftz_daz": 0,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              1647,
+              1644,
+              1113
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 2,
+            "ftz_daz": 1,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              1647,
+              1644,
+              1113
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 3,
+            "ftz_daz": 0,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 3,
+            "ftz_daz": 1,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "exit_code": 0,
+        "flags": [
+          "/nologo",
+          "/w",
+          "/O2",
+          "/MD",
+          "/arch:AVX2"
+        ]
+      },
+      {
+        "configuration": "strict",
+        "cases": [
+          {
+            "rounding": 0,
+            "ftz_daz": 0,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 0,
+            "ftz_daz": 1,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 1,
+            "ftz_daz": 0,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              1024,
+              1077,
+              1636
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 1,
+            "ftz_daz": 1,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              1024,
+              1077,
+              1636
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 2,
+            "ftz_daz": 0,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              1647,
+              1644,
+              1113
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 2,
+            "ftz_daz": 1,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              1647,
+              1644,
+              1113
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 3,
+            "ftz_daz": 0,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "rounding": 3,
+            "ftz_daz": 1,
+            "raw_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "guarded_mismatches": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "exit_code": 0,
+        "flags": [
+          "/nologo",
+          "/w",
+          "/O2",
+          "/MD",
+          "/arch:AVX2",
+          "/fp:strict",
+          "/clang:-ffp-contract=off"
+        ]
+      }
+    ],
+    "fork_scalar_reference_mismatches": 0,
+    "sse2_comparison_mismatches": 0,
+    "native_game_tested": false,
+    "unconditional_fused_path_promoted": false,
+    "nearest_rounding_guard_promoted": false,
+    "finding": "Unconditional fused AVX2 adaptation differs under directed host rounding; a nearest-rounding guard passes this corpus but requires further integration and native validation"
+  },
+  "fps_overlay_gallery_2026_10_19": {
+    "sdk_patches": 104,
+    "private_capture_exe_sha256": "dfc289cd86c91040610b1b36f5680423f2592e9c709e1425c9906480353b1768",
+    "production_exe_sha256": "6e2e0969bdab0ec9127681859b3855a093954fcf96ab1ed8615ae1a0a375b782",
+    "capture_method": "Copy the actual swapchain after the existing counter glyph blit; write RGB only after completed submission fence",
+    "difference_from_production": "One backend object adds gated capture only; counter rendering and game pixels are unchanged",
+    "pixel_edits": false,
+    "desktop_capture": false,
+    "captures": [
+      {
+        "probe": "20261019-100123",
+        "frame_limit": 30,
+        "displayed_fps": 29.5,
+        "actual_counter_value": 29.494715770119797,
+        "png_sha256": "cc4c9aeb4ade90c20b3677ab98d5c1b89dd509c5a75b7199e56190d82a95a516",
+        "source_ppm_sha256": "ead028aec4c137d021665e11541cba82dc89dd9fb52bf4ccfd27be02c71c582a",
+        "width": 1280,
+        "height": 720,
+        "vk_format": 44,
+        "gpu_fence_completed": true,
+        "fps_counter_enabled": true,
+        "output_resolution": "720p",
+        "hidden": true,
+        "core_audio_mute_verified": true
+      },
+      {
+        "probe": "20261019-100215",
+        "frame_limit": 0,
+        "displayed_fps": 33.4,
+        "actual_counter_value": 33.35257250012573,
+        "png_sha256": "1f7faa73eaf387b5f29add68de88ba72801d2b86b76934ac0a81c34295ebe278",
+        "source_ppm_sha256": "ecb052082ac6e0ac82ffdf66341dbbb3b510f389ab2680d8a4a3617ec4ccc2ec",
+        "width": 1280,
+        "height": 720,
+        "vk_format": 44,
+        "gpu_fence_completed": true,
+        "fps_counter_enabled": true,
+        "output_resolution": "720p",
+        "hidden": true,
+        "core_audio_mute_verified": true
+      }
+    ],
+    "limits": [
+      "Counter is a recent presentation rate, not a unique-animation or scanout counter",
+      "Two different runs and camera views; these stills are not a controlled cap or optimization benchmark",
+      "Instant readings do not establish sustained 30/60 FPS gameplay"
+    ]
   }
 }

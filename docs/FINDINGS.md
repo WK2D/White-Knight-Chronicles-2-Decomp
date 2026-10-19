@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 103 SDK patches / 90 Windows checks in Debug and
+**Current source checkpoint:** 104 SDK patches / 92 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -26,6 +26,8 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 **Performance, timing and presentation**
 
+- [Host-layout SPU shuffle and unlocked headroom](#host-layout-spu-byte-shuffle-and-unlocked-headroom-patch-0104)
+- [Exact-float fork compatibility review](#exact-float-fork-compatibility-review)
 - [Vulkan constant upload reuse](#vulkan-constant-upload-reuse-patch-0103)
 - [NPC visibility and continuing geometry work](#npc-visibility-and-continuing-geometry-work)
 - [Vulkan batch resource lifetimes](#vulkan-batch-resource-lifetimes-patch-0102)
@@ -249,6 +251,68 @@ PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
+
+## Host-layout SPU byte shuffle and unlocked headroom (patch 0104)
+
+**Problem.** The current geometry workload contains frequent SPU byte shuffles.
+The existing SSE4.1 implementation paid for four byte-order conversions per
+call. Near-30 presentation rates also reached the selected frame cap, obscuring
+how much additional throughput was available.
+
+**Fix.** Patch 0104 adapts the [host-layout SHUFB implementation](https://github.com/JonathanDC64/ps3recomp/commit/6a019d53d4ce195d1f469c75ad1c9564513b7f85)
+without changing SPU byte positions or special selectors. It preserves the
+portable path, other operations, float-mode dispatch and diagnostics.
+
+**Evidence.** The independent byte oracle passes 204,352 cases for each of the
+SIMD and forced-scalar checks; a missing source-lane XOR fails. All 92 Windows
+checks pass in Debug and Release. A private image-19 native verifier samples
+5,351,813 actual calls with zero mismatches. Eight alternating synthetic runs,
+four million operations each, average 4.63 ms on the old helper and 3.31 ms on
+the new one with matching checksums. This is a helper benchmark, not a game FPS
+measurement.
+
+Four fresh Continue runs compare original/new/new/original image-19 builds,
+with identical render counters in each, a 30 FPS cap and one inspected NPC-facing
+frame before each 12-second observation. Reference samples measure 28.91 and
+29.91 presentations/s; new samples 29.91 and 29.92. Process CPU per presentation
+averages 128.15/128.83 ms, while the new samples submit more vertices. The cap,
+camera differences and autonomous geometry prevent a consistent game-speed
+improvement claim. The regular 104-patch Release build also reloads Continue and
+completes short town movement; its automatic readbacks were inspected.
+
+A separate Unlocked run measures 32.66 presentations/s in its NPC view and
+28.60, 33.10 and 40.10 over three short route sections. The sampled seconds-based
+game clock advances at 0.998 seconds per wall second in the NPC view. These
+samples show some headroom above the baseline cap; they do not establish unique
+animation updates, stable traversal or 60 FPS gameplay. The next performance
+target is 60 FPS and above with correct animation, input and cutscene speed.
+
+**Limits.** Default play settings remain unchanged. Smooth sustained 30 FPS,
+the higher target, foot/Logic Stone flicker, full rendering fidelity and native
+Mac/Linux remain open. Reviewed counters and provenance are in
+[`verification/performance.json`](../verification/performance.json), under
+`spu_shufb_host_layout_2026_10_19` and `unlocked_headroom_2026_10_19`.
+
+## Exact-float fork compatibility review
+
+**Investigation.** Standalone adaptations of Kurtisone's
+[AVX2 math](https://github.com/Kurtisone/ps3recomp/commit/517fc717f73030d62dbaa9a991c118c6bd3cd6a2)
+and [SSE2 comparisons](https://github.com/Kurtisone/ps3recomp/commit/ef060b373f4f7794caa9bab83528c36f88e5f452)
+were compared with WKC's existing exact helpers. Neither change is promoted.
+
+**Evidence.** The scalar fork reference and all four SSE2 comparisons match the
+tested WKC results. Unguarded fused AVX2 math differs under directed host
+rounding: for example, a tiny positive product added to the negative minimum
+normal can incorrectly retain that normal instead of the SPU flush-to-zero
+result. Fixed inputs give the same failures in default and strict compiler
+builds with separate TwoSum instructions. A nearest-rounding-only guard, falling
+back to the existing exact helper otherwise, passes this corpus.
+
+**Limits.** These are standalone compatibility results, not native validation or
+a current town FPS gain. WKC normally uses its separate host-math mode; the
+existing exact FNMS optimization and audit reporting must also be preserved.
+Raw source replacement would discard those choices. Reviewed per-mode results
+are recorded in the performance JSON as `exact_float_fork_review_2026_10_19`.
 
 ## Vulkan constant upload reuse (patch 0103)
 

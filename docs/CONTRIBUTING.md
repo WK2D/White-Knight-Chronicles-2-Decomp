@@ -33,7 +33,7 @@ personal attribution is not desired. Configure them for this repository only.
 ## Regression checks and evidence
 
 The runtime regressions run through `tools/build.ps1`; the current Windows Vulkan
-configuration passes 90 checks with 103 SDK patches in Debug and Release. See
+configuration passes 92 checks with 104 SDK patches in Debug and Release. See
 [BUILD.md](BUILD.md) for
 the pinned dependencies and regeneration workflow. When reporting a
 rendering improvement, inspect a real GPU readback; frame counters alone do not

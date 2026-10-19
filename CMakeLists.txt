@@ -431,6 +431,31 @@ if(WKC2_BUILD_TESTS)
     target_include_directories(wkc2_spu_cntb_test PRIVATE "${PS3RECOMP_DIR}/runtime/spu")
     add_test(NAME wkc2_spu_cntb COMMAND wkc2_spu_cntb_test)
     set_tests_properties(wkc2_spu_cntb PROPERTIES TIMEOUT 10)
+
+    foreach(shufb_path IN ITEMS default scalar)
+        add_executable(wkc2_spu_shufb_${shufb_path}_test tests/spu_shufb_test.c)
+        target_include_directories(wkc2_spu_shufb_${shufb_path}_test PRIVATE
+            "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/spu")
+        if(shufb_path STREQUAL "scalar")
+            target_compile_definitions(wkc2_spu_shufb_${shufb_path}_test PRIVATE
+                PS3RECOMP_SPU_SHUFB_SCALAR=1 WKC2_SHUFB_EXPECT_SCALAR=1)
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|amd64|x86_64|x64|i[3-6]86)$"
+               AND CMAKE_C_COMPILER_ID MATCHES "^(Clang|AppleClang|GNU)$")
+            # The normal Windows clang-cl build uses AVX2 already. Explicitly
+            # select an ISA here so this test cannot silently run only scalar.
+            target_compile_definitions(wkc2_spu_shufb_${shufb_path}_test PRIVATE
+                WKC2_SHUFB_EXPECT_SIMD=1)
+            if(MSVC)
+                target_compile_options(wkc2_spu_shufb_${shufb_path}_test PRIVATE /arch:AVX2)
+            else()
+                target_compile_options(wkc2_spu_shufb_${shufb_path}_test PRIVATE -msse4.1)
+            endif()
+        endif()
+        add_test(NAME wkc2_spu_shufb_${shufb_path}
+            COMMAND wkc2_spu_shufb_${shufb_path}_test)
+        set_tests_properties(wkc2_spu_shufb_${shufb_path} PROPERTIES TIMEOUT 15)
+    endforeach()
+
     foreach(byte_variant IN ITEMS vector scalar)
         add_executable(wkc2_spu_byte_${byte_variant}_test tests/spu_byte_ops_test.c)
         target_include_directories(wkc2_spu_byte_${byte_variant}_test PRIVATE

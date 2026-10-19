@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0104 | [Host-layout SPU byte shuffle](#host-layout-spu-byte-shuffle-patch-0104) |
 | Patch 0103 | [Vulkan constant upload reuse](#vulkan-constant-upload-reuse-patch-0103) |
 | Patch 0102 | [Vulkan batch resource lifetimes](#vulkan-batch-resource-lifetimes-patch-0102) |
 | Patch 0101 | [Grouped vertex conversion](#grouped-vertex-conversion-patch-0101) |
@@ -38,6 +39,32 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Host-layout SPU byte shuffle (patch 0104)
+
+**Problem.** The SSE4.1 SHUFB helper swapped both inputs and the control vector
+into SPU byte order, selected bytes, then swapped the result back. Geometry jobs
+call this helper frequently.
+
+**Fix.** Adapt [JonathanDC64's host-layout shuffle](https://github.com/JonathanDC64/ps3recomp/commit/6a019d53d4ce195d1f469c75ad1c9564513b7f85):
+select the source host byte with `(selector & 15) ^ 3`, use bit 4 to select the
+input and retain the special zero/255/128 selector classes. This removes four
+byte-order conversions. Other operations and float modes are unchanged. The
+portable implementation remains available, with a compile-time scalar override
+for testing. The SDK MIT license is retained.
+
+**Evidence.** Both new checks use an independent numerical-word byte oracle over
+204,352 synthetic cases, including every selector in every output lane. Removing
+the host-lane XOR fails the same check. All 92 Windows checks pass in Debug and
+Release; clean application, prefix-103 upgrade and no-op reapplication pass.
+A private image-19 verifier compares 5,351,813 sampled actual helper calls with
+the scalar reference, with zero mismatches. The regular Release build reloads
+Continue and completes short town movement; GPU readbacks were inspected.
+
+**Limits.** The synthetic four-million-operation benchmark falls from 4.63 to
+3.31 ms on this host. Capped saved-town samples do not establish a consistent
+game FPS gain. Mac/Linux native behavior remains unverified. See the
+[full conditions and unlocked probe](FINDINGS.md#host-layout-spu-byte-shuffle-and-unlocked-headroom-patch-0104).
 
 ## Vulkan constant upload reuse (patch 0103)
 

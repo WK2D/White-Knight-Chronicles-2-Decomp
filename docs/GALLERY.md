@@ -8,11 +8,12 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 103 SDK patches / 90 Windows checks. The shader-translation
+Current source: 104 SDK patches / 92 Windows checks. The shader-translation
 cache reduces measured compilation stalls; existing images retain their original
-build provenance. The newest town captures
-check the 99-patch depth-range/query candidate; the menu captures use 83 patches. They
-are final Vulkan swapchain readbacks, including window scaling and FXAA.
+build provenance. The newest captures show the native FPS overlay in town after
+Continue in the 104-patch build, with 30 and Unlocked frame limits. They are final
+Vulkan swapchain readbacks after the overlay. The earlier depth-range captures use
+99 patches and the menu captures use 83 patches, with their original settings.
 The earlier LOD comparison is captured before window scaling. Saving and Continue
 reload work; normal shadow polarity is restored. Foot/Logic Stone flicker,
 incomplete rendering state and town lag remain open. Still images do not prove
@@ -30,6 +31,7 @@ the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-19 | [Town FPS checkpoint](#2026-10-19---town-fps-checkpoint) | <a href="#2026-10-19---town-fps-checkpoint"><img src="../verification/screenshots/2026-10-19-native-town-fps-unlocked.png" width="200" alt="Town with native FPS overlay"></a> |
 | 2026-10-15 | [First native screen](#2026-10-15--language-selection) | <a href="#2026-10-15--language-selection"><img src="../verification/screenshots/2026-10-15-language-selection.png" width="200" alt="First native screen"></a> |
 | 2026-10-16 | [Startup logos play](#2026-10-16--d3publisher-logo-playback) | <a href="#2026-10-16--d3publisher-logo-playback"><img src="../verification/screenshots/2026-10-16-d3publisher-logo.png" width="200" alt="Startup logos play"></a> |
 | 2026-10-16 | [Title menu](#2026-10-16--title-menu) | <a href="#2026-10-16--title-menu"><img src="../verification/screenshots/2026-10-16-title-menu.png" width="200" alt="Title menu"></a> |
@@ -51,6 +53,28 @@ Fixes with a visible difference. Each entry below gives the test conditions.
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
 | [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
+
+## 2026-10-19 - Town FPS checkpoint
+
+The 104-patch Vulkan build reloads the verified WKC1 save through Continue.
+These fresh captures show the native FPS counter in town with the frame limit
+set to Unlocked and 30. All 92 Windows checks pass in Debug and Release.
+
+**Unlocked: the counter shows 33.4 completed presentations/s at capture.**
+
+![Town with the native FPS counter showing 33.4 and the frame limit unlocked](../verification/screenshots/2026-10-19-native-town-fps-unlocked.png)
+
+**30 limit: the counter shows 29.5 completed presentations/s at capture.**
+
+![Town with the native FPS counter showing 29.5 and the frame limit set to 30](../verification/screenshots/2026-10-19-native-town-fps-30.png)
+
+Both images are unmodified 1280x720 final swapchain GPU readbacks, copied after
+the unchanged native FPS overlay and GPU completion. FXAA is off. The hidden
+runs had audio muting verified and used a short camera turn after loading.
+Their camera angles differ, so these are not a controlled performance comparison.
+The counter records presentations at capture; still images do not establish a
+sustained frame rate, smooth animation or unique game updates. Foot/Logic Stone
+flicker and wider rendering fidelity remain open.
 
 ## 2026-10-19 - Window-depth clip range check
 

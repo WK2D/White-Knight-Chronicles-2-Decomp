@@ -4,10 +4,10 @@ A native C++ port of **White Knight Chronicles II** built by statically recompil
 the PS3 game code. Development targets **Windows with Vulkan** and starts with
 **White Knight Chronicles I**, which is included on the disc.
 
-[![White Knight Chronicles I town running in the native Vulkan build](verification/screenshots/2026-10-19-native-depth-range-front.png)](docs/GALLERY.md)
+[![White Knight Chronicles I town running in the native Vulkan build](verification/screenshots/2026-10-19-native-town-fps-unlocked.png)](docs/GALLERY.md)
 
-<sub>Native Windows town capture, 19 October 2026. Select the image for the progress
-gallery, including the Graphics Settings menu, newest first.</sub>
+<sub>Native Vulkan town with the FPS overlay, 19 October 2026. Select the image
+for capture settings and the progress gallery, newest first.</sub>
 
 <p><a href="docs/GALLERY.md#2026-10-15--language-selection"><img src="verification/screenshots/2026-10-15-language-selection.png" width="150" alt="First screen, 15 Oct" title="First screen, 15 Oct"></a> <a href="docs/GALLERY.md#2026-10-16--title-menu"><img src="verification/screenshots/2026-10-16-title-menu.png" width="150" alt="Title menu, 16 Oct" title="Title menu, 16 Oct"></a> <a href="docs/GALLERY.md#2026-10-16--vulkan-avatar-colours-restored"><img src="verification/screenshots/2026-10-16-native-vulkan-avatar-colours.png" width="150" alt="Avatar creation, 16 Oct" title="Avatar creation, 16 Oct"></a> <a href="docs/GALLERY.md#2026-10-17--town-stretching-fixed-secondary-bone-physics"><img src="verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="150" alt="Town, 17 Oct" title="Town, 17 Oct"></a> <a href="docs/GALLERY.md#2026-10-18---native-graphics-settings"><img src="verification/screenshots/2026-10-18-native-graphics-settings.png" width="150" alt="Graphics Settings, 18 Oct" title="Graphics Settings, 18 Oct"></a></p>
 
@@ -27,7 +27,7 @@ can resume from a local save.
   Continue after restarting.
 - A dedicated **Triangle → System → Graphics Settings** panel with persistent
   preferences, the game's menu frame and a scrollbar.
-- **90 Windows regression checks** pass in both Debug and optimized Release. The
+- **92 Windows regression checks** pass in both Debug and optimized Release. The
   latest native check loads Continue and moves briefly in town.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
@@ -117,6 +117,7 @@ port has drawn on:
 - [PS3Recomp](https://github.com/sp00nznet/ps3recomp) by sp00nznet and contributors
 - [Drakengard 3 recomp](https://github.com/soyjxck/dod3-recomp) and [PS3Recomp fork](https://github.com/soyjxck/ps3recomp) by soyjxck
 - [PS3Recomp fork](https://github.com/NoahBPeterson/ps3recomp) by NoahBPeterson
+- [PS3Recomp fork](https://github.com/JonathanDC64/ps3recomp) by JonathanDC64
 - [inFAMOUS 2 recomp](https://github.com/erikomis/infamous2-recomp) by erikomis
 - [Killzone 3 fix catalogue](https://gist.github.com/undecuple/2845432bf13e485634de122084d3fd56) by undecuple
 - [Soulcalibur II HD recomp](https://github.com/n0madic/Soulcalibur2HD-recomp) by n0madic

@@ -4,12 +4,12 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-19",
-    "native_probe": "20261019-073204",
-    "sdk_patch_count": 102,
-    "summary": "Vulkan deferred textures now wait for the pending GPU slot, and skipped window presentation drains submitted work before retirement. 102 SDK patches / 89 Windows checks pass in Debug and Release; Continue and short town movement are rechecked. This is a resource-lifetime fix; smooth 30 FPS traversal, game-speed fidelity and flicker fixes remain unverified.",
-    "gallery_image": "screenshots/2026-10-19-native-depth-range-front.png",
-    "gallery_image_sdk_patch_count": 99,
-    "gallery_image_scope": "Earlier town rendering reference; no new visual-fidelity claim or screenshot for the resource-lifetime fix",
+    "native_probe": "20261019-094217",
+    "sdk_patch_count": 104,
+    "summary": "Host-layout SPU byte shuffle preserves tested semantics and reduces synthetic helper cost. All 92 Windows checks pass in Debug and Release; regular Release Continue and short town movement rechecked. Sustained smooth 30 FPS, 60+ FPS gameplay and full rendering fidelity remain open.",
+    "gallery_image": "screenshots/2026-10-19-native-town-fps-unlocked.png",
+    "gallery_image_sdk_patch_count": 104,
+    "gallery_image_scope": "Current 104-patch game frame with live FPS overlay, actual post-overlay swapchain pixels from a private capture-only backend; no sustained-performance claim",
     "remaining_limits": [
       "Smooth 30 FPS traversal and console-equivalent animation speed unverified",
       "First-use shader compilation and other CPU/graphics costs remain",
@@ -67,6 +67,28 @@
     "window_close_title_and_saved_town_settings": true
   },
   "captures": [
+    {
+      "file": "screenshots/2026-10-19-native-town-fps-unlocked.png",
+      "sha256": "1f7faa73eaf387b5f29add68de88ba72801d2b86b76934ac0a81c34295ebe278",
+      "width": 1280,
+      "height": 720,
+      "sdk_patch_count": 104,
+      "native_probe": "20261019-100215",
+      "source": "Actual swapchain GPU readback after unchanged FPS overlay",
+      "visible_fps_counter": 33.4,
+      "performance_proven_by_still_image": false
+    },
+    {
+      "file": "screenshots/2026-10-19-native-town-fps-30.png",
+      "sha256": "cc4c9aeb4ade90c20b3677ab98d5c1b89dd509c5a75b7199e56190d82a95a516",
+      "width": 1280,
+      "height": 720,
+      "sdk_patch_count": 104,
+      "native_probe": "20261019-100123",
+      "source": "Actual swapchain GPU readback after unchanged FPS overlay",
+      "visible_fps_counter": 29.5,
+      "performance_proven_by_still_image": false
+    },
     {
       "file": "screenshots/2026-10-19-native-depth-range-front.png",
       "private_source_probe": "20261019-004357/final-town.ppm",
@@ -331,19 +353,21 @@
       "wkc2_event_queue",
       "wkc2_vertex_batch",
       "wkc2_vk_batch_lifetime",
-      "wkc2_vk_constant_reuse"
+      "wkc2_vk_constant_reuse",
+      "wkc2_spu_shufb_default",
+      "wkc2_spu_shufb_scalar"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 103,
-    "last_verified_sdk_patch_count": 103,
-    "current_passed_count": 90,
-    "record_scope": "103 SDK patches / 90 Windows Vulkan checks pass in Debug and Release; all media checks ran without skips.",
-    "normal_debug_elapsed_seconds": 23.88,
-    "optimized_release_elapsed_seconds": 20.54,
+    "current_sdk_patch_count": 104,
+    "last_verified_sdk_patch_count": 104,
+    "current_passed_count": 92,
+    "record_scope": "104 SDK patches / 92 Windows Vulkan checks pass in Debug and Release; all media checks ran without skips. Separate temporary settings directories per build.",
+    "normal_debug_elapsed_seconds": 25.62,
+    "optimized_release_elapsed_seconds": 22.38,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 103
+    "repeat_patch_application_verified_sdk_patch_count": 104
   },
   "gallery": "gallery.json",
   "historical_probe": {
