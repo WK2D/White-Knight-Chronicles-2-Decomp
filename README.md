@@ -1,40 +1,41 @@
 # White Knight Chronicles II Recomp
 
-A C++ native-port project for **White Knight Chronicles II**, using static
-recompilation of the PS3 game code. Development currently targets **Windows with
-Vulkan**, starting with **White Knight Chronicles I**, which is included on the disc.
-Linux and Apple Silicon support are longer-term goals.
+A native C++ port of **White Knight Chronicles II** built by statically recompiling
+the PS3 game code. Development targets **Windows with Vulkan** and starts with
+**White Knight Chronicles I**, which is included on the disc.
 
-[![White Knight Chronicles I town running in the native Vulkan build](verification/screenshots/2026-10-19-native-depth-range-front.png)](docs/GALLERY.md)
+![White Knight Chronicles I town running in the native Vulkan build](verification/screenshots/2026-10-19-native-depth-range-front.png)
 
-*Native Windows town capture, 19 October 2026. [View the progress gallery](docs/GALLERY.md)
-for more screenshots, including the Graphics Settings menu. Newest images appear first.*
+<sub>Native Windows town capture, 19 October 2026. More screenshots, including the
+Graphics Settings menu, are in the progress gallery.</sub>
 
-## Current status
+## Status
 
-The native build reaches the WKC1 starting town and can resume from a local save.
-It is an early development build, with the following verified:
+Early development build. The native Windows build reaches the WKC1 starting town and
+can resume from a local save.
+
+**Verified**
 
 - Startup screens, title menus, movie playback and avatar creation.
 - Town rendering, short character movement, camera control and pause/resume.
-- Logic Stone targeting, saving one starting-town slot and loading it through Continue
-  after restarting.
+- Logic Stone targeting, saving one starting-town slot and loading it through
+  Continue after restarting.
 - A dedicated **Triangle → System → Graphics Settings** panel with persistent
   preferences, the game's menu frame and a scrollbar.
-- **84 Windows regression checks** passing in both Debug and optimized Release.
-  The latest native check loads Continue and moves briefly in town.
+- **84 Windows regression checks** pass in both Debug and optimized Release. The
+  latest native check loads Continue and moves briefly in town.
 
-The graphics panel includes windowed/borderless/fullscreen modes, named output
-resolutions, VSync, anisotropic filtering from Off to 16×, Off/FXAA anti-aliasing,
-30/40/60/120/144/Unlocked frame limits and an optional transparent FPS overlay.
+**Graphics settings:** windowed, borderless and fullscreen modes; named output
+resolutions; VSync; anisotropic filtering from Off to 16×; Off/FXAA anti-aliasing;
+30/40/60/120/144/Unlocked frame limits; and an optional transparent FPS overlay.
 Vulkan is the primary renderer. DirectX 12 is an experimental, restart-selected
 comparison path with incomplete settings and rendering parity.
 
-Higher frame limits can exceed 30 completed frames/s in short probes. Smooth,
-sustained 60 FPS gameplay has not been established. The window-title `Present/s`
-counter measures presentations and can include repeated animation states.
+**Frame rate:** higher frame limits can exceed 30 completed frames/s in short probes,
+but smooth, sustained 60 FPS gameplay has not been established. The window-title
+`Present/s` counter measures presentations and can include repeated animation states.
 
-## What needs work
+## Known issues
 
 - **Performance and game timing:** movement still stutters, and loading and cutscene
   timing need further comparison with RPCS3. Consistent frame pacing is a priority.
@@ -45,15 +46,44 @@ counter measures presentations and can include repeated animation states.
   consistency, especially at angles, still needs comparison.
 - **Gameplay coverage:** sustained traversal, combat, a complete playthrough and
   broader save compatibility remain unverified.
-- **Planned features:** draw distance and fog controls, removal of menu background
-  blur, and an in-game keyboard navigable with a gamepad.
 
-See the [findings log](docs/FINDINGS.md) for evidence, measurements and investigation
-history, and the [runtime audit](docs/KILLZONE_FIX_AUDIT.md) for remaining implementation gaps.
+Evidence, measurements and investigation history are in the findings log; remaining
+runtime implementation gaps are tracked in the runtime audit.
 
-## Documentation
+## Roadmap
 
-| Page | What it covers |
+- **Features:** draw distance and fog controls, removal of menu background blur, and
+  an in-game keyboard navigable with a gamepad.
+- **USA update 1.01 and DLC:** integrate the updated executable and content, then
+  validate loading, gameplay and save compatibility.
+- **European DLC:** investigate content differences and compatibility with the USA
+  build. An EU-only file entry has been identified; its purpose and compatibility
+  remain unverified.
+- **Japanese release:** the game, DLC and all ten update packages are available for
+  research. The long-term goal is to add **all Japanese-exclusive content with
+  English translations**, plus **optional Japanese voiceovers**.
+- **Platforms:** Linux and Apple Silicon support are longer-term goals.
+
+Development continues on the original USA disc baseline, with WKC1 tested first.
+These are planned additions; update, DLC and cross-region runtime support are not
+verified yet. GeoNet compatibility is separate later research.
+
+## How it works
+
+The game code is translated to C/C++ ahead of time and compiled with a runtime that
+implements the PS3 services it uses. Some SPU paths still use an interpreter
+fallback, so this is not yet a fully static port, and it is not a recovered version
+of the original source. The architecture page explains the execution model and the
+remaining work.
+
+## Building and documentation
+
+This repository contains project source, build tools, SDK patches and verification
+records. Building requires privately prepared game files from the **USA BLUS30784
+version 01.00 disc**. Game files and generated game sources are kept outside this
+repository.
+
+| Page | Contents |
 | --- | --- |
 | [Build guide](docs/BUILD.md) | Requirements, private workspace layout, building, regression checks, play and diagnostic options |
 | [Findings log](docs/FINDINGS.md) | Verified results, measurements, open issues and investigation history, grouped by topic |
@@ -65,41 +95,9 @@ history, and the [runtime audit](docs/KILLZONE_FIX_AUDIT.md) for remaining imple
 | [Code review history](docs/CODE_REVIEW.md) | Review findings, fixes and the checks that were run |
 | [Contributing](docs/CONTRIBUTING.md) | Contribution workflow and where new notes belong |
 
-## Building
-
-This repository contains project source, build tools, SDK patches and verification
-records. Building requires privately prepared game files from the **USA BLUS30784
-version 01.00 disc**. Game files and generated game sources are kept outside this
-repository. See the [build guide](docs/BUILD.md).
-
-## How it works
-
-The game code is translated to C/C++ ahead of time and compiled with a runtime
-that implements the PS3 services it uses. Some SPU paths still use an interpreter
-fallback. This is not yet a fully static port or a recovered version of the
-original source; the architecture page explains the execution model and remaining work.
-
-## Update 1.01 and DLC plans
-
-Development continues on the original USA disc baseline, with WKC1 tested first.
-Future content work includes:
-
-- **USA update 1.01 and DLC:** integrate the updated executable and content, then
-  validate loading, gameplay and save compatibility.
-- **European DLC:** investigate content differences and compatibility with the USA
-  build. An EU-only file entry has been identified; its purpose and compatibility
-  remain unverified.
-- **Japanese release:** the game, DLC and all ten update packages are available for
-  future research. The long-term goal is to add **all Japanese-exclusive content
-  with English translations**, plus **optional Japanese voiceovers**.
-
-These are planned additions; update, DLC and cross-region runtime support are not
-verified yet. GeoNet compatibility is separate later research.
-
 ## Credits and license
 
-The project uses the [PS3Recomp SDK](https://github.com/sp00nznet/ps3recomp).
-Its pinned revision is recorded in [project.json](project.json), its license is
-retained in [LICENSE.ps3recomp](LICENSE.ps3recomp), and local runtime changes are
-maintained as patches. Engineering details and patch history are in the
-[documentation](#documentation) listed above.
+Built on the [PS3Recomp SDK](https://github.com/sp00nznet/ps3recomp). The pinned SDK
+revision is recorded in [project.json](project.json), its license is retained in
+[LICENSE.ps3recomp](LICENSE.ps3recomp), and local runtime changes are maintained as
+numbered patches.
