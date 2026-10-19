@@ -330,19 +330,20 @@
       "wkc2_lfqueue",
       "wkc2_event_queue",
       "wkc2_vertex_batch",
-      "wkc2_vk_batch_lifetime"
+      "wkc2_vk_batch_lifetime",
+      "wkc2_vk_constant_reuse"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 102,
-    "last_verified_sdk_patch_count": 102,
-    "current_passed_count": 89,
-    "record_scope": "102 SDK patches / 89 Windows Vulkan checks pass in Debug and Release; all media checks ran without skips.",
-    "normal_debug_elapsed_seconds": 24.42,
-    "optimized_release_elapsed_seconds": 21.4,
+    "current_sdk_patch_count": 103,
+    "last_verified_sdk_patch_count": 103,
+    "current_passed_count": 90,
+    "record_scope": "103 SDK patches / 90 Windows Vulkan checks pass in Debug and Release; all media checks ran without skips.",
+    "normal_debug_elapsed_seconds": 23.88,
+    "optimized_release_elapsed_seconds": 20.54,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 102
+    "repeat_patch_application_verified_sdk_patch_count": 103
   },
   "gallery": "gallery.json",
   "historical_probe": {

@@ -736,6 +736,19 @@ if(WKC2_BUILD_TESTS)
         target_include_directories(wkc2_vk_batch_lifetime_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
         add_test(NAME wkc2_vk_batch_lifetime COMMAND wkc2_vk_batch_lifetime_test)
         set_tests_properties(wkc2_vk_batch_lifetime PROPERTIES TIMEOUT 10)
+        set(VK_CONSTANT_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/vk-constant-fixture.inc")
+        add_custom_command(OUTPUT "${VK_CONSTANT_FIXTURE}"
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_vk_constant_fixture.py"
+                --source "${PS3RECOMP_DIR}/libs/video/rsx_vulkan_backend.c"
+                --output "${VK_CONSTANT_FIXTURE}"
+            DEPENDS "${PS3RECOMP_DIR}/libs/video/rsx_vulkan_backend.c"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_vk_constant_fixture.py"
+            VERBATIM)
+        add_executable(wkc2_vk_constant_reuse_test tests/vk_constant_reuse_test.c "${VK_CONSTANT_FIXTURE}")
+        target_include_directories(wkc2_vk_constant_reuse_test PRIVATE
+            "${CMAKE_CURRENT_BINARY_DIR}" "${PS3RECOMP_DIR}/libs/video")
+        add_test(NAME wkc2_vk_constant_reuse COMMAND wkc2_vk_constant_reuse_test)
+        set_tests_properties(wkc2_vk_constant_reuse PROPERTIES TIMEOUT 10)
         set(VK_ARENA_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/vk-arena-fixture.inc")
         add_custom_command(OUTPUT "${VK_ARENA_FIXTURE}"
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_vk_arena_fixture.py"

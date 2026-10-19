@@ -49,6 +49,7 @@ gives the play defaults. Keep any files these write private.
 | `GCM_FLIPCB_ONTICK=1` | Delivers flip callbacks at vblank after a real flip request (startup default) | [Build guide](BUILD.md) |
 | `WKC2_FLIP_ON_VBLANK=0` | Turns off waiting for the next vblank at each flip | [Build guide](BUILD.md) |
 | `GCM_SEMA_ACQUIRE=1` | Honours the game's two-vblank semaphore gate (startup default) | [Frame pacing](FINDINGS.md#frame-pacing-and-game-speed) |
+| `RSX_VK_CONSTANT_REUSE=0` | Disables exact constant-block offset reuse and restores per-draw Vulkan uniform uploads | [Patch 0103](PATCHES.md#vulkan-constant-upload-reuse-patch-0103) |
 | `RSX_VK_PRESENT_MODE` | `mailbox` or `immediate` requests that Vulkan present mode; otherwise FIFO | [Build guide](BUILD.md#playing-and-performance-options) |
 | `RSX_ENGINE_ZTEX_GPU=1` | GPU re-encoding of depth read as colour (startup default) | [Patches 0067-0070](PATCHES.md#depth-sampling-and-real-flip-completion-patches-0067-0070) |
 | `RSX_ACCUM_FRAME=1` | Presents complete batches at guest flips (set by the runner) | [Frame presentation](SUBSYSTEMS.md#guest-frame-presentation) |

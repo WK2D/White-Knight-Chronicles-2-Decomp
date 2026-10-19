@@ -1,0 +1,208 @@
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -21,10 +21,10 @@
+  *                          (E4) -- the stage names in the commit history
+  *   public entry points    init picks the path, shutdown undoes everything
+  *
+- * Deliberately synchronous: every clear, draw and present is one one-shot
+- * command buffer, submitted and waited on. Slow and trivially correct; it is
+- * what lets the engine's submit_and_wait and staging reuse cost nothing, and
+- * batching is the first thing to change once correctness is settled.
++ * The draw engine batches work into two command/upload slots. Submitted
++ * resources and immutable upload ranges stay live until GPU completion;
++ * retirement resets the reusable arenas and their constant-offset stamps.
++ * Legacy fallback operations can still submit and wait synchronously.
+  *
+  * Images stay in VK_IMAGE_LAYOUT_GENERAL for their whole life: legal for
+  * transfers, sampling and as attachments, so there is no layout bookkeeping.
+@@ -47,6 +47,7 @@
+ #include <vulkan/vulkan.h>
+ 
+ #include "rsx_vulkan_backend.h"
++#include "rsx_constant_reuse.h"
+ #include "rsx_vertex_fetch.h"
+ #include "rsx_texture_layout.h"
+ #include "rsx_vp_decompiler.h"
+@@ -2281,6 +2282,20 @@
+     u8*              psc;
+ } s_eb;
+ 
++/* The engine producer owns the CPU shadows and all offset stamps. A stamp
++ * survives only while its immutable upload range belongs to the live batch. */
++static rsx_constant_reuse s_constant_reuse;
++static int s_constant_reuse_on = -1;
++static int vk_constant_reuse_enabled(void)
++{
++    if (s_constant_reuse_on < 0) {
++        const char* value = getenv("RSX_VK_CONSTANT_REUSE");
++        s_constant_reuse_on = !(value && !strcmp(value, "0"));
++    }
++    return s_constant_reuse_on;
++}
++
++
+ /* The readback staging buffer, kept and grown rather than allocated per readback: a title copying its picture to
+  * main memory reads 3.6 MB back every frame, and a fresh host allocation of that size each time is not free. */
+ static vk_buffer s_rb;
+@@ -2383,6 +2398,7 @@
+ 
+ static void vk_eng_batch_reset(void)
+ {
++    rsx_constant_forget(&s_constant_reuse);
+     s_eb.vpos = s_eb.ipos = s_eb.upos = s_eb.spos = 0;
+     if (s_eb.nsets && s_eb.pool) pvkResetDescriptorPool(s_vk.device, s_eb.pool, 0);
+     if (s_eb.nsplit && s_eb.split_pool) pvkResetDescriptorPool(s_vk.device, s_eb.split_pool, 0);
+@@ -2454,6 +2470,7 @@
+ 
+ static void vk_eb_shutdown(void)
+ {
++    rsx_constant_forget(&s_constant_reuse);
+     vk_batch_flush();
+     if (s_spare.fence) {
+         vk_slot_swap();
+@@ -3896,23 +3913,51 @@
+ static void vk_eng_bind_vs_constants(void* user, const void* data, u32 bytes)
+ {
+     (void)user;
+-    if (!s_g.on || !data) { s_e2.vs_bytes = 0; return; }
++    if (!s_g.on || !data) { s_constant_reuse.stage[0].valid = 0; s_e2.vs_bytes = 0; return; }
+     const u32 cap = (u32)s_g.ps_off;
+-    if (!s_eb.vsc && !(s_eb.vsc = (u8*)malloc(cap))) { s_e2.vs_bytes = 0; return; }
++    if (!s_eb.vsc && !(s_eb.vsc = (u8*)malloc(cap))) { s_constant_reuse.stage[0].valid = 0; s_e2.vs_bytes = 0; return; }
+     if (bytes > cap) { bytes = cap; if (!(s_e2.warned & 2u)) { VK_LOG("engine: VS constants truncated\n"); s_e2.warned |= 2u; } }
+-    memcpy(s_eb.vsc, data, bytes);
++    if (vk_constant_reuse_enabled()) {
++        rsx_constant_update(&s_constant_reuse, 0, s_eb.vsc,
++                            s_e2.vs_bytes, data, bytes);
++    } else {
++        s_constant_reuse.stage[0].valid = 0;
++        memcpy(s_eb.vsc, data, bytes);
++    }
+     s_e2.vs_bytes = bytes;
+ }
+ static void vk_eng_bind_ps_constants(void* user, const void* data, u32 bytes)
+ {
+     (void)user;
+-    if (!s_g.on || !data) { s_e2.ps_bytes = 0; return; }
++    if (!s_g.on || !data) { s_constant_reuse.stage[1].valid = 0; s_e2.ps_bytes = 0; return; }
+     const u32 cap = (u32)(s_g.ubo.size - s_g.ps_off);
+-    if (!s_eb.psc && !(s_eb.psc = (u8*)malloc(cap))) { s_e2.ps_bytes = 0; return; }
++    if (!s_eb.psc && !(s_eb.psc = (u8*)malloc(cap))) { s_constant_reuse.stage[1].valid = 0; s_e2.ps_bytes = 0; return; }
+     if (bytes > cap) { bytes = cap; if (!(s_e2.warned & 4u)) { VK_LOG("engine: PS constants truncated\n"); s_e2.warned |= 4u; } }
+-    memcpy(s_eb.psc, data, bytes);
++    if (vk_constant_reuse_enabled()) {
++        rsx_constant_update(&s_constant_reuse, 1, s_eb.psc,
++                            s_e2.ps_bytes, data, bytes);
++    } else {
++        s_constant_reuse.stage[1].valid = 0;
++        memcpy(s_eb.psc, data, bytes);
++    }
+     s_e2.ps_bytes = bytes;
+ }
++/* Called only after reserve: reserve may flush and switch the active arena.
++ * No reads from write-combined GPU memory are needed to identify a hit. */
++static VkDeviceSize vk_eng_constant_take(unsigned stage, const void* source, VkDeviceSize bytes)
++{
++    const int reuse = vk_constant_reuse_enabled();
++    uint64_t offset;
++    if (reuse && source && rsx_constant_lookup(&s_constant_reuse, stage,
++            (uint64_t)s_eb.ubo.buf, s_eb.upos, s_eb.ubo.size, bytes, s_eb.ubo_align, &offset))
++        return (VkDeviceSize)offset;
++    const VkDeviceSize result = vk_eb_take(&s_eb.ubo, &s_eb.upos, source, bytes, s_eb.ubo_align);
++    if (reuse && source)
++        rsx_constant_remember(&s_constant_reuse, stage, (uint64_t)s_eb.ubo.buf,
++            result, bytes, s_eb.upos, s_eb.ubo.size, s_eb.ubo_align);
++    return result;
++}
++
+ static void vk_eng_bind_textures(void* user, const u32* textures,
+                                  const rsx_be_sampler_desc* samplers, u32 mask)
+ {
+@@ -4245,8 +4290,8 @@
+     if (vk_eb_reserve(vbytes, ibytes, ubytes, (P->cube_mask || P->shadow_mask) != 0)) return;
+     const VkDeviceSize voff = vk_eb_take(&s_eb.verts, &s_eb.vpos, vertices, vbytes, 16);
+     const VkDeviceSize ioff = ibytes ? vk_eb_take(&s_eb.idx, &s_eb.ipos, indices, ibytes, 4) : 0;
+-    const VkDeviceSize vsoff = vk_eb_take(&s_eb.ubo, &s_eb.upos, s_e2.vs_bytes ? s_eb.vsc : NULL, vsb, s_eb.ubo_align);
+-    const VkDeviceSize psoff = vk_eb_take(&s_eb.ubo, &s_eb.upos, s_e2.ps_bytes ? s_eb.psc : NULL, psb, s_eb.ubo_align);
++    const VkDeviceSize vsoff = vk_eng_constant_take(0, s_e2.vs_bytes ? s_eb.vsc : NULL, vsb);
++    const VkDeviceSize psoff = vk_eng_constant_take(1, s_e2.ps_bytes ? s_eb.psc : NULL, psb);
+     const VkDescriptorSet set = vk_eng_write_descriptors(P, vsoff, psoff);
+     if (!set) return;
+ 
+diff --git a/libs/video/rsx_constant_reuse.h b/libs/video/rsx_constant_reuse.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_constant_reuse.h
+@@ -0,0 +1,71 @@
++/* Producer-owned constant shadows and immutable offsets in a live upload arena.
++ * Invalidate all stamps after retirement, before the arena can be overwritten. */
++#ifndef RSX_CONSTANT_REUSE_H
++#define RSX_CONSTANT_REUSE_H
++#include <stdint.h>
++#include <stddef.h>
++#include <string.h>
++
++typedef struct rsx_constant_stamp {
++    uint64_t buffer, offset, bytes;
++    int valid;
++} rsx_constant_stamp;
++typedef struct rsx_constant_reuse {
++    rsx_constant_stamp stage[2];
++} rsx_constant_reuse;
++
++static inline void rsx_constant_forget(rsx_constant_reuse* cache)
++{
++    cache->stage[0].valid = cache->stage[1].valid = 0;
++}
++
++/* Compare only the producer's cached host shadow, never write-combined GPU memory.
++ * The producer exclusively owns this shadow; callers cannot mutate it directly. */
++static inline int rsx_constant_update(rsx_constant_reuse* cache, unsigned stage,
++                                      void* shadow, uint32_t previous_bytes,
++                                      const void* data, uint32_t bytes)
++{
++    if (stage >= 2) return -1;
++    if (bytes && (!shadow || !data)) {
++        cache->stage[stage].valid = 0;
++        return -1;
++    }
++    if (previous_bytes == bytes && (!bytes || !memcmp(shadow, data, bytes)))
++        return 0;
++    cache->stage[stage].valid = 0;
++    if (bytes) memcpy(shadow, data, bytes);
++    return 1;
++}
++
++static inline int rsx_constant_range(uint64_t offset, uint64_t bytes,
++                                     uint64_t cursor, uint64_t capacity,
++                                     uint64_t alignment)
++{
++    return bytes && alignment && !(offset % alignment) &&
++        offset <= cursor && bytes <= cursor - offset &&
++        offset <= capacity && bytes <= capacity - offset;
++}
++
++static inline int rsx_constant_lookup(const rsx_constant_reuse* cache,
++    unsigned stage, uint64_t buffer, uint64_t cursor, uint64_t capacity,
++    uint64_t bytes, uint64_t alignment, uint64_t* offset)
++{
++    if (stage >= 2 || !buffer || !offset) return 0;
++    const rsx_constant_stamp* stamp = &cache->stage[stage];
++    if (!stamp->valid || stamp->buffer != buffer || stamp->bytes != bytes ||
++        !rsx_constant_range(stamp->offset, bytes, cursor, capacity, alignment))
++        return 0;
++    *offset = stamp->offset;
++    return 1;
++}
++
++static inline void rsx_constant_remember(rsx_constant_reuse* cache,
++    unsigned stage, uint64_t buffer, uint64_t offset, uint64_t bytes,
++    uint64_t cursor, uint64_t capacity, uint64_t alignment)
++{
++    if (stage >= 2) return;
++    rsx_constant_stamp* stamp = &cache->stage[stage];
++    stamp->valid = buffer && rsx_constant_range(offset, bytes, cursor, capacity, alignment);
++    stamp->buffer = buffer; stamp->offset = offset; stamp->bytes = bytes;
++}
++#endif

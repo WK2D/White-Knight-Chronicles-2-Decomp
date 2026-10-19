@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 102 SDK patches / 89 Windows checks in Debug and
+**Current source checkpoint:** 103 SDK patches / 90 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -26,6 +26,7 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 **Performance, timing and presentation**
 
+- [Vulkan constant upload reuse](#vulkan-constant-upload-reuse-patch-0103)
 - [NPC visibility and continuing geometry work](#npc-visibility-and-continuing-geometry-work)
 - [Vulkan batch resource lifetimes](#vulkan-batch-resource-lifetimes-patch-0102)
 - [Grouped vertex conversion](#grouped-vertex-conversion-patch-0101)
@@ -248,6 +249,45 @@ PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
+
+## Vulkan constant upload reuse (patch 0103)
+
+**Problem.** The warmed town still sends roughly 12 MB of constants per present
+callback in the sampled NPC-facing view, even with no texture allocation or
+image upload. Every draw copied and uploaded both bound constant blocks.
+
+**Cause.** Repeated exact bindings did not retain the already-uploaded immutable
+offsets. This is separate from texture streaming and the SPU geometry workload.
+
+**Fix.** Patch 0103 reuses a block only while the producer's cached CPU bytes and
+size match and its offset belongs to the active live uniform arena. Binding
+changes, batch retirement and teardown invalidate the relevant identities.
+Both stages are forgotten at retirement: after a same-handle reset, a larger
+vertex block can otherwise overwrite the former pixel-block location. The
+lookup runs after reservation, which may switch slots. The existing conservative
+reservation and GPU completion rules remain in force.
+
+**Evidence.** On 2026-10-19 a private verifier compared 6,159,744 reused mapped
+blocks with the current CPU shadow, with zero mismatches. Its deliberately
+expensive GPU-memory reads were excluded from performance measurements. A
+separate same-process run used six 12-second windows, alternating reuse on/off
+in the order 1,0,0,1,0,1, with no input, automatic readbacks or IP sampling during
+timing. Reuse averaged 28.58 presentations/s and 133.38 ms of process CPU time
+per presentation; the original path averaged 25.14 and 149.44 ms. Reuse skipped
+43.9% of uniform-upload bytes. All three enabled samples exceeded all three
+disabled samples in this run; autonomous characters and geometry still varied.
+All 90 Windows checks pass in Debug and Release, including a production-helper
+regression that fails when retirement invalidation is removed. The regular
+103-patch Release build also loads Continue and moves briefly in town; its
+inspected readbacks are a rendering check, not timing evidence.
+
+**Limits.** This is one saved view, not sustained traversal or proof of unique
+animation updates. Other routes still dip below 30. It does not establish a
+shadow-flicker fix, general allocation pooling, internal-resolution scaling,
+scene MSAA or native Mac/Linux support. Set `RSX_VK_CONSTANT_REUSE=0` before
+launch for the original upload path. Reviewed aggregates, per-window counters
+and provenance are in [`verification/performance.json`](../verification/performance.json)
+under `vulkan_constant_upload_reuse_2026_10_19`.
 
 ## NPC visibility and continuing geometry work
 

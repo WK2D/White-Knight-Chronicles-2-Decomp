@@ -2682,5 +2682,335 @@
       "All GPU vertex/index/constant uploads continue even when image-upload counters are zero",
       "Skinning-local candidate means improve but one local phase is worse and carries more geometry; no consistent end-to-end win established"
     ]
+  },
+  "vulkan_constant_upload_reuse_2026_10_19": {
+    "sdk_patch": 103,
+    "base_comparison_sdk_patches": 102,
+    "private_comparison_exe_sha256": "3f3303ce602d4187906805ea3bb03e95bd529272f1ffe7181aa76bb892287b35",
+    "regular_release_exe_sha256": "cbc3cfc370ccef8e0d2d136d2ad1b1a8b715017f40eaabc3728bb4c7548d3c33",
+    "hidden": true,
+    "core_audio_mute_verified": true,
+    "verification": {
+      "probe": "20261019-082711",
+      "checked_cached_hits_at_snapshot": 6159744,
+      "byte_mismatches": 0,
+      "mode": "Every reused mapped uniform block compared against the producer CPU shadow",
+      "timing_eligible": false,
+      "reason": "Reading write-combined mapped GPU memory makes this verification deliberately expensive"
+    },
+    "comparison": {
+      "probe": "20261019-083250",
+      "same_process": true,
+      "input_during_timing": false,
+      "view": "Saved town, camera turned toward NPCs; autonomous characters and submitted geometry vary",
+      "mode_0": "Original shadow memcpy and per-draw uniform uploads",
+      "mode_1": "Exact producer-shadow comparison and reuse of immutable uniform offsets",
+      "sampling": "Six 12-second windows in order 1,0,0,1,0,1; two-second settling between windows",
+      "gpu_readback_during_timing": false,
+      "cpu_ip_sampling_during_timing": false,
+      "private_record_sha256": "1ff27601e45bf3885594d3058fd632ffe4cd6fad894a561bf50dcb6dd35271f8",
+      "samples": [
+        {
+          "phase": 0,
+          "mode": 1,
+          "seconds": 12.000992199988104,
+          "frames": 354,
+          "presentations_per_second": 29.497561043356974,
+          "process_cpu_ms_per_present": 127.69244350282486,
+          "p50_ms": 32.65459998510778,
+          "p95_ms": 37.56929998053238,
+          "max_ms": 50.314399995841086,
+          "over_40ms": 13,
+          "observer_max_gap_ms": 3.677800006698817,
+          "clock_deltas": [
+            11.949300836771727,
+            11.949300836771727,
+            358.47902524471283
+          ],
+          "constant_delta": {
+            "requests": 1158348,
+            "reuse_hits": 676162,
+            "uploaded_bytes": 2734514448,
+            "skipped_bytes": 2110997664,
+            "shadow_copies": 479781,
+            "shadow_skips": 678567,
+            "checks": 0,
+            "mismatches": 0
+          },
+          "render_per_callback": {
+            "draws": 1463.7727272727273,
+            "vertices": 193010.18686868687,
+            "indices": 360211.24242424243,
+            "vertex_upload_bytes": 10264988.808080807,
+            "index_upload_bytes": 1440844.9696969697,
+            "blended_draws": 1317.6742424242425,
+            "alpha_test_draws": 1401.828282828283,
+            "depth_write_draws": 1112.3762626262626,
+            "constant_bytes": 12246332.121212121
+          }
+        },
+        {
+          "phase": 1,
+          "mode": 0,
+          "seconds": 12.001538500015158,
+          "frames": 290,
+          "presentations_per_second": 24.163568695766273,
+          "process_cpu_ms_per_present": 154.20258620689654,
+          "p50_ms": 37.47979999752715,
+          "p95_ms": 50.54389999713749,
+          "max_ms": 52.640699956100434,
+          "over_40ms": 141,
+          "observer_max_gap_ms": 10.608000040519983,
+          "clock_deltas": [
+            10.388461273163557,
+            10.388461273163557,
+            311.6538378596306
+          ],
+          "constant_delta": {
+            "requests": 1055626,
+            "reuse_hits": 0,
+            "uploaded_bytes": 4414895856,
+            "skipped_bytes": 0,
+            "shadow_copies": 1055626,
+            "shadow_skips": 0,
+            "checks": 0,
+            "mismatches": 0
+          },
+          "render_per_callback": {
+            "draws": 1619.726153846154,
+            "vertices": 211633.95384615383,
+            "indices": 391028.53846153844,
+            "vertex_upload_bytes": 11248745.55076923,
+            "index_upload_bytes": 1564114.1538461538,
+            "blended_draws": 1444.5046153846154,
+            "alpha_test_draws": 1557.84,
+            "depth_write_draws": 1277.3815384615384,
+            "constant_bytes": 13548306.953846155
+          }
+        },
+        {
+          "phase": 2,
+          "mode": 0,
+          "seconds": 12.00052709999727,
+          "frames": 307,
+          "presentations_per_second": 25.582209634780945,
+          "process_cpu_ms_per_present": 146.68159609120522,
+          "p50_ms": 35.08840000722557,
+          "p95_ms": 50.19519996130839,
+          "max_ms": 55.138600000645965,
+          "over_40ms": 107,
+          "observer_max_gap_ms": 11.244499997701496,
+          "clock_deltas": [
+            11.372950408607721,
+            11.372950408607721,
+            341.1885120868683
+          ],
+          "constant_delta": {
+            "requests": 1074744,
+            "reuse_hits": 0,
+            "uploaded_bytes": 4496806848,
+            "skipped_bytes": 0,
+            "shadow_copies": 1074744,
+            "shadow_skips": 0,
+            "checks": 0,
+            "mismatches": 0
+          },
+          "render_per_callback": {
+            "draws": 1546.6195965417867,
+            "vertices": 201417.49855907782,
+            "indices": 372903.64841498557,
+            "vertex_upload_bytes": 10824405.62536023,
+            "index_upload_bytes": 1491614.5936599423,
+            "blended_draws": 1398.6340057636887,
+            "alpha_test_draws": 1484.671469740634,
+            "depth_write_draws": 1202.4668587896253,
+            "constant_bytes": 12942204.587896254
+          }
+        },
+        {
+          "phase": 3,
+          "mode": 1,
+          "seconds": 12.001893100037705,
+          "frames": 350,
+          "presentations_per_second": 29.16206610762934,
+          "process_cpu_ms_per_present": 131.42857142857142,
+          "p50_ms": 32.651100016664714,
+          "p95_ms": 45.13569996925071,
+          "max_ms": 50.20229995716363,
+          "over_40ms": 23,
+          "observer_max_gap_ms": 3.525200008880347,
+          "clock_deltas": [
+            11.995098993182182,
+            11.995098993182182,
+            359.85296964645386
+          ],
+          "constant_delta": {
+            "requests": 1106982,
+            "reuse_hits": 644272,
+            "uploaded_bytes": 2605503936,
+            "skipped_bytes": 2026237360,
+            "shadow_copies": 460139,
+            "shadow_skips": 646843,
+            "checks": 0,
+            "mismatches": 0
+          },
+          "render_per_callback": {
+            "draws": 1416.8871794871795,
+            "vertices": 187996.53076923077,
+            "indices": 350886.08461538464,
+            "vertex_upload_bytes": 10029573.948717948,
+            "index_upload_bytes": 1403544.3384615385,
+            "blended_draws": 1280.1410256410256,
+            "alpha_test_draws": 1354.8358974358973,
+            "depth_write_draws": 1074.3794871794871,
+            "constant_bytes": 11856986.912820512
+          }
+        },
+        {
+          "phase": 4,
+          "mode": 0,
+          "seconds": 12.001404199982062,
+          "frames": 308,
+          "presentations_per_second": 25.663663590337233,
+          "process_cpu_ms_per_present": 147.4228896103896,
+          "p50_ms": 35.104300011880696,
+          "p95_ms": 50.22049997933209,
+          "max_ms": 66.23900000704452,
+          "over_40ms": 107,
+          "observer_max_gap_ms": 4.982299986295402,
+          "clock_deltas": [
+            11.199825439602137,
+            11.199825439602137,
+            335.9947630763054
+          ],
+          "constant_delta": {
+            "requests": 1073898,
+            "reuse_hits": 0,
+            "uploaded_bytes": 4491663312,
+            "skipped_bytes": 0,
+            "shadow_copies": 1073898,
+            "shadow_skips": 0,
+            "checks": 0,
+            "mismatches": 0
+          },
+          "render_per_callback": {
+            "draws": 1538.8771428571429,
+            "vertices": 203262.00857142857,
+            "indices": 377181.0685714286,
+            "vertex_upload_bytes": 10786338.651428571,
+            "index_upload_bytes": 1508724.2742857144,
+            "blended_draws": 1375.2828571428572,
+            "alpha_test_draws": 1475.5085714285715,
+            "depth_write_draws": 1192.7542857142857,
+            "constant_bytes": 12872958.08
+          }
+        },
+        {
+          "phase": 5,
+          "mode": 1,
+          "seconds": 12.002396799973212,
+          "frames": 325,
+          "presentations_per_second": 27.077924969179936,
+          "process_cpu_ms_per_present": 141.0096153846154,
+          "p50_ms": 34.87925001536496,
+          "p95_ms": 50.159099977463484,
+          "max_ms": 55.30070001259446,
+          "over_40ms": 70,
+          "observer_max_gap_ms": 7.6642000349238515,
+          "clock_deltas": [
+            11.952274892479181,
+            11.952274892479181,
+            358.5682462453842
+          ],
+          "constant_delta": {
+            "requests": 1098184,
+            "reuse_hits": 645580,
+            "uploaded_bytes": 2556195360,
+            "skipped_bytes": 2038337008,
+            "shadow_copies": 450315,
+            "shadow_skips": 647869,
+            "checks": 0,
+            "mismatches": 0
+          },
+          "render_per_callback": {
+            "draws": 1509.5399449035813,
+            "vertices": 198749.8870523416,
+            "indices": 368811.4214876033,
+            "vertex_upload_bytes": 10627617.542699724,
+            "index_upload_bytes": 1475245.685950413,
+            "blended_draws": 1359.374655647383,
+            "alpha_test_draws": 1447.595041322314,
+            "depth_write_draws": 1166.8677685950413,
+            "constant_bytes": 12630969.300275482
+          }
+        }
+      ],
+      "means": {
+        "0": {
+          "presentations_per_second": 25.136480640294817,
+          "process_cpu_ms_per_present": 149.4356906361638,
+          "skipped_uniform_upload_fraction": 0.0
+        },
+        "1": {
+          "presentations_per_second": 28.579184040055416,
+          "process_cpu_ms_per_present": 133.3768767720039,
+          "skipped_uniform_upload_fraction": 0.4388619987757835
+        }
+      }
+    },
+    "regression": {
+      "name": "wkc2_vk_constant_reuse",
+      "windows_checks": 90,
+      "debug_all_pass": true,
+      "release_all_pass": true,
+      "debug_suite_seconds": 23.88,
+      "release_suite_seconds": 20.54,
+      "changing_draw_pairs": 10000,
+      "removing_batch_forget_fails": true,
+      "cases": [
+        "Immutable earlier draw ranges",
+        "Two delayed synthetic GPU arenas",
+        "Same-handle reset followed by larger VS over former PS range",
+        "Stage/size/content changes",
+        "Absent/disabled/failed bindings",
+        "Off/on transitions",
+        "Alignment/range/overflow guards"
+      ]
+    },
+    "patch_stack": [
+      {
+        "case": "clean",
+        "result": "SDK patch stack: 103 patches, prefix 0, 84 files updated"
+      },
+      {
+        "case": "upgrade102",
+        "result": "SDK patch stack: 103 patches, prefix 102, 2 files updated"
+      },
+      {
+        "case": "reapply",
+        "result": "SDK patch stack: 103 patches, prefix 103, 0 files updated"
+      }
+    ],
+    "regular_native": {
+      "probe": "20261019-084329",
+      "continue_reload": true,
+      "short_forward_back_route": true,
+      "automatic_gpu_readbacks": true,
+      "performance_comparison_eligible": false,
+      "inspected_frames": true,
+      "frame_sha256": {
+        "production-town.png": "f25339e117ab815a919397411e73659118c4db1c7e9857d5a28fb1f005c4e606",
+        "production-route-before.png": "77d662cd09213ee8b1a3487d2691344ec4fd81174fc89ffd996d659c29e520c1",
+        "production-route-after.png": "b71c4b8080ab16ef0b7e55f76ad577a59960b6d5c68803050214a57904c3d1a0"
+      }
+    },
+    "limits": [
+      "One saved town camera view and short native route; sustained smooth 30 FPS is not established",
+      "Presentations and sampled clocks do not prove distinct animation updates or RPCS3-equivalent pacing",
+      "Camera direction, autonomous NPC state and geometry load vary; this is not a fixed-work benchmark",
+      "Native verifier reads host-mapped Vulkan upload memory; it is not independent GPU shader-output verification",
+      "No new general image/allocation pool, internal-resolution scaling or scene MSAA",
+      "No claim of fixing foot or Logic Stone flicker; Mac and Linux native runs remain unverified"
+    ]
   }
 }

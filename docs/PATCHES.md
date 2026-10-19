@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0103 | [Vulkan constant upload reuse](#vulkan-constant-upload-reuse-patch-0103) |
 | Patch 0102 | [Vulkan batch resource lifetimes](#vulkan-batch-resource-lifetimes-patch-0102) |
 | Patch 0101 | [Grouped vertex conversion](#grouped-vertex-conversion-patch-0101) |
 | Patch 0100 | [SPIR-V translation cache](#spir-v-translation-cache-patch-0100) |
@@ -37,6 +38,35 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Vulkan constant upload reuse (patch 0103)
+
+**Problem.** Many consecutive draws bind identical constants. The backend copied
+them into a CPU shadow and uploaded another copy for every draw, even while the
+previous immutable block was still usable in the same live batch.
+
+**Fix.** Compare incoming constants against the producer-owned CPU shadow. Keep
+one uniform-buffer offset per shader stage when its bytes, size, buffer identity,
+alignment and live arena range match. Changed or absent bindings invalidate the
+stage; retirement and shutdown invalidate both stages. Reserve still runs before
+offset lookup because it can flush and switch arenas. No cache-hit reads of
+write-combined GPU memory are needed. `RSX_VK_CONSTANT_REUSE=0` restores the
+original shadow copies and per-draw uploads.
+
+**Evidence.** The new `wkc2_vk_constant_reuse` executes extracted production
+binding, upload and reset helpers over 10,000 changing draw pairs, delayed
+synthetic arenas, allocation failure and a same-handle reset/size-change case.
+Removing the retirement invalidation fails the byte comparison. All 90 Windows
+checks pass in Debug and Release. The 103-patch stack applies from clean,
+upgrades prefix 102 by two files and reapplies unchanged. A private native
+verifier checks at least 6,159,744 reused blocks with zero byte mismatches.
+The regular Release build reloads Continue and completes short town movement;
+its GPU readbacks were inspected.
+
+**Limits.** Alternating samples in one NPC-facing town view average 28.58 rather
+than 25.14 presentations/s, with 43.9% of uniform-upload bytes skipped. These
+samples do not establish sustained smooth 30 FPS, animation fidelity or a
+flicker fix. See the [conditions and full results](FINDINGS.md#vulkan-constant-upload-reuse-patch-0103).
 
 ## Vulkan batch resource lifetimes (patch 0102)
 
