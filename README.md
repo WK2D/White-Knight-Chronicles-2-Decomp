@@ -116,6 +116,7 @@ port has drawn on:
 
 - [PS3Recomp](https://github.com/sp00nznet/ps3recomp) by sp00nznet and contributors
 - [Drakengard 3 recomp](https://github.com/soyjxck/dod3-recomp) and [PS3Recomp fork](https://github.com/soyjxck/ps3recomp) by soyjxck
+- [PS3Recomp fork](https://github.com/NoahBPeterson/ps3recomp) by NoahBPeterson
 - [inFAMOUS 2 recomp](https://github.com/erikomis/infamous2-recomp) by erikomis
 - [Killzone 3 fix catalogue](https://gist.github.com/undecuple/2845432bf13e485634de122084d3fd56) by undecuple
 - [Soulcalibur II HD recomp](https://github.com/n0madic/Soulcalibur2HD-recomp) by n0madic
