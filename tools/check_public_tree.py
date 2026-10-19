@@ -1,4 +1,5 @@
 """Check the staged publication snapshot before publishing. Prints no file contents."""
+import hashlib
 import json
 from pathlib import Path, PurePosixPath
 import re
@@ -82,7 +83,36 @@ def check_ico(data):
         offset += length
     return None if offset == len(data) else 'trailing ICO data'
 
+
+def invalid_sha256_fields(value, prefix=''):
+    """Unknown digests may be null; recorded digests must contain all 32 bytes."""
+    invalid = []
+    def check_digest(item, location):
+        if isinstance(item, dict):
+            for key, child in item.items():
+                check_digest(child, location + '.' + key)
+        elif isinstance(item, list):
+            for index, child in enumerate(item):
+                check_digest(child, f'{location}[{index}]')
+        elif item is not None and (not isinstance(item, str) or
+                                   not re.fullmatch(r'[0-9a-fA-F]{64}', item)):
+            invalid.append(location)
+    if isinstance(value, dict):
+        for key, item in value.items():
+            location = prefix + ('.' if prefix else '') + key
+            if key == 'sha256' or key.endswith('_sha256'):
+                check_digest(item, location)
+            else:
+                invalid.extend(invalid_sha256_fields(item, location))
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            invalid.extend(invalid_sha256_fields(item, f'{prefix}[{index}]'))
+    return invalid
+
+
 names = [n.decode('utf-8') for n in git('ls-files', '--cached', '-z').split(b'\0') if n]
+image_hashes = {}
+records = {}
 for name in names:
     path = PurePosixPath(name)
     screenshot = len(path.parts) == 3 and path.parts[:2] == ('verification', 'screenshots') and re.fullmatch(r'[a-z0-9][a-z0-9-]*\.png', path.name)
@@ -101,14 +131,31 @@ for name in names:
         reason = check_ico(data) if icon_ico else check_png(data)
         if reason:
             findings.append({'file': name, 'reason': reason})
+        if screenshot:
+            image_hashes[name] = hashlib.sha256(data).hexdigest()
         continue
     try:
         text = data.decode('utf-8-sig')
     except UnicodeDecodeError:
         findings.append({'file': name, 'reason': 'non-text data'})
         continue
+    if path.suffix == '.json':
+        try:
+            records[name] = json.loads(text)
+        except json.JSONDecodeError:
+            findings.append({'file': name, 'reason': 'invalid JSON'})
+        else:
+            for field in invalid_sha256_fields(records[name]):
+                findings.append({'file': name, 'reason': 'invalid SHA-256 field: ' + field})
     for reason, pattern in patterns.items():
         if re.search(pattern, text):
             findings.append({'file': name, 'reason': reason})
+for record_name, image_field, hash_field in (
+        ('verification/gallery.json', 'image', 'png_sha256'),
+        ('verification/rendering.json', 'file', 'sha256')):
+    for capture in records.get(record_name, {}).get('captures', []):
+        name = 'verification/' + capture.get(image_field, '')
+        if image_hashes.get(name) != capture.get(hash_field) or name not in image_hashes:
+            findings.append({'file': record_name, 'reason': 'capture does not match staged image: ' + name})
 print(json.dumps({'staged_files': len(names), 'staged_bytes': total, 'findings': findings}, indent=2))
 sys.exit(bool(findings))

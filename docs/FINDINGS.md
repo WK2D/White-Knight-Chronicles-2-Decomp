@@ -26,6 +26,8 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 **Performance, timing and presentation**
 
+- [Remaining fork candidates and mutex measurement](#remaining-fork-candidates-and-mutex-measurement)
+- [PPU register-local validation follow-up](#ppu-register-local-validation-follow-up)
 - [Host-layout SPU shuffle and unlocked headroom](#host-layout-spu-byte-shuffle-and-unlocked-headroom-patch-0104)
 - [Exact-float fork compatibility review](#exact-float-fork-compatibility-review)
 - [Vulkan constant upload reuse](#vulkan-constant-upload-reuse-patch-0103)
@@ -251,6 +253,97 @@ PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
+
+## Remaining fork candidates and mutex measurement
+
+**Problem.** Four suggestions from the fork review need separate implementation
+and validation records. A useful change in another title does not establish a
+WKC speedup. Status on 2026-10-19:
+
+| Candidate | WKC evidence | Production status |
+| --- | --- | --- |
+| Four-lane exact float math | Standalone compatibility checks; unguarded fused math fails directed rounding, guarded math passes the corpus | Not promoted or native-tested; see the [float review](#exact-float-fork-compatibility-review) |
+| Cheaper guest mutexes | Current-runtime call census, synthetic concurrency checks and four native comparison runs | Private candidate; no consistent native performance gain |
+| Clock-paced audio | Source review; normal production playback still follows device room | Cadence, extra read lag and MMCSS changes not implemented or WKC-tested |
+| Sparse texture hashing | Source review shows sampled matching can miss changes between sampled bytes | Not implemented; exact write-tracking experiments remain separate |
+
+**Cause.** The unchanged guest lightweight-mutex handlers enter the Windows
+semaphore API even when no other thread holds the lock. A hidden, muted Continue
+run measured 58,849–70,572 lock requests and 117,804–141,320 semaphore calls per
+second across idle/forward/back phases. Over 99.7% of attempts were uncontended.
+There were no observed wait/release failures. These counts exclude internal
+SPU/MFC host locks; external snapshots can straddle an in-flight operation.
+
+**Candidate.** An isolated adaptation of JonathanDC64's
+[user-space mutex change](https://github.com/JonathanDC64/ps3recomp/commit/098690d409bfaea44051288a4f1d752a4354d918)
+uses a portable C++ binary token, with a condition variable for contention.
+It retains recursion, cross-thread release, finite timeouts and recreation at
+a reused address. A shared sleep mutex closes the interval between the final
+acquisition attempt and sleeping; waiter counts and the token use sequentially
+consistent atomics. Backend selection is fixed before slots are used.
+
+**Evidence.** Six synthetic runs, split between the token and retained semaphore
+paths, each pass 24,000 shared critical-section updates and the actual project
+condition implementation. Removing notification, including only during
+recreation, fails the intended wake assertions. An alternating synthetic test
+of 500,000 uncontended pairs per phase measures 7.57 ns/pair for the token and
+201.74 for the semaphore; guest lookup, memory hooks and contention are excluded.
+
+Four native runs used the same candidate executable in semaphore/token/token/
+semaphore order, with Unlocked, 720p output, VSync off, verified audio mute and
+Continue. GPU frames were inspected before timing; IP sampling and automatic
+readbacks were disabled during timing.
+
+| Backend | NPC-view presentations/s | Process CPU ms/presentation |
+| --- | ---: | ---: |
+| Semaphore | 32.50 | 120.11 |
+| C++ token | 31.08 | 126.97 |
+| C++ token | 32.41 | 119.78 |
+| Semaphore | 31.99 | 124.67 |
+
+**Limits.** Movement samples also give mixed results. Autonomous NPCs, camera
+angles and geometry work vary, and these runs establish no consistent FPS or
+CPU improvement. The candidate remains private; the production SDK and desktop
+build retain their checked behavior. The reviewed sparse policy can delay
+partial updates for seven presentations or miss transient changes entirely.
+Exact tracking
+still needs complete writer coverage, shared failure handling and lifecycle
+work. Reviewed aggregates and conditions are in
+[`verification/performance.json`](../verification/performance.json), under
+`lwmutex_fork_candidate_2026_10_19` and `remaining_fork_candidates_2026_10_19`.
+
+## PPU register-local validation follow-up
+
+**Problem.** The private local-register postprocessor previously accepted three
+synthetic cases it could not translate safely: a register address escaping
+across a call, a dynamic register index mixed with a localized register, and a
+trampoline drain without the required preceding flush. Earlier native mismatch
+counters also lacked positive evidence of executed comparisons.
+
+**Cause.** The wrapper accepted context expressions beyond the dirty-register
+pass's supported grammar. A missing error count cannot establish coverage.
+
+**Fix.** Private screening now preserves unsupported bodies byte-for-byte and
+rejects aliases, dynamic/noncanonical register accesses, unknown context helpers
+and unpaired drains. Supported calls still reload every localized register;
+the pass makes no assumption that native hooks preserve nonvolatile registers.
+Whole-program liveness and grouped reads are disabled in this fixture.
+
+**Evidence.** Nineteen unsafe cases are rejected and ten supported idioms pass.
+A current-SDK synthetic differential check compares plain, localized and
+verifier variants over 96 records, totaling 101,400,064 bytes per variant. Entire
+1,104-byte contexts, all fixture RAM, ordered reads/writes, callback snapshots
+and continuations agree exactly. The verifier executes 256 comparisons with
+zero mismatches. Coverage includes 64 MMIO reads, 32 MMIO writes and callbacks
+that change registers ordinarily considered nonvolatile. Removing a register
+reload or a required MMIO read makes the full comparison differ. Compile-time
+checks match the current runtime context size and every field offset.
+
+**Limits.** Synthetic helper and memory models do not prove real-loader
+synchronization, native game coverage or performance. No generated game source
+or production integration is published by this follow-up. Current-runtime native
+validation and a supported public postprocessor remain pending. Aggregates are
+recorded as `ppu_local_fullstate_fixture_2026_10_19` in the performance JSON.
 
 ## Host-layout SPU byte shuffle and unlocked headroom (patch 0104)
 

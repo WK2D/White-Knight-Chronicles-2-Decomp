@@ -27,6 +27,9 @@ git diff --cached --check
 
 The scanner checks staged contents and an explicit file allowlist. Review the
 staged diff as well: pattern checks cannot recognize every possible secret.
+It also validates recorded SHA-256 fields and checks gallery/rendering image
+hashes against the staged PNG files. Private executable/source hashes still
+need comparison with their actual local artifacts before publication.
 Use a project identity and a GitHub no-reply email for public commits when
 personal attribution is not desired. Configure them for this repository only.
 

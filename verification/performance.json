@@ -3800,5 +3800,658 @@
       "Two different runs and camera views; these stills are not a controlled cap or optimization benchmark",
       "Instant readings do not establish sustained 30/60 FPS gameplay"
     ]
+  },
+  "lwmutex_fork_candidate_2026_10_19": {
+    "date": "2026-10-19",
+    "production_sdk_patches": 104,
+    "status": "Private candidate tested; not promoted to SDK or desktop",
+    "fork_commit": "098690d409bfaea44051288a4f1d752a4354d918",
+    "candidate_executable_sha256": "9e905f541216c3fb4f51857677f5db386ba4d72c120bf15488bcb3722c6f3426",
+    "comparison": {
+      "same_executable_both_backends": true,
+      "backend_choice_immutable_per_process": true,
+      "order": [
+        "kernel",
+        "user",
+        "user",
+        "kernel"
+      ],
+      "hidden": true,
+      "core_audio_mute_verified": true,
+      "continue_from_verified_save": true,
+      "frame_limit": "Unlocked",
+      "vsync": "Off",
+      "output_resolution": "720p",
+      "cpu_ip_sampling_during_timing": false,
+      "automatic_readbacks_during_timing": false,
+      "npc_sample_seconds": 12,
+      "movement_sample_seconds": 10,
+      "private_overrides": [
+        "Guest lwmutex implementation",
+        "Current SDK 104 aggregate graphics counters and manual capture gate"
+      ]
+    },
+    "original_semaphore_census": {
+      "probe": "20261019-102451",
+      "executable_sha256": "52c69f82ec683b0b4673b3f8e28dd2ffc6a0fa63a0707b94428ec326632c55f4",
+      "phases": [
+        {
+          "phase": "idle",
+          "seconds": 12.000362100021448,
+          "delta": {
+            "lock_requests": 846894,
+            "try_requests": 0,
+            "unlock_requests": 846894,
+            "lock_zero_wait_calls": 846894,
+            "try_zero_wait_calls": 0,
+            "lock_uncontended_acquisitions": 844795,
+            "try_uncontended_acquisitions": 0,
+            "lock_recursive_acquisitions": 0,
+            "try_recursive_acquisitions": 0,
+            "recursive_unlocks": 0,
+            "contended_wait_calls": 2099,
+            "contended_acquisitions": 2099,
+            "contended_timeouts": 0,
+            "contended_wait_failures": 0,
+            "zero_wait_failures": 0,
+            "try_busy": 0,
+            "release_calls": 846894,
+            "release_success": 846894,
+            "release_failures": 0,
+            "lock_without_semaphore": 0,
+            "try_without_semaphore": 0,
+            "unlock_without_semaphore": 0,
+            "contended_wait_ns": 0,
+            "timed_wait_calls": 0
+          },
+          "guest_lwmutex_semaphore_calls": 1695887,
+          "guest_lwmutex_semaphore_calls_per_second": 141319.65234590456,
+          "lock_requests_per_second": 70572.37047859468
+        },
+        {
+          "phase": "forward",
+          "seconds": 10.00241489999462,
+          "delta": {
+            "lock_requests": 645265,
+            "try_requests": 0,
+            "unlock_requests": 645264,
+            "lock_zero_wait_calls": 645265,
+            "try_zero_wait_calls": 0,
+            "lock_uncontended_acquisitions": 644254,
+            "try_uncontended_acquisitions": 0,
+            "lock_recursive_acquisitions": 0,
+            "try_recursive_acquisitions": 0,
+            "recursive_unlocks": 0,
+            "contended_wait_calls": 1011,
+            "contended_acquisitions": 1011,
+            "contended_timeouts": 0,
+            "contended_wait_failures": 0,
+            "zero_wait_failures": 0,
+            "try_busy": 0,
+            "release_calls": 645264,
+            "release_success": 645264,
+            "release_failures": 0,
+            "lock_without_semaphore": 0,
+            "try_without_semaphore": 0,
+            "unlock_without_semaphore": 0,
+            "contended_wait_ns": 0,
+            "timed_wait_calls": 0
+          },
+          "guest_lwmutex_semaphore_calls": 1291540,
+          "guest_lwmutex_semaphore_calls_per_second": 129122.8181307191,
+          "lock_requests_per_second": 64510.9212576602
+        },
+        {
+          "phase": "back",
+          "seconds": 10.000468400015961,
+          "delta": {
+            "lock_requests": 588513,
+            "try_requests": 0,
+            "unlock_requests": 588514,
+            "lock_zero_wait_calls": 588513,
+            "try_zero_wait_calls": 0,
+            "lock_uncontended_acquisitions": 587449,
+            "try_uncontended_acquisitions": 0,
+            "lock_recursive_acquisitions": 0,
+            "try_recursive_acquisitions": 0,
+            "recursive_unlocks": 0,
+            "contended_wait_calls": 1064,
+            "contended_acquisitions": 1064,
+            "contended_timeouts": 0,
+            "contended_wait_failures": 0,
+            "zero_wait_failures": 0,
+            "try_busy": 0,
+            "release_calls": 588514,
+            "release_success": 588514,
+            "release_failures": 0,
+            "lock_without_semaphore": 0,
+            "try_without_semaphore": 0,
+            "unlock_without_semaphore": 0,
+            "contended_wait_ns": 0,
+            "timed_wait_calls": 0
+          },
+          "guest_lwmutex_semaphore_calls": 1178091,
+          "guest_lwmutex_semaphore_calls_per_second": 117803.58208002734,
+          "lock_requests_per_second": 58848.54353412693
+        }
+      ],
+      "added_qpc_timing": false,
+      "counts_include_internal_spu_mfc_host_locks": false
+    },
+    "synthetic_validation": {
+      "completed_runs": 6,
+      "backends": [
+        "user",
+        "kernel"
+      ],
+      "critical_section_updates_each_run": 24000,
+      "actual_project_lwcond_used": true,
+      "recursion_timeouts_cross_thread_release_recreate_and_spurious_wakes_passed": true,
+      "positive_control_passed": true,
+      "missing_notify_control_rejected": true,
+      "recreate_without_notify_control_rejected": true
+    },
+    "native_runs": [
+      {
+        "probe": "20261019-104106",
+        "backend": "kernel",
+        "observed_backend_verified": true,
+        "completed_presentations_per_second": 32.496798253005124,
+        "process_cpu_ms_per_presentation": 120.11217948717949,
+        "vertices_per_render_callback": 183541.85411764705,
+        "resource_delta": {
+          "memory_allocations": 0,
+          "allocated_bytes": 0,
+          "memory_frees": 0,
+          "texture_releases": 0,
+          "closed_release_with_spare_pending": 0,
+          "deferred_list_full": 0,
+          "texture_creates": 0,
+          "uploads": 0,
+          "upload_bytes": 0,
+          "wait_failures": 0
+        },
+        "sampled_game_clock_seconds_per_wall_second": [
+          0.9977891013464766,
+          0.9977891013464766
+        ],
+        "movement_phases": [
+          {
+            "phase": "idle",
+            "seconds": 10.000402799982112,
+            "completed_presentations_per_second": 27.798880261152807,
+            "resource_delta": {
+              "memory_allocations": 10,
+              "allocated_bytes_cumulative": 164352,
+              "memory_frees": 0,
+              "texture_releases": 0,
+              "closed_release_with_spare_pending": 0,
+              "deferred_list_full": 0,
+              "texture_create_calls": 10,
+              "upload_calls": 37,
+              "upload_bytes": 142808,
+              "wait_failures": 0
+            }
+          },
+          {
+            "phase": "forward",
+            "seconds": 10.000075499992818,
+            "completed_presentations_per_second": 33.199749341916316,
+            "resource_delta": {
+              "memory_allocations": 34,
+              "allocated_bytes_cumulative": 845824,
+              "memory_frees": 2,
+              "texture_releases": 2,
+              "closed_release_with_spare_pending": 0,
+              "deferred_list_full": 0,
+              "texture_create_calls": 33,
+              "upload_calls": 107,
+              "upload_bytes": 783616,
+              "wait_failures": 0
+            }
+          },
+          {
+            "phase": "back",
+            "seconds": 10.001225400017574,
+            "completed_presentations_per_second": 39.49516026299196,
+            "resource_delta": {
+              "memory_allocations": 0,
+              "allocated_bytes_cumulative": 0,
+              "memory_frees": 0,
+              "texture_releases": 0,
+              "closed_release_with_spare_pending": 0,
+              "deferred_list_full": 0,
+              "texture_create_calls": 0,
+              "upload_calls": 0,
+              "upload_bytes": 0,
+              "wait_failures": 0
+            }
+          }
+        ],
+        "manual_frame_before_timing_inspected": true
+      },
+      {
+        "probe": "20261019-104239",
+        "backend": "user",
+        "observed_backend_verified": true,
+        "completed_presentations_per_second": 31.083073271600103,
+        "process_cpu_ms_per_presentation": 126.96883378016086,
+        "vertices_per_render_callback": 182410.4411764706,
+        "resource_delta": {
+          "memory_allocations": 0,
+          "allocated_bytes": 0,
+          "memory_frees": 0,
+          "texture_releases": 0,
+          "closed_release_with_spare_pending": 0,
+          "deferred_list_full": 0,
+          "texture_creates": 0,
+          "uploads": 0,
+          "upload_bytes": 0,
+          "wait_failures": 0
+        },
+        "sampled_game_clock_seconds_per_wall_second": [
+          0.9993056069105426,
+          0.9993056069105426
+        ],
+        "movement_phases": [
+          {
+            "phase": "idle",
+            "seconds": 10.000000400003046,
+            "completed_presentations_per_second": 27.19999891199176,
+            "resource_delta": {
+              "memory_allocations": 10,
+              "allocated_bytes_cumulative": 164352,
+              "memory_frees": 0,
+              "texture_releases": 0,
+              "closed_release_with_spare_pending": 0,
+              "deferred_list_full": 0,
+              "texture_create_calls": 10,
+              "upload_calls": 37,
+              "upload_bytes": 142808,
+              "wait_failures": 0
+            }
+          },
+          {
+            "phase": "forward",
+            "seconds": 10.001627299992833,
+            "completed_presentations_per_second": 33.39456570234719,
+            "resource_delta": {
+              "memory_allocations": 33,
+              "allocated_bytes_cumulative": 799744,
+              "memory_frees": 2,
+              "texture_releases": 2,
+              "closed_release_with_spare_pending": 0,
+              "deferred_list_full": 0,
+              "texture_create_calls": 32,
+              "upload_calls": 98,
+              "upload_bytes": 739912,
+              "wait_failures": 0
+            }
+          },
+          {
+            "phase": "back",
+            "seconds": 10.00102780002635,
+            "completed_presentations_per_second": 39.49594060712033,
+            "resource_delta": {
+              "memory_allocations": 0,
+              "allocated_bytes_cumulative": 0,
+              "memory_frees": 0,
+              "texture_releases": 0,
+              "closed_release_with_spare_pending": 0,
+              "deferred_list_full": 0,
+              "texture_create_calls": 0,
+              "upload_calls": 0,
+              "upload_bytes": 0,
+              "wait_failures": 0
+            }
+          }
+        ],
+        "manual_frame_before_timing_inspected": true
+      },
+      {
+        "probe": "20261019-104413",
+        "backend": "user",
+        "observed_backend_verified": true,
+        "completed_presentations_per_second": 32.41343909841938,
+        "process_cpu_ms_per_presentation": 119.77827763496144,
+        "vertices_per_render_callback": 181632.6018957346,
+        "resource_delta": {
+          "memory_allocations": 0,
+          "allocated_bytes": 0,
+          "memory_frees": 0,
+          "texture_releases": 0,
+          "closed_release_with_spare_pending": 0,
+          "deferred_list_full": 0,
+          "texture_creates": 0,
+          "uploads": 0,
+          "upload_bytes": 0,
+          "wait_failures": 0
+        },
+        "sampled_game_clock_seconds_per_wall_second": [
+          1.0005324713192552,
+          1.0005324713192552
+        ],
+        "movement_phases": [
+          {
+            "phase": "idle",
+            "seconds": 10.000614100019448,
+            "completed_presentations_per_second": 27.49831132864783,
+            "resource_delta": {
+              "memory_allocations": 10,
+              "allocated_bytes_cumulative": 164352,
+              "memory_frees": 0,
+              "texture_releases": 0,
+              "closed_release_with_spare_pending": 0,
+              "deferred_list_full": 0,
+              "texture_create_calls": 10,
+              "upload_calls": 37,
+              "upload_bytes": 142808,
+              "wait_failures": 0
+            }
+          },
+          {
+            "phase": "forward",
+            "seconds": 10.001333999971393,
+            "completed_presentations_per_second": 33.19557171082874,
+            "resource_delta": {
+              "memory_allocations": 34,
+              "allocated_bytes_cumulative": 845824,
+              "memory_frees": 2,
+              "texture_releases": 2,
+              "closed_release_with_spare_pending": 0,
+              "deferred_list_full": 0,
+              "texture_create_calls": 33,
+              "upload_calls": 107,
+              "upload_bytes": 783616,
+              "wait_failures": 0
+            }
+          },
+          {
+            "phase": "back",
+            "seconds": 10.002042200008873,
+            "completed_presentations_per_second": 39.99183286785624,
+            "resource_delta": {
+              "memory_allocations": 0,
+              "allocated_bytes_cumulative": 0,
+              "memory_frees": 0,
+              "texture_releases": 0,
+              "closed_release_with_spare_pending": 0,
+              "deferred_list_full": 0,
+              "texture_create_calls": 0,
+              "upload_calls": 0,
+              "upload_bytes": 0,
+              "wait_failures": 0
+            }
+          }
+        ],
+        "manual_frame_before_timing_inspected": true
+      },
+      {
+        "probe": "20261019-104546",
+        "backend": "kernel",
+        "observed_backend_verified": true,
+        "completed_presentations_per_second": 31.993751620218504,
+        "process_cpu_ms_per_presentation": 124.67447916666667,
+        "vertices_per_render_callback": 183239.52997601917,
+        "resource_delta": {
+          "memory_allocations": 0,
+          "allocated_bytes": 0,
+          "memory_frees": 0,
+          "texture_releases": 0,
+          "closed_release_with_spare_pending": 0,
+          "deferred_list_full": 0,
+          "texture_creates": 0,
+          "uploads": 0,
+          "upload_bytes": 0,
+          "wait_failures": 0
+        },
+        "sampled_game_clock_seconds_per_wall_second": [
+          1.0012696195802924,
+          1.0012696195802924
+        ],
+        "movement_phases": [
+          {
+            "phase": "idle",
+            "seconds": 10.000100300007034,
+            "completed_presentations_per_second": 28.29971615382707,
+            "resource_delta": {
+              "memory_allocations": 0,
+              "allocated_bytes_cumulative": 0,
+              "memory_frees": 0,
+              "texture_releases": 0,
+              "closed_release_with_spare_pending": 0,
+              "deferred_list_full": 0,
+              "texture_create_calls": 0,
+              "upload_calls": 0,
+              "upload_bytes": 0,
+              "wait_failures": 0
+            }
+          },
+          {
+            "phase": "forward",
+            "seconds": 10.00131490000058,
+            "completed_presentations_per_second": 32.69570084229435,
+            "resource_delta": {
+              "memory_allocations": 34,
+              "allocated_bytes_cumulative": 845824,
+              "memory_frees": 2,
+              "texture_releases": 2,
+              "closed_release_with_spare_pending": 0,
+              "deferred_list_full": 0,
+              "texture_create_calls": 33,
+              "upload_calls": 107,
+              "upload_bytes": 783616,
+              "wait_failures": 0
+            }
+          },
+          {
+            "phase": "back",
+            "seconds": 10.001673199993093,
+            "completed_presentations_per_second": 39.393408694884386,
+            "resource_delta": {
+              "memory_allocations": 0,
+              "allocated_bytes_cumulative": 0,
+              "memory_frees": 0,
+              "texture_releases": 0,
+              "closed_release_with_spare_pending": 0,
+              "deferred_list_full": 0,
+              "texture_create_calls": 0,
+              "upload_calls": 0,
+              "upload_bytes": 0,
+              "wait_failures": 0
+            }
+          }
+        ],
+        "manual_frame_before_timing_inspected": true
+      }
+    ],
+    "means": {
+      "kernel": {
+        "completed_presentations_per_second": 32.245274936611814,
+        "process_cpu_ms_per_presentation": 122.39332932692308
+      },
+      "user": {
+        "completed_presentations_per_second": 31.748256185009744,
+        "process_cpu_ms_per_presentation": 123.37355570756115
+      }
+    },
+    "consistent_native_fps_or_cpu_gain_demonstrated": false,
+    "limits": [
+      "Camera angle and autonomous NPC work vary; these are not identical-input comparisons",
+      "Presentation counts and sampled clocks do not establish complete animation or cutscene fidelity",
+      "No production patch, full candidate regression suite, native Mac or Linux validation yet"
+    ],
+    "uncontended_primitive_benchmark": {
+      "rows": [
+        {
+          "phase": 0,
+          "backend": "user_token",
+          "pairs": 500000,
+          "completed": 500000,
+          "slow_acquisitions": 0,
+          "checksum_hex": "f91d04088d7246f6",
+          "ticks": 38024,
+          "frequency": 10000000,
+          "elapsed_ns": 3802400.0,
+          "ns_per_lock_unlock_pair": 7.605
+        },
+        {
+          "phase": 1,
+          "backend": "kernel_semaphore",
+          "pairs": 500000,
+          "completed": 500000,
+          "slow_acquisitions": 0,
+          "checksum_hex": "f91d04088d7246f6",
+          "ticks": 1010437,
+          "frequency": 10000000,
+          "elapsed_ns": 101043700.0,
+          "ns_per_lock_unlock_pair": 202.087
+        },
+        {
+          "phase": 2,
+          "backend": "kernel_semaphore",
+          "pairs": 500000,
+          "completed": 500000,
+          "slow_acquisitions": 0,
+          "checksum_hex": "f91d04088d7246f6",
+          "ticks": 999920,
+          "frequency": 10000000,
+          "elapsed_ns": 99992000.0,
+          "ns_per_lock_unlock_pair": 199.984
+        },
+        {
+          "phase": 3,
+          "backend": "user_token",
+          "pairs": 500000,
+          "completed": 500000,
+          "slow_acquisitions": 0,
+          "checksum_hex": "f91d04088d7246f6",
+          "ticks": 38735,
+          "frequency": 10000000,
+          "elapsed_ns": 3873500.0,
+          "ns_per_lock_unlock_pair": 7.747
+        },
+        {
+          "phase": 4,
+          "backend": "kernel_semaphore",
+          "pairs": 500000,
+          "completed": 500000,
+          "slow_acquisitions": 0,
+          "checksum_hex": "f91d04088d7246f6",
+          "ticks": 1002730,
+          "frequency": 10000000,
+          "elapsed_ns": 100273000.0,
+          "ns_per_lock_unlock_pair": 200.546
+        },
+        {
+          "phase": 5,
+          "backend": "user_token",
+          "pairs": 500000,
+          "completed": 500000,
+          "slow_acquisitions": 0,
+          "checksum_hex": "f91d04088d7246f6",
+          "ticks": 36218,
+          "frequency": 10000000,
+          "elapsed_ns": 3621800.0,
+          "ns_per_lock_unlock_pair": 7.244
+        },
+        {
+          "phase": 6,
+          "backend": "user_token",
+          "pairs": 500000,
+          "completed": 500000,
+          "slow_acquisitions": 0,
+          "checksum_hex": "f91d04088d7246f6",
+          "ticks": 38421,
+          "frequency": 10000000,
+          "elapsed_ns": 3842100.0,
+          "ns_per_lock_unlock_pair": 7.684
+        },
+        {
+          "phase": 7,
+          "backend": "kernel_semaphore",
+          "pairs": 500000,
+          "completed": 500000,
+          "slow_acquisitions": 0,
+          "checksum_hex": "f91d04088d7246f6",
+          "ticks": 1021613,
+          "frequency": 10000000,
+          "elapsed_ns": 102161300.0,
+          "ns_per_lock_unlock_pair": 204.323
+        }
+      ],
+      "summary": {
+        "user_token": {
+          "mean_ns_per_pair": 7.57,
+          "median_ns_per_pair": 7.644500000000001
+        },
+        "kernel_semaphore": {
+          "mean_ns_per_pair": 201.735,
+          "median_ns_per_pair": 201.3165
+        }
+      },
+      "synthetic_uncontended_primitive_only": true,
+      "guest_lookup_vm_and_recursion_not_measured": true,
+      "native_game_performance_claim": false,
+      "helper_sha256": "3942b29a40139bebe783e35ec529f0a4c0d07f4a3bef9ae1320d5c2c9b5ca36b",
+      "source_sha256": "a0f5f6d1e44afa30f71f9964c69416c1c80a0aebe08a1192e11d6b8e90b45259",
+      "executable_sha256": "336adb159248bc1b153aed1dded68051d2da93afcafe5c8e2a9ff8e98b8931c8"
+    }
+  },
+  "remaining_fork_candidates_2026_10_19": {
+    "four_lane_exact_float": "Standalone compatibility tests only; guarded fused implementation not native-tested or promoted",
+    "cheaper_guest_lwmutex": "Private native candidate tested; no consistent performance gain; not promoted",
+    "clock_paced_audio": "Source reviewed; cadence, read lag and MMCSS not implemented or WKC-native-tested",
+    "sparse_texture_rehash": "Not implemented; sampled matching cannot prove unchanged texture contents",
+    "exact_texture_tracking": "Private verification and skip experiments exist; writer coverage, shared failure state, current SDK rebase and lifecycle work remain"
+  },
+  "ppu_local_fullstate_fixture_2026_10_19": {
+    "sdk_patch_count": 104,
+    "status": "Private synthetic validation; not production integration or native gameplay validation",
+    "lifter_sha256": "42e3917786ee8795475a28db2ebbf53eeac58874b795548d2561b0df21ad3c1f",
+    "runtime_context_header_sha256": "7e6021b0524bfab36dd357959e6d732c0cb75b3b6cf595014042ebd36fcbbad2",
+    "adapter_sha256": "2b106a12f0e8dc57b00ccf93a134cf71bd81eb60e2a44254b2e230eef9170cb3",
+    "screen_sha256": "15b01bff773024c6340b230b86d3de735ddfcf7115d0bb6c04fe8d7593f04425",
+    "synthetic_fixture_sha256": "0ea7cbf51c4870b91fbedd25d1eb3d2c31e08fb6a71c6edb85ae7ef1737e9e16",
+    "synthetic_harness_sha256": "990d076d8e1d49273d2ba3d45253978b98d918bac4f44c2fa4b67e0356020dd8",
+    "iterations": 32,
+    "scenarios_per_iteration": 3,
+    "records_each_variant": 96,
+    "bytes_compared_each_variant": 101400064,
+    "full_output_sha256": "cdedcc5c439ecde6e0479c5f5687bb3c675ab66a43133d763fdea482ba7eb969",
+    "complete_runtime_context_layout_compile_assertions_passed": true,
+    "plain_locals_verifier_byte_identical": true,
+    "coverage": {
+      "records": 96,
+      "context_bytes": 1104,
+      "complete_event_bytes_compared": 617728,
+      "totals": {
+        "reads": 1712,
+        "writes": 2256,
+        "mmio_reads": 64,
+        "mmio_writes": 32,
+        "direct_callbacks": 32,
+        "indirect_callbacks": 32,
+        "hle_callbacks": 32,
+        "syscalls": 32,
+        "tail_callbacks": 32,
+        "modeled_reservation_breaks": 32
+      }
+    },
+    "actual_verifier_comparisons": 256,
+    "verifier_mismatches": 0,
+    "negative_controls": [
+      "Omitted register reload changes full-state output",
+      "Dropped MMIO read changes event/state output"
+    ],
+    "unsafe_screen_cases_rejected": 19,
+    "supported_idioms_accepted": 10,
+    "grouped_reads_enabled": false,
+    "whole_program_liveness_enabled": false,
+    "limits": [
+      "Uses synthetic callback and memory models, not a complete real-loader synchronization proof",
+      "Actual game contexts and generated game source remain private",
+      "Current SDK native coverage and supported public postprocessor integration remain pending"
+    ]
   }
 }
