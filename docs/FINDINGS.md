@@ -26,6 +26,7 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 **Performance, timing and presentation**
 
+- [SPURS polling stalls and register-local candidates](#spurs-polling-stalls-and-register-local-candidates)
 - [GPU command spans and the town wait chain](#gpu-command-spans-and-the-town-wait-chain)
 - [Saved-town movement baseline](#saved-town-movement-baseline)
 - [Frame pacing and game speed](#frame-pacing-and-game-speed)
@@ -237,6 +238,82 @@ PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
+
+## SPURS polling stalls and register-local candidates
+
+**Problem.** The main-thread condition trace identifies an SPURS dependency, but
+does not explain why completion arrives late during town movement. Optimizing
+the busiest arithmetic routine alone need not address the largest stalls.
+
+**Cause.** Further private traces on 2026-10-19 distinguish the work from its
+completion notification. Short image-21 jobs commit the flags consumed by the
+waiting PPU thread. In one back-phase sample, an image-19 job runs for 364.33 ms,
+followed by the observed completion of a 366.77 ms event-flag wait. The matched
+commit-to-return interval is only 0.0058 ms. Another job/wait pair takes
+279.23/281.99 ms, with 0.0056 ms from commit observation to return.
+
+The long jobs also accumulate substantial per-thread CPU cycles. These counts
+include kernel and user work and are not converted to elapsed time; see
+[QueryThreadCycleTime](https://learn.microsoft.com/en-us/windows/win32/api/realtimeapiset/nf-realtimeapiset-querythreadcycletime).
+They do not by themselves identify useful arithmetic rather than active polling.
+A separate probe associates actual instruction-pointer samples with individual
+job intervals using their common QPC clock. Its longest completed image-19 job
+takes 377.22 ms and has 150 matching samples: 55 in `spu_rdch`, 57 in the system
+library, and 25 in the lifted `0x2D24`/`0x2C58` routines. The generated `0x2D24`
+loop reads `SPU_RdDec` 25 times; its caller submits DMA and tests progress before
+retrying. This directs the next investigation toward that polling loop's producer
+and runtime cost. It does not yet prove a decrementer-rate, DMA or wakeup error.
+
+**Fix.** No runtime performance change is promoted. Two isolated optimization
+prototypes now have correctness evidence:
+
+- A PPU post-pass uses the reviewed
+  [Drakengard SDK register-local implementation](https://github.com/soyjxck/ps3recomp/blob/de08397c0a485cd7705c049ca7532dd90fadc704/tools/ppu_nv_dirty.py)
+  on the existing WKC lift, retaining its instruction fixes. The first candidate
+  rewrites one 610-function chunk, writes back registers that may have changed,
+  and reloads all selected registers after calls, including nonvolatile GPRs.
+  Whole-program liveness is not enabled. A grouped-read variant identifies 607
+  access groups containing 4,488 static accesses. Only read-only eligible groups
+  can use the direct path; stores retain the existing coherent runtime path.
+  A generation check invalidates cached eligibility when the private read gate
+  changes. Verification checks computed group addresses before direct loads.
+- An SPU leaf-kernel prototype keeps register values in locals. Unrestricted
+  float reordering changes NaN payloads in differential tests, so that version
+  is rejected. A guarded version restores any tentative local-store writes and
+  runs the unchanged reference when a floating operation encounters or produces
+  a nonfinite value. Diagnostics, alternate float modes and unsuitable contexts
+  also retain the reference path. One slower kernel variant is discarded.
+
+**Evidence.** Three synthetic PPU variants—plain, locals and verifying—produce
+identical observed outputs across 300 randomized runs through the pinned WKC
+lifter. The grouped version passes another 300-run comparison. Focused group
+checks cover unaligned/endian reads, special and wrapping spans, unbacked pages,
+address verification, generation invalidation and runtime store dispatch.
+Removing generation validation makes its negative control fail. The native
+610-function candidates load the verified save through Continue and complete
+short forward/back movement with zero retained register-verifier errors; the
+grouped variant also reports zero group-address errors.
+
+The guarded SPU kernel passes 1,024 arbitrary-state and 512 finite-source-state
+comparisons of the complete context, local store and next branch. Most of the
+latter inputs still produce nonfinite intermediates and exercise the reference
+fallback. A separate native diagnostic run completes 148,024 sampled full-state
+comparisons with zero mismatches. A deliberately changed register is detected by
+the verifier's negative check. Fixed-pose on/off timing passes remain too variable
+to establish a consistent gameplay improvement.
+
+**Limits.** These prototypes remain private and are not part of the published
+99-patch/84-check runtime. Static access/write-back counts are not executed traffic
+measurements. Native verifier results cover only exercised paths; the full suite
+has not been rerun against these candidates. Sampling perturbs job timing, and
+the job/sample windows differ. Timed routes still lack spatial waypoint capture.
+The standalone clock experiment does not establish a reason to replace the
+existing Windows clock, and no decrementer reads are removed from the playable.
+Fast stores, whole-program PPU liveness, verified texture/vertex write tracking,
+further graphics pooling, internal scene scaling/MSAA, sustained smooth 30 FPS
+and higher-rate/game-speed validation remain pending. The desktop playable,
+settings and verified save are unchanged; tests use hidden, verified-muted
+sessions. No new visible milestone or gallery image is claimed.
 
 ## GPU command spans and the town wait chain
 

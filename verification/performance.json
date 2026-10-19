@@ -1261,5 +1261,142 @@
       "Timed input does not guarantee identical spatial viewpoints; game-clock semantics/animation speed remain unverified.",
       "Earlier baseline mute metadata reflected an unsupported environment flag; later audio-session muting is verified."
     ]
+  },
+  "spurs_polling_and_register_candidates": {
+    "date": "2026-10-19",
+    "runtime_change_promoted": false,
+    "published_sdk_patch_count": 99,
+    "published_windows_check_count": 84,
+    "private_back_job_records_sha256": "c61acdf8bf483e3ff5017840cb5e7398fb71833a40854835e288006a616868d8",
+    "matching_job_wait_examples": [
+      {
+        "job_image": 19,
+        "job_wall_ms": 364.3269,
+        "job_thread_cycles": 1149419910,
+        "wait_wall_ms": 366.7744,
+        "observed_completion_image": 21,
+        "commit_to_return_ms": 0.0058
+      },
+      {
+        "job_image": 19,
+        "job_wall_ms": 279.2334,
+        "job_thread_cycles": 880842803,
+        "wait_wall_ms": 281.9903,
+        "observed_completion_image": 21,
+        "commit_to_return_ms": 0.0056
+      }
+    ],
+    "profiled_longest_job": {
+      "image": 19,
+      "wall_ms": 377.221,
+      "thread_cycles": 1188979834,
+      "samples": 150,
+      "leaves": [
+        [
+          "ntdll.dll",
+          57
+        ],
+        [
+          "spu_rdch",
+          55
+        ],
+        [
+          "zz_raw_job_01283D80_spu_func_00002D24",
+          16
+        ],
+        [
+          "zz_raw_job_01283D80_spu_func_00002C58",
+          9
+        ],
+        [
+          "spu_wrch",
+          4
+        ],
+        [
+          "mfc_do_transfer",
+          2
+        ],
+        [
+          "mfc_submit",
+          2
+        ],
+        [
+          "KERNEL32.DLL",
+          2
+        ],
+        [
+          "spu_drain_call",
+          1
+        ],
+        [
+          "mfc_channel_write",
+          1
+        ],
+        [
+          "zz_raw_job_01283D80_spu_func_00002D34",
+          1
+        ]
+      ],
+      "private_correlation_sha256": "a9a3083f152ecd38573ee3239dac8125e187d54e316d1b38f3a256cf40354acb",
+      "limits": "Suspending sampler; diagnostic durations, not clean speed comparisons."
+    },
+    "ppu_local_candidate": {
+      "input_function_count": 610,
+      "rewritten_functions": 610,
+      "pass_file_sha256": "d409726c0f33a66905052651a9728ba114f5d934a05dc3aaddb1be1ac8945bfd",
+      "whole_program_liveness": false,
+      "grouped_memory_accesses": true,
+      "statistics": {
+        "run_acc": 4488,
+        "runs": 607,
+        "done": 590,
+        "points": 3496,
+        "stores": 17911,
+        "stores_all": 59522
+      }
+    },
+    "ppu_synthetic_cases": 300,
+    "ppu_grouped_synthetic_cases": 300,
+    "ppu_plain_locals_verifying_observed_outputs_identical": true,
+    "ppu_native_grouped_candidate": {
+      "candidate_exe_sha256": "01ffb124c518c0b336299d0ad79ed2b69fe3e6d6c50ce3bad7f337feb7d1bc75",
+      "unchanged_register_mismatches": 0,
+      "group_address_mismatches": 0,
+      "scope": "One transformed chunk of 610 functions. Continue plus short town movement. Instrumented diagnostic run, not a speed comparison. Whole-program liveness and fast stores remain pending."
+    },
+    "private_ppu_native_check_sha256": "99cbd29f58dde67acaa67cc294592d4bf18055ad6e2828a835fa22cbc0b9cfa5",
+    "group_epoch_negative_control_rejected": true,
+    "spu_kernel_candidate": {
+      "candidate_exe_sha256": "461811E807879BE65E1A18737144B7E08181C5AD9CBEC525AFE82D6D45BB92B5",
+      "checks": 148024,
+      "mismatches": 0,
+      "first_offset": 0,
+      "scope": "Sampled full actual-context, local-store and trampoline comparison against the unchanged reference kernel. Native diagnostic run; not a speed measurement."
+    },
+    "private_spu_native_check_sha256": "d8a9d1a12933c56059d7132b1659ea57aecb8b074e03e88a30b0ecb0480c650b",
+    "spu_synthetic_arbitrary_states": 1024,
+    "spu_finite_source_states": 512,
+    "spu_finite_source_nonfinite_fallbacks": 506,
+    "spu_changed_register_negative_control_detected": true,
+    "fixed_pose_gameplay_speed_improvement_established": false,
+    "private_spu_on_off_comparison_sha256": "f4d2474310fbcbfae239fcf5e6897f8caf50032595be04dc6b564b200ab85331",
+    "private_clock_trial_sha256": "f0efb6aa53f4dd6d6d9decca3f8bf0173cb9b11c6e865d01ad4bbf9463ee3eb7",
+    "clock_replacement_promoted": false,
+    "conditions": {
+      "hidden": true,
+      "audio_session_muted_and_verified": true,
+      "continued_from_verified_town_save": true,
+      "prototype_checks_are_not_published_suite_additions": true,
+      "desktop_playable_unchanged": true
+    },
+    "limits": [
+      "One PPU chunk only; whole-program liveness and fast stores remain pending.",
+      "Stores retain existing runtime handling; static counts are not measured executed traffic.",
+      "Native verifier checks cover exercised paths and do not prove all inputs.",
+      "Sampled job wall time includes polling, kernel work and profiling overhead; thread cycles are not converted to elapsed time.",
+      "Long-stall samples identify decrementer polling; neither its producer nor a complete fix is proven.",
+      "No consistent end-to-end gain, sustained 30 FPS, animation-speed parity or higher-rate correctness is claimed.",
+      "No new public runtime patch or visible milestone at this checkpoint."
+    ]
   }
 }
