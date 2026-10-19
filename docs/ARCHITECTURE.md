@@ -6,10 +6,10 @@ with a PS3 compatibility runtime. Static recompilation is a form of binary
 recompilation. It differs from dynamic recompilation and interpretation, which
 translate or execute code while the game runs.
 
-Execution is not yet fully static. SPU code that the recompiler does not cover
-still reaches an interpreter fallback, so the current build is a static
-recompilation with an observed interpreter fallback. It is not a verified
-interpreter-free port or a recovered, readable version of the original source.
+Full-game static coverage is not yet verified. Earlier probes reached SPU
+interpreter fallback; five newly compiled entries remove the observed cases on a
+strict saved-town route. Fallback remains available for untested paths. This is
+not a recovered, readable version of the original source.
 
 ## What executes
 
@@ -25,11 +25,11 @@ interpreter-free port or a recovered, readable version of the original source.
   the physics output used by Leonard's hair and clothing in the inspected WKC1
   town views; it does not establish full-game scheduling or physics fidelity.
 - The SDK also contains an SPU interpreter and a runtime-code microstep path.
-  Native census runs record six fallback entry fingerprints in image 17,
-  including calls from the microstep path.
-  This is observed execution, not merely an unused interpreter in the source tree.
-  Registering all 24 inputs does not prove every executed instruction was lifted.
-  The proportion of execution using this fallback has not been measured.
+  Reference runs recorded six fallback rows in image 17 and four in image 19.
+  Five added static entries cover those observed cases. A seven-minute saved-town
+  route with both fallback entrances made fatal completes with zero entries.
+  Registering all 24 inputs still does not prove full-game coverage, and the
+  earlier fallback proportion was not measured.
 - The runtime retains guest memory/register conventions and reimplements PS3
   system interfaces, including threads, files and media services. This is a
   compatibility/emulation layer; claiming there is no emulation would be inaccurate.
@@ -105,19 +105,14 @@ The [native execution work plan](NATIVE_CODE.md) separates removal of interprete
 fallback from readable replacements for already compiled hot jobs. Python tools
 perform build-time generation and diagnostics; they are not the gameplay CPU path.
 
-The intended interpreter-free path requires covering missing SPU entries and
-any runtime-generated code with validated static or specific native implementations.
-The first census finds six entry fingerprints in image 17 matching the
-corresponding 64-byte windows in the extracted SPU image. That match is not a
-whole-function comparison. These are candidates for improving static entry
-discovery. The three primary entry hints produce a Windows-compilable
-private lift; its behavior and native execution have not been verified.
-Disabling the interpreter before validating replacements would break execution.
+Five additional entries in images 17 and 19 are integrated through a hash-checked
+build manifest. Forty private replays match complete context, GPRs, local store
+and continuation against the former fallback. Patch 0116 initializes running
+status before compiled dispatch; 0117 can reject either fallback entrance before
+it executes. The scoped native route and remaining coverage are recorded in
+[native execution work](NATIVE_CODE.md).
 
-Validation must measure fallback use along tested routes. Boot, rendering or
-gameplay milestones must not be presented as proof of fully static CPU coverage.
-The census counts completed fallback sessions rather than all executed
-instructions, so it cannot establish a fallback percentage. An empty table alone
-would not prove interpreter-free execution. See the
-[census findings](FINDINGS.md#spu-fallback-census-and-host-runtime-review)
-for the measured route and limits.
+An empty completed-session census alone would miss unfinished calls. Strict
+entry guards supply stronger route evidence, with negative controls for both
+interpreter and microstep paths. Broader NPC, transition and cutscene coverage,
+readable hot-job kernels and complete scheduling validation remain required.

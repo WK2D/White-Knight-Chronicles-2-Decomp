@@ -8,8 +8,8 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patches 0116-0117 | [SPU running status and fallback entry guards](#spu-running-status-and-fallback-entry-guards-patches-0116-0117) |
 | Patches 0112–0115 | [DirectX clear/comparison/bias and kernel deadline](#directx-clearcomparisonbias-and-kernel-deadline-patches-01120115) |
-| Patch 0107 |
 | Patch 0107 | [DirectX display and sampler preferences](#directx-display-and-sampler-preferences-patch-0107) |
 | Patch 0106 | [DirectX live clear rectangles](#directx-live-clear-rectangles-patch-0106) |
 | Patch 0105 | [Guest lightweight mutex tokens](#guest-lightweight-mutex-tokens-patch-0105) |
@@ -44,6 +44,24 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## SPU running status and fallback entry guards (patches 0116-0117)
+
+0116 establishes `SPU_STATUS_RUNNING` at `spu_run_with_halt` entry before
+compiled execution. SPURS job reset could leave it stopped, while the old
+interpreter silently changed it. The title tests cover five prior status values
+and reset host-call state. 0117 adds `SPU_FALLBACK_STRICT=1`, which rejects
+interpreter or microstep entry before any instruction executes and exits with
+code 86. Separate child-process tests exercise both fatal entrances; default
+fallback and census behavior remain available.
+
+The project build also adds five hash-checked static entry hints, preserving the
+24-image registry and skipping known obsolete duplicate wrappers. Forty private
+function replays match complete state and continuation. A seven-minute DirectX
+saved-town route with the strict guard enabled records zero fallback entries;
+all five compiled entries execute in a separate instrumented run. Full-game
+coverage and readable geometry replacements remain unverified. All 106 Windows
+checks pass in Debug and Release. See [native execution work](NATIVE_CODE.md).
 
 ## DirectX clear/comparison/bias and kernel deadline (patches 0112–0115)
 

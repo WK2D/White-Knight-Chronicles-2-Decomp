@@ -27,7 +27,7 @@ can resume from a local save.
   Continue after restarting.
 - A dedicated **Triangle → System → Graphics Settings** panel with persistent
   preferences, the game's menu frame and a scrollbar.
-- **103 Windows regression checks** pass in both Debug and optimized Release. The
+- **106 Windows regression checks** pass in both Debug and optimized Release. The
   latest native check loads Continue and moves briefly in town.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
@@ -79,9 +79,10 @@ verified yet. GeoNet compatibility is separate later research.
 ## How it works
 
 The game code is translated to C/C++ ahead of time and compiled with a runtime that
-implements the PS3 services it uses. Some SPU paths still use an interpreter
-fallback, so this is not yet a fully static port, and it is not a recovered version
-of the original source. The architecture page explains the execution model and the
+implements the PS3 services it uses. Five missing SPU entries now compile
+statically, and a tested saved-town route runs with interpreter fallback forbidden.
+Fallback remains available for untested paths; full-game static coverage and a
+readable reconstruction of the original source remain unverified. The architecture page explains the execution model and the
 remaining work.
 
 ## Building and documentation

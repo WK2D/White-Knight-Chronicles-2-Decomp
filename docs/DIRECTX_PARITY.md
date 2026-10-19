@@ -32,3 +32,13 @@ and darker grass. These are observations awaiting matched scenes/settings and
 CPU/GPU profiles. There is no established single cause or measured speedup from
 this audit. Continue tests use isolated save copies and the 30 FPS setting.
 The separately confirmed above-30 game-timing regression remains deferred.
+
+## Plains transition follow-up
+
+At 30 FPS, the town-to-Balastor Plain route incorrectly occludes Leonard’s lower
+body with foreground ground in DirectX 117 (`20261019-215032`). It also reproduces
+in DirectX 115 (`20261019-215530`), before the added static SPU entries. Vulkan 117
+(`20261019-215842`) shows the lower body on the corresponding route. The strict
+117 runs reach the plains with zero interpreter/microstep entries. This narrows
+the visual failure to the renderer path without establishing its exact cause.
+Depth state and viewport mapping are being compared; no visual fix is claimed.

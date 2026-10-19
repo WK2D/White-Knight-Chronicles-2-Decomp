@@ -4,8 +4,8 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-19):** the stack contains 115 SDK patches. All
-103 Windows checks pass in normal Debug and optimized Release. Reapplying the
+**Current validation (2026-10-19):** the stack contains 117 SDK patches. All
+106 Windows checks pass in normal Debug and optimized Release. Reapplying the
 complete stack changes no SDK files. Vulkan Continue and short town movement
 were rechecked on patch 0105; isolated DirectX Continue, menu FXAA toggling
 and a short world movement are checked on patch 0110.
@@ -134,7 +134,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 115 numbered SDK patches, and all 103 checks
+The current source stack contains 117 numbered SDK patches, and all 106 checks
 pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
@@ -336,3 +336,23 @@ other errors, successful acquires and infinite/zero waits retain their behavior.
 The regression forces three early results and still requires the full deadline.
 Both complete suites and ten repeated Release kernel tests pass. The default
 user-token backend is unchanged.
+
+### Static SPU entries and strict diagnostics (patches 0116-0117)
+
+`tools/build.ps1 -Regenerate` uses `tools/build_spu.py` to add five validated
+indirect entries to the pinned baseline images. Hash mismatches, missing inputs
+or unreviewed extra images fail explicitly. The registry remains 24 inputs;
+known obsolete diagnostic wrappers are skipped without deleting private files.
+
+For route validation, set `SPU_FALLBACK_STRICT=1` before launch. The log must say
+`[spu-fallback] strict entry guard enabled`. Any interpreter or microstep entry
+logs `[spu-fallback-forbidden]` with image/address and terminates with code 86,
+before execution. This is an opt-in diagnostic, not a normal-play default.
+Set `SPU_INTERP_PROFILE` to a private TSV path as well to retain an explicit
+zero-row table on a route with no fallback. Unset strict mode after testing.
+
+The new entry-manifest check and two forbidden-entry negative controls pass
+alongside the existing profile on/off tests. Both complete Windows suites pass
+106 checks. The scoped saved-town run and replay limits are in
+[native execution work](NATIVE_CODE.md); do not infer complete game coverage or
+an FPS improvement from a zero-row census.

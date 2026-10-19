@@ -1,0 +1,82 @@
+Reject interpreter or microstep entry before execution in opt-in strict verification runs.
+Default execution and fallback remain enabled.
+
+diff --git a/runtime/spu/spu_interp_profile.h b/runtime/spu/spu_interp_profile.h
+--- a/runtime/spu/spu_interp_profile.h
++++ b/runtime/spu/spu_interp_profile.h
+@@ -29,6 +29,10 @@
+ /* Nonzero when SPU_INTERP_PROFILE names an output file. */
+ int spu_interp_profile_enabled(void);
+ 
++/* SPU_FALLBACK_STRICT=1 terminates with exit code 86 at either fallback
++ * entrance, before executing an instruction. Opt-in verification only. */
++void spu_interp_fallback_enter(int path, int image_id, uint32_t entry);
++
+ /* FNV-1a over the 64 local-store bytes at lsa, wrapping at the LS end. */
+ uint64_t spu_interp_fingerprint(const uint8_t* ls, uint32_t lsa);
+ 
+diff --git a/runtime/spu/spu_interp_profile.c b/runtime/spu/spu_interp_profile.c
+--- a/runtime/spu/spu_interp_profile.c
++++ b/runtime/spu/spu_interp_profile.c
+@@ -45,6 +45,7 @@
+ static uint64_t    s_dropped;
+ static time_t      s_written;
+ static char        s_path[1024];
++static int         s_strict; /* Published with s_state, immutable after initialization. */
+ 
+ static void write_table(void);
+ 
+@@ -53,6 +54,9 @@
+     if (state_load() < 0) {
+         profile_lock();
+         if (state_load() < 0) {
++            const char* strict = getenv("SPU_FALLBACK_STRICT");
++            s_strict = strict && !strcmp(strict,"1");
++            if(s_strict) {fprintf(stderr,"[spu-fallback] strict entry guard enabled\n");fflush(stderr);}
+             const char* e = getenv("SPU_INTERP_PROFILE");
+             if (e && *e && strlen(e) < sizeof s_path) {
+                 strcpy(s_path, e);
+@@ -66,6 +70,21 @@
+         profile_unlock();
+     }
+     return state_load();
++}
++
++void spu_interp_fallback_enter(int path, int image_id, uint32_t entry)
++{
++    (void)spu_interp_profile_enabled();
++    if (!s_strict) return;
++    fprintf(stderr,"[spu-fallback-forbidden] path=%s image=%d entry=0x%05X\n",
++        path == SPU_PROFILE_MICROSTEP ? "microstep" : "interp", image_id, entry);
++    fflush(stderr);
++    /* No atexit callbacks or guest cleanup while a worker owns runtime locks. */
++#ifdef _WIN32
++    TerminateProcess(GetCurrentProcess(),86);
++#else
++    _Exit(86);
++#endif
+ }
+ 
+ uint64_t spu_interp_fingerprint(const uint8_t* ls, uint32_t lsa)
+diff --git a/runtime/spu/spu_interp.c b/runtime/spu/spu_interp.c
+--- a/runtime/spu/spu_interp.c
++++ b/runtime/spu/spu_interp.c
+@@ -454,6 +454,7 @@
+ /* Every interpreter session enters here, so the profile sees all fallback use:
+  * computed-branch misses, microstep handoffs and pure-interpretation threads. */
+ uint32_t spu_interp_run_until(spu_context* ctx, uint32_t start_lsa, uint32_t stop_lsa) {
++    spu_interp_fallback_enter(SPU_PROFILE_INTERP,ctx->image_id,start_lsa & 0x3FFFCu);
+     if (!spu_interp_profile_enabled()) return interp_run_until(ctx, start_lsa, stop_lsa);
+     uint32_t entry = start_lsa & 0x3FFFC;
+     uint64_t fingerprint = spu_interp_fingerprint(ctx->ls, entry);
+diff --git a/runtime/spu/spu_channels.c b/runtime/spu/spu_channels.c
+--- a/runtime/spu/spu_channels.c
++++ b/runtime/spu/spu_channels.c
+@@ -2584,6 +2584,7 @@
+      * branch re-enters lifted code via the trampoline. */
+     { int profiled = spu_interp_profile_enabled();
+       uint32_t entry = ctx->pc & SPU_LS_MASK & ~3u;
++      spu_interp_fallback_enter(SPU_PROFILE_MICROSTEP,ctx->image_id,entry);
+       uint64_t fingerprint = profiled ? spu_interp_fingerprint(ctx->ls, entry) : 0;
+       uint64_t microstep_steps = 0;
+       int handled = spu_smc_microstep(ctx, &microstep_steps);

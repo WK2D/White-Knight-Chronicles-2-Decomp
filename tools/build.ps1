@@ -27,7 +27,7 @@ if ($Regenerate) {
     Invoke-CheckedPython "$sdk/tools/ppu_lifter.py" $elf --functions "$analysis/functions.bounded.json" --hle-stubs "$analysis/EBOOT.imports.json" --code-end $meta.code_end --chunk-lines 50000 --jobs $Jobs --output "$generated/ppu"
     Invoke-CheckedPython "$sdk/tools/extract_spu_images.py" $elf --output "$analysis/spu-images"
     Invoke-CheckedPython "$project/tools/extract_raw_jobs.py" --sdk $sdk --elf $elf --images "$analysis/spu-images"
-    Invoke-CheckedPython "$sdk/tools/build_spu_workloads.py" --images "$analysis/spu-images" --lifted "$generated/spu" --out "$generated/spu/spu_workloads.c" --register-fn wkc2_spu_register_all --constructor --title wkc2 --relift
+    Invoke-CheckedPython "$project/tools/build_spu.py" --sdk $sdk --images "$analysis/spu-images" --lifted "$generated/spu"
 }
 Invoke-CheckedPython "$project/tools/apply_port_hooks.py" "$generated/ppu"
 Invoke-CheckedPython "$project/tools/apply_diagnostics.py" "$generated/ppu"

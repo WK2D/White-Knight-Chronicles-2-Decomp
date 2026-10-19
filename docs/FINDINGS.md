@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 115 SDK patches / 103 Windows checks in Debug and
+**Current source checkpoint:** 117 SDK patches / 106 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -72,6 +72,8 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 **SPU, SPURS and CPU execution**
 
+- [Static SPU entry coverage](#static-spu-entry-coverage-patches-0116-0117)
+
 - [SPURS completion coherence and SPU byte operations (patches 0091-0093)](#spurs-completion-coherence-and-spu-byte-operations-patches-0091-0093)
 - [Exact SPU vector math (patch 0078)](#exact-spu-vector-math-patch-0078)
 - [Reproducing the SPU inputs from the executable](#reproducing-the-spu-inputs-from-the-executable)
@@ -116,6 +118,24 @@ Maintain this log as research progresses. Publish checked code, concise findings
 and new verified screenshots together when a meaningful milestone is reached.
 Keep full traces, generated game code, assets and local paths in the private workspace.
 
+## Static SPU entry coverage (patches 0116-0117)
+
+Five extra static entries in images 17 and 19 replace ten observed fallback rows.
+The build validates the exact private image hashes and retains the 24-image
+registry. Forty real-input replay pairs match full context, registers, local store
+and continuation. Patch 0116 sets running status before dispatch, removing a
+status difference previously hidden by interpreter startup. Patch 0117 provides
+opt-in fatal guards at both fallback entrances, tested with negative controls.
+
+DirectX probe `20261019-213333` completes 420 seconds of route control after
+Continue with zero fallback, including movement, camera rotation and the exit
+prompt. Area transition and broader gameplay coverage are not established by
+that run. A separate instrumented run executes all five entries and supplies eight
+geometry-block capture pairs; all eight reference replays pass. These captures
+validate the harness, not a readable kernel replacement. No performance gain is
+claimed. See [native work and limits](NATIVE_CODE.md). All 106 Windows checks pass
+in Debug and Release with 117 SDK patches; media checks run without skips.
+
 ## CPU execution qualification
 
 The current build uses ahead-of-time PPU/SPU recompilation plus a PS3 runtime
@@ -123,8 +143,10 @@ layer. An audit of the running build found actual SPU interpreter fallback use
 from the runtime-code microstep path in image 17. It is therefore a hybrid;
 neither complete static CPU coverage nor an interpreter-free port is verified.
 The build compiles 56,580 generated PPU functions and 24 known SPU image/job
-inputs. The latest retained fallback census contains six image-17 entry
-fingerprints; its share of execution has not been measured. See
+inputs. Reference captures found six image-17 and four image-19 fallback rows. Five
+additional static entries now cover these observed paths; 40 full-state replays
+match. A 117-patch saved-town route with fallback entrances forbidden records
+zero entries. Broader coverage is unverified; earlier fallback share was not measured. See
 [architecture and modding scope](ARCHITECTURE.md) for the distinction from a
 source-level decompilation and the remaining work. Rendering milestones below
 do not establish interpreter-free execution.

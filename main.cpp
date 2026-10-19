@@ -844,6 +844,7 @@ extern "C" int wkc2_test_pad_file(const char* path);
 extern "C" int wkc2_test_spu_microstep_profile(const char* path);
 #endif
 
+extern "C" int spu_interp_profile_enabled(void);
 int main(int argc, char** argv)
 {
     wkc::graphics_initialize(std::filesystem::path(argv[0]).parent_path()/"graphics-settings.ini");
@@ -858,6 +859,9 @@ int main(int argc, char** argv)
         return wkc2_test_spu_microstep_profile(argv[2]);
 #endif
     // This title's image registry contains no YDKJ CRI media task.
+    // Initialize the opt-in census/entry guard even when no fallback is used.
+    if (getenv("SPU_INTERP_PROFILE") || getenv("SPU_FALLBACK_STRICT"))
+        (void)spu_interp_profile_enabled();
 #ifdef _WIN32
     /* Diagnostics are written line by line, often with an explicit flush, so
      * each line costs a WriteFile; on a scanned log file that cost the main

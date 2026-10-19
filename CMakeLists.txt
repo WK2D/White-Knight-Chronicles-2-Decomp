@@ -356,6 +356,9 @@ if(WKC2_BUILD_TESTS)
         set_tests_properties(wkc2_spu_title_${cri_id} PROPERTIES
             ENVIRONMENT "SPU_CRI_IMAGE=${cri_id}" TIMEOUT 10)
     endforeach()
+    add_test(NAME wkc2_spu_entry_manifest
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_spu_entries.py")
+    set_tests_properties(wkc2_spu_entry_manifest PROPERTIES TIMEOUT 10)
     add_test(NAME wkc2_spu_dma_poll COMMAND ${PROJECT_NAME} --test-spu-dma-poll 0)
     set_tests_properties(wkc2_spu_dma_poll PROPERTIES ENVIRONMENT "SPU_DMA_REPEAT_LIMIT=0" TIMEOUT 10)
     add_test(NAME wkc2_spu_dma_poll_default
@@ -533,6 +536,13 @@ if(WKC2_BUILD_TESTS)
         COMMAND ${CMAKE_COMMAND} -E env --unset=SPU_INTERP_PROFILE
             $<TARGET_FILE:wkc2_spu_interp_profile_test> "${SPU_INTERP_PROFILE_FIXTURE}.off" 0)
     set_tests_properties(wkc2_spu_interp_profile_off PROPERTIES TIMEOUT 10)
+    add_test(NAME wkc2_spu_interp_forbidden COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_spu_fallback_guard.py"
+        --program $<TARGET_FILE:wkc2_spu_interp_profile_test> --path interp)
+    add_test(NAME wkc2_spu_microstep_forbidden COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_spu_fallback_guard.py"
+        --program $<TARGET_FILE:${PROJECT_NAME}> --path microstep)
+    set_tests_properties(wkc2_spu_interp_forbidden wkc2_spu_microstep_forbidden PROPERTIES TIMEOUT 15)
     add_executable(wkc2_spu_float_mode_test tests/spu_float_mode_test.c
         "${PS3RECOMP_DIR}/runtime/spu/spu_float_mode.c")
     target_include_directories(wkc2_spu_float_mode_test PRIVATE

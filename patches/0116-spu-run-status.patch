@@ -1,0 +1,16 @@
+Start native SPU execution in RUNNING state, independently of interpreter fallback.
+
+diff --git a/runtime/spu/spu_channels.c b/runtime/spu/spu_channels.c
+--- a/runtime/spu/spu_channels.c
++++ b/runtime/spu/spu_channels.c
+@@ -222,6 +222,10 @@
+      * contexts are stack locals, so the address recurs and a stale save from
+      * an earlier run would be restored over this job's arguments. */
+     { extern void spu_irq_regs_forget(spu_context*); spu_irq_regs_forget(ctx); }
++    /* Starting/resuming execution must report RUNNING before either a lifted
++     * entry or an interpreter executes. Fresh SPURS contexts start at zero;
++     * previously only an interpreter handoff repaired their stopped status. */
++    ctx->status = SPU_STATUS_RUNNING;
+     ctx->steps = 0;   /* fresh run: step 0 is the entry */
+     /* The host stack is empty here by definition, so no lifted caller frame
+      * is live. A persistent context (a SPURS policy module re-entered every

@@ -7,6 +7,22 @@ extern "C" void spu_spurs_taskset_syscall(spu_context*);
 extern "C" int spu_run_with_halt(void (*)(spu_context*),spu_context*);
 
 static bool returned;
+static void inspect_run_start(spu_context* ctx) {
+    assert(ctx->status == SPU_STATUS_RUNNING);
+    assert(ctx->host_depth == 0 && ctx->drain_ret_pc == 0 && ctx->irq_frame == nullptr);
+    returned = true;
+}
+static void check_run_status(spu_context* ctx) {
+    const uint32_t prior[] = {SPU_STATUS_STOPPED, SPU_STATUS_RUNNING,
+        SPU_STATUS_STOPPED_BY_STOP, SPU_STATUS_STOPPED_BY_HALT, SPU_STATUS_WAITING_CHANNEL};
+    for (uint32_t status : prior) {
+        spu_context_init(ctx,0);ctx->image_id=991;ctx->status=status;
+        ctx->host_depth=3;ctx->drain_ret_pc=0x1234;
+        returned=false;
+        assert(spu_run_with_halt(inspect_run_start,ctx)==0);
+        assert(returned && ctx->status==SPU_STATUS_RUNNING);
+    }
+}
 static void task_exit(spu_context* ctx) {
     spu_spurs_taskset_syscall(ctx);
     returned=true;
@@ -26,6 +42,7 @@ static void check_exit(spu_context* ctx,int image,bool bootstrap) {
 int wkc2_test_spu_title(int selected) {
     auto* ctx=static_cast<spu_context*>(malloc(sizeof(spu_context)));
     assert(ctx);
+    check_run_status(ctx);
     check_exit(ctx,22,selected==22);
     if(selected!=22 && selected>=0) check_exit(ctx,selected,true);
     // A selected CRI task's next EXIT ends it. Other tasks always end at once.

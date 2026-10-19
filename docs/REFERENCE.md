@@ -40,6 +40,15 @@ Switches read by the runtime at startup. Diagnostics are off unless set; the bui
 guide's [playing and performance options](BUILD.md#playing-and-performance-options)
 gives the play defaults. Keep any files these write private.
 
+### SPU coverage diagnostics
+
+| Variable | Effect |
+| --- | --- |
+| `SPU_FALLBACK_STRICT=1` | Reject interpreter and microstep entrances before execution, log the image/address and terminate with code 86. Opt-in diagnostic; unset for normal play. |
+| `SPU_INTERP_PROFILE` | Private completed-session TSV path; startup creates an explicit zero-row table when no fallback occurs. |
+
+See [route coverage and limits](NATIVE_CODE.md).
+
 ### Play and pacing defaults
 
 | Variable | Effect | Documented in |

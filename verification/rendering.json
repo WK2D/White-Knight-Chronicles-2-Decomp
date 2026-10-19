@@ -4,9 +4,9 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-19",
-    "native_probe": "20261019-183749",
-    "sdk_patch_count": 115,
-    "summary": "DirectX comparison sampling, D32 polygon bias and per-channel clears are implemented and GPU-tested. Native runs reach the saved scene, but character-shadow appearance remains unresolved; it is not a verified shadow fix. 115 SDK patches / 103 Windows checks pass in Debug and Release. DirectX parity gaps and the path to interpreter-free native C/C++ execution are documented.",
+    "native_probe": "20261019-213333",
+    "sdk_patch_count": 117,
+    "summary": "Five additional static SPU entries pass 40 private full-state replays. A seven-minute DirectX saved-town route runs with interpreter and microstep entry forbidden and zero fallback. 117 SDK patches / 106 Windows checks pass in Debug and Release. Broader CPU coverage, readable geometry kernels and DirectX character shadows remain open.",
     "gallery_image": "screenshots/2026-10-19-native-directx-fxaa-on.png",
     "gallery_image_sdk_patch_count": 110,
     "gallery_image_scope": "Final DirectX backbuffer readback including FXAA and sharp overlay; functional menu check, not a performance benchmark",
@@ -366,19 +366,22 @@
       "wkc2_ppu_thread_lifetime",
       "wkc2_spu_async_lifetime",
       "wkc2_lfqueue",
-      "wkc2_event_queue"
+      "wkc2_event_queue",
+      "wkc2_spu_entry_manifest",
+      "wkc2_spu_interp_forbidden",
+      "wkc2_spu_microstep_forbidden"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 115,
-    "last_verified_sdk_patch_count": 115,
-    "current_passed_count": 103,
-    "record_scope": "115 SDK patches / 103 Windows checks pass in Debug and Release; media checks ran without skips. The optional kernel lock timeout failure found during the first 114 Release suite is corrected by 0115; its deterministic early-timeout case and ten repeat runs pass.",
-    "normal_debug_elapsed_seconds": 25.31,
-    "optimized_release_elapsed_seconds": 21.86,
+    "current_sdk_patch_count": 117,
+    "last_verified_sdk_patch_count": 117,
+    "current_passed_count": 106,
+    "record_scope": "117 SDK patches / 106 Windows checks pass in Debug and Release; media checks ran without skips. Includes static-entry manifest validation and separate interpreter/microstep fatal-entry negative controls.",
+    "normal_debug_elapsed_seconds": 28.91,
+    "optimized_release_elapsed_seconds": 25.35,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 115
+    "repeat_patch_application_verified_sdk_patch_count": 117
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -1563,7 +1566,7 @@
     "later_loading_transition_fixed_verified": false
   },
   "cpu_execution": {
-    "mode": "Ahead-of-time PPU/SPU recompilation with PS3 compatibility runtime and observed SPU interpreter fallback",
+    "mode": "Ahead-of-time PPU/SPU recompilation with PS3 compatibility runtime; fallback retained, zero entries on the scoped strict saved-town route",
     "ppu_generated_functions_compiled": 56580,
     "spu_image_job_inputs_compiled": 24,
     "spu_interpreter_fallback_present": true,
@@ -1575,8 +1578,8 @@
     "source_level_game_decompilation_completed": false,
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
-    "remaining_requirement": "Cover missing SPU entries and any runtime-generated code with validated static/native implementations, then measure fallback coverage across gameplay.",
-    "latest_census_probe": "20261017-061720"
+    "remaining_requirement": "Validate wider NPC/transition/cutscene routes and readable hot-job replacements; keep strict entry checks in diagnostic runs. Full-game CPU coverage is unverified.",
+    "latest_census_probe": "20261019-213333"
   },
   "wkc1_town_world_view": {
     "probe": "20261016-233313",
@@ -2813,7 +2816,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 115 SDK patches / 103 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 117 SDK patches / 106 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",
@@ -3421,5 +3424,76 @@
       "One saved-scene route with a short movement, not an NPC-heavy traversal or complete gameplay coverage.",
       "Per-worker sampling slots are not a whole-frame cost fraction. Native C/C++ replacement work has not yet been promoted."
     ]
+  },
+  "spu_static_entry_coverage": {
+    "date": "2026-10-19",
+    "sdk_patch_count": 117,
+    "entries": {
+      "image_17": [
+        "0x7D60",
+        "0x7E38",
+        "0x7E78"
+      ],
+      "image_19": [
+        "0x49B8",
+        "0x4AE0"
+      ]
+    },
+    "complete_code_regions_match_private_baseline": true,
+    "image_17_replays_passed": 24,
+    "image_19_replays_passed": 16,
+    "replay_scope": "Complete context with LS pointers normalized, all 128 GPRs, all 256 KiB local store, PC/status and continuation; function entries only, not complete SPURS jobs or cross-job scheduling.",
+    "static_entry_manifest": "tools/build_spu.py",
+    "run_status_initialized_before_compiled_dispatch": true,
+    "strict_probe": {
+      "id": "20261019-213333",
+      "renderer": "DirectX 12",
+      "frame_limit": 30,
+      "route_control_seconds": 420,
+      "interpreter_sessions": 0,
+      "microstep_sessions": 0,
+      "guard_enabled_logged": true,
+      "strict_exit_code": 86,
+      "scope": "Continue from isolated save, short town movement, camera rotation and walk to Balastor Plain exit prompt; transition not confirmed in this run.",
+      "hidden": true,
+      "muted": true,
+      "performance_benchmark": false
+    },
+    "positive_entry_execution_probe": "20261019-214300",
+    "all_five_compiled_entries_observed": true,
+    "geometry_ce08_capture_pairs": 8,
+    "geometry_ce08_reference_replays_passed": 8,
+    "geometry_ce08_scope": "One compiled block per capture, not a whole ABI function or SPURS job; includes complete state and 12 local-store stores, with no channel operations inside the block. Reference replay harness validation only; no readable replacement integrated.",
+    "full_game_interpreter_free_verified": false,
+    "readable_geometry_kernel_integrated": false,
+    "fps_gain_measured": false,
+    "remaining": [
+      "NPC-heavy traversal",
+      "additional transitions and cutscenes",
+      "other slots and new games",
+      "readable portable geometry kernels",
+      "complete DMA/output/scheduling validation"
+    ],
+    "confirmed_area_transition": {
+      "id": "20261019-215032",
+      "renderer": "DirectX 12",
+      "frame_limit": 30,
+      "scope": "Continue, walk to gate, choose Go to Balastor Plain, loading screen and three subsequent plains frames",
+      "interpreter_sessions": 0,
+      "microstep_sessions": 0,
+      "guard_enabled_logged": true,
+      "lower_body_rendering_correct": false,
+      "lower_body_occluded_by_ground": true,
+      "performance_benchmark": false
+    }
+  },
+  "directx_plains_lower_body": {
+    "status": "open",
+    "native_probe": "20261019-215032",
+    "previous_115_probe": "20261019-215530",
+    "reproduced_before_static_entry_changes": true,
+    "vulkan_117_probe": "20261019-215842",
+    "vulkan_lower_body_visible": true,
+    "cause_verified": false
   }
 }
