@@ -1,0 +1,323 @@
+diff --git a/runtime/ppu/ppu_sysprx.cpp b/runtime/ppu/ppu_sysprx.cpp
+--- a/runtime/ppu/ppu_sysprx.cpp
++++ b/runtime/ppu/ppu_sysprx.cpp
+@@ -20,6 +20,7 @@
+  * lwmutex exclusion) and the POSIX shims elsewhere -- Sleep, DWORD, QPC. */
+ #include "../platform/win32_compat.h"
+ #include "../memory/vm.h"   /* VM_HLE_INJECT_BASE -- not platform-specific */
++#include "ppu_lwmutex_token.h"
+ 
+ extern "C" uint8_t* vm_base;
+ extern "C" void ps3_hle_register_ctx(uint32_t nid, const char* name, void (*fn)(ppu_context*));
+@@ -107,7 +108,9 @@
+  * unregistered context (bug); stamp a sentinel that matches no real thread. */
+ #define LWM_SELF(ctx) ((uint32_t)(ctx)->thread_id ? (uint32_t)(ctx)->thread_id : 0x7FFFFFFEu)
+ 
+-static HANDLE lwm_sem(uint32_t addr);   /* fwd (defined below) */
++struct LwmSlot;
++static LwmSlot* lwm_slot(uint32_t addr);
++static void lwm_release(LwmSlot* slot);
+ static void sys_lwmutex_create(ppu_context* ctx)
+ {
+     uint32_t lwm  = (uint32_t)ctx->gpr[3];
+@@ -125,7 +128,7 @@
+     /* A recreate at a reused address must not inherit a locked slot (e.g. the
+      * previous holder exited while holding). Force the semaphore signaled;
+      * over-release of an already-free sem fails harmlessly at max count 1. */
+-    { HANDLE s = lwm_sem(lwm); if (s) ReleaseSemaphore(s, 1, NULL); }
++    { LwmSlot* s = lwm_slot(lwm); if (s) lwm_release(s); }
+     ctx->gpr[3] = 0;
+ }
+ /* REAL mutual exclusion. The old no-op ("boot is single-threaded") corrupted
+@@ -138,22 +141,30 @@
+  * stamp -- Twisted Metal's FIOS layer then freed one block from two threads
+  * and its dlmalloc free() aborted on a chunk already merged into top.
+  *
+- * Backed by a binary SEMAPHORE, not a CRITICAL_SECTION: a CS may only be
++ * Backed by a portable binary token, with an optional kernel semaphore.
++ * A CRITICAL_SECTION may only be
+  * released by its owning thread, but guest code passes lwmutex ownership
+  * between threads (LBP's job system) and threads exit while holding -- one
+  * cross-thread unlock silently failed and the still-owned CS parked the next
+  * locker forever (the Network-node hang). A semaphore releases from any
+  * thread. Recursion is handled explicitly via the guest owner/recur fields
+  * we stamp (only the holder ever writes owner=self, so the re-lock check is
+- * race-free). Keyed by guest address in an open-addressed table. */
++ * race-free). Keyed by guest address in an open-addressed table.
++ *
++ * The uncontended token is acquired/released with atomic operations. Only
++ * contention sleeps on a condition variable; its mutex closes the final
++ * predicate-check/wait window. Slots are published with release/acquire,
++ * and remain alive across guest destroy/recreate. See ppu_lwmutex_token.h.
++ * PS3RECOMP_LWMUTEX_KERNEL=1 retains the original semaphore path. */
+ #define LWM_HASH 65536u
+-static struct LwmSlot { volatile long addr; HANDLE sem;
++static struct LwmSlot { std::atomic<uint32_t> addr{0}; HANDLE sem{};
++    PpuLwmutexToken token;
+     volatile long holder; volatile long long acq_us; volatile long long acq_fences;
+     volatile unsigned long long acq_cpu_us; } g_lwm[LWM_HASH];
+ extern "C" { extern volatile long long g_gcm_ref_pub_count;    /* cellGcmSys.c */
+              unsigned long long ppu_thread_cpu_us(unsigned tid);   /* sys_ppu_thread.c */
+              unsigned ppu_thread_prof_pc(unsigned tid); }
+-static volatile long g_lwm_tab_lock = 0;
++static std::atomic_flag g_lwm_tab_lock = ATOMIC_FLAG_INIT;
+ /* PS3_LWMUTEX_TRACE=1: reconstruct the lwmutex lock-convoy that stalls LBP's loader.
+  * Records, per mutex, the acquiring tid + a QPC microsecond timestamp; on a
+  * contended block it logs who holds it and for how long; on unlock it flags a
+@@ -172,35 +183,69 @@
+     if(!addr) return nullptr;
+     uint32_t h=(addr*2654435761u)&(LWM_HASH-1);
+     for(uint32_t i=0;i<LWM_HASH;i++){ uint32_t idx=(h+i)&(LWM_HASH-1);
+-        long cur=g_lwm[idx].addr;
++        uint32_t cur=g_lwm[idx].addr.load(std::memory_order_acquire);
+         if((uint32_t)cur==addr) return &g_lwm[idx];
+         if(cur==0) return nullptr; }
+     return nullptr;
+ }
+-static HANDLE lwm_sem(uint32_t addr)
++/* The backend is immutable for the lifetime of all slots. A live switch
++ * could acquire one token and release a different semaphore. */
++static bool lwm_kernel_backend()
++{
++    static const bool kernel = [] {
++        const char* value = getenv("PS3RECOMP_LWMUTEX_KERNEL");
++        const bool selected = value && !strcmp(value, "1");
++        return selected;
++    }();
++    return kernel;
++}
++static LwmSlot* lwm_slot(uint32_t addr)
+ {
+     if (!addr) return nullptr;
+-    uint32_t h = (addr * 2654435761u) & (LWM_HASH - 1);
+-    for (uint32_t i = 0; i < LWM_HASH; i++) {
+-        uint32_t idx = (h + i) & (LWM_HASH - 1);
+-        long cur = g_lwm[idx].addr;
+-        if ((uint32_t)cur == addr) return g_lwm[idx].sem;
+-        if (cur == 0) {
+-            while (_InterlockedExchange(&g_lwm_tab_lock, 1)) YieldProcessor();
+-            HANDLE r = nullptr;
+-            if (g_lwm[idx].addr == 0) {
+-                g_lwm[idx].sem = CreateSemaphoreA(NULL, 1, 1, NULL); /* free */
+-                g_lwm[idx].addr = (long)addr;   /* publish AFTER init (x86 TSO: readers see init) */
+-                r = g_lwm[idx].sem;
+-            } else if ((uint32_t)g_lwm[idx].addr == addr) {
+-                r = g_lwm[idx].sem;
+-            }
+-            _InterlockedExchange(&g_lwm_tab_lock, 0);
+-            if (r) return r;
+-            /* someone else claimed this slot for a different addr -> keep probing */
++    const uint32_t h = (addr * 2654435761u) & (LWM_HASH - 1);
++    for (uint32_t i = 0; i < LWM_HASH; ++i) {
++        LwmSlot* slot = &g_lwm[(h + i) & (LWM_HASH - 1)];
++        const uint32_t current = slot->addr.load(std::memory_order_acquire);
++        if (current == addr) return slot;
++        if (!current) {
++            while (g_lwm_tab_lock.test_and_set(std::memory_order_acquire)) YieldProcessor();
++            LwmSlot* result = nullptr;
++            if (!slot->addr.load(std::memory_order_relaxed)) {
++                const bool kernel = lwm_kernel_backend();
++                if (kernel) slot->sem = CreateSemaphoreA(NULL, 1, 1, NULL);
++                if (!kernel || slot->sem) {
++                    // Host synchronization members are initialized before the
++                    // address is visible on any CPU, including future ARM hosts.
++                    slot->addr.store(addr, std::memory_order_release);
++                    result = slot;
++                }
++            } else if (slot->addr.load(std::memory_order_relaxed) == addr) result = slot;
++            g_lwm_tab_lock.clear(std::memory_order_release);
++            if (result) return result;
+         }
+     }
+-    return nullptr;   /* table full (raise LWM_HASH) */
++    return nullptr;
++}
++static bool lwm_try(LwmSlot* slot)
++{
++    return lwm_kernel_backend() ? WaitForSingleObject(slot->sem, 0) == WAIT_OBJECT_0
++                                : slot->token.try_acquire();
++}
++static bool lwm_wait(LwmSlot* slot, DWORD milliseconds)
++{
++    return lwm_kernel_backend() ? WaitForSingleObject(slot->sem, milliseconds) == WAIT_OBJECT_0
++                                : slot->token.acquire(milliseconds);
++}
++static void lwm_release(LwmSlot* slot)
++{
++    if (lwm_kernel_backend()) ReleaseSemaphore(slot->sem, 1, NULL);
++    else slot->token.release();
++}
++static DWORD lwm_timeout_ms(uint64_t microseconds)
++{
++    if (!microseconds) return INFINITE;
++    const uint64_t ms = microseconds / 1000 + (microseconds % 1000 != 0);
++    return ms > 0xFFFFFFFEull ? 0xFFFFFFFEu : (DWORD)ms;
+ }
+ /* Contention-probe window flag: 0 by default (prints stay bounded). A title's
+  * diagnostic code may set it around a suspect wait to uncap the [LWM-BLOCK]
+@@ -216,7 +261,7 @@
+      * contended lock yields to other threads instead of hard-blocking). We had
+      * been ignoring r4 and always waiting INFINITE, which defeats that pattern. */
+     uint64_t timeout_us = ctx->gpr[4];
+-    HANDLE s = lwm_sem(lwm);
++    LwmSlot* s = lwm_slot(lwm);
+     if (s) {
+         /* Recursive re-lock by the current holder: bump the count, no wait.
+          * Only the holder ever stamps owner=self, so this check is race-free. */
+@@ -225,7 +270,7 @@
+             ctx->gpr[3] = 0;
+             return;
+         }
+-        if (WaitForSingleObject(s, 0) != WAIT_OBJECT_0) {
++        if (!lwm_try(s)) {
+             /* Contended: log who we're stuck behind (owner stamped at acquire),
+              * then block. Bounded diagnostics for park hunts; uncapped while the
+              * probe window is open (g_nd_inpump). */
+@@ -238,10 +283,9 @@
+                 fprintf(stderr, "[LWM-CONVOY] tid=%llu BLOCKs lwm=0x%08X -> held-by-tid=%ld for %lldus (guest-owner=%u)\n",
+                     (unsigned long long)ctx->thread_id, lwm, h, held, vm_read32(lwm + LWM_OWNER)); fflush(stderr); }
+             long long _blk_start = lwm_trace() ? lwm_now_us() : 0;
+-            DWORD ms = INFINITE;
+-            if (timeout_us) { uint64_t m = (timeout_us + 999) / 1000; ms = m > 0xFFFFFFFEull ? 0xFFFFFFFEu : (DWORD)m; }
+-            DWORD wr = WaitForSingleObject(s, ms);
+-            if (wr == WAIT_TIMEOUT) {           /* honor the timeout: ETIMEDOUT, no acquire */
++            DWORD ms = lwm_timeout_ms(timeout_us);
++            const bool acquired = lwm_wait(s, ms);
++            if (!acquired) {           /* honor the timeout: ETIMEDOUT, no acquire */
+                 if (lwm_trace()) fprintf(stderr, "[LWM-CONVOY] tid=%llu TIMED-OUT on lwm=0x%08X after %lldus (ETIMEDOUT, retry)\n",
+                     (unsigned long long)ctx->thread_id, lwm, lwm_now_us() - _blk_start);
+                 ctx->gpr[3] = (uint64_t)(int64_t)(int32_t)0x8001000Bu;
+@@ -261,14 +305,14 @@
+ {
+     uint32_t lwm = (uint32_t)ctx->gpr[3];
+     uint32_t self = LWM_SELF(ctx);
+-    HANDLE s = lwm_sem(lwm);
++    LwmSlot* s = lwm_slot(lwm);
+     if (s) {
+         if (vm_read32(lwm + LWM_OWNER) == self && vm_read32(lwm + LWM_RECUR) > 0) {
+             vm_write32(lwm + LWM_RECUR, vm_read32(lwm + LWM_RECUR) + 1);
+             ctx->gpr[3] = 0;
+             return;
+         }
+-        if (WaitForSingleObject(s, 0) != WAIT_OBJECT_0) { ctx->gpr[3] = (uint64_t)(int64_t)(int32_t)0x8001000Bu; return; } // EBUSY
++        if (!lwm_try(s)) { ctx->gpr[3] = (uint64_t)(int64_t)(int32_t)0x8001000Bu; return; } // EBUSY
+     }
+     if (lwm_trace()) { struct LwmSlot* sl = lwm_find(lwm); if (sl) { sl->holder = (long)self; sl->acq_us = lwm_now_us(); sl->acq_fences = g_gcm_ref_pub_count; sl->acq_cpu_us = ppu_thread_cpu_us(self); } }
+     vm_write32(lwm + LWM_OWNER, self);
+@@ -313,11 +357,10 @@
+                 fprintf(stderr, "%s\n", b); fflush(stderr);
+             }
+             sl->holder = 0; } }
+-    HANDLE s = lwm_sem(lwm);
+-    /* Semaphore release works from ANY thread (unlike a CS) -- guest code
+-     * hands lwmutex ownership across threads. Over-release (unlock of a free
+-     * mutex) fails harmlessly at the max count of 1. */
+-    if (s) ReleaseSemaphore(s, 1, NULL);
++    LwmSlot* s = lwm_slot(lwm);
++    /* Both backends release from any thread. Over-release leaves the token
++     * free, preserving the original binary semaphore behavior. */
++    if (s) lwm_release(s);
+     ctx->gpr[3] = 0;
+ }
+ 
+@@ -350,15 +393,15 @@
+ {
+     uint32_t lwcond  = (uint32_t)ctx->gpr[3];
+     uint32_t lwmutex = (uint32_t)vm_read64(lwcond + 0x00);
+-    HANDLE s = lwm_sem(lwmutex);
++    LwmSlot* s = lwm_slot(lwmutex);
+     if (s) {
+         uint32_t own = vm_read32(lwmutex + LWM_OWNER);
+         uint32_t rc  = vm_read32(lwmutex + LWM_RECUR);
+         vm_write32(lwmutex + LWM_RECUR, 0);
+         vm_write32(lwmutex + LWM_OWNER, 0);
+-        ReleaseSemaphore(s, 1, NULL);
++        lwm_release(s);
+         Sleep(1);
+-        WaitForSingleObject(s, INFINITE);
++        lwm_wait(s, INFINITE);
+         vm_write32(lwmutex + LWM_OWNER, own);
+         vm_write32(lwmutex + LWM_RECUR, rc ? rc : 1);
+     }
+diff --git a/runtime/ppu/ppu_lwmutex_token.h b/runtime/ppu/ppu_lwmutex_token.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/ppu/ppu_lwmutex_token.h
+@@ -0,0 +1,77 @@
++/* Binary-token fast path adapted from JonathanDC64/ps3recomp 098690d4.
++ * The sleep path here uses portable C++.
++ * Ownership/recursion remain in the guest ABI, including cross-thread release.
++ *
++ * MIT License
++ * 
++ * Copyright (c) 2026 Ned Heller / sp00nznet
++ * 
++ * Permission is hereby granted, free of charge, to any person obtaining a copy
++ * of this software and associated documentation files (the "Software"), to deal
++ * in the Software without restriction, including without limitation the rights
++ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++ * copies of the Software, and to permit persons to whom the Software is
++ * furnished to do so, subject to the following conditions:
++ * 
++ * The above copyright notice and this permission notice shall be included in all
++ * copies or substantial portions of the Software.
++ * 
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++ * SOFTWARE.
++ */
++#ifndef PS3RECOMP_PPU_LWMUTEX_TOKEN_H
++#define PS3RECOMP_PPU_LWMUTEX_TOKEN_H
++#include <atomic>
++#include <chrono>
++#include <condition_variable>
++#include <cstdint>
++#include <mutex>
++
++struct PpuLwmutexToken {
++    std::atomic<unsigned> free{1};
++    std::atomic<unsigned> waiters{0};
++    std::mutex sleep_mutex;
++    std::condition_variable changed;
++
++    bool try_acquire() {
++        unsigned expected = 1;
++        return free.compare_exchange_strong(expected, 0);
++    }
++    bool acquire(std::uint32_t milliseconds) {
++        const bool infinite = milliseconds == UINT32_MAX;
++        const auto deadline = std::chrono::steady_clock::now() +
++            std::chrono::milliseconds(milliseconds);
++        std::unique_lock<std::mutex> guard(sleep_mutex);
++        struct Registration {
++            std::atomic<unsigned>& count;
++            explicit Registration(std::atomic<unsigned>& value) : count(value) { count.fetch_add(1); }
++            ~Registration() { count.fetch_sub(1); }
++        } registration(waiters);
++        bool acquired = false;
++        for (;;) {
++            if (try_acquire()) { acquired = true; break; }
++            if (infinite) changed.wait(guard);
++            else {
++                if (std::chrono::steady_clock::now() >= deadline) break;
++                changed.wait_until(guard, deadline);
++            }
++        }
++        return acquired;
++    }
++    void release() {
++        // Sequentially consistent count/waiter operations pair the final try
++        // with the release-side check: both cannot miss each other. Locking
++        // the sleep mutex closes the interval between that try and cv.wait.
++        free.exchange(1);
++        if (waiters.load()) {
++            std::lock_guard<std::mutex> guard(sleep_mutex);
++            changed.notify_one();
++        }
++    }
++};
++#endif

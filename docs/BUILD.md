@@ -4,8 +4,8 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-19):** the stack contains 104 SDK patches. All
-92 Windows checks pass in normal Debug and optimized Release. Reapplying the
+**Current validation (2026-10-19):** the stack contains 105 SDK patches. All
+95 Windows checks pass in normal Debug and optimized Release. Reapplying the
 complete stack changes no SDK files. The native Vulkan build loads Continue and moves briefly in town.
 [Host-layout SPU shuffle](FINDINGS.md#host-layout-spu-byte-shuffle-and-unlocked-headroom-patch-0104)
 reduces synthetic helper cost with tested byte equivalence; capped native views
@@ -132,7 +132,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 104 numbered SDK patches, and all 92 checks
+The current source stack contains 105 numbered SDK patches, and all 95 checks
 pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their

@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Vulkan deferred textures now wait for the pending GPU slot, and skipped window presentation drains submitted work before retirement. 102 SDK patches / 89 Windows checks pass in Debug and Release; Continue and short town movement are rechecked. This is a resource-lifetime fix; smooth 30 FPS traversal, game-speed fidelity and flicker fixes remain unverified.",
+    "current_milestone": "The custom avatar portrait now reaches CPU save memory after creator acceptance through a renderer-thread readback. Menu/reload verification remains. User-space guest mutexes are checked without a consistent native FPS gain. 105 SDK patches / 95 Windows checks pass in Debug and Release; smooth traversal and intermittent menu/animation faults remain open.",
     "updated": "2026-10-19"
   },
   "native_data_installation_verified": true,
@@ -153,9 +153,9 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 104,
-    "runtime_checks_passed": 92,
-    "town_native_run_sdk_patch_count": 104,
+    "sdk_patch_count": 105,
+    "runtime_checks_passed": 95,
+    "town_native_run_sdk_patch_count": 105,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
     "patch_0042_native_game_run_verified": true,
@@ -226,7 +226,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 104,
+    "runtime_checks_verified_sdk_patch_count": 105,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -253,7 +253,7 @@
     "patch_0074_native_game_run_verified": true,
     "patch_0074_texture_compare_direction_gpu_verified": true,
     "patch_0074_foot_shadow_flicker_fixed_verified": false,
-    "repeat_patch_application_verified_sdk_patch_count": 104,
+    "repeat_patch_application_verified_sdk_patch_count": 105,
     "patch_0075_windows_regression_verified": true,
     "patch_0075_native_interaction_verified": true,
     "patch_0075_save_load_verified": true,
@@ -340,7 +340,13 @@
     "patch_0103_windows_regression_verified": true,
     "patch_0103_native_game_run_verified": true,
     "patch_0104_windows_regression_verified": true,
-    "patch_0104_native_game_run_verified": true
+    "patch_0104_native_game_run_verified": true,
+    "patch_0105_windows_regression_verified": true,
+    "patch_0105_native_game_run_verified": true,
+    "avatar_portrait_creator_capture_verified": true,
+    "avatar_portrait_menu_display_verified": false,
+    "avatar_portrait_save_reload_verified": false,
+    "avatar_portrait_empty_save_regeneration_verified": false
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -404,7 +410,7 @@
     "creator_rotation_smoothness_fixed": false,
     "label": "Present/s",
     "label_patch": 70,
-    "current_windows_runtime_checks_passed": 92
+    "current_windows_runtime_checks_passed": 95
   },
   "performance": {
     "record": "verification/performance.json",
@@ -474,10 +480,10 @@
     "scope": "Regular Release with host-layout SPU SHUFB. Continue and short forward/back town route with inspected GPU readbacks; no private helper verifier, fast-memory, register-local, write-watch or render-census override.",
     "automatic_gpu_readbacks": true
   },
-  "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified. The same starting-town slot reloads in the current 104-patch Release build.",
+  "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified. The same starting-town slot reloads in the current 105-patch Release build.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 102 SDK patches / 89 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 105 SDK patches / 95 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",

@@ -296,6 +296,8 @@ void     cellGcmTickVBlank(void);
 void     cellGcmTickFlip(void);
 int      cellGcm_take_flip_pending(void);
 void     cellGcm_rsx_process_fifo(void);      /* drain get -> put */
+void     wkc2_portrait_readback_tick(void);
+void     wkc2_portrait_readback_stop(void);
 #ifdef _WIN32
 void     cellGcm_fifo_kick_wait(unsigned ms); /* guest fence wake, bounded idle */
 #endif
@@ -652,6 +654,7 @@ static DWORD WINAPI frame_clock(LPVOID)
 
     for (;;) {
         wt_tick();
+        wkc2_portrait_readback_tick();
         graphics_preferences_tick();
         const double requested_period=wkc::graphics_vblank_period_ms(wkc::graphics_snapshot());
         if (requested_period!=vblank_ms) {
@@ -734,7 +737,7 @@ static DWORD WINAPI frame_clock(LPVOID)
         if (rsx_ok && hold_for_vblank) {
             /* A flip is waiting for its vblank: like the RSX in vsync flip
              * mode, run no further commands until it is shown. */
-            if (rsx_backend_pump() != 0) std::exit(EXIT_SUCCESS);
+            if (rsx_backend_pump() != 0) { wkc2_portrait_readback_stop(); std::exit(EXIT_SUCCESS); }
         } else if (rsx_ok) {
             if (cellGcm_take_flip_pending()) {
                 present_guest_frame();
@@ -745,6 +748,7 @@ static DWORD WINAPI frame_clock(LPVOID)
             if (rsx_backend_pump() != 0) {
                 // A host close ends the process, including media-worker cleanup.
                 // Merely disabling RSX leaves guest threads waiting on its fences.
+                wkc2_portrait_readback_stop();
                 std::exit(EXIT_SUCCESS);
             }
             /* A drain can decode a flip. With flips on vblank it waits for the

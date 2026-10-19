@@ -176,6 +176,7 @@ add_executable(${PROJECT_NAME}
     graphics_settings.cpp
     graphics_menu.cpp
     graphics_timing.cpp
+    graphics_readback.cpp
     stubs.cpp
     lwcond.cpp
     lfqueue.cpp
@@ -341,6 +342,10 @@ if(WKC2_BUILD_TESTS)
     target_include_directories(wkc2_graphics_timing_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/ppu")
     add_test(NAME wkc2_graphics_timing COMMAND wkc2_graphics_timing_test)
     set_tests_properties(wkc2_graphics_timing PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_graphics_readback_test tests/graphics_readback_test.cpp graphics_readback.cpp)
+    target_include_directories(wkc2_graphics_readback_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/ppu")
+    add_test(NAME wkc2_graphics_readback COMMAND wkc2_graphics_readback_test)
+    set_tests_properties(wkc2_graphics_readback PROPERTIES TIMEOUT 10)
     add_executable(wkc2_graphics_settings_test tests/graphics_settings_test.cpp graphics_settings.cpp)
     target_include_directories(wkc2_graphics_settings_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME wkc2_graphics_settings COMMAND wkc2_graphics_settings_test)
@@ -935,6 +940,26 @@ if(WKC2_BUILD_TESTS)
     target_link_libraries(wkc2_lwcond_test PRIVATE Threads::Threads)
     add_test(NAME wkc2_lwcond COMMAND wkc2_lwcond_test)
     set_tests_properties(wkc2_lwcond PROPERTIES TIMEOUT 10)
+    set(LWMUTEX_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/lwmutex-fixture.inc")
+    add_custom_command(OUTPUT "${LWMUTEX_FIXTURE}"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_lwmutex_fixture.py"
+            --source "${PS3RECOMP_DIR}/runtime/ppu/ppu_sysprx.cpp" --output "${LWMUTEX_FIXTURE}"
+        DEPENDS "${PS3RECOMP_DIR}/runtime/ppu/ppu_sysprx.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_lwmutex_fixture.py"
+        VERBATIM)
+    add_executable(wkc2_lwmutex_test tests/lwmutex_test.cpp lwcond.cpp "${LWMUTEX_FIXTURE}")
+    target_include_directories(wkc2_lwmutex_test PRIVATE
+        "${CMAKE_CURRENT_BINARY_DIR}" "${RECOMP_DIR}" "${PS3RECOMP_DIR}/include"
+        "${PS3RECOMP_DIR}/runtime/ppu" "${PS3RECOMP_DIR}/runtime/platform")
+    target_compile_features(wkc2_lwmutex_test PRIVATE cxx_std_20)
+    target_link_libraries(wkc2_lwmutex_test PRIVATE Threads::Threads)
+    if(NOT WIN32)
+        target_sources(wkc2_lwmutex_test PRIVATE "${PS3RECOMP_DIR}/runtime/platform/win32_compat.c")
+        target_link_libraries(wkc2_lwmutex_test PRIVATE m)
+    endif()
+    add_test(NAME wkc2_lwmutex_user COMMAND wkc2_lwmutex_test)
+    add_test(NAME wkc2_lwmutex_kernel COMMAND wkc2_lwmutex_test kernel)
+    set_tests_properties(wkc2_lwmutex_user wkc2_lwmutex_kernel PROPERTIES TIMEOUT 20)
     add_executable(wkc2_memory_test tests/memory_test.c
         "${PS3RECOMP_DIR}/runtime/syscalls/sys_memory.c")
     target_include_directories(wkc2_memory_test PRIVATE "${PS3RECOMP_DIR}/runtime/syscalls")

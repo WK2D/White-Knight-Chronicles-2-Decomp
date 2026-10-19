@@ -21,6 +21,8 @@
 !/thread_diagnostics.cpp
 !/graphics_menu.cpp
 !/graphics_timing.cpp
+!/graphics_readback.cpp
+!/graphics_readback_queue.h
 !/graphics_settings.cpp
 !/graphics_settings.h
 !/graphics_pacing.h

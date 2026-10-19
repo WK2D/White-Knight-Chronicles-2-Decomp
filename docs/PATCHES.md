@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0105 | [Guest lightweight mutex tokens](#guest-lightweight-mutex-tokens-patch-0105) |
 | Patch 0104 | [Host-layout SPU byte shuffle](#host-layout-spu-byte-shuffle-patch-0104) |
 | Patch 0103 | [Vulkan constant upload reuse](#vulkan-constant-upload-reuse-patch-0103) |
 | Patch 0102 | [Vulkan batch resource lifetimes](#vulkan-batch-resource-lifetimes-patch-0102) |
@@ -39,6 +40,32 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Guest lightweight mutex tokens (patch 0105)
+
+**Problem.** Uncontended guest lightweight mutexes entered the Windows semaphore
+API on both acquisition and release. A WKC census found over 99.7% of attempts
+uncontended.
+
+**Fix.** Adapt [JonathanDC64's mutex change](https://github.com/JonathanDC64/ps3recomp/commit/098690d409bfaea44051288a4f1d752a4354d918)
+as a portable C++ binary token, with a condition variable on contention.
+Preserve recursive ownership, cross-thread release, timeouts, reused slots and
+the existing guest condition implementation. Token and waiter atomics plus a
+shared sleep mutex prevent lost wakeups. Slot addresses use acquire/release
+publication. `PS3RECOMP_LWMUTEX_KERNEL=1`, selected at startup, retains the
+previous semaphore backend for comparison.
+
+**Evidence.** `wkc2_lwmutex_user` and `wkc2_lwmutex_kernel` exercise the actual
+handlers and project condition implementation. Wake, contention, recursion,
+deadline, recreation and repeated critical-section checks pass. All 95 Windows
+checks pass in Debug and Release, including the separate host portrait check.
+Clean application, prefix-104 upgrade and no-op reapplication pass. A regular
+Release Continue run reaches the town; its GPU readbacks were inspected.
+
+**Limits.** Synthetic uncontended token cost is lower, but the four alternating
+native comparison runs show no consistent FPS gain. The desktop remains on its
+earlier checkpoint until the next checked installation. See the
+[measurements](FINDINGS.md#remaining-fork-candidates-and-mutex-measurement).
 
 ## Host-layout SPU byte shuffle (patch 0104)
 

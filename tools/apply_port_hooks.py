@@ -156,6 +156,24 @@ for address, wrapper in menu_hooks.items():
     else:
         raise SystemExit(f'Expected BLUS30784 menu function {address} not found')
 
+# Complete a GPU-to-CPU read at the raw avatar portrait copy boundary. The
+# original function still copies the character's own image into its save buffer.
+signature='void func_00064F1C(ppu_context* ctx) {'
+wrapper='''extern "C" int wkc2_avatar_portrait_copy(ppu_context*);
+static void func_00064F1C_original(ppu_context*);
+void func_00064F1C(ppu_context* ctx) {
+    if(wkc2_avatar_portrait_copy(ctx)) func_00064F1C_original(ctx);
+}
+static void func_00064F1C_original(ppu_context* ctx) {'''
+for path in sorted(args.generated.glob('ppu_recomp_*.cpp')):
+    text=path.read_text(encoding='latin-1')
+    if signature not in text: continue
+    if 'func_00064F1C_original' not in text:
+        path.write_text(text.replace(signature,wrapper,1),encoding='latin-1')
+    print('Avatar portrait readback hook ready: 00064F1C')
+    break
+else: raise SystemExit('Expected BLUS30784 avatar portrait copy function not found')
+
 # The game's two-vblank interval is retained for fixed caps. Unlocked mode
 # bypasses only its wait, while the host services actual completed frames.
 for address, callback in [('00AEDC7C','wkc2_graphics_interval_requested'), ('00AEF2E8','wkc2_graphics_frame_wait')]:

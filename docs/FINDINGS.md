@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 104 SDK patches / 92 Windows checks in Debug and
+**Current source checkpoint:** 105 SDK patches / 95 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -53,6 +53,7 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 **Rendering and RSX**
 
+- [Custom avatar portrait readback](#custom-avatar-portrait-readback)
 - [Vulkan window-depth intervals (patch 0098)](#vulkan-window-depth-intervals-patch-0098)
 - [Request-audit follow-up (patch 0097)](#request-audit-follow-up-patch-0097)
 - [Active RSX request coverage and fragment inputs (patches 0095-0096)](#active-rsx-request-coverage-and-fragment-inputs-patches-0095-0096)
@@ -176,10 +177,11 @@ validation. The remaining work includes:
   diagnostic conditions. Validated 60 fps support remains a later goal.
 - Flickering foot shadows, the rotating Logic Stone light, and complete in-engine
   audio/animation synchronization.
-- The custom avatar's menu portrait is reported missing in the native build and
-  the user's RPCS3 comparison. The supplied [menu reference](https://lparchive.org/White-Knight-Chronicles/Update%2002/)
-  is retained for comparison; portrait generation, storage and sampling have not
-  been traced, and the matching symptoms do not establish a shared cause.
+- The custom avatar's empty portrait has been traced to a missing GPU-to-CPU
+  read before its image is copied into the save buffer. The new host hook
+  generates the character's real portrait after creator acceptance. Menu/reload
+  validation remains; see the [portrait investigation](#custom-avatar-portrait-readback).
+  The intermittent all-black menu and all-missing portraits remain unresolved.
 - Physical-controller walk/run comparison after patches 0087-0088, and loading/cutscene speed compared with RPCS3.
 - All character-creation options and an in-game keyboard usable by gamepad.
 - Complete static SPU coverage, including the six observed image-17 fallback
@@ -254,6 +256,44 @@ including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
 
+## Custom avatar portrait readback
+
+**Problem.** The native main menu draws Leonard's built-in portrait while the
+custom avatar slot is blank. The supplied
+[Logic Stone reference](https://lparchive.org/White-Knight-Chronicles/Update%2002/)
+shows that the custom avatar should have its own portrait. The user's separate
+report of an intermittent black menu with all portraits missing remains open.
+
+**Cause.** The game renders a portrait at creator completion, maps its raw
+image, and copies that image into a reserved save-data buffer. The map returns
+an address directly: it does not perform another RSX transfer. Rendered pixels
+were held on the host GPU while the CPU-visible bytes remained zero. The menu
+then uploaded those zeros. Both examined earlier saves contained an empty
+204,800-byte portrait record. This path uses raw pixels; the separate JPEG
+encoder/decoder gaps are not its cause.
+
+**Fix.** The native hook at the avatar-image copy boundary requests a bounded
+readback on the renderer thread before the original guest copy runs. Loading a
+stored CPU portrait follows the original path. A failed readback does not mark
+an empty capture ready. The queue cancels requests that expire before service
+and keeps a CPU consumer waiting through an in-progress transfer. This is a
+host integration change, separate from numbered SDK patches.
+
+**Evidence.** On 2026-10-19, both the isolated prototype and regular production
+Release build generated the actual customized face after ordinary WKC1 creator
+acceptance. Readbacks show a 256-by-144 portrait in the game's allocated image
+and 147,455 nonzero bytes in its save buffer. The original blank menu texture
+had zero nonzero bytes. The raw portrait image was visually inspected.
+`wkc2_graphics_readback` checks the actual bridge, render-thread completion,
+CPU-only loading, range validation, failure, timeout cancellation and shutdown.
+All 95 checks pass in Debug and Release with the media runtime available.
+
+**Limits.** The production creator capture is verified. Menu display,
+ordinary save/reload of the generated image remain unverified. Diagnostic runs
+use isolated save copies.
+This does not establish a fix for intermittent all-black menus, animation
+jitter, town performance, RPCS3, DirectX 12 or other platforms.
+
 ## Remaining fork candidates and mutex measurement
 
 **Problem.** Four suggestions from the fork review need separate implementation
@@ -263,18 +303,18 @@ WKC speedup. Status on 2026-10-19:
 | Candidate | WKC evidence | Production status |
 | --- | --- | --- |
 | Four-lane exact float math | Standalone compatibility checks; unguarded fused math fails directed rounding, guarded math passes the corpus | Not promoted or native-tested; see the [float review](#exact-float-fork-compatibility-review) |
-| Cheaper guest mutexes | Current-runtime call census, synthetic concurrency checks and four native comparison runs | Private candidate; no consistent native performance gain |
+| Cheaper guest mutexes | Current-runtime call census, synthetic concurrency checks and four native comparison runs | Promoted as patch 0105; no consistent native FPS gain |
 | Clock-paced audio | Source review; normal production playback still follows device room | Cadence, extra read lag and MMCSS changes not implemented or WKC-tested |
 | Sparse texture hashing | Source review shows sampled matching can miss changes between sampled bytes | Not implemented; exact write-tracking experiments remain separate |
 
-**Cause.** The unchanged guest lightweight-mutex handlers enter the Windows
+**Cause.** The previous guest lightweight-mutex handlers entered the Windows
 semaphore API even when no other thread holds the lock. A hidden, muted Continue
 run measured 58,849–70,572 lock requests and 117,804–141,320 semaphore calls per
 second across idle/forward/back phases. Over 99.7% of attempts were uncontended.
 There were no observed wait/release failures. These counts exclude internal
 SPU/MFC host locks; external snapshots can straddle an in-flight operation.
 
-**Candidate.** An isolated adaptation of JonathanDC64's
+**Fix.** Patch 0105 promotes the checked adaptation of JonathanDC64's
 [user-space mutex change](https://github.com/JonathanDC64/ps3recomp/commit/098690d409bfaea44051288a4f1d752a4354d918)
 uses a portable C++ binary token, with a condition variable for contention.
 It retains recursion, cross-thread release, finite timeouts and recreation at
@@ -303,8 +343,9 @@ readbacks were disabled during timing.
 
 **Limits.** Movement samples also give mixed results. Autonomous NPCs, camera
 angles and geometry work vary, and these runs establish no consistent FPS or
-CPU improvement. The candidate remains private; the production SDK and desktop
-build retain their checked behavior. The reviewed sparse policy can delay
+CPU improvement. Patch 0105 is retained for reduced uncontended primitive cost
+and checked semantics; it is not a traversal-speed fix. The desktop checkpoint
+has not yet been replaced. The reviewed sparse policy can delay
 partial updates for seven presentations or miss transient changes entirely.
 Exact tracking
 still needs complete writer coverage, shared failure handling and lifecycle

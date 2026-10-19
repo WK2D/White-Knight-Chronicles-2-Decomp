@@ -4,16 +4,16 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-19",
-    "native_probe": "20261019-094217",
-    "sdk_patch_count": 104,
-    "summary": "Host-layout SPU byte shuffle preserves tested semantics and reduces synthetic helper cost. All 92 Windows checks pass in Debug and Release; regular Release Continue and short town movement rechecked. Sustained smooth 30 FPS, 60+ FPS gameplay and full rendering fidelity remain open.",
+    "native_probe": "20261019-131941",
+    "sdk_patch_count": 105,
+    "summary": "The production avatar portrait readback generates the actual face after ordinary WKC1 creator acceptance. Menu/reload verification remains. All 95 Windows checks pass in Debug and Release. Patch 0105 reduces uncontended mutex primitive cost without a consistent native FPS gain.",
     "gallery_image": "screenshots/2026-10-19-native-town-fps-unlocked.png",
     "gallery_image_sdk_patch_count": 104,
-    "gallery_image_scope": "Current 104-patch game frame with live FPS overlay, actual post-overlay swapchain pixels from a private capture-only backend; no sustained-performance claim",
+    "gallery_image_scope": "Earlier 104-patch game frame with live FPS overlay, actual post-overlay swapchain pixels from a private capture-only backend; no sustained-performance claim",
     "remaining_limits": [
       "Smooth 30 FPS traversal and console-equivalent animation speed unverified",
       "First-use shader compilation and other CPU/graphics costs remain",
-      "Foot shadows, Logic Stone light flicker and user-reported missing avatar menu portrait remain open",
+      "Foot shadows, Logic Stone light flicker and intermittent menu/animation instability remain open",
       "Complete static CPU coverage, combat, wider saves and future platforms remain unverified"
     ]
   },
@@ -355,19 +355,22 @@
       "wkc2_vk_batch_lifetime",
       "wkc2_vk_constant_reuse",
       "wkc2_spu_shufb_default",
-      "wkc2_spu_shufb_scalar"
+      "wkc2_spu_shufb_scalar",
+      "wkc2_graphics_readback",
+      "wkc2_lwmutex_user",
+      "wkc2_lwmutex_kernel"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 104,
-    "last_verified_sdk_patch_count": 104,
-    "current_passed_count": 92,
-    "record_scope": "104 SDK patches / 92 Windows Vulkan checks pass in Debug and Release; all media checks ran without skips. Separate temporary settings directories per build.",
-    "normal_debug_elapsed_seconds": 25.62,
-    "optimized_release_elapsed_seconds": 22.38,
+    "current_sdk_patch_count": 105,
+    "last_verified_sdk_patch_count": 105,
+    "current_passed_count": 95,
+    "record_scope": "105 SDK patches / 95 Windows Vulkan checks pass in Debug and Release; all media checks ran without skips.",
+    "normal_debug_elapsed_seconds": 28.56,
+    "optimized_release_elapsed_seconds": 24.35,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 104
+    "repeat_patch_application_verified_sdk_patch_count": 105
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2802,7 +2805,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 100 SDK patches / 87 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 105 SDK patches / 95 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -3127,5 +3130,30 @@
     "windows_tests_passed": 87,
     "details": "performance.json",
     "full_fidelity_verified": false
+  },
+  "avatar_portrait_readback_2026_10_19": {
+    "sdk_patch_count": 105,
+    "windows_checks_passed_debug": 95,
+    "windows_checks_passed_release": 95,
+    "production_executable_sha256": "02b1311a18986b79a7a72a201721dca6cba2e954b5eba81eea2893bf863b733e",
+    "native_probe": "20261019-131941",
+    "hidden": true,
+    "audio_mute_api_verified": true,
+    "isolated_save_copy": true,
+    "ordinary_wkc1_creator_acceptance": true,
+    "actual_raw_portrait_visually_inspected": true,
+    "portrait_width": 256,
+    "portrait_height": 144,
+    "save_buffer_bytes": 204800,
+    "save_buffer_nonzero_bytes": 147455,
+    "previous_menu_texture_nonzero_bytes": 0,
+    "host_hook": "00064F1C",
+    "gpu_readback_before_original_copy": true,
+    "jpeg_used_by_this_capture": false,
+    "menu_display_verified": false,
+    "ordinary_save_reload_verified": false,
+    "existing_empty_save_regeneration_verified": false,
+    "intermittent_black_menu_fixed": false,
+    "desktop_installed": false
   }
 }

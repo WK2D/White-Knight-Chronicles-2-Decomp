@@ -26,6 +26,15 @@ SITES = [
     ('docs/FINDINGS.md', r'\*\*Current source checkpoint:\*\* (?P<patches>\d+) SDK patches / (?P<checks>\d+) Windows checks'),
 ]
 
+# These are current-state descriptions in project.json, not dated measurements.
+JSON_TEXT_SITES = [
+    (('progress_reporting', 'current_milestone'),
+     r'(?P<patches>\d+) SDK patches / (?P<checks>\d+) Windows checks'),
+    (('native_graphics_settings', 'scope'),
+     r'Current source has (?P<patches>\d+) SDK patches / (?P<checks>\d+) passing Windows checks'),
+    (('native_save_load_scope',), r'current (?P<patches>\d+)-patch Release build'),
+]
+
 
 def current():
     patches = len(list((ROOT / 'patches').glob('[0-9][0-9][0-9][0-9]-*.patch')))
@@ -37,6 +46,15 @@ def main():
     want = current()
     check = '--check' in sys.argv
     stale = []
+    def fix_ordered(match):
+        out = match.group(0)
+        spans = sorted(((match.span(k), k) for k in ('patches', 'checks')
+                        if k in match.groupdict() and match.group(k) is not None), reverse=True)
+        for (s, e), k in spans:
+            s -= match.start(); e -= match.start()
+            out = out[:s] + str(want[k]) + out[e:]
+        return out
+
     for name, pattern in SITES:
         path = ROOT / name
         text = path.read_text(encoding='utf-8')
@@ -45,21 +63,32 @@ def main():
             stale.append(f'{name}: status sentence not found (update tools/sync_status_counts.py)')
             continue
 
-        # Replace groups from the end so earlier offsets stay valid.
-        def fix_ordered(match):
-            out = match.group(0)
-            spans = sorted(((match.span(k), k) for k in ('patches', 'checks')
-                            if k in match.groupdict() and match.group(k) is not None), reverse=True)
-            for (s, e), k in spans:
-                s -= match.start(); e -= match.start()
-                out = out[:s] + str(want[k]) + out[e:]
-            return out
-
         updated = re.sub(pattern, fix_ordered, text, count=1)
         if updated != text:
             stale.append(f'{name}: {m.group(0)!r}')
             if not check:
                 path.write_text(updated, encoding='utf-8', newline='\n')
+
+    path = ROOT / 'project.json'
+    project = json.loads(path.read_text(encoding='utf-8'))
+    json_changed = False
+    for keys, pattern in JSON_TEXT_SITES:
+        parent = project
+        for key in keys[:-1]:
+            parent = parent[key]
+        text = parent[keys[-1]]
+        match = re.search(pattern, text)
+        label = 'project.json:' + '.'.join(keys)
+        if not match:
+            stale.append(label + ': current status sentence not found')
+            continue
+        updated = re.sub(pattern, fix_ordered, text, count=1)
+        if updated != text:
+            stale.append(f'{label}: {match.group(0)!r}')
+            parent[keys[-1]] = updated
+            json_changed = True
+    if json_changed and not check:
+        path.write_text(json.dumps(project, indent=2) + '\n', encoding='utf-8', newline='\n')
     if check:
         if stale:
             print(f'Status counts differ from {want}:')

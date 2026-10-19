@@ -8,7 +8,7 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 104 SDK patches / 92 Windows checks. The shader-translation
+Current source: 105 SDK patches / 95 Windows checks. The shader-translation
 cache reduces measured compilation stalls; existing images retain their original
 build provenance. The newest captures show the native FPS overlay in town after
 Continue in the 104-patch build, with 30 and Unlocked frame limits. They are final

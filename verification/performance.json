@@ -3804,7 +3804,7 @@
   "lwmutex_fork_candidate_2026_10_19": {
     "date": "2026-10-19",
     "production_sdk_patches": 104,
-    "status": "Private candidate tested; not promoted to SDK or desktop",
+    "status": "Earlier private comparison, now promoted as SDK patch 0105; no consistent native FPS gain; desktop installation pending",
     "fork_commit": "098690d409bfaea44051288a4f1d752a4354d918",
     "candidate_executable_sha256": "9e905f541216c3fb4f51857677f5db386ba4d72c120bf15488bcb3722c6f3426",
     "comparison": {
@@ -4400,7 +4400,7 @@
   },
   "remaining_fork_candidates_2026_10_19": {
     "four_lane_exact_float": "Standalone compatibility tests only; guarded fused implementation not native-tested or promoted",
-    "cheaper_guest_lwmutex": "Private native candidate tested; no consistent performance gain; not promoted",
+    "cheaper_guest_lwmutex": "Promoted as patch 0105 after Debug/Release regression and regular native Continue checks; no consistent native FPS gain",
     "clock_paced_audio": "Source reviewed; cadence, read lag and MMCSS not implemented or WKC-native-tested",
     "sparse_texture_rehash": "Not implemented; sampled matching cannot prove unchanged texture contents",
     "exact_texture_tracking": "Private verification and skip experiments exist; writer coverage, shared failure state, current SDK rebase and lifecycle work remain"
@@ -4453,5 +4453,18 @@
       "Actual game contexts and generated game source remain private",
       "Current SDK native coverage and supported public postprocessor integration remain pending"
     ]
+  },
+  "lwmutex_patch_0105": {
+    "date": "2026-10-19",
+    "sdk_patch_count": 105,
+    "windows_checks_passed_debug": 95,
+    "windows_checks_passed_release": 95,
+    "actual_project_lwcond_tested": true,
+    "regular_native_continue_and_short_movement_verified": true,
+    "native_fps_gain_verified": false,
+    "clean_patch_application_verified": true,
+    "prefix_104_upgrade_files_changed": 2,
+    "reapply_files_changed": 0,
+    "retained_backend_switch": "PS3RECOMP_LWMUTEX_KERNEL=1"
   }
 }
