@@ -46,6 +46,7 @@
 !/verification/
 /patches/*
 !/patches/*.patch
+!/patches/index.json
 /tests/*
 !/tests/*.cpp
 !/tests/*.c

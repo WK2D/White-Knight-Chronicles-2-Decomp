@@ -45,7 +45,8 @@ not proof of complete command support. Keep full logs private and share only rev
 
 ## Milestones and screenshots
 
-For each new visible milestone, add a dated entry at the top of `docs/GALLERY.md`,
+For each new visible milestone, add a dated entry above the latest one in `docs/GALLERY.md`
+(and a row in its milestone table for a major step),
 a lossless capture under `verification/screenshots/`, and provenance hashes in
 `verification/gallery.json`. Use game-frame readbacks and inspect the image before
 publication. Remove all optional PNG metadata; the staged-tree check accepts only
@@ -64,5 +65,52 @@ native behavior. Commit and push checked milestone updates as work progresses.
 | How a larger runtime subsystem works | [SUBSYSTEMS.md](SUBSYSTEMS.md) |
 | Measurements, verified results and investigations | [FINDINGS.md](FINDINGS.md): add the section after the status sections and list it under its topic in the contents |
 | A new screenshot | [GALLERY.md](GALLERY.md), newest first |
+| A general lesson or a symptom with a known cause | [LESSONS.md](LESSONS.md): add a row to the symptom index when the symptom is recognizable |
+| A term, environment variable or game address | [REFERENCE.md](REFERENCE.md) |
 
 Keep section headings unchanged once published: other pages link to them by anchor.
+
+## Findings template
+
+New findings sections use the same five parts, so that people and tools can
+compare them. Omit a part only when it does not apply, and say so.
+
+```markdown
+## Short description of the result (patch NNNN)
+
+**Problem.** What was observed, with the scene, build and settings.
+
+**Cause.** What the evidence shows. Mark theories as theories.
+
+**Fix.** What changed, with the patch or file names.
+
+**Evidence.** Measurements, readbacks, check results or screenshots, with dates.
+
+**Limits.** What this does not establish and what remains unverified.
+```
+
+Naming the patch in the heading as `(patch NNNN)` or `(patches NNNN-NNNN)` links
+the section from `patches/index.json`.
+
+## Generated files and counts
+
+After adding a patch or a patch note, regenerate the patch index:
+
+```powershell
+python tools/gen_patch_index.py
+```
+
+`patches/index.json` lists each patch with its description, the SDK files it
+touches, its subsystems and the notes and findings that cover it. Do not edit it
+by hand.
+
+The current patch and check counts appear in several pages. After a change to
+`patches/` or to `current_build.runtime_checks_passed` in `project.json`, update
+them all with:
+
+```powershell
+python tools/sync_status_counts.py
+```
+
+Both tools accept `--check`, which reports drift without changing files. Dated
+measurements keep the counts they were recorded with.

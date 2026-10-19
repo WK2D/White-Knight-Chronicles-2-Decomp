@@ -9,6 +9,11 @@ the PS3 game code. Development targets **Windows with Vulkan** and starts with
 <sub>Native Windows town capture, 19 October 2026. Select the image for the progress
 gallery, including the Graphics Settings menu, newest first.</sub>
 
+<p><a href="docs/GALLERY.md#2026-10-15--language-selection"><img src="verification/screenshots/2026-10-15-language-selection.png" width="150" alt="First screen, 15 Oct" title="First screen, 15 Oct"></a> <a href="docs/GALLERY.md#2026-10-16--title-menu"><img src="verification/screenshots/2026-10-16-title-menu.png" width="150" alt="Title menu, 16 Oct" title="Title menu, 16 Oct"></a> <a href="docs/GALLERY.md#2026-10-16--vulkan-avatar-colours-restored"><img src="verification/screenshots/2026-10-16-native-vulkan-avatar-colours.png" width="150" alt="Avatar creation, 16 Oct" title="Avatar creation, 16 Oct"></a> <a href="docs/GALLERY.md#2026-10-17--town-stretching-fixed-secondary-bone-physics"><img src="verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="150" alt="Town, 17 Oct" title="Town, 17 Oct"></a> <a href="docs/GALLERY.md#2026-10-18---native-graphics-settings"><img src="verification/screenshots/2026-10-18-native-graphics-settings.png" width="150" alt="Graphics Settings, 18 Oct" title="Graphics Settings, 18 Oct"></a></p>
+
+<sub>From the first native screen to the town: the milestones are in the
+<a href="docs/GALLERY.md#milestones-at-a-glance">gallery timeline</a>.</sub>
+
 ## Status
 
 Early development build. The native Windows build reaches the WKC1 starting town and
@@ -89,6 +94,8 @@ repository.
 | [Findings log](docs/FINDINGS.md) | Verified results, measurements, open issues and investigation history, grouped by topic |
 | [Runtime patch notes](docs/PATCHES.md) | What each numbered SDK patch changes and how it was checked, newest first |
 | [Runtime subsystem notes](docs/SUBSYSTEMS.md) | Renderer, movie decoding, guest frame presentation and native text entry |
+| [Lessons for recompilers](docs/LESSONS.md) | Symptom index and reusable lessons on timing, rendering, SPU jobs and runtime services |
+| [Reference](docs/REFERENCE.md) | Glossary, environment variables and known game addresses |
 | [Architecture](docs/ARCHITECTURE.md) | Execution model, remaining SPU fallback and modding scope |
 | [Progress gallery](docs/GALLERY.md) | Dated screenshots, newest first |
 | [Runtime audit](docs/KILLZONE_FIX_AUDIT.md) | Runtime-fix comparison and remaining implementation gaps |
