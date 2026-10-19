@@ -837,5 +837,13 @@
     "shadow_flicker_fix_verified": false,
     "full_visual_fidelity_verified": false,
     "scope": "Paired window-depth interval correctness change. Same-process private off/on comparison; no clear flicker or FPS improvement established."
+  },
+  "avatar_menu_portrait": {
+    "status": "user-reported missing; investigation pending",
+    "comparison": "User reports the same missing portrait in RPCS3",
+    "reference": "https://lparchive.org/White-Knight-Chronicles/Update%2002/",
+    "native_reproduction_independently_verified": false,
+    "cause_verified": false,
+    "next_check": "Trace portrait generation, storage and menu sampling; compare equivalent game version, scene and save."
   }
 }

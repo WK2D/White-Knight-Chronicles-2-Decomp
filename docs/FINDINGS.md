@@ -165,6 +165,10 @@ validation. The remaining work includes:
   diagnostic conditions. Validated 60 fps support remains a later goal.
 - Flickering foot shadows, the rotating Logic Stone light, and complete in-engine
   audio/animation synchronization.
+- The custom avatar's menu portrait is reported missing in the native build and
+  the user's RPCS3 comparison. The supplied [menu reference](https://lparchive.org/White-Knight-Chronicles/Update%2002/)
+  is retained for comparison; portrait generation, storage and sampling have not
+  been traced, and the matching symptoms do not establish a shared cause.
 - Physical-controller walk/run comparison after patches 0087-0088, and loading/cutscene speed compared with RPCS3.
 - All character-creation options and an in-game keyboard usable by gamepad.
 - Complete static SPU coverage, including the six observed image-17 fallback
