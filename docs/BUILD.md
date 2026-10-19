@@ -4,15 +4,17 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Latest checkpoint (2026-10-18):** Triangle -> System -> Graphics Settings
-is available in the native game, including Off/FXAA, frame-rate limits and an
-experimental DirectX 12 selector. Continue loads the verified Logic Stone save.
-See [menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
+**Current validation (2026-10-19):** the stack contains 99 SDK patches. All
+84 Windows checks pass in normal Debug and optimized Release. Reapplying the
+complete stack changes no SDK files. The final native Vulkan candidate loads
+Continue and moves briefly in town; see the [latest town captures](GALLERY.md#2026-10-19---window-depth-clip-range-check).
+
+Triangle -> System -> Graphics Settings is available in the native game, including
+Off/FXAA, frame-rate limits and an experimental DirectX 12 selector. See the
+[menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
 and [settings and timing details](#native-graphics-settings-patches-0081-0082).
 
-The current stack contains 99 SDK patches. All 84 Windows checks pass in normal
-Debug and optimized Release. Suite timings are not game performance. Reapplying
-the complete stack changes no SDK files. Full rendering fidelity, smooth traversal,
+Suite timings are not game performance. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain
 their original build and diagnostic conditions.
 
@@ -86,7 +88,8 @@ save compatibility and full rendering fidelity remain unverified.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
 SDAT archives. The build applies the numbered runtime patches idempotently
-and runs 64 checks: real video decoding, sparse video timing, asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
+and runs the regression suite, covering real video decoding, sparse video timing,
+asynchronous video queues, LPCM queues/conversion, stereo/surround AC-3,
 Vpost conversion/windows, callback stacks,
 demux ABI/lifetimes, MPEG packet/access-unit parsing, PAMF reader, lightweight
 conditions, memory containers, LFQueue, event queues, RSX texture formats and
@@ -100,16 +103,16 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 94 numbered SDK patches, and all 80 checks
-pass in both Windows suites. The latest graphics panel captures use 83 patches; saving
+The current source stack contains 99 numbered SDK patches, and all 84 checks
+pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
 52- and 42-patch provenance; the first town world-view capture used 39. Patch 0043 passed
 the earlier 43-check Windows suite and remains covered by the current suite;
 its town-rendering comparison is recorded separately.
 Patch 0045's three float-mode checks and patches 0046-0051's new and extended
-checks pass in the native Windows clang-cl build. The current 72-check suite passes
-in normal Debug and optimized Release; Wine's MinGW TLS workaround is not needed here.
+checks pass in the native Windows clang-cl build and remain covered by both
+current suites; Wine's MinGW TLS workaround is not needed here.
 Patch 0042 and its interpreter, disabled-mode and actual microstep/handoff
 regressions now pass on Windows. Native census results are recorded in the
 findings log.
@@ -613,7 +616,7 @@ with all 42 patches. At that checkpoint, world geometry and NPC surfaces were
 visibly corrupt; sustained traversal, combat and save/load were unverified.
 
 Patch 0040 incorporates the allocator fix reviewed from the
-[suggestion branch](https://github.com/WK2D/White-Knight-Chronicles-2-Decomp/blob/6ca620d7f328996eeb4bf118652d78528d90107a/patches/0039-memory-range-reuse.patch).
+[suggestion branch](https://github.com/WK2D/White-Knight-Chronicles-2-Recomp/blob/6ca620d7f328996eeb4bf118652d78528d90107a/patches/0039-memory-range-reuse.patch).
 `sys_memory_allocate` now reuses aligned ranges released by `sys_memory_free`
 and zeroes reused bytes. The old allocator exhausted its address window after
 two freed 96 MiB allocations despite reporting free memory. The Windows
@@ -863,7 +866,7 @@ reservation notifications and separation from both 3D renderers.
 `wkc2_nv0039_routing_3d` checks the SDK compatibility override. The extended
 `wkc2_draw_engine` verifies an unaligned partial-pixel update preserves adjacent
 GPU-owned bytes. All passed in the 50-check checkpoint and remain covered by
-the current 64-check Windows Vulkan suite.
+the current Windows Vulkan suite.
 
 Set `GCM_M2MF_VERIFY=1` before a private run to compare copied destination bytes
 against the staged source. This re-read confirms the writes landed at the

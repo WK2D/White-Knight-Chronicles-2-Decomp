@@ -750,9 +750,8 @@ do not establish interpreter-free execution.
 The investigation sections record successive checkpoints, including failures
 later resolved. Test counts, proposed next steps and limitations within those
 accounts describe that checkpoint. They are not the current task list. The
-verified table above and [latest batch scheduling result](#vulkan-batch-scheduling-patch-0076)
-record the current status; [Still unverified](#still-unverified) records the
-remaining validation work.
+verified table above and the opening source checkpoint record the current status;
+[Still unverified](#still-unverified) records the remaining validation work.
 
 - Correct lightweight-condition layout and wait/signal behavior.
 - Allocate and account for memory-container allocations instead of acknowledging
@@ -2371,7 +2370,7 @@ animation program; eight dispatch/return pairs have been observed after lifting
 it. FIFO consumption continues through a later timeout. A subsequent vertex-shader
 cache fix revealed avatar-customization menus. At this checkpoint, the model
 was still missing. Later SPU arithmetic and renderer fixes restored the avatar.
-The latest 76-patch build loads the verified save into town; the earlier
+The historical 76-patch build loads the verified save into town; the earlier
 64-patch checkpoint records a short movement and camera recheck, with the long
 secondary-bone strips removed in inspected views. The 70-patch idle run exposes progressive slowdown; the 73-patch
 ten-minute idle test does not reproduce its accumulating SPU workers. Full rendering

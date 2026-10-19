@@ -1,45 +1,17 @@
-# Code review suggestions
+# Code review history
 
-Updated 2026-10-18. The Windows Vulkan stack has 76 SDK patches and 64 passing
-runtime checks in normal Debug and optimized Release. The preceding 70-patch
-visible town run exposes progressive slowdown from accumulating asynchronous
-SPU workers. The 73-patch ten-minute town test observes no worker accumulation
-with 58–59 host threads, but exposes a bright foot-shadow regression and black
-flicker. Patch 0074 corrects texture-comparison operand direction and its GPU
-oracle; normal shadow polarity is confirmed in the native town. Black foot flicker
-remains. Patch 0075 repairs the dropped native user-command interrupt route and
-passes all 63 checks in both builds. Logic Stone targeting, its local Save menu,
-and restart/Continue reload into town are verified. See the
-[current findings](FINDINGS.md#frame-pacing-and-game-speed).
-Patch 0076 fixes descriptor-pool submission churn and adds non-waiting early
-batch submissions, with an actual-code regression and native saved-town
-comparison. See [the batch scheduling findings](FINDINGS.md#vulkan-batch-scheduling-patch-0076).
-Earlier tracing located the long town strips in
-omitted secondary-bone physics jobs. Patch 0058 restores their queue execution
-and CRT handoff; see the
-[native recheck](FINDINGS.md#secondary-bone-physics-and-town-stretching).
-Patch 0052 improved the inspected NPC surfaces, and patch 0053 removed the
-observed cutscene red flashes. Full rendering fidelity and broader gameplay
-remain unverified.
+These reviews retain their original baselines, check counts and validation scope.
+They are an engineering history, rather than a list of commits waiting to merge.
+Patches 0042–0051 are incorporated in the current stack. Dispositions below record
+subsequent fixes; other findings remain open or have not been re-audited against
+all later changes.
 
-Patch 0059 caches launch-time diagnostics and passes the same 51 Windows checks;
-the [town comparison](FINDINGS.md#town-performance-after-the-physics-fix) records
-its modest frame-rate improvement. Patches 0060–0061 remove repeated SPU
-conversion-scale calls and give each SPU context independent MFC state. The
-extended arithmetic and DMA regressions pass in the same 51-check Windows suite;
-the findings record the later town samples. These changes do not change the
-review dispositions below.
-
-Patches 0062–0064 add filtered FIFO producer notifications, SSE2 byte population
-counts and host-thread-local recursion diagnostics. Eight new regressions pass
-in normal Debug and optimized Release-CRT Windows builds; native timing and
-validation limits are in the findings.
-
-The reviews below retain their original baselines, check counts and validation
-scope. They are an audit history, not a list of changes still waiting to merge.
-Patches 0042–0051 are incorporated in the current stack. Dispositions below
-identify subsequent fixes; other findings remain open or have not been
-re-audited against all later changes.
+For the current project status, see the [README](../README.md). Current validation
+and subsequent fixes are recorded in the [build workflow](BUILD.md),
+[findings log](FINDINGS.md) and [runtime audit](KILLZONE_FIX_AUDIT.md).
+The later [NV0039 transfer](FINDINGS.md#nv0039-memory-transfers) and
+[secondary-bone physics fixes](FINDINGS.md#secondary-bone-physics-and-town-stretching)
+supersede the early town comparisons below.
 
 ## Second review
 
@@ -53,7 +25,7 @@ The town captures examined in this review came from Vulkan runs. Patches 0046,
 0050 and 0051 were candidates for their stretched geometry and corrupt NPC
 surfaces. The 51-patch Windows suite passed, but its native town runs still
 showed both faults; see [the recorded findings](FINDINGS.md#second-runtime-review).
-That comparison predates the NV0039 and physics fixes summarized above.
+That comparison predates the NV0039 and physics fixes linked above.
 
 ### Reviewed fixes
 
@@ -181,7 +153,7 @@ implemented in patch 0058.
 ## Windows follow-up
 
 The original review below describes `1865c88`. Its findings 1–3 were addressed in
-[`e86ad08`](https://github.com/WK2D/White-Knight-Chronicles-2-Decomp/commit/e86ad0896059ba8d5fbcd2bcc2a701f3ed7d5852):
+[`e86ad08`](https://github.com/WK2D/White-Knight-Chronicles-2-Recomp/commit/e86ad0896059ba8d5fbcd2bcc2a701f3ed7d5852):
 audio sequences can end and restart after a fatal decode error,
 demux AU validation uses the actual aligned arena capacity, and the pad-file
 test uses `setenv` on POSIX systems. Windows audio recovery and demux boundary

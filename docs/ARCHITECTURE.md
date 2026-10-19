@@ -49,53 +49,35 @@ The pinned SDK is built with the project's [runtime patches](BUILD.md),
 including [SPURS queue/port execution](../patches/0058-spurs-job-queue-secondary-bones.patch)
 and [fallback profiling](../patches/0042-spu-interp-profile.patch).
 
-The [launch-time diagnostic caches](../patches/0059-cache-launch-diagnostics.patch)
-reduce host overhead while retaining the same guest jobs and rendering work.
-[Conversion scales](../patches/0060-spu-conversion-scales.patch) now avoid repeated
-CRT calls, and [context-owned MFC state](../patches/0061-context-owned-mfc.patch)
-keeps DMA queues and completion tags independent across logical SPU contexts.
-This removes the fixed registry and shared overflow engine; it does not change
-the one-owner execution requirement for each context.
-[Producer notifications](../patches/0062-gcm-producer-wake.patch) now distinguish
-changed commands from unchanged overlapping writes.
-[Byte counts](../patches/0063-spu-cntb-sse2.patch) use SSE2 on supported x86 hosts,
-with the scalar path retained elsewhere;
-[recursion diagnostics](../patches/0064-spu-depth-history-tls.patch) follow the
-executing host thread while the depth value remains in its SPU context.
-The [Vulkan window-title counter](BUILD.md#vulkan-window-title-counter-patch-0065)
-reports accepted queue-presentation rate and the maximum interval. It measures
-host presentation timing; unique guest animation frames and display scanout are
-not counted. The current label is `Present/s`. At the 76-patch checkpoint, Windows
-compilation and all 64 checks passed in normal Debug and optimized Release; initial
-counter display validation is retained at its original
-65-patch scope. The [pacing changes](FINDINGS.md#frame-pacing-and-game-speed) honor
-real flip requests and the game's two-vblank semaphore gate; they do not divide
-the counter or add a host 30 fps cap. The visible 70-patch town run initially
-reaches 16.57 presentations/s, then slows to about 7 while idle as asynchronous
-SPU workers accumulate. Patch 0072 claims each asynchronous task/workload by
-its guest owner before creating a host thread and retains ownership through
-cleanup, so duplicate active submissions coalesce. Active owner reuse/removal
-returns `BUSY`; cancellation and arbitrary unowned diagnostic dispatch are not
-implemented by this change. The 73-patch ten-minute idle test keeps host thread
-count at 58–59 while completing 17,104 task workers; no worker accumulation is
-observed. Its 14.25 presentations/s average is not a matched speedup comparison
-because profiler settings differ and capture work remains enabled. Patches 0071
-and 0073 add current-generation depth snapshots and native depth comparison.
-The native run exposes a bright foot-shadow fault; patch 0074 corrects comparison
-operand order and restores normal shadow polarity in the observed town. Black
-foot flicker remains. Patch 0075 routes consumed user interrupts to the registered
-native HLE callback. Logic Stone interaction, a local save write and
-restart/Continue reload into town are verified. The patch-0075 slot also loads
-on patch 0076; other save compatibility is unverified. Visibility report values
-remain conservative placeholders rather than measured GPU sample counts.
-Patch 0076 creates missing descriptor pools in the active batch slot without
-a layout-only submission. It opportunistically submits small batches only when
-the spare fence is ready; real capacity limits retain their existing waits.
-See [the batch scheduling measurements](FINDINGS.md#vulkan-batch-scheduling-patch-0076).
-The earlier [starting-town timing comparison](FINDINGS.md#town-performance-after-the-physics-fix)
-uses hidden-window diagnostic runs; a separate visible 66-patch baseline is
-recorded with its own profiling limits.
-The immediate 30 fps target and later 60 fps support remain unverified.
+## Scheduling, rendering and timing
+
+Each SPU context owns its DMA queues and completion tags. It requires one execution
+owner at a time. Asynchronous task/workload ownership is retained through cleanup
+so duplicate active submissions coalesce; active owner reuse/removal returns
+`BUSY`. Cancellation and arbitrary unowned diagnostic dispatch are not implemented
+by that ownership mechanism. The [worker lifetime investigation](FINDINGS.md#frame-pacing-and-game-speed)
+records the fix and the ten-minute idle validation.
+
+The runtime honors real flip requests and the game's vblank/semaphore pacing.
+Graphics Settings adjusts both the host frame cap and the guest timing hooks;
+raising a host cap alone does not unlock the game. The window-title `Present/s`
+counter measures accepted queue presentations and the maximum interval. It does
+not count distinct guest animation updates or display scanout. See
+[graphics settings and timing](BUILD.md#native-graphics-settings-patches-0081-0082)
+for the current controls and validation limits.
+
+Vulkan translates the game's rendering state and shaders to the host GPU.
+Visibility reports still use conservative placeholders rather than measured GPU
+sample counts, and rendering coverage remains incomplete. The
+[runtime audit](KILLZONE_FIX_AUDIT.md) tracks remaining gaps; the
+[findings log](FINDINGS.md) retains the rendering fixes, performance comparisons
+and their original test conditions. Smooth sustained gameplay and locked higher
+frame rates remain unverified.
+
+The runtime dispatches consumed user interrupts to registered native HLE callbacks.
+This restores the route used by Logic Stone interaction and saving. One starting-town
+slot has been saved locally and reloaded through Continue after restart; wider
+save compatibility remains unverified.
 
 Generated game sources and game inputs remain private. The public repository
 contains the build tools, project code, runtime patches and verification records.
