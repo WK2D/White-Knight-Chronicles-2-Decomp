@@ -724,6 +724,18 @@ if(WKC2_BUILD_TESTS)
         target_include_directories(wkc2_vk_graphics_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "${PS3RECOMP_DIR}/libs/video" "${PS3RECOMP_VULKAN_INCLUDE_DIR}")
         add_test(NAME wkc2_vk_graphics COMMAND wkc2_vk_graphics_test)
         set_tests_properties(wkc2_vk_graphics PROPERTIES TIMEOUT 10)
+        set(VK_LIFETIME_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/vk-lifetime-fixture.inc")
+        add_custom_command(OUTPUT "${VK_LIFETIME_FIXTURE}"
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_vk_lifetime_fixture.py"
+                --source "${PS3RECOMP_DIR}/libs/video/rsx_vulkan_backend.c"
+                --output "${VK_LIFETIME_FIXTURE}"
+            DEPENDS "${PS3RECOMP_DIR}/libs/video/rsx_vulkan_backend.c"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_vk_lifetime_fixture.py"
+            VERBATIM)
+        add_executable(wkc2_vk_batch_lifetime_test tests/vk_batch_lifetime_test.c "${VK_LIFETIME_FIXTURE}")
+        target_include_directories(wkc2_vk_batch_lifetime_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+        add_test(NAME wkc2_vk_batch_lifetime COMMAND wkc2_vk_batch_lifetime_test)
+        set_tests_properties(wkc2_vk_batch_lifetime PROPERTIES TIMEOUT 10)
         set(VK_ARENA_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/vk-arena-fixture.inc")
         add_custom_command(OUTPUT "${VK_ARENA_FIXTURE}"
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_vk_arena_fixture.py"

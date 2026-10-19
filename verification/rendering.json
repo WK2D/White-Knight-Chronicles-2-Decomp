@@ -4,12 +4,12 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-19",
-    "native_probe": "20261019-071241",
-    "sdk_patch_count": 101,
-    "summary": "Grouped vertex conversion reduces repeated format dispatch without retaining guest data. 101 SDK patches / 88 Windows checks pass in Debug and Release; Continue and a short town route are rechecked. The fixed-work conversion benchmark improves; a sustained game FPS gain, smooth 30 FPS traversal, game-speed fidelity and flicker fixes remain unverified.",
+    "native_probe": "20261019-073204",
+    "sdk_patch_count": 102,
+    "summary": "Vulkan deferred textures now wait for the pending GPU slot, and skipped window presentation drains submitted work before retirement. 102 SDK patches / 89 Windows checks pass in Debug and Release; Continue and short town movement are rechecked. This is a resource-lifetime fix; smooth 30 FPS traversal, game-speed fidelity and flicker fixes remain unverified.",
     "gallery_image": "screenshots/2026-10-19-native-depth-range-front.png",
     "gallery_image_sdk_patch_count": 99,
-    "gallery_image_scope": "Earlier town rendering reference; no new visual-fidelity claim or screenshot for this CPU conversion change",
+    "gallery_image_scope": "Earlier town rendering reference; no new visual-fidelity claim or screenshot for the resource-lifetime fix",
     "remaining_limits": [
       "Smooth 30 FPS traversal and console-equivalent animation speed unverified",
       "First-use shader compilation and other CPU/graphics costs remain",
@@ -329,19 +329,20 @@
       "wkc2_spu_async_lifetime",
       "wkc2_lfqueue",
       "wkc2_event_queue",
-      "wkc2_vertex_batch"
+      "wkc2_vertex_batch",
+      "wkc2_vk_batch_lifetime"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 101,
-    "last_verified_sdk_patch_count": 101,
-    "current_passed_count": 88,
-    "record_scope": "101 SDK patches / 88 Windows Vulkan checks pass in Debug and Release; all media checks ran without skips.",
-    "normal_debug_elapsed_seconds": 28.06,
-    "optimized_release_elapsed_seconds": 24.82,
+    "current_sdk_patch_count": 102,
+    "last_verified_sdk_patch_count": 102,
+    "current_passed_count": 89,
+    "record_scope": "102 SDK patches / 89 Windows Vulkan checks pass in Debug and Release; all media checks ran without skips.",
+    "normal_debug_elapsed_seconds": 24.42,
+    "optimized_release_elapsed_seconds": 21.4,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 101
+    "repeat_patch_application_verified_sdk_patch_count": 102
   },
   "gallery": "gallery.json",
   "historical_probe": {

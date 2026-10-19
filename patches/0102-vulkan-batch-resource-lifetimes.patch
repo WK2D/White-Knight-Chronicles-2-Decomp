@@ -1,0 +1,170 @@
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -537,9 +537,11 @@
+     return 0;
+ }
+ 
++static int s_batch_failed; /* Never reuse batch resources after failed completion. */
+ static VkResult wt_vk_wait(VkDevice device,uint32_t count,const VkFence* fences,VkBool32 all,uint64_t timeout) {
+     uint64_t start=wt_begin();
+     VkResult result=pvkWaitForFences(device,count,fences,all,timeout);
++    if (result != VK_SUCCESS) s_batch_failed = 1;
+     wt_end(WT_GPU_WAIT,count,0,start);return result;
+ }
+ static int vk_submit_and_wait(void)
+@@ -578,6 +580,7 @@
+ /* After the batch's submission has completed: its arenas are free again and the images it may have used can go. */
+ static void vk_batch_retire(void)
+ {
++    if (s_batch_failed) return;
+     vk_eng_batch_reset();
+     for (u32 i = 0; i < s_defer_n; i++) vk_destroy_image(&s_defer[i]);
+     s_defer_n = 0;
+@@ -627,16 +630,18 @@
+     frames = 0;
+     t0 = now;
+ }
+-static void vk_slot_drain(void);
++static int vk_slot_drain(void);
+ static int vk_batch_flush_at(int line)
+ {
+-    if (!s_batch.open) { vk_slot_drain(); return 0; }
++    if (s_batch_failed) return -1;
++    if (!s_batch.open) return vk_slot_drain();
+     vk_batch_end_pass();
+     s_batch.open = 0;
+     const double t0 = s_flush_file ? vk_now_ms() : 0.0;
+     const int rc = vk_submit_and_wait();
++    if (rc) { s_batch_failed = 1; return rc; }
+     vk_batch_retire();
+-    vk_slot_drain();
++    if (vk_slot_drain()) return -1;
+     if (s_flush_file) vk_flush_note(line, vk_now_ms() - t0);
+     return rc;
+ }
+@@ -651,6 +656,7 @@
+  * clears, layout set-up, depth snapshots): no submission and no wait. Ended by the next flush. */
+ static int vk_batch_open(void)
+ {
++    if (s_batch_failed) return -1;
+     if (s_batch.open) return 0;
+     if (vk_cmd_begin()) return -1;
+     s_batch.open = 1;
+@@ -662,12 +668,23 @@
+     vk_batch_end_pass();
+     return 0;
+ }
+-static void vk_defer_destroy_image(vk_image* im)
+-{
+-    if (!s_batch.open) { vk_destroy_image(im); return; }
+-    if (s_defer_n >= VK_DEFER_MAX) { vk_batch_flush(); vk_destroy_image(im); return; }
++static int vk_defer_destroy_image(vk_image* im)
++{
++    if (s_batch_failed) return -1;
++    if (!s_batch.open) {
++        /* A closed recording batch does not imply the spare GPU slot is idle. */
++        if (vk_slot_drain()) return -1;
++        vk_destroy_image(im);
++        return 0;
++    }
++    if (s_defer_n >= VK_DEFER_MAX) {
++        if (vk_batch_flush()) return -1;
++        vk_destroy_image(im);
++        return 0;
++    }
+     s_defer[s_defer_n++] = *im;
+     memset(im, 0, sizeof *im);
++    return 0;
+ }
+ 
+ /* Makes what the open command buffer wrote into `buf` visible to the host's read after the submission completes. */
+@@ -2316,19 +2333,23 @@
+ }
+ 
+ /* Waits for the spare batch, if one is in flight, and frees what it held. */
+-static void vk_slot_drain(void)
+-{
+-    if (!s_spare.pending) return;
+-    wt_vk_wait(s_vk.device, 1, &s_spare.fence, VK_TRUE, UINT64_MAX);
++static int vk_slot_drain(void)
++{
++    if (s_batch_failed) return -1;
++    if (!s_spare.pending) return 0;
++    if (wt_vk_wait(s_vk.device, 1, &s_spare.fence, VK_TRUE, UINT64_MAX) != VK_SUCCESS)
++        return -1;
+     s_spare.pending = 0;
+     vk_slot_swap();
+     vk_batch_retire();
+     vk_slot_swap();
++    return 0;
+ }
+ 
+ /* Submits the open batch without waiting and continues in the other slot. */
+ static int vk_batch_flush_async_at(int line)
+ {
++    if (s_batch_failed) return -1;
+     if (!s_batch.open) return 0;
+     if (!s_spare.fence) {
+         VkCommandBufferAllocateInfo cai = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+@@ -2350,8 +2371,9 @@
+                         .commandBufferCount = 1, .pCommandBuffers = &s_vk.cmd };
+     VK_CHECK(pvkResetFences(s_vk.device, 1, &s_vk.fence), "vkResetFences");
+     VK_CHECK(pvkQueueSubmit(s_vk.queue, 1, &si, s_vk.fence), "vkQueueSubmit");
+-    if (s_spare.pending)
+-        wt_vk_wait(s_vk.device, 1, &s_spare.fence, VK_TRUE, UINT64_MAX);
++    if (s_spare.pending &&
++        wt_vk_wait(s_vk.device, 1, &s_spare.fence, VK_TRUE, UINT64_MAX) != VK_SUCCESS)
++        return -1;
+     vk_slot_swap();             /* recording goes on in the finished slot */
+     s_spare.pending = 1;
+     vk_batch_retire();
+@@ -2641,7 +2663,7 @@
+     (void)user;
+     if (!handle || handle >= VK_ENG_MAX_OBJ || s_eobj[handle].kind == VK_ENG_FREE) return;
+     if (s_eobj[handle].kind == VK_ENG_TEXTURE) {     /* nothing else refers to it: no framebuffer, no view */
+-        vk_defer_destroy_image(&s_eobj[handle].im);
++        if (vk_defer_destroy_image(&s_eobj[handle].im)) return;
+         memset(&s_eobj[handle], 0, sizeof s_eobj[handle]);
+         return;
+     }
+@@ -2915,14 +2937,18 @@
+     VkSubmitInfo si = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, .commandBufferCount = 1, .pCommandBuffers = &s_vk.cmd };
+     if (pvkEndCommandBuffer(s_vk.cmd) != VK_SUCCESS || pvkQueueSubmit(s_vk.queue, 1, &si, VK_NULL_HANDLE) != VK_SUCCESS) {
+         VK_LOG("engine: frame submission failed\n");
+-        pvkDeviceWaitIdle(s_vk.device);
++        if (pvkDeviceWaitIdle(s_vk.device) != VK_SUCCESS) s_batch_failed = 1;
+         goto done;
+     }
+     {
+         u32 idx = 0;
+         const int acquired = vk_window_acquire(&idx);
+-        if (acquired < 0) pvkDeviceWaitIdle(s_vk.device);
+-        if (acquired) goto done;
++        if (acquired) {
++            /* The frame was submitted before acquisition. A minimized/out-of-date
++             * window skips the later presentation fence, so drain explicitly. */
++            if (pvkDeviceWaitIdle(s_vk.device) != VK_SUCCESS) s_batch_failed = 1;
++            goto done;
++        }
+         VkCommandBufferBeginInfo bi = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                                         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT };
+         pvkResetCommandBuffer(s_cmd_win, 0);
+@@ -2930,7 +2956,8 @@
+         vk_window_blit(s_cmd_win, idx, source, width, height);
+         pvkEndCommandBuffer(s_cmd_win);
+         /* The fence signals after everything submitted before it on the queue: the frame's batch too. */
+-        if (vk_window_submit_present(s_cmd_win, idx)) pvkDeviceWaitIdle(s_vk.device);
++        if (vk_window_submit_present(s_cmd_win, idx) &&
++            pvkDeviceWaitIdle(s_vk.device) != VK_SUCCESS) s_batch_failed = 1;
+     }
+ done:
+     vk_batch_retire();
+@@ -4536,6 +4563,7 @@
+     if (s_vk.lib) vk_dlclose(s_vk.lib);
+     free(s_vk.cpu_verts);
+     memset(&s_vk, 0, sizeof s_vk);
++    s_batch_failed = 0;
+ }
+ 
+ int rsx_vulkan_backend_pump_messages(void)

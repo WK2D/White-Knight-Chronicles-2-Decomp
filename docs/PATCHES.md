@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0102 | [Vulkan batch resource lifetimes](#vulkan-batch-resource-lifetimes-patch-0102) |
 | Patch 0101 | [Grouped vertex conversion](#grouped-vertex-conversion-patch-0101) |
 | Patch 0100 | [SPIR-V translation cache](#spir-v-translation-cache-patch-0100) |
 | Patch 0099 | [Platform query outputs and syscall warnings](#platform-query-outputs-and-syscall-warnings-patch-0099) |
@@ -36,6 +37,32 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Vulkan batch resource lifetimes (patch 0102)
+
+**Problem.** A closed recording batch could still have a submitted spare batch
+using a released texture. Separately, window acquisition could skip presentation
+after submitting the frame, bypassing the later fence before resource retirement.
+
+**Fix.** Immediate texture release drains the spare slot first. Skipped window
+acquisition drains submitted GPU work before retiring the frame. Failed fence
+waits preserve the pending slot and deferred images, suppress batch reuse and
+stop new batch recording. Deferred-list flush failure retains the incoming
+texture handle instead of clearing ownership.
+
+**Evidence.** `wkc2_vk_batch_lifetime` executes extracted production helpers
+against delayed/failing completion. `wkc2_vk_present_source` also checks skipped
+and failed window acquisition. Removing either wait fails its regression. All
+89 Windows checks pass in Debug and Release. The 102-patch stack applies from
+clean, upgrades prefix 101 by one file and reapplies unchanged. A regular Release
+build reloads Continue and completes a short hidden, muted town route.
+
+**Limits.** These are verified lifetime faults, not demonstrated causes of town
+lag or foot flicker. A separate native allocation census sees no occurrence of
+the corrected closed-release case and no failed fence waits. Skipped acquisition
+is covered by the recording-API test, not a native window test. Robust device-loss
+recovery and further allocation pooling remain open. See the
+[findings](FINDINGS.md#vulkan-batch-resource-lifetimes-patch-0102).
 
 ## Grouped vertex conversion (patch 0101)
 

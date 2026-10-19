@@ -38,7 +38,8 @@ static VkBufferImageCopy copy;
 static VkImage vk_fxaa(VkImage source, VkImageView view,u32 w,u32 h) { (void)view;(void)w;(void)h;return source; }
 static VkImage copy_source;
 static u32 nblits, nsubmits, presents, retired, dumped, source_barriers;
-static int allocation_failure, acquire_result;
+static int allocation_failure, acquire_result, s_batch_failed;
+static int device_waits, idle_failure;
 static void vk_barrier_image_in(VkCommandBuffer cmd, VkImage image,
                                  VkImageAspectFlags aspect, VkImageLayout layout)
 { (void)cmd; (void)aspect; (void)layout; if (image == guest.im.img) source_barriers++; }
@@ -74,14 +75,15 @@ static VkResult pvkBeginCommandBuffer(VkCommandBuffer cmd, const VkCommandBuffer
 { (void)cmd; (void)info; return VK_SUCCESS; }
 static VkResult pvkQueueSubmit(VkQueue queue, u32 count, const VkSubmitInfo* info, VkFence fence)
 { (void)queue; (void)info; (void)fence; assert(count == 1); nsubmits++; return VK_SUCCESS; }
-static VkResult pvkDeviceWaitIdle(VkDevice device) { (void)device; return VK_SUCCESS; }
+static VkResult pvkDeviceWaitIdle(VkDevice device)
+{ (void)device; device_waits++; return idle_failure ? VK_ERROR_DEVICE_LOST : VK_SUCCESS; }
 static int vk_window_acquire(u32* idx) { *idx = 0; return acquire_result; }
 static int vk_begin(void) { return 0; }
 static int vk_window_submit_present(VkCommandBuffer cmd, u32 idx)
 { (void)cmd; assert(idx == 0); presents++; return 0; }
 static void vk_batch_end_pass(void) {}
 static void vk_batch_flush(void) { s_batch.open = 0; }
-static void vk_batch_retire(void) { retired++; }
+static void vk_batch_retire(void) { if (!s_batch_failed) retired++; }
 static void vk_flush_report(void) {}
 static int vk_rec_begin(void) { s_batch.open = 1; return 0; }
 static vk_eng_obj* vk_eng_get(u32 surface, int kind)
@@ -106,6 +108,7 @@ static void reset(void)
     guest.im.img = HANDLE(VkImage, 6); guest.w = 1920; guest.h = 1080;
     nblits = nsubmits = presents = retired = dumped = source_barriers = 0;
     allocation_failure = acquire_result = 0; s_cmd_win = VK_NULL_HANDLE;
+    device_waits = idle_failure = s_batch_failed = 0;
     memset(pixels, 0x5a, sizeof pixels); s_g.draws = 7;
 }
 static void check_window(u32 at)
@@ -130,7 +133,11 @@ int main(void)
     reset(); allocation_failure = 1; vk_eng_present(NULL, 7);
     assert(nblits == 1 && presents == 1); check_window(0);
     reset(); acquire_result = 1; vk_eng_present(NULL, 7);
-    assert(nblits == 0 && presents == 0 && retired == 1);
+    assert(nblits == 0 && presents == 0 && retired == 1 && device_waits == 1);
+    reset(); acquire_result = -1; vk_eng_present(NULL, 7);
+    assert(retired == 1 && device_waits == 1);
+    reset(); acquire_result = 1; idle_failure = 1; vk_eng_present(NULL, 7);
+    assert(s_batch_failed && retired == 0 && device_waits == 1);
     reset(); s_vk.windowed = 0; vk_eng_present(NULL, 7);
     assert(nblits == 0 && presents == 0 && copy_source == guest.im.img);
     reset(); s_vk.dump_path = "synthetic"; vk_eng_present(NULL, 7);

@@ -2118,5 +2118,98 @@
       "Does not bypass guest-memory validation, retain decoded vertices or change GPU allocations",
       "Mac and Linux builds not tested for this patch"
     ]
+  },
+  "vulkan_batch_lifetimes_2026_10_19": {
+    "sdk_patch": 102,
+    "windows_checks": {
+      "passed": 89,
+      "configurations": [
+        "Debug",
+        "Release"
+      ],
+      "debug_seconds": 24.42,
+      "release_seconds": 21.4
+    },
+    "recording_api_tests": [
+      "Deferred image is not destroyed before successful spare-slot wait",
+      "Failed wait leaves pending ownership intact and suppresses arena reset",
+      "Failed deferred-list flush retains incoming image",
+      "Skipped acquisition waits for device idle; failed idle suppresses retirement"
+    ],
+    "negative_controls": [
+      "Removing spare-slot wait fails destruction-order assertion",
+      "Removing skipped-presentation drain fails the presentation regression"
+    ],
+    "patch_application": {
+      "clean_prefix": 0,
+      "upgrade_prefix": 101,
+      "upgrade_files_changed": 1,
+      "repeat_files_changed": 0
+    },
+    "native_census": {
+      "probe": "20261019-072942",
+      "exe_sha256": "c825c51e648597ac57d796ac36dbc2ef041e8a22c1f46fb48ca54f1e12c1e6a0",
+      "scope": "Startup, Continue, short movement and additional idle; cumulative totals, not per-frame rates or peak allocation",
+      "hidden": true,
+      "muted": true,
+      "counters": {
+        "memory_allocations": 833,
+        "allocated_bytes_cumulative": 1355418768,
+        "memory_frees": 233,
+        "texture_releases": 156,
+        "closed_release_with_spare_pending": 0,
+        "deferred_list_full": 0,
+        "texture_create_calls": 708,
+        "upload_calls": 2550,
+        "upload_bytes": 626451828,
+        "wait_failures": 0
+      },
+      "corrected_closed_release_path_seen": false,
+      "skipped_acquisition_path_independently_exercised": false
+    },
+    "production_run": {
+      "probe": "20261019-073204",
+      "exe_sha256": "f638a61a1340080e40bc35c92ec4a685b3c1795f6186d930c260131dc36c5f13",
+      "hidden": true,
+      "muted": true,
+      "save_reload_verified": true,
+      "short_movement_verified": true,
+      "phases": [
+        {
+          "phase": "idle",
+          "seconds": 10.002343000029214,
+          "presentations": 300,
+          "presentations_per_second": 29.99297264642132,
+          "p95_observed_present_interval_ms": 35.1595000247471,
+          "max_observed_present_interval_ms": 42.64610004611313,
+          "observer_max_gap_ms": 3.9250999689102173
+        },
+        {
+          "phase": "forward",
+          "seconds": 10.000421199947596,
+          "presentations": 287,
+          "presentations_per_second": 28.69879120706475,
+          "p95_observed_present_interval_ms": 39.68620003433898,
+          "max_observed_present_interval_ms": 92.9731999640353,
+          "observer_max_gap_ms": 3.356600005645305
+        },
+        {
+          "phase": "back",
+          "seconds": 10.000019599974621,
+          "presentations": 215,
+          "presentations_per_second": 21.499957860137158,
+          "p95_observed_present_interval_ms": 67.27070000488311,
+          "max_observed_present_interval_ms": 126.3471000129357,
+          "observer_max_gap_ms": 4.995599971152842
+        }
+      ],
+      "counter_scope": "Observed completed presentations, not unique animation updates; no concurrent compilation or host CPU/GPU sampler"
+    },
+    "limits": [
+      "No FPS or flicker improvement established",
+      "Corrected cases demonstrated with recording API, not independently triggered during native town run",
+      "Not a complete device-loss recovery implementation",
+      "Further pooling and GPU-lifetime audit remain; allocation totals include loading"
+    ]
   }
 }

@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 101 SDK patches / 88 Windows checks in Debug and
+**Current source checkpoint:** 102 SDK patches / 89 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -26,6 +26,7 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 **Performance, timing and presentation**
 
+- [Vulkan batch resource lifetimes](#vulkan-batch-resource-lifetimes-patch-0102)
 - [Grouped vertex conversion](#grouped-vertex-conversion-patch-0101)
 - [Shader translation stalls and cache](#shader-translation-stalls-and-cache-patch-0100)
 - [Native texture write-tracking experiment](#native-texture-write-tracking-experiment)
@@ -246,6 +247,41 @@ PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
+
+## Vulkan batch resource lifetimes (patch 0102)
+
+**Problem.** Reviewing allocation reuse found two ownership gaps. Texture release
+used a closed recording batch as evidence of GPU idleness, although the spare
+slot could still be pending. Window presentation submitted the frame before
+acquisition; a skipped acquisition bypassed the presentation fence but still
+retired the frame's resources.
+
+**Cause.** Recording state, submitted work and completed work are different
+states. Releasing textures or resetting upload/descriptor arenas requires actual
+completion of their last GPU use.
+
+**Fix.** Texture release drains a pending spare slot before immediate destruction.
+Skipped acquisition waits for submitted GPU work before retirement. Failed waits
+preserve ownership and inhibit further batch reuse/recording. A failed full-list
+flush retains the incoming texture handle. This prepares the lifetime rules for
+further pooling; it does not yet add a new allocation pool.
+
+**Evidence.** On 19 October, production retirement helpers pass recording-API
+tests for pending slots, delayed/failed completion and full-list failure. The
+presentation regression checks skipped/error acquisition and failed idle wait.
+Both removed-wait negative controls fail. All 89 Windows checks pass in Debug
+and Release. The regular Release binary loads Continue and completes the short
+town route, hidden and verified muted. A separate native census records 833
+device-memory allocations, 233 frees, 708 texture-create calls and 2,550 uploads
+(626,451,828 uploaded bytes) across startup, loading, movement and extra idle.
+These are cumulative totals, not peak resident memory or per-frame costs.
+
+**Limits.** The native census sees zero closed releases with a pending spare and
+zero failed fence waits. The corrected ownership cases are reproduced by the
+recording API; their occurrence in the native route is not established. There is
+no FPS, flicker or full device-loss recovery claim. The return route still
+stutters. Further pooling, per-phase allocation measurements and CPU/guest-memory
+work remain open. See [reviewed aggregates](../verification/performance.json).
 
 ## Grouped vertex conversion (patch 0101)
 

@@ -8,7 +8,7 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 101 SDK patches / 88 Windows checks. The shader-translation
+Current source: 102 SDK patches / 89 Windows checks. The shader-translation
 cache reduces measured compilation stalls; existing images retain their original
 build provenance. The newest town captures
 check the 99-patch depth-range/query candidate; the menu captures use 83 patches. They
