@@ -1,0 +1,53 @@
+Make the DirectX benchmark presentation recorder opt-in; player mode always disables it.
+
+diff --git a/libs/video/rsx_live_draw.c b/libs/video/rsx_live_draw.c
+--- a/libs/video/rsx_live_draw.c
++++ b/libs/video/rsx_live_draw.c
+@@ -609,6 +609,7 @@
+ static u64 g_ld_present_total = 0;
+ static LONGLONG g_ld_qpc_frequency = 0;
+ static int g_ld_present_dumped = 0;
++static int g_ld_present_measure_enabled = 0;
+ static int g_ld_schedule_diag = 0;
+ #if defined(YZ_PPU_SAMPLE)
+ static HANDLE g_ld_present_thread_handle = NULL;
+@@ -629,6 +630,10 @@
+ static void ld_present_measure_init(void)
+ {
+     LARGE_INTEGER frequency;
++    const char* player = getenv("WKC2_PLAYER_MODE");
++    const char* measure = getenv("RSX_PRESENT_MEASURE");
++    g_ld_present_measure_enabled =
++        !(player && !strcmp(player, "1")) && measure && !strcmp(measure, "1");
+     memset(g_ld_present_ring, 0, sizeof(g_ld_present_ring));
+     g_ld_present_total = 0;
+     AcquireSRWLockExclusive(&s_ld_metrics_lock);
+@@ -636,7 +641,7 @@
+     ReleaseSRWLockExclusive(&s_ld_metrics_lock);
+     g_ld_present_dumped = 0;
+     g_ld_schedule_diag = getenv("RSX_SCHEDULE_DIAG") != NULL;
+-    if (QueryPerformanceFrequency(&frequency))
++    if (g_ld_present_measure_enabled && QueryPerformanceFrequency(&frequency))
+         g_ld_qpc_frequency = frequency.QuadPart;
+     else
+         g_ld_qpc_frequency = 0;
+@@ -647,6 +652,10 @@
+     AcquireSRWLockExclusive(&s_ld_metrics_lock);
+     rsx_present_metrics_record(&s_ld_present_metrics, GetTickCount64(), 0);
+     ReleaseSRWLockExclusive(&s_ld_metrics_lock);
++    /* The optional FPS overlay retains its lightweight metrics above. The
++     * benchmark ring, QPC samples, process/thread timing and CSV are opt-in. */
++    if (!g_ld_present_measure_enabled)
++        return;
+ #if defined(YZ_PPU_SAMPLE)
+     if (!g_ld_present_thread_handle) {
+         HANDLE duplicate = NULL;
+@@ -750,7 +759,7 @@
+ 
+ static void ld_present_measure_dump(void)
+ {
+-    if (g_ld_present_dumped || g_ld_present_total == 0 ||
++    if (!g_ld_present_measure_enabled || g_ld_present_dumped || g_ld_present_total == 0 ||
+         g_ld_qpc_frequency <= 0)
+         return;
+     g_ld_present_dumped = 1;

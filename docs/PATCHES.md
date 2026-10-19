@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0119 | [Opt-in DirectX presentation diagnostics](#opt-in-directx-presentation-diagnostics-patch-0119) |
 | Patch 0118 | [DirectX near/far clipping](#directx-nearfar-clipping-patch-0118) |
 | Patches 0116-0117 | [SPU running status and fallback entry guards](#spu-running-status-and-fallback-entry-guards-patches-0116-0117) |
 | Patches 0112–0115 | [DirectX clear/comparison/bias and kernel deadline](#directx-clearcomparisonbias-and-kernel-deadline-patches-01120115) |
@@ -45,6 +46,15 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Opt-in DirectX presentation diagnostics (patch 0119)
+
+The benchmark ring and CSV were previously active without a switch. They now
+require `RSX_PRESENT_MEASURE=1`; player mode always disables them. Successful
+presentations still update the optional FPS overlay. Eight production-recorder
+fixture cases cover default/disabled/enabled settings, scheduling details,
+player-mode precedence and CSV output. See [clean-play checks](BUILD.md#clean-play-diagnostics-patch-0119).
+
 
 ## DirectX near/far clipping (patch 0118)
 

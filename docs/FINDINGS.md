@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 118 SDK patches / 107 Windows checks in Debug and
+**Current source checkpoint:** 119 SDK patches / 111 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -13,6 +13,13 @@ fidelity remain open. Windows analogue mapping has a further diagonal-range and 
 physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
+
+The readable C++ four-influence matrix blend is now integrated for one image-19
+geometry prefix. Complete-state replay and fuzz comparisons, plus strict
+DirectX/Vulkan town-to-plains routes, are recorded in [native work](NATIVE_CODE.md).
+This is partial semantic recovery; no FPS improvement is claimed. Desktop
+clean-play mode also removes inherited diagnostics, and patch 0119 disables the
+previously unconditional DirectX benchmark recorder unless explicitly requested.
 
 ## Contents
 

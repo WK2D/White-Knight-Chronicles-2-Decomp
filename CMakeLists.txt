@@ -171,6 +171,20 @@ if(PORT_ENABLE_SPU)
     endif()
 endif()
 
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+file(GLOB_RECURSE PLAY_ENV_SDK_SOURCES CONFIGURE_DEPENDS
+    "${PS3RECOMP_DIR}/runtime/*.c" "${PS3RECOMP_DIR}/runtime/*.cpp"
+    "${PS3RECOMP_DIR}/runtime/*.h" "${PS3RECOMP_DIR}/runtime/*.hpp"
+    "${PS3RECOMP_DIR}/libs/*.c" "${PS3RECOMP_DIR}/libs/*.cpp"
+    "${PS3RECOMP_DIR}/libs/*.h" "${PS3RECOMP_DIR}/libs/*.hpp")
+file(GLOB PLAY_ENV_PROJECT_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
+set(PLAY_ENV_NAMES "${CMAKE_CURRENT_BINARY_DIR}/play_environment_names.h")
+add_custom_command(OUTPUT "${PLAY_ENV_NAMES}"
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_play_environment.py"
+        --sdk "${PS3RECOMP_DIR}" --project "${CMAKE_CURRENT_SOURCE_DIR}" --out "${PLAY_ENV_NAMES}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_play_environment.py" ${PLAY_ENV_SDK_SOURCES} ${PLAY_ENV_PROJECT_SOURCES}
+    COMMENT "Generating clean-play environment guard")
+set_source_files_properties(play_environment.cpp PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_CURRENT_BINARY_DIR}")
 add_executable(${PROJECT_NAME}
     main.cpp
     graphics_settings.cpp
@@ -190,6 +204,9 @@ add_executable(${PROJECT_NAME}
     thread_diagnostics.cpp
     graphics_diagnostics.cpp
     spu_job_diagnostics.cpp
+    native_skinning_bridge.cpp
+    play_environment.cpp
+    ${PLAY_ENV_NAMES}
     ${PS3RECOMP_SCAFFOLD}
     ${HLE_NID_TABLE}
     ${RECOMP_SOURCES}
@@ -321,8 +338,8 @@ option(WKC2_BUILD_TESTS "Build port-specific regression tests" ON)
 if(WKC2_BUILD_TESTS)
     enable_testing()
     # Exercise the linked channel implementation without loading game files.
-    target_sources(${PROJECT_NAME} PRIVATE tests/spu_title_test.cpp tests/spu_dma_poll_test.c tests/pad_file_test.c tests/spu_microstep_profile_test.c)
-    set_source_files_properties(tests/spu_title_test.cpp tests/spu_dma_poll_test.c tests/pad_file_test.c tests/spu_microstep_profile_test.c PROPERTIES
+    target_sources(${PROJECT_NAME} PRIVATE tests/play_environment_test.cpp tests/native_skinning_test.cpp tests/spu_title_test.cpp tests/spu_dma_poll_test.c tests/pad_file_test.c tests/spu_microstep_profile_test.c)
+    set_source_files_properties(tests/play_environment_test.cpp tests/native_skinning_test.cpp tests/spu_title_test.cpp tests/spu_dma_poll_test.c tests/pad_file_test.c tests/spu_microstep_profile_test.c PROPERTIES
         INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/runtime/spu")
     set_source_files_properties(tests/pad_file_test.c PROPERTIES
         INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/runtime/spu;${PS3RECOMP_DIR}/libs/input")
@@ -356,6 +373,21 @@ if(WKC2_BUILD_TESTS)
         set_tests_properties(wkc2_spu_title_${cri_id} PROPERTIES
             ENVIRONMENT "SPU_CRI_IMAGE=${cri_id}" TIMEOUT 10)
     endforeach()
+    add_test(NAME wkc2_play_environment COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_play_environment.py" $<TARGET_FILE:${PROJECT_NAME}>)
+    set_tests_properties(wkc2_play_environment PROPERTIES TIMEOUT 15)
+    add_test(NAME wkc2_native_skinning COMMAND ${PROJECT_NAME} --test-native-skinning)
+    set_tests_properties(wkc2_native_skinning PROPERTIES TIMEOUT 20)
+    add_test(NAME wkc2_native_geometry_hook COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_native_geometry_hook.py")
+    set_tests_properties(wkc2_native_geometry_hook PROPERTIES TIMEOUT 10)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64|amd64|x86_64|i.86")
+        if(MSVC)
+            set_property(SOURCE tests/native_skinning_test.cpp APPEND PROPERTY COMPILE_OPTIONS /arch:AVX2)
+        else()
+            set_property(SOURCE tests/native_skinning_test.cpp APPEND PROPERTY COMPILE_OPTIONS -mavx2 -mfma)
+        endif()
+    endif()
     add_test(NAME wkc2_spu_entry_manifest
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_spu_entries.py")
     set_tests_properties(wkc2_spu_entry_manifest PROPERTIES TIMEOUT 10)
@@ -621,6 +653,15 @@ if(WKC2_BUILD_TESTS)
     add_test(NAME wkc2_present_metrics COMMAND wkc2_present_metrics_test)
     set_tests_properties(wkc2_present_metrics PROPERTIES TIMEOUT 10)
     if(WIN32)
+        set(PRESENT_MEASURE_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/present_measure_fixture.h")
+        add_custom_command(OUTPUT "${PRESENT_MEASURE_FIXTURE}"
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_present_measure_fixture.py"
+                "${PS3RECOMP_DIR}/libs/video/rsx_live_draw.c" "${PRESENT_MEASURE_FIXTURE}"
+            DEPENDS tools/prepare_present_measure_fixture.py "${PS3RECOMP_DIR}/libs/video/rsx_live_draw.c")
+        add_executable(wkc2_present_measure_test tests/present_measure_test.c "${PRESENT_MEASURE_FIXTURE}")
+        target_include_directories(wkc2_present_measure_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "${PS3RECOMP_DIR}/libs/video")
+        add_test(NAME wkc2_present_measure COMMAND wkc2_present_measure_test)
+        set_tests_properties(wkc2_present_measure PROPERTIES TIMEOUT 10)
         add_executable(wkc2_d3d12_raster_clip_test tests/d3d12_raster_clip_test.c)
         target_include_directories(wkc2_d3d12_raster_clip_test PRIVATE "${PS3RECOMP_DIR}/libs/video")
         target_link_libraries(wkc2_d3d12_raster_clip_test PRIVATE d3d12 dxgi dxguid d3dcompiler)

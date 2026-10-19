@@ -36,9 +36,22 @@ documentation. The [build guide](BUILD.md) explains how to run the game; the
 
 ## Environment variables
 
+Desktop play uses `WKC2_PLAYER_MODE=1` to clear inherited research switches
+before startup and force quiet logs. The table describes separate diagnostic
+launches; those switches cannot enable diagnostics in player mode.
+
 Switches read by the runtime at startup. Diagnostics are off unless set; the build
 guide's [playing and performance options](BUILD.md#playing-and-performance-options)
 gives the play defaults. Keep any files these write private.
+
+### Player mode and native geometry
+
+| Variable | Effect | Details |
+| --- | --- | --- |
+| `WKC2_PLAYER_MODE=1` | Native clean-play guard; clears inherited research/input switches and forces quiet logs | [Build guide](BUILD.md#playing-and-performance-options) |
+| `RSX_PRESENT_MEASURE=1` | Opt-in DirectX benchmark ring/CSV, always blocked in player mode | [Build guide](BUILD.md#clean-play-diagnostics-patch-0119) |
+| `WKC_NATIVE_SKINNING_TRACE=1` | Count native blend calls for coverage | [Native kernel](NATIVE_CODE.md#readable-c-geometry-prefix) |
+| `WKC_NATIVE_SKINNING=0` | Use retained compiled geometry prefix for research comparison | [Native kernel](NATIVE_CODE.md#readable-c-geometry-prefix) |
 
 ### SPU coverage diagnostics
 

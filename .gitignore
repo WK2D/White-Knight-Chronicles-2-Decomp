@@ -27,6 +27,12 @@
 !/graphics_settings.h
 !/graphics_pacing.h
 !/graphics_diagnostics.cpp
+!/native_skinning_simd.h
+!/play_environment.cpp
+!/play_environment.h
+!/native_skinning.h
+!/native_skinning_bridge.h
+!/native_skinning_bridge.cpp
 !/spu_job_diagnostics.cpp
 !/windows_guids.c
 !/lwcond.cpp

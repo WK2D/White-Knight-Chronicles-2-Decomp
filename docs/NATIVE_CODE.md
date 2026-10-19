@@ -34,10 +34,47 @@ a DirectX rendering issue fixed in the inspected route by patch 0118; it was
 not caused by the static SPU entries. Production probe `20261019-222607` also
 completes transition, short movement and camera rotation with zero strict fallback.
 
-The geometry block `0xCE08` has eight captured input/output pairs and eight
-passing reference replays. It has 12 local-store stores and no channel calls
-within this block. This validates the replay harness, not a rewritten kernel or
-whole-job equivalence. No FPS gain is claimed. Both Windows suites pass 106 checks.
+## Readable C++ geometry prefix
+
+The image-19 `0xCE08` block now calls a project-written C++ four-influence matrix
+blend in `native_skinning.h`, through `native_skinning_bridge.cpp`. The core uses
+named vertex, weight and cyclic affine-matrix types; it has no guest registers,
+addresses or DMA interface. The bridge decodes packed indices and local-store
+palettes, preserves the original multiply/FMA order and exports the required
+register boundary. The remaining compiled block tail still handles normal/position
+packing and local-store stores. This is one prefix, not a complete geometry job.
+
+`tools/apply_native_geometry.py` checks the complete original block hash, retains
+its compiled reference and installs the native call idempotently. Unknown image
+or weight masks decline without changing state and use that compiled reference.
+`WKC_NATIVE_SKINNING=0` selects the reference for research comparisons. No game
+function body or capture bytes are published.
+
+Validation on Windows x86-64:
+
+- Eight initial captures only exercised one-bone weights. A second capture set
+  contains 64 distinct blocks with mixed weights in all four vertices, using
+  bone indices up to 35. All 72 complete block replays match the reference's
+  context, all registers, local store, PC/status and continuation.
+- A separate recovered position operation matches all 256 positions from the
+  64 mixed-weight captures. That position operation is tested but is not yet
+  installed in place of the compiled tail.
+- 4,000 full-state fuzz cases pass against the retained compiled reference:
+  2,000 host-mode and 2,000 exact-SPU-mode cases, including arbitrary float bit
+  patterns, 16-bit index wrap and unsupported-mask fallback controls.
+- The portable arithmetic test checks 32,000 finite cases against a lane oracle.
+  A further 32,000 finite cases match the optional x86 FMA policy bit for bit.
+  Live execution keeps SDK float helpers to preserve host/exact/audit semantics;
+  the finite host-FMA test does not establish exceptional-value SPU equivalence.
+- Strict DirectX route `20261019-230123` and Vulkan route `20261019-231203` load
+  Continue, enter Balastor Plain, walk and rotate the camera with zero fallback
+  entries. Trace markers establish at least 16,777,216 native blend calls per
+  run. Inspected final frames retain Leonard's lower body and the surrounding
+  scene; these instrumented runs are not performance benchmarks.
+
+Both Windows suites now pass 111 checks with 119 SDK patches. No FPS gain,
+whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
+is claimed.
 
 ## Work order
 
@@ -51,9 +88,9 @@ whole-job equivalence. No FPS gain is claimed. Both Windows suites pass 106 chec
    transitions and cutscenes with `SPU_FALLBACK_STRICT=1`; investigate any new
    entry before promoting a wider interpreter-free claim.
 3. **Take semantic control of hot jobs.** An earlier profile identifies image-19
-   geometry code, including entry `0xCE08`, as a useful candidate. Recover its
-   input/output layout and behavior, name the operation once established, and
-   implement a readable C/C++ kernel beside a reference path. Preserve SPU float
+   geometry code, including entry `0xCE08`, as a useful candidate. The matrix-blend prefix is integrated beside its compiled reference. Recover
+   the remaining position/normal packing and establish complete job boundaries
+   before replacing more of the compiled tail. Preserve SPU float
    behavior, byte order, alignment, aliasing, DMA visibility and job ordering.
    The older profile is a lead; a current NPC-heavy profile must confirm priority.
 4. **Optimize validated kernels.** Use portable scalar C++ as the specification,

@@ -8,7 +8,7 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 118 SDK patches / 107 Windows checks. The newest captures show
+Current source: 119 SDK patches / 111 Windows checks. The newest captures show
 the DirectX near/far clipping fix in Balastor Plain after a town transition,
 walking and camera rotation, plus the earlier broken view. The foreground no
 longer incorrectly covers Leonard's lower body in these inspected views.

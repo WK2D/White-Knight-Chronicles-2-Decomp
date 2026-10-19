@@ -4,8 +4,8 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-19):** the stack contains 118 SDK patches. All
-107 Windows checks pass in normal Debug and optimized Release. Reapplying the
+**Current validation (2026-10-19):** the stack contains 119 SDK patches. All
+111 Windows checks pass in normal Debug and optimized Release. Reapplying the
 complete stack changes no SDK files. Vulkan Continue and short town movement
 were rechecked on patch 0105; isolated DirectX Continue, menu FXAA toggling
 and a short world movement are checked on patch 0110.
@@ -115,6 +115,9 @@ through the title menu, WKC1 selection, avatar acceptance and live town. Short
 movement and camera response are observed there. Starting-town local saving
 and Continue reload are verified separately; sustained traversal, combat, wider
 save compatibility and full rendering fidelity remain unverified.
+`tools/apply_native_geometry.py` then installs the hash-checked native C++
+matrix-blend hook; rerunning it validates the retained reference and wrapper.
+See [kernel evidence and limits](NATIVE_CODE.md#readable-c-geometry-prefix).
 `tools/import_spu_misses.py` is available for discovering additional jobs.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
@@ -134,7 +137,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 118 numbered SDK patches, and all 107 checks
+The current source stack contains 119 numbered SDK patches, and all 111 checks
 pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
@@ -149,6 +152,26 @@ regressions now pass on Windows. Native census results are recorded in the
 findings log.
 
 ## Playing and performance options
+
+For the installed player copy, run:
+
+```powershell
+./tools/play.ps1 -Workspace <private-workspace>
+```
+
+This uses `work/play-native/WKC2Native.exe`, keeps manual title/Continue input,
+and enables `WKC2_PLAYER_MODE=1`. Before runtime initialization, the executable
+clears inherited diagnostic, profiler, capture and input-injection variables,
+including legacy names collected from the current SDK at build time. It forces
+quiet logging and creates no player log files. Normal graphics/media settings,
+shader caching and the optional FPS overlay remain available. Diagnostic probes
+are separate research launches; do not use clean-play mode for captures.
+
+The native guard is C++; its Python name collector runs only during the build.
+Patch 0119 also makes DirectX's previously unconditional presentation benchmark
+ring and CSV opt-in with `RSX_PRESENT_MEASURE=1`. Clean-play mode always blocks
+that recorder, while keeping the lightweight FPS overlay metrics functional.
+
 
 `tools/build.ps1` produces the Debug build used by the regression suite. The
 patch-0076 town timing uses an isolated Release `/MD` build with matching
@@ -207,8 +230,13 @@ Window titles show only the game name on Vulkan and DirectX. Patch 0108
 removes the former title-bar statistics. The optional in-game FPS overlay is
 controlled separately in Graphics Settings and now works on live DirectX too.
 
-Runtime switches, all off unless set:
+Research switches below are cleared by the player launcher. Use a separate
+probe environment to enable them:
 
+- `RSX_PRESENT_MEASURE=1` enables the DirectX benchmark sample ring and CSV.
+  `RSX_SCHEDULE_DIAG=1` adds process/thread times only when that recorder is enabled.
+- `WKC_NATIVE_SKINNING_TRACE=1` counts native blend calls for coverage; normal
+  play keeps it off. `WKC_NATIVE_SKINNING=0` retains the compiled reference path.
 - `WKC2_SKIP_INTRO=1` skips the copyright and save notices and the publisher
   and middleware logos. The boot sequencer's system-setup steps still run.
 - `WKC2_DISCARD_LOGS=1` sends stdout/stderr to NUL. Per-line diagnostic writes
@@ -366,3 +394,15 @@ checks. The final native candidate reaches Balastor Plain after Continue and
 preserves Leonard's lower body through movement/camera inspection with zero
 strict SPU fallback entries. Non-default depth-clamp modes remain unimplemented.
 See [screenshots and scope](GALLERY.md#2026-10-19--directx-plains-clipping-fixed).
+
+## Clean-play diagnostics (patch 0119)
+
+The live DirectX recorder previously collected QPC samples on every successful
+presentation and dumped a CSV at its benchmark frame or shutdown even without a
+diagnostic switch. It now runs only with `RSX_PRESENT_MEASURE=1`, and never in
+player mode. `wkc2_present_measure` compiles the actual SDK recorder functions
+into a GPU-free fixture and checks eight default, opt-in, scheduling, player-mode
+and file-output cases. The normal FPS overlay metrics still update.
+`wkc2_play_environment` poisons a child environment and verifies both CRT and
+Windows API variable removal, preserved media/PATH settings, no diagnostic output
+and an unaffected explicit research-mode control.

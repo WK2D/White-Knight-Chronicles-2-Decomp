@@ -1,3 +1,4 @@
+#include "play_environment.h"
 #include "ps3emu/wkc_frame_trace.h"
 /*
  * White Knight Chronicles II native-port runner.
@@ -839,6 +840,8 @@ static void harness_guest_caller(uint32_t opd, uint64_t a0, uint64_t a1,
 
 #ifdef WKC2_BUILD_SELF_TESTS
 int wkc2_test_spu_title(int selected);
+int wkc2_test_native_skinning();
+int wkc2_test_play_environment();
 extern "C" int wkc2_test_spu_dma_poll(int expect_halt);
 extern "C" int wkc2_test_pad_file(const char* path);
 extern "C" int wkc2_test_spu_microstep_profile(const char* path);
@@ -847,8 +850,14 @@ extern "C" int wkc2_test_spu_microstep_profile(const char* path);
 extern "C" int spu_interp_profile_enabled(void);
 int main(int argc, char** argv)
 {
+    wkc::prepare_play_environment();
+#ifdef WKC2_BUILD_SELF_TESTS
+    if(argc==2 && !strcmp(argv[1],"--test-play-environment"))return wkc2_test_play_environment();
+#endif
     wkc::graphics_initialize(std::filesystem::path(argv[0]).parent_path()/"graphics-settings.ini");
 #ifdef WKC2_BUILD_SELF_TESTS
+    if (argc == 2 && !strcmp(argv[1], "--test-native-skinning"))
+        return wkc2_test_native_skinning();
     if (argc == 3 && !strcmp(argv[1], "--test-spu-title"))
         return wkc2_test_spu_title(atoi(argv[2]));
     if (argc == 3 && !strcmp(argv[1], "--test-spu-dma-poll"))

@@ -27,7 +27,7 @@ can resume from a local save.
   Continue after restarting.
 - A dedicated **Triangle → System → Graphics Settings** panel with persistent
   preferences, the game's menu frame and a scrollbar.
-- **107 Windows regression checks** pass in both Debug and optimized Release. The
+- **111 Windows regression checks** pass in both Debug and optimized Release. The
   latest native check loads Continue, enters Balastor Plain and checks short
   movement/camera response. DirectX foreground clipping is fixed in that route.
 
@@ -42,6 +42,10 @@ integrated. Full rendering and transition parity remain in development.
 but area transitions, cutscene skips and walking currently have reported faults
 above 30. Window titles show only the game name. The optional in-game FPS
 overlay measures presentations and can include repeated animation states.
+
+Desktop launches disable inherited profilers, traces, input injection and GPU
+captures before runtime initialization. Normal play writes no diagnostic logs;
+the optional in-game FPS overlay remains your choice.
 
 ## Known issues
 
@@ -81,7 +85,9 @@ verified yet. GeoNet compatibility is separate later research.
 
 The game code is translated to C/C++ ahead of time and compiled with a runtime that
 implements the PS3 services it uses. Five missing SPU entries now compile
-statically, and a tested saved-town route runs with interpreter fallback forbidden.
+statically, and tested town-to-plains routes run with interpreter fallback forbidden.
+A readable C++ skinning matrix blend now replaces one hot geometry prefix, with
+complete-state comparisons against its compiled reference.
 Fallback remains available for untested paths; full-game static coverage and a
 readable reconstruction of the original source remain unverified. The architecture page explains the execution model and the
 remaining work.
