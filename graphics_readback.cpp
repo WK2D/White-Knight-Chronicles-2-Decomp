@@ -1,9 +1,11 @@
 #include "ppu_recomp.h"
 #include "graphics_readback_queue.h"
+#include "graphics_settings.h"
 #include <cstdio>
 
 extern "C" uint32_t cellGcmResolveLocated(int,uint32_t);
 extern "C" int rsx_draw_engine_guest_buffer_read(uint32_t,uint32_t,uint32_t);
+extern "C" int rsx_live_draw_guest_buffer_read(uint32_t,uint32_t,uint32_t);
 namespace { wkc::GraphicsReadbackQueue portrait_readback; }
 
 // This is the game's raw avatar-image copy boundary. Loading an existing
@@ -21,6 +23,8 @@ extern "C" int wkc2_avatar_portrait_copy(ppu_context* ctx) {
 }
 extern "C" void wkc2_portrait_readback_tick() {
     portrait_readback.service([](uint32_t offset,uint32_t bytes) {
+        if(wkc::graphics_active_renderer())
+            return rsx_live_draw_guest_buffer_read(0,offset,bytes)!=0;
         return rsx_draw_engine_guest_buffer_read(0,offset,bytes)!=0;
     });
 }

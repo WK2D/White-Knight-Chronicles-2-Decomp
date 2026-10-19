@@ -5,8 +5,8 @@
   "current_milestone": {
     "date": "2026-10-19",
     "native_probe": "20261019-183749",
-    "sdk_patch_count": 110,
-    "summary": "DirectX native Off/FXAA selection and the composed world/menu verified at the 30 FPS setting. Both Windows suites pass 99 checks. Fresh avatar capture and broader rendering/transition parity remain open.",
+    "sdk_patch_count": 111,
+    "summary": "DirectX creator portrait capture now verified with real GPU-to-CPU data. Both Windows suites pass 100 checks. Existing FXAA gallery image retains its 110-patch provenance; fresh portrait menu/reload and wider rendering/transition parity remain open.",
     "gallery_image": "screenshots/2026-10-19-native-directx-fxaa-on.png",
     "gallery_image_sdk_patch_count": 110,
     "gallery_image_scope": "Final DirectX backbuffer readback including FXAA and sharp overlay; functional menu check, not a performance benchmark",
@@ -362,19 +362,20 @@
       "wkc2_d3d12_graphics",
       "wkc2_present_metrics",
       "wkc2_d3d12_counter_gpu",
-      "wkc2_d3d12_fxaa_gpu"
+      "wkc2_d3d12_fxaa_gpu",
+      "wkc2_d3d12_surface_readback"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 110,
-    "last_verified_sdk_patch_count": 110,
-    "current_passed_count": 99,
-    "record_scope": "110 SDK patches / 99 Windows checks pass in Debug and Release; media checks ran without skips.",
-    "normal_debug_elapsed_seconds": 27.18,
-    "optimized_release_elapsed_seconds": 23.44,
+    "current_sdk_patch_count": 111,
+    "last_verified_sdk_patch_count": 111,
+    "current_passed_count": 100,
+    "record_scope": "111 SDK patches / 100 Windows checks pass in Debug and Release; media checks ran without skips.",
+    "normal_debug_elapsed_seconds": 28.15,
+    "optimized_release_elapsed_seconds": 24.6,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 110
+    "repeat_patch_application_verified_sdk_patch_count": 111
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2809,10 +2810,10 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 110 SDK patches / 99 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 111 SDK patches / 100 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
-    "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh avatar capture and rendering/transition parity remain open.",
+    "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",
     "frame_limits": [
       30,
       40,
@@ -3184,7 +3185,7 @@
     "known_remaining": [
       "Interactive fullscreen validation",
       "Texture comparison sampling",
-      "Guest-readback hook targets the separate shared engine",
+      "Fresh portrait menu display and save/reload",
       "Partial component color clears"
     ],
     "display_preferences_native_probe": "20261019-143540",
@@ -3258,5 +3259,39 @@
     "fps_overlay_after_fxaa": true,
     "shader_math_shared_with_vulkan": true,
     "full_visual_parity_verified": false
+  },
+  "directx_portrait_readback": {
+    "sdk_patch_count": 111,
+    "native_probe": "20261019-191430",
+    "native_private_executable_sha256": "7fa87ae18f8f61fc4ba2be8f3ecc1955b438f6a33f047ed44e6e9ed9978ba5c1",
+    "production_base_executable_sha256": "cade585939ec6f40785a14c4b6ec2a1ff88070a75fe72f062df937abdc9cf4f4",
+    "private_build_difference": "Initial Win32 host visibility only",
+    "hidden": true,
+    "audio_mute_api_verified": true,
+    "isolated_save_copy": true,
+    "ordinary_wkc1_new_game_creator_acceptance": true,
+    "portrait_width": 256,
+    "portrait_height": 144,
+    "guest_pitch": 1024,
+    "guest_color_format": 8,
+    "guest_raster_type": 1,
+    "gpu_bytes_copied": 147456,
+    "save_buffer_bytes": 204800,
+    "save_buffer_nonzero_bytes": 147456,
+    "save_buffer_sha256": "b0a3bc8a044476c58a8e8760601bb41f81d9a85612a892818e632a51af820d7c",
+    "ready_flag": 1,
+    "raw_generated_portrait_visually_inspected": true,
+    "host_routing_old_code_negative_control_failed": true,
+    "windows_debug_checks_passed": 100,
+    "windows_release_checks_passed": 100,
+    "warp_guest_readback_cases": 8,
+    "same_session_portrait_menu_verified": false,
+    "generated_portrait_save_reload_verified": false,
+    "native_cutscene_rendering_faults_observed": true,
+    "cutscene_fault_cause_established": false,
+    "full_visual_parity_verified": false,
+    "original_user_save_unchanged": true,
+    "normal_startup_automatic_input": false,
+    "scope": "Fresh DirectX creator image capture and bounded guest copy only. Following cutscene skips showed intermittent stale portrait/empty geometry frames; the private run ended at its existing time bound before same-session town-menu verification. No new public gallery image or full portrait-menu fix claim."
   }
 }

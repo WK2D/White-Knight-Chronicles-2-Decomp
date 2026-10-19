@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "DirectX Off/FXAA now works through the native Graphics Settings panel and keeps the FPS overlay sharp. Native menu and world captures verified at the 30 FPS setting. 110 SDK patches / 99 Windows checks pass in Debug and Release. Fresh DirectX portrait capture, comparison sampling and full rendering/transition parity remain open.",
+    "current_milestone": "DirectX now materializes the newly rendered avatar portrait before the guest CPU copies it. A fresh private creator run produced a real 256x144 face and set the ready flag; same-session menu display is not yet verified. 111 SDK patches / 100 Windows checks pass in Debug and Release. Cutscene/transition rendering faults and wider DirectX parity remain open.",
     "updated": "2026-10-19"
   },
   "native_data_installation_verified": true,
@@ -164,8 +164,8 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 110,
-    "runtime_checks_passed": 99,
+    "sdk_patch_count": 111,
+    "runtime_checks_passed": 100,
     "town_native_run_sdk_patch_count": 105,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
@@ -237,7 +237,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 110,
+    "runtime_checks_verified_sdk_patch_count": 111,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -264,7 +264,7 @@
     "patch_0074_native_game_run_verified": true,
     "patch_0074_texture_compare_direction_gpu_verified": true,
     "patch_0074_foot_shadow_flicker_fixed_verified": false,
-    "repeat_patch_application_verified_sdk_patch_count": 110,
+    "repeat_patch_application_verified_sdk_patch_count": 111,
     "patch_0075_windows_regression_verified": true,
     "patch_0075_native_interaction_verified": true,
     "patch_0075_save_load_verified": true,
@@ -366,7 +366,10 @@
     "patch_0109_windows_regression_verified": true,
     "patch_0109_native_menu_counter_verified": true,
     "patch_0110_windows_regression_verified": true,
-    "patch_0110_native_fxaa_toggle_verified": true
+    "patch_0110_native_fxaa_toggle_verified": true,
+    "patch_0111_windows_regression_verified": true,
+    "patch_0111_directx_creator_capture_verified": true,
+    "patch_0111_same_session_portrait_menu_verified": false
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -430,7 +433,7 @@
     "creator_rotation_smoothness_fixed": false,
     "label": "Present/s",
     "label_patch": 70,
-    "current_windows_runtime_checks_passed": 99,
+    "current_windows_runtime_checks_passed": 100,
     "enabled": false,
     "removed_in_patch": 108,
     "current_scope": "Historical measurements retained below; current Vulkan and DirectX window captions show only the game name. In-game overlay is a separate setting.",
@@ -510,10 +513,10 @@
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified. The same starting-town slot was rechecked in the 105-patch Vulkan Release build.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 110 SDK patches / 99 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 111 SDK patches / 100 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
-    "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh avatar capture and rendering/transition parity remain open.",
+    "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",
     "frame_limits": [
       30,
       40,

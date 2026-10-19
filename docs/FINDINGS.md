@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 110 SDK patches / 99 Windows checks in Debug and
+**Current source checkpoint:** 111 SDK patches / 100 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -269,9 +269,10 @@ and [capture](GALLERY.md#2026-10-19--directx-graphics-settings) record the scope
 This does not establish rendering or performance parity. Patch 0109 adds and
 verifies the native menu's transparent FPS overlay; patch 0110 adds shared
 Off/FXAA filtering. Texture comparison sampling and the shared engine's
-portrait readback route remain open. Stored
-portraits generated earlier can display. Fullscreen is covered by recording-API
-tests, with interactive validation still pending. Patch 0108 removes window-title
+portrait menu/reload checks remain open. Patch 0111 routes the CPU-read hook
+to DirectX and verifies a fresh creator image capture; stored portraits can also
+display. Fullscreen is covered by recording-API tests, with interactive validation
+still pending. Patch 0108 removes window-title
 statistics on both renderers. See the [counter captures](GALLERY.md#2026-10-19--directx-fps-counter).
 
 ## Above-30 FPS transition regression (deferred)
@@ -289,6 +290,27 @@ for the DirectX 12 work. Higher-frame-rate synchronization and game-speed
 corrections are deferred at the user's request.
 
 ## Custom avatar portrait readback
+
+**DirectX update, patch 0111.** The host bridge now selects the active renderer.
+Previously DirectX called the inactive shared engine, whose no-op read returned
+success while leaving the CPU-visible pixels empty. The DirectX path reads a
+supported linear ARGB8 surface on the renderer thread, completes its GPU fence,
+then stores only the requested guest bytes with the correct pitch and byte order.
+Unknown, ambiguous or unsupported surfaces fail instead of claiming success.
+The first native attempt also caught a misleading SDK comment: ARGB8 is surface
+format 8, not format 5. The SDK constants, real 256x144/pitch-1024 capture and new
+layout check agree; the comment is corrected.
+
+A fresh isolated DirectX WKC1 creator run now captures the actual face, with
+147,456 nonzero bytes in the portrait save buffer and ready flag 1. The raw
+image was inspected. All 100 Windows checks pass in Debug and Release, including
+eight production-helper WARP readbacks and renderer routing. The previous host
+routing fails the new regression. This verifies capture, not same-session menu
+display or generated-image save/reload. The continuation showed stale portrait
+and empty geometry frames during cutscene transitions; their cause is not yet
+established. These remain part of the DirectX parity work. The earlier Vulkan
+investigation and its own validation limits follow below.
+
 
 **Problem.** The native main menu draws Leonard's built-in portrait while the
 custom avatar slot is blank. The supplied

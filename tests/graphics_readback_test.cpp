@@ -14,12 +14,19 @@ extern "C" void wkc2_portrait_readback_stop();
 static unsigned bridge_reads=0;
 static bool bridge_result=true;
 static uint32_t bridge_offset=0,bridge_bytes=0;
+static unsigned active_renderer=0,live_reads=0;
+namespace wkc { unsigned graphics_active_renderer() { return active_renderer; } }
 extern "C" uint32_t cellGcmResolveLocated(int local,uint32_t offset) {
     require(local==1,"Unexpected address space");return 0xc0000000u+offset;
 }
 extern "C" int rsx_draw_engine_guest_buffer_read(uint32_t location,uint32_t offset,uint32_t bytes) {
+    require(active_renderer==0,"DirectX portrait was routed to the inactive shared engine");
     require(location==0,"Portrait was read from the wrong GPU location");
     ++bridge_reads;bridge_offset=offset;bridge_bytes=bytes;return bridge_result;
+}
+extern "C" int rsx_live_draw_guest_buffer_read(uint32_t location,uint32_t offset,uint32_t bytes) {
+    require(active_renderer==1 && location==0,"Live readback used the wrong renderer or location");
+    ++live_reads;bridge_offset=offset;bridge_bytes=bytes;return bridge_result;
 }
 int main() {
     wkc::GraphicsReadbackQueue queue;
@@ -67,10 +74,16 @@ int main() {
     require(bridge.get()==1&&bridge_reads==1,"Portrait copy did not wait for its actual readback");
     require(bridge_offset==0xe940000&&bridge_bytes==0x24000,"Portrait readback span changed");
     require(std::memcmp(&preserved,&ctx,sizeof(ctx))==0,"Readback damaged the guest CPU context");
+    active_renderer=1;
+    auto live=std::async(std::launch::async,[&]{return wkc2_avatar_portrait_copy(&ctx);});
+    while(live.wait_for(0ms)!=std::future_status::ready) {wkc2_portrait_readback_tick();std::this_thread::yield();}
+    require(live.get()==1 && live_reads==1 && bridge_reads==1,"DirectX portrait used an inactive engine or skipped its readback");
+    require(bridge_offset==0xe940000 && bridge_bytes==0x24000,"Live portrait readback span changed");
     bridge_result=false;
     auto rejected=std::async(std::launch::async,[&]{return wkc2_avatar_portrait_copy(&ctx);});
     while(rejected.wait_for(0ms)!=std::future_status::ready) {wkc2_portrait_readback_tick();std::this_thread::yield();}
     require(rejected.get()==0,"Failed readback still allowed a portrait-ready copy");
+    require(live_reads==2 && bridge_reads==1,"Failed DirectX read fell back to the inactive Vulkan renderer");
     wkc2_portrait_readback_stop();
     require(wkc2_avatar_portrait_copy(&ctx)==0,"Closed renderer accepted a portrait capture");
     return 0;

@@ -1,0 +1,233 @@
+Materialize supported linear ARGB8 DirectX surfaces for waiting guest CPU readers.
+Fence GPU copies, preserve requested byte bounds and padding, reject unknown/ambiguous layouts.
+
+diff --git a/libs/video/rsx_live_draw.c b/libs/video/rsx_live_draw.c
+--- a/libs/video/rsx_live_draw.c
++++ b/libs/video/rsx_live_draw.c
+@@ -49,6 +49,7 @@
+ void rsx_live_draw_note_resolve(u32 sl, u32 sa, u32 dl, u32 da)
+ { (void)sl; (void)sa; (void)dl; (void)da; }
+ void rsx_live_draw_flush(void) {}
++int rsx_live_draw_guest_buffer_read(u32 l,u32 o,u32 b) { (void)l; (void)o; (void)b; return 0; }
+ void rsx_live_draw_present(u32 b) { (void)b; }
+ void rsx_live_draw_set_movie_mode(int on) { (void)on; }
+ void rsx_live_draw_present_rgba(const uint8_t* r, u32 w, u32 h) { (void)r; (void)w; (void)h; }
+@@ -107,6 +108,8 @@
+ #include "rsx_d3d12_window.h"
+ #include "rsx_d3d12_counter.h"
+ #include "rsx_d3d12_fxaa.h"
++#include "rsx_d3d12_surface_readback.h"
++#include "rsx_texture_layout.h"
+ #include "rsx_present_metrics.h"
+ #include <d3dcompiler.h>
+ #include "rsx_vertex_formats.h"
+@@ -207,6 +210,7 @@
+     ID3D12Resource* tex;
+     u32 w, h;
+     DXGI_FORMAT fmt;
++    u32 guest_pitch, guest_color_format, guest_raster_type;
+     ID3D12Resource* fb_tex;   /* feedback copy, see surface_feedback_srv */
+ #if !defined(YZ_PERF_CLEAN)
+     u32 resource_serial;
+@@ -3178,11 +3182,17 @@
+ {
+     rsx_dsp_surface sf;
+     rsx_dsp_get_surface(&g.rsx, &sf);
+-    return surface_get(sf.color_location[0], sf.color_offset[0],
++    const u32 slot = surface_get(sf.color_location[0], sf.color_offset[0],
+                        sf.clip_w, sf.clip_h,
+                        sf.color_format == RSX_SURFACE_FMT_F_W16Z16Y16X16
+                            ? DXGI_FORMAT_R16G16B16A16_FLOAT
+                            : DXGI_FORMAT_R8G8B8A8_UNORM);
++    if (slot != LD_INVALID_SURFACE) {
++        g.surfaces[slot].guest_pitch = sf.color_pitch[0];
++        g.surfaces[slot].guest_color_format = sf.color_format;
++        g.surfaces[slot].guest_raster_type = sf.raster_type;
++    }
++    return slot;
+ }
+ 
+ /* On RSX each zeta (depth) address is distinct memory. The offline renderer's
+@@ -8388,6 +8398,52 @@
+         ReleaseSRWLockExclusive(&g_ld_access_lock);
+         InterlockedExchange(&g_ld_host_waiting, 0);
+     }
++}
++
++/* Renderer-owner service for a CPU consumer of an exact surface base.
++ * Do not report success from an inactive renderer, unknown/aliased surface,
++ * swizzled/unsupported format or failed GPU copy. Normal frame rendering does
++ * not use this path. The portrait hook blocks its CPU copy until this returns. */
++int rsx_live_draw_guest_buffer_read(u32 location, u32 offset, u32 bytes)
++{
++    if (!g.ready || g_ld_movie_mode || !bytes || (u64)offset + bytes > 0x100000000ull)
++        return 0;
++    surface_t* selected = NULL;
++    for (u32 i=0; i<g.n_surfaces; ++i) {
++        surface_t* surface = &g.surfaces[i];
++        if (surface->location != location || surface->offset != offset || !surface->tex) continue;
++        if (selected) {
++            fprintf(stderr,"[live-readback] ambiguous surface %u:0x%08X\n",location,offset);
++            return 0;
++        }
++        selected = surface;
++    }
++    if (!selected || selected->fmt != DXGI_FORMAT_R8G8B8A8_UNORM ||
++        !rsx_d3d12_surface_readback_layout(selected->guest_color_format,
++            selected->guest_raster_type,selected->guest_pitch,selected->w,selected->h,bytes)) {
++        fprintf(stderr,"[live-readback] unsupported surface %u:0x%08X bytes=%u pitch=%u size=%ux%u format=%u raster=%u\n",
++            location,offset,bytes,selected?selected->guest_pitch:0,
++            selected?selected->w:0,selected?selected->h:0,
++            selected?selected->guest_color_format:0,selected?selected->guest_raster_type:0);
++        return 0;
++    }
++    /* The injected resolver maps writable guest RAM; its const-qualified
++     * return is shared with texture upload consumers. */
++    u8* destination = (u8*)guest_ptr(location,offset,bytes);
++    if (!destination) return 0;
++    rsx_d3d12_surface_readback readback = {0};
++    HRESULT hr = rsx_d3d12_surface_readback_record(&readback,g.dev,g.list,selected->tex);
++    if (SUCCEEDED(hr)) {
++        ld_flush(LD_FLUSH_READBACK);
++        if (g.ready) hr = rsx_d3d12_surface_readback_store(&readback,destination,
++            bytes,selected->guest_pitch,rsx_texture_argb_is_rgba());
++        else hr = E_FAIL;
++    }
++    rsx_d3d12_surface_readback_release(&readback);
++    fprintf(stderr,"[live-readback] %s %u:0x%08X bytes=%u pitch=%u size=%ux%u hr=0x%08lX\n",
++        SUCCEEDED(hr)?"copied":"failed",location,offset,bytes,selected->guest_pitch,
++        selected->w,selected->h,(unsigned long)hr);
++    return SUCCEEDED(hr);
+ }
+ 
+ /* Env-gated (RSX_DUMP) framebuffer dump: read the current color surface back
+diff --git a/libs/video/rsx_live_draw.h b/libs/video/rsx_live_draw.h
+--- a/libs/video/rsx_live_draw.h
++++ b/libs/video/rsx_live_draw.h
+@@ -99,6 +99,11 @@
+  * after the GPU has really caught up. */
+ void rsx_live_draw_flush(void);
+ 
++/* Render-owner only: materialize an exact linear ARGB8 surface range into
++ * guest memory for a waiting CPU reader. Unknown/inactive/ambiguous surfaces
++ * fail explicitly; pitch padding and bytes outside the request are preserved. */
++int rsx_live_draw_guest_buffer_read(u32 location, u32 offset, u32 bytes);
++
+ /* Present the given display buffer id (called from the flip path). */
+ void rsx_live_draw_present(u32 buffer_id);
+ 
+diff --git a/libs/video/rsx_dispatch.h b/libs/video/rsx_dispatch.h
+--- a/libs/video/rsx_dispatch.h
++++ b/libs/video/rsx_dispatch.h
+@@ -165,7 +165,7 @@
+ 
+ /* Surface (render target) state */
+ typedef struct rsx_dsp_surface {
+-    u32 color_format;    /* SURFACE_FORMAT color field (5 = A8R8G8B8)      */
++    u32 color_format;    /* SURFACE_FORMAT color field (8 = A8R8G8B8)      */
+ /* SET_SURFACE_FORMAT colour field: FP16 RGBA, the HDR target format. */
+ #define RSX_SURFACE_FMT_F_W16Z16Y16X16 0xB
+     u32 depth_format;
+diff --git a/libs/video/rsx_d3d12_surface_readback.h b/libs/video/rsx_d3d12_surface_readback.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_d3d12_surface_readback.h
+@@ -0,0 +1,98 @@
++#ifndef RSX_D3D12_SURFACE_READBACK_H
++#define RSX_D3D12_SURFACE_READBACK_H
++#include <d3d12.h>
++#include <stdint.h>
++#include <string.h>
++
++typedef struct rsx_d3d12_surface_readback {
++    ID3D12Resource* buffer;
++    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
++    UINT64 bytes;
++} rsx_d3d12_surface_readback;
++
++/* CELL_GCM_SURFACE_A8R8G8B8 is 8; 5 is an X8 format. Reject swizzle and
++ * narrow/unsupported formats instead of guessing their guest byte layout. */
++static int rsx_d3d12_surface_readback_layout(unsigned format,unsigned raster,
++    unsigned pitch,unsigned width,unsigned height,uint32_t bytes)
++{
++    return format==8u && raster==1u && width && height && bytes &&
++        (uint64_t)pitch>=(uint64_t)width*4u &&
++        (uint64_t)bytes<=(uint64_t)pitch*height;
++}
++
++static void rsx_d3d12_surface_readback_release(rsx_d3d12_surface_readback* readback)
++{
++    if(readback->buffer) readback->buffer->lpVtbl->Release(readback->buffer);
++    memset(readback,0,sizeof(*readback));
++}
++
++/* Record only. Caller submits and waits for GPU completion before store/release.
++ * The resource returns to its original render-target state. */
++static HRESULT rsx_d3d12_surface_readback_record(rsx_d3d12_surface_readback* readback,
++    ID3D12Device* device,ID3D12GraphicsCommandList* list,ID3D12Resource* source)
++{
++    if(readback->buffer) return E_INVALIDARG;
++    D3D12_RESOURCE_DESC desc;source->lpVtbl->GetDesc(source,&desc);
++    if(desc.Dimension!=D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.Format!=DXGI_FORMAT_R8G8B8A8_UNORM ||
++       desc.MipLevels!=1 || desc.DepthOrArraySize!=1 || desc.SampleDesc.Count!=1) return E_INVALIDARG;
++    device->lpVtbl->GetCopyableFootprints(device,&desc,0,1,0,&readback->footprint,NULL,NULL,&readback->bytes);
++    D3D12_HEAP_PROPERTIES hp={0};hp.Type=D3D12_HEAP_TYPE_READBACK;
++    D3D12_RESOURCE_DESC bd={0};bd.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER;bd.Width=readback->bytes;
++    bd.Height=1;bd.DepthOrArraySize=1;bd.MipLevels=1;bd.SampleDesc.Count=1;bd.Layout=D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
++    HRESULT hr=device->lpVtbl->CreateCommittedResource(device,&hp,D3D12_HEAP_FLAG_NONE,&bd,
++        D3D12_RESOURCE_STATE_COPY_DEST,NULL,&IID_ID3D12Resource,(void**)&readback->buffer);
++    if(FAILED(hr)) return hr;
++    D3D12_RESOURCE_BARRIER b={0};b.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
++    b.Transition.pResource=source;b.Transition.Subresource=D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
++    b.Transition.StateBefore=D3D12_RESOURCE_STATE_RENDER_TARGET;b.Transition.StateAfter=D3D12_RESOURCE_STATE_COPY_SOURCE;
++    list->lpVtbl->ResourceBarrier(list,1,&b);
++    D3D12_TEXTURE_COPY_LOCATION src={0},dst={0};src.pResource=source;src.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
++    dst.pResource=readback->buffer;dst.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;dst.PlacedFootprint=readback->footprint;
++    list->lpVtbl->CopyTextureRegion(list,&dst,0,0,0,&src,NULL);
++    b.Transition.StateBefore=D3D12_RESOURCE_STATE_COPY_SOURCE;b.Transition.StateAfter=D3D12_RESOURCE_STATE_RENDER_TARGET;
++    list->lpVtbl->ResourceBarrier(list,1,&b);
++    return S_OK;
++}
++
++/* Copy just the requested guest bytes, leaving pitch padding/other bytes alone.
++ * Source is GPU RGBA8; default guest memory is A,R,G,B. Partial pixels and
++ * partial final rows are intentional. All validation happens before writes. */
++static int rsx_rgba8_guest_range(uint8_t* destination,uint32_t bytes,
++    const uint8_t* rgba,uint64_t source_bytes,uint32_t source_pitch,
++    uint32_t width,uint32_t height,uint32_t guest_pitch,int guest_rgba)
++{
++    if(!destination || !rgba || !width || !height || !bytes ||
++       (uint64_t)width*4>guest_pitch || (uint64_t)width*4>source_pitch ||
++       (uint64_t)bytes>(uint64_t)guest_pitch*height ||
++       (uint64_t)(height-1)*source_pitch+(uint64_t)width*4>source_bytes) return 0;
++    static const unsigned argb[4]={3,0,1,2};
++    for(uint32_t row=0;row<height;++row){
++        const uint64_t base=(uint64_t)row*guest_pitch;
++        if(base>=bytes) break;
++        const uint64_t remaining=(uint64_t)bytes-base;
++        const uint32_t count=remaining<(uint64_t)width*4 ? (uint32_t)remaining : width*4;
++        const uint8_t* source=rgba+(uint64_t)row*source_pitch;
++        uint8_t* target=destination+base;
++        if(guest_rgba) memcpy(target,source,count);
++        else for(uint32_t i=0;i<count;++i) target[i]=source[(i&~3u)+argb[i&3u]];
++    }
++    return 1;
++}
++
++/* GPU fence must have completed. No copy is reported successful after Map
++ * failure or an unsupported guest layout. No title-ready flag is touched here. */
++static HRESULT rsx_d3d12_surface_readback_store(rsx_d3d12_surface_readback* readback,
++    uint8_t* destination,uint32_t bytes,uint32_t guest_pitch,int guest_rgba)
++{
++    if(!readback->buffer) return E_INVALIDARG;
++    uint8_t* mapped=NULL;D3D12_RANGE range={0,(SIZE_T)readback->bytes};
++    HRESULT hr=readback->buffer->lpVtbl->Map(readback->buffer,0,&range,(void**)&mapped);
++    if(FAILED(hr)) return hr;
++    const D3D12_SUBRESOURCE_FOOTPRINT* fp=&readback->footprint.Footprint;
++    int copied=readback->footprint.Offset<=readback->bytes &&
++        rsx_rgba8_guest_range(destination,bytes,mapped+readback->footprint.Offset,
++            readback->bytes-readback->footprint.Offset,fp->RowPitch,fp->Width,fp->Height,guest_pitch,guest_rgba);
++    D3D12_RANGE no_writes={0,0};readback->buffer->lpVtbl->Unmap(readback->buffer,0,&no_writes);
++    return copied ? S_OK : E_INVALIDARG;
++}
++#endif

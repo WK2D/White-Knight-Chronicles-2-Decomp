@@ -4,8 +4,8 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-19):** the stack contains 110 SDK patches. All
-99 Windows checks pass in normal Debug and optimized Release. Reapplying the
+**Current validation (2026-10-19):** the stack contains 111 SDK patches. All
+100 Windows checks pass in normal Debug and optimized Release. Reapplying the
 complete stack changes no SDK files. Vulkan Continue and short town movement
 were rechecked on patch 0105; isolated DirectX Continue, menu FXAA toggling
 and a short world movement are checked on patch 0110.
@@ -134,7 +134,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 110 numbered SDK patches, and all 99 checks
+The current source stack contains 111 numbered SDK patches, and all 100 checks
 pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
@@ -295,3 +295,20 @@ check still compiles the production shader. All 99 Windows checks pass in Debug
 and Release. A hidden, muted isolated saved-scene run verifies the menu toggle,
 real pipeline/output allocation and return to world rendering with short motion.
 Native movie/fullscreen/area-transition parity remain separate checks.
+
+### DirectX guest-surface readback (patch 0111)
+
+The avatar-copy bridge now selects the active renderer. Live DirectX can copy
+an exact linear ARGB8 render target into guest RAM after GPU completion. Pitch
+padding and bytes outside the request remain untouched. The path rejects
+unknown or ambiguous targets and unsupported layouts; it is not a general
+surface-coherence implementation. A fresh isolated DirectX creator run verifies
+the real generated image and ready flag. Same-session menu display and saving
+that generated image remain unverified; cutscene-transition rendering faults
+were observed afterward. The user's original save was unchanged.
+
+wkc2_graphics_readback now checks both backend routes and failure propagation;
+the previous host code fails that regression. The new wkc2_d3d12_surface_readback
+uses WARP to verify eight exact ARGB/RGBA cases, including 256x144 portrait data,
+padding, partial pixels/rows and invalid ranges. All 100 Windows checks pass
+in Debug and Release. Normal launch still sends no automatic controller input.

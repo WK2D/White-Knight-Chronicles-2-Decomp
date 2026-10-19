@@ -8,10 +8,12 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 110 SDK patches / 99 Windows checks. The shader-translation
+Current source: 111 SDK patches / 100 Windows checks. The shader-translation
 cache reduces measured compilation stalls; existing images retain their original
 build provenance. The newest captures show DirectX Off/FXAA menu selection and the filtered world
 in the 110-patch build; the counter is composed afterward and stays sharp.
+The current 111-patch source also verifies fresh DirectX portrait capture;
+same-session portrait menu/reload checks remain pending and have no new gallery image.
 Earlier town captures use the native FPS overlay after Continue in the 104-patch
 Vulkan build, with 30 and Unlocked frame limits; those are final swapchain
 readbacks after the overlay. The earlier depth-range captures use

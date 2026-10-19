@@ -1268,3 +1268,27 @@ in Debug and Release. Isolated native menu/world captures and read-only applied
 settings verify Off/FXAA switching and a separate 1920x1080 output allocation;
 there are no FXAA-unavailable or D3D-failure messages in that run. This does
 not establish full visual fidelity, smooth traversal or movie/transition parity.
+
+## DirectX guest-surface readback (patch 0111)
+
+Add a render-owner-only readback entry point for exact-base linear ARGB8 targets.
+Record a GPU copy, restore the source's render-target state, wait at the existing
+fence and convert RGBA8 to the guest byte order. Honor the declared guest pitch;
+leave padding and bytes outside the requested span unchanged. Unknown/aliased,
+unsupported and failed reads return failure. The live target now remembers its
+declared layout; the incorrect rsx_dispatch.h comment is corrected to format 8.
+
+The separate host avatar bridge now chooses live DirectX when active rather than
+calling the inactive shared engine, whose no-op previously returned success.
+Loading CPU-resident portraits still bypasses readback. The extended routing
+test fails on the previous bridge. Eight WARP production-helper cases verify
+ARGB/RGBA, portrait dimensions, padded pitch, partial pixels/rows, guards and
+invalid spans. All 100 Windows checks pass in Debug and Release.
+
+Private native run 20261019-191430 uses ordinary New Game/creator controls,
+isolated saves and verified muting. The 256x144 rendered face is copied with
+pitch 1024 and 147,456 nonzero bytes; the ready flag is 1 and the image was
+visually inspected. This verifies capture only: same-session menu display and
+generated-image save/reload remain pending. Cutscene skips later showed stale
+portrait/empty geometry frames; cause and baseline comparison remain open.
+Normal startup input is unchanged, and no game data or private paths are added.
