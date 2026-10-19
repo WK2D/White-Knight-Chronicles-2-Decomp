@@ -80,7 +80,7 @@ int main() {
     wkc2_graphics_panel_end(panel);assert(!wkc2_graphics_panel_owns(panel));
     dispatch(0);assert(!wkc2_graphics_panel_owns(panel));
     // Restart with DirectX selected. Newly integrated display and filtering
-    // controls must be usable; pending AA stays unavailable and the counter toggles independently.
+    // controls must be usable; anti-aliasing and the counter toggle independently.
     wkc::graphics_initialize(path);assert(wkc::graphics_active_renderer()==1);
     dispatch(4);assert(wkc2_graphics_panel_owns(panel));
     const auto dx_before=wkc::graphics_snapshot();
@@ -89,7 +89,7 @@ int main() {
     assert(press(3,2,0)==1 && wkc::graphics_snapshot().vsync!=dx_before.vsync);
     assert(press(5,2,0)==1 && wkc::graphics_snapshot().anisotropy!=dx_before.anisotropy);
     const auto dx_after=wkc::graphics_snapshot();
-    assert(press(6,2,0)==1 && wkc::graphics_snapshot()==dx_after);
+    assert(press(6,2,0)==1 && wkc::graphics_snapshot().anti_aliasing!=dx_after.anti_aliasing);
     assert(press(10,2,0)==1 && wkc::graphics_snapshot().fps_counter!=dx_after.fps_counter);
     wkc2_graphics_panel_end(panel);
     std::filesystem::remove(path);

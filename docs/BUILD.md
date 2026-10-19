@@ -4,11 +4,11 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-19):** the stack contains 109 SDK patches. All
-98 Windows checks pass in normal Debug and optimized Release. Reapplying the
+**Current validation (2026-10-19):** the stack contains 110 SDK patches. All
+99 Windows checks pass in normal Debug and optimized Release. Reapplying the
 complete stack changes no SDK files. Vulkan Continue and short town movement
-were rechecked on patch 0105; isolated DirectX Continue and menu captures are
-checked on patch 0106.
+were rechecked on patch 0105; isolated DirectX Continue, menu FXAA toggling
+and a short world movement are checked on patch 0110.
 [Host-layout SPU shuffle](FINDINGS.md#host-layout-spu-byte-shuffle-and-unlocked-headroom-patch-0104)
 reduces synthetic helper cost with tested byte equivalence; capped native views
 show no consistent FPS gain.
@@ -134,7 +134,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 109 numbered SDK patches, and all 98 checks
+The current source stack contains 110 numbered SDK patches, and all 99 checks
 pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
@@ -279,3 +279,19 @@ that ends during loading as a town performance result.
 `tools/trace_calls.py` optionally adds opt-in return/argument
 tracing to selected generated functions. Those diagnostics are disabled unless
 `WKC2_TRACE_CALLS=1` is set.
+
+### DirectX FXAA (patch 0110)
+
+The native Off/FXAA option now reaches the live DirectX renderer. Both renderers
+share the project-written shader math; API bindings remain separate. DirectX
+filters RGBA8 scanout into a separate image before copying it to the swap chain
+and adding the sharp FPS overlay. Output and descriptor reuse follow the
+existing completed presentation fence. Off has no AA allocation or dispatch.
+
+The new wkc2_d3d12_fxaa_gpu check exercises eight WARP cases against independent
+CPU math, with a tolerance of two UNORM8 RGB values and exact alpha/source preservation,
+odd dimensions, Off, resize and fenced reuse. The existing Vulkan descriptor
+check still compiles the production shader. All 99 Windows checks pass in Debug
+and Release. A hidden, muted isolated saved-scene run verifies the menu toggle,
+real pipeline/output allocation and return to world rendering with short motion.
+Native movie/fullscreen/area-transition parity remain separate checks.

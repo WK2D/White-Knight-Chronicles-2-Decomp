@@ -34,8 +34,7 @@ A Vulkan-capable driver and its loader are runtime requirements.
 The normal Vulkan-enabled Windows build also offers an experimental DirectX 12
 path through Graphics Settings -> Graphics API. Save the
 selection, exit, and restart. It uses the SDK live-draw engine. Window/output
-controls, VSync, filtering and the FPS overlay are integrated; FXAA remains
-unavailable on this path. The menu remains
+controls, VSync, filtering, FXAA and the FPS overlay are integrated. The menu remains
 accessible to switch back. This is a comparison path, with visible differences
 and incomplete parity.
 

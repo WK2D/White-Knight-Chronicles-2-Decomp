@@ -1,0 +1,287 @@
+Apply the shared project-written FXAA shader on a separate live DirectX output image.
+Preserve guest source and alpha, fence resource/descriptor reuse and compose FPS text after filtering.
+
+diff --git a/libs/video/rsx_vulkan_backend.c b/libs/video/rsx_vulkan_backend.c
+--- a/libs/video/rsx_vulkan_backend.c
++++ b/libs/video/rsx_vulkan_backend.c
+@@ -2765,30 +2765,12 @@
+ /* Small FXAA pass. The edge-direction/luminance method follows the public
+  * FXAA white paper (Timothy Lottes, NVIDIA, 2011). This implementation is
+  * project-written; no vendor sample source or game shader is embedded. */
++#include "rsx_fxaa_hlsl.h"
+ static const char s_fxaa_hlsl[] =
+     "[[vk::binding(0,0)]] Texture2D<float4> aa_source;\n"
+     "[[vk::binding(1,0)]] SamplerState aa_sampler;\n"
+     "[[vk::binding(2,0)]] [[vk::image_format(\"rgba8\")]] RWTexture2D<float4> aa_target;\n"
+-    "float luma(float3 c) { return dot(c,float3(.299,.587,.114)); }\n"
+-    "float3 sample_color(float2 uv) { return aa_source.SampleLevel(aa_sampler,uv,0).rgb; }\n"
+-    "[numthreads(8,8,1)] void main(uint3 id:SV_DispatchThreadID) {\n"
+-    " uint w,h; aa_target.GetDimensions(w,h); if(id.x>=w || id.y>=h) return;\n"
+-    " float2 pixel=1.0/float2(w,h), uv=(float2(id.xy)+.5)*pixel;\n"
+-    " float4 center=aa_source.Load(int3(id.xy,0)); float m=luma(center.rgb);\n"
+-    " float nw=luma(sample_color(uv+float2(-1,-1)*pixel));\n"
+-    " float ne=luma(sample_color(uv+float2(1,-1)*pixel));\n"
+-    " float sw=luma(sample_color(uv+float2(-1,1)*pixel));\n"
+-    " float se=luma(sample_color(uv+float2(1,1)*pixel));\n"
+-    " float low=min(m,min(min(nw,ne),min(sw,se)));\n"
+-    " float high=max(m,max(max(nw,ne),max(sw,se)));\n"
+-    " if(high-low<max(.0312,high*.125)) { aa_target[id.xy]=center; return; }\n"
+-    " float2 edge=float2(sw+se-nw-ne,nw+sw-ne-se);\n"
+-    " float reduction=max((nw+ne+sw+se)*(.25*.125),1.0/128.0);\n"
+-    " edge=clamp(edge/(min(abs(edge.x),abs(edge.y))+reduction),-8.0,8.0)*pixel;\n"
+-    " float3 inner=.5*(sample_color(uv-edge/6.0)+sample_color(uv+edge/6.0));\n"
+-    " float3 wide=inner*.5+.25*(sample_color(uv-edge*.5)+sample_color(uv+edge*.5));\n"
+-    " float check=luma(wide); aa_target[id.xy]=float4(check<low || check>high ? inner : wide,center.a);\n"
+-    "}\n";
++    RSX_FXAA_HLSL_BODY;
+ 
+ static struct {
+     int ready, failed;
+diff --git a/libs/video/rsx_live_draw.c b/libs/video/rsx_live_draw.c
+--- a/libs/video/rsx_live_draw.c
++++ b/libs/video/rsx_live_draw.c
+@@ -106,6 +106,7 @@
+ #include "rsx_d3d12_sampler.h"
+ #include "rsx_d3d12_window.h"
+ #include "rsx_d3d12_counter.h"
++#include "rsx_d3d12_fxaa.h"
+ #include "rsx_present_metrics.h"
+ #include <d3dcompiler.h>
+ #include "rsx_vertex_formats.h"
+@@ -391,6 +392,7 @@
+ 
+ static ld_state g;
+ static rsx_d3d12_counter s_ld_counter;
++static rsx_d3d12_fxaa s_ld_fxaa;
+ static rsx_present_metrics s_ld_present_metrics;
+ static SRWLOCK s_ld_metrics_lock = SRWLOCK_INIT;
+ 
+@@ -8230,6 +8232,21 @@
+     return fps;
+ }
+ 
++/* Source remains COPY_SOURCE; filtered output is separate and retired by the
++ * ordinary frame fence before its descriptors/storage are used again. */
++static ID3D12Resource* ld_fxaa_image(ID3D12Resource* source)
++{
++    ID3D12Resource* result = source;
++    const HRESULT hr = rsx_d3d12_fxaa_apply(&s_ld_fxaa, g.dev, g.list,
++        source, s_ld_graphics.anti_aliasing != 0, &result);
++    if (FAILED(hr)) {
++        static int reported;
++        if (!reported) fprintf(stderr,"[live-draw] FXAA unavailable hr=0x%08lX\n",(unsigned long)hr);
++        reported = 1;
++    }
++    return result;
++}
++
+ static void ld_counter_draw(ID3D12Resource* destination)
+ {
+     if (!s_ld_graphics.fps_counter) return;
+@@ -8341,6 +8358,12 @@
+     src.PlacedFootprint.Footprint.RowPitch = pitch;
+     g.list->lpVtbl->CopyTextureRegion(g.list, &dst, 0, 0, 0, &src, NULL);
+ 
++    if (s_ld_graphics.anti_aliasing) {
++        rsx_d3d12_fxaa_transition(g.list, bb, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE);
++        ID3D12Resource* filtered = ld_fxaa_image(bb);
++        rsx_d3d12_fxaa_transition(g.list, bb, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
++        if (filtered != bb) g.list->lpVtbl->CopyResource(g.list, bb, filtered);
++    }
+     ld_counter_draw(bb);
+ 
+     b.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+@@ -8883,7 +8906,8 @@
+     bar[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+     g.list->lpVtbl->ResourceBarrier(g.list, 2, bar);
+ 
+-    g.list->lpVtbl->CopyResource(g.list, bb, srcimg);
++    ID3D12Resource* final_image = ld_fxaa_image(srcimg);
++    g.list->lpVtbl->CopyResource(g.list, bb, final_image);
+     ld_counter_draw(bb);
+ 
+     bar[0].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+@@ -9779,6 +9803,7 @@
+      * reclaims.) */
+     ld_flush(LD_FLUSH_SHUTDOWN);
+     rsx_d3d12_counter_release(&s_ld_counter);
++    rsx_d3d12_fxaa_release(&s_ld_fxaa);
+ #if defined(YZ_PERF_PROFILE)
+     fprintf(stderr,
+             "[rsx-perf-summary] frames=%u "
+diff --git a/libs/video/rsx_fxaa_hlsl.h b/libs/video/rsx_fxaa_hlsl.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_fxaa_hlsl.h
+@@ -0,0 +1,25 @@
++/* Project-written FXAA math shared by both renderers; bindings are API-specific. */
++#ifndef RSX_FXAA_HLSL_H
++#define RSX_FXAA_HLSL_H
++#define RSX_FXAA_HLSL_BODY \
++    "float luma(float3 c) { return dot(c,float3(.299,.587,.114)); }\n" \
++    "float3 sample_color(float2 uv) { return aa_source.SampleLevel(aa_sampler,uv,0).rgb; }\n" \
++    "[numthreads(8,8,1)] void main(uint3 id:SV_DispatchThreadID) {\n" \
++    " uint w,h; aa_target.GetDimensions(w,h); if(id.x>=w || id.y>=h) return;\n" \
++    " float2 pixel=1.0/float2(w,h), uv=(float2(id.xy)+.5)*pixel;\n" \
++    " float4 center=aa_source.Load(int3(id.xy,0)); float m=luma(center.rgb);\n" \
++    " float nw=luma(sample_color(uv+float2(-1,-1)*pixel));\n" \
++    " float ne=luma(sample_color(uv+float2(1,-1)*pixel));\n" \
++    " float sw=luma(sample_color(uv+float2(-1,1)*pixel));\n" \
++    " float se=luma(sample_color(uv+float2(1,1)*pixel));\n" \
++    " float low=min(m,min(min(nw,ne),min(sw,se)));\n" \
++    " float high=max(m,max(max(nw,ne),max(sw,se)));\n" \
++    " if(high-low<max(.0312,high*.125)) { aa_target[id.xy]=center; return; }\n" \
++    " float2 edge=float2(sw+se-nw-ne,nw+sw-ne-se);\n" \
++    " float reduction=max((nw+ne+sw+se)*(.25*.125),1.0/128.0);\n" \
++    " edge=clamp(edge/(min(abs(edge.x),abs(edge.y))+reduction),-8.0,8.0)*pixel;\n" \
++    " float3 inner=.5*(sample_color(uv-edge/6.0)+sample_color(uv+edge/6.0));\n" \
++    " float3 wide=inner*.5+.25*(sample_color(uv-edge*.5)+sample_color(uv+edge*.5));\n" \
++    " float check=luma(wide); aa_target[id.xy]=float4(check<low || check>high ? inner : wide,center.a);\n" \
++    "}\n"
++#endif
+diff --git a/libs/video/rsx_d3d12_fxaa.h b/libs/video/rsx_d3d12_fxaa.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_d3d12_fxaa.h
+@@ -0,0 +1,141 @@
++#ifndef RSX_D3D12_FXAA_H
++#define RSX_D3D12_FXAA_H
++#include <d3d12.h>
++#include <d3dcompiler.h>
++#include <string.h>
++#include "rsx_fxaa_hlsl.h"
++
++typedef struct rsx_d3d12_fxaa {
++    ID3D12RootSignature* root;
++    ID3D12PipelineState* pipeline;
++    ID3D12DescriptorHeap* heap;
++    ID3D12Resource* output;
++    unsigned width,height;
++    int output_copy_source;
++} rsx_d3d12_fxaa;
++
++/* Owner fences outstanding GPU uses before resize, descriptor rewrite or
++ * shutdown. No guest resource is modified by this completed-image filter. */
++static void rsx_d3d12_fxaa_release(rsx_d3d12_fxaa* aa)
++{
++    if(aa->output) aa->output->lpVtbl->Release(aa->output);
++    if(aa->heap) aa->heap->lpVtbl->Release(aa->heap);
++    if(aa->pipeline) aa->pipeline->lpVtbl->Release(aa->pipeline);
++    if(aa->root) aa->root->lpVtbl->Release(aa->root);
++    memset(aa,0,sizeof(*aa));
++}
++
++static HRESULT rsx_d3d12_fxaa_init(rsx_d3d12_fxaa* aa,ID3D12Device* device)
++{
++    if(aa->pipeline) return S_OK;
++    static const char source[]=
++        "Texture2D<float4> aa_source : register(t0);\n"
++        "SamplerState aa_sampler : register(s0);\n"
++        "RWTexture2D<float4> aa_target : register(u0);\n"
++        RSX_FXAA_HLSL_BODY;
++    ID3DBlob* code=NULL;ID3DBlob* error=NULL;ID3DBlob* signature=NULL;
++    HRESULT hr=D3DCompile(source,sizeof(source)-1,"rsx_fxaa",NULL,NULL,"main","cs_5_0",
++        D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&code,&error);
++    if(error) error->lpVtbl->Release(error);
++    if(FAILED(hr)) return hr;
++    D3D12_DESCRIPTOR_RANGE ranges[2]={{0}};
++    ranges[0].RangeType=D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
++    ranges[1].RangeType=D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
++    D3D12_ROOT_PARAMETER parameters[2]={{0}};
++    for(unsigned i=0;i<2;++i){
++        ranges[i].NumDescriptors=1;
++        parameters[i].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
++        parameters[i].DescriptorTable.NumDescriptorRanges=1;
++        parameters[i].DescriptorTable.pDescriptorRanges=&ranges[i];
++        parameters[i].ShaderVisibility=D3D12_SHADER_VISIBILITY_ALL;
++    }
++    D3D12_STATIC_SAMPLER_DESC sampler={0};
++    sampler.Filter=D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
++    sampler.AddressU=sampler.AddressV=sampler.AddressW=D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
++    sampler.ComparisonFunc=D3D12_COMPARISON_FUNC_NEVER;
++    sampler.MaxAnisotropy=1;sampler.ShaderVisibility=D3D12_SHADER_VISIBILITY_ALL;
++    D3D12_ROOT_SIGNATURE_DESC desc={0};desc.NumParameters=2;desc.pParameters=parameters;
++    desc.NumStaticSamplers=1;desc.pStaticSamplers=&sampler;
++    error=NULL;
++    hr=D3D12SerializeRootSignature(&desc,D3D_ROOT_SIGNATURE_VERSION_1,&signature,&error);
++    if(error) error->lpVtbl->Release(error);
++    if(SUCCEEDED(hr)) hr=device->lpVtbl->CreateRootSignature(device,0,
++        signature->lpVtbl->GetBufferPointer(signature),signature->lpVtbl->GetBufferSize(signature),
++        &IID_ID3D12RootSignature,(void**)&aa->root);
++    if(signature) signature->lpVtbl->Release(signature);
++    if(SUCCEEDED(hr)){
++        D3D12_COMPUTE_PIPELINE_STATE_DESC pipe={0};pipe.pRootSignature=aa->root;
++        pipe.CS.pShaderBytecode=code->lpVtbl->GetBufferPointer(code);
++        pipe.CS.BytecodeLength=code->lpVtbl->GetBufferSize(code);
++        hr=device->lpVtbl->CreateComputePipelineState(device,&pipe,&IID_ID3D12PipelineState,(void**)&aa->pipeline);
++    }
++    code->lpVtbl->Release(code);
++    if(SUCCEEDED(hr)){
++        D3D12_DESCRIPTOR_HEAP_DESC heap={0};heap.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
++        heap.NumDescriptors=2;heap.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
++        hr=device->lpVtbl->CreateDescriptorHeap(device,&heap,&IID_ID3D12DescriptorHeap,(void**)&aa->heap);
++    }
++    if(FAILED(hr)) rsx_d3d12_fxaa_release(aa);
++    return hr;
++}
++
++static void rsx_d3d12_fxaa_transition(ID3D12GraphicsCommandList* list,
++    ID3D12Resource* resource,D3D12_RESOURCE_STATES from,D3D12_RESOURCE_STATES to)
++{
++    D3D12_RESOURCE_BARRIER b={0};b.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
++    b.Transition.pResource=resource;b.Transition.Subresource=D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
++    b.Transition.StateBefore=from;b.Transition.StateAfter=to;
++    list->lpVtbl->ResourceBarrier(list,1,&b);
++}
++
++/* Source enters/leaves COPY_SOURCE, RGBA8. Returns original when Off; no
++ * commands/allocation. Otherwise returns a separate COPY_SOURCE result. Caller
++ * must retire previous uses before invoking this helper again. */
++static HRESULT rsx_d3d12_fxaa_apply(rsx_d3d12_fxaa* aa,ID3D12Device* device,
++    ID3D12GraphicsCommandList* list,ID3D12Resource* source,int enabled,
++    ID3D12Resource** result)
++{
++    *result=source;
++    if(!enabled) return S_OK;
++    D3D12_RESOURCE_DESC input;source->lpVtbl->GetDesc(source,&input);
++    if(input.Dimension!=D3D12_RESOURCE_DIMENSION_TEXTURE2D ||
++       input.Format!=DXGI_FORMAT_R8G8B8A8_UNORM || input.SampleDesc.Count!=1 ||
++       input.DepthOrArraySize!=1 || input.MipLevels!=1 ||
++       (input.Flags&D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE)) return E_INVALIDARG;
++    HRESULT hr=rsx_d3d12_fxaa_init(aa,device);
++    if(FAILED(hr)) return hr;
++    if(!aa->output || aa->width!=input.Width || aa->height!=input.Height){
++        D3D12_HEAP_PROPERTIES hp={0};hp.Type=D3D12_HEAP_TYPE_DEFAULT;
++        D3D12_RESOURCE_DESC output=input;output.Flags=D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
++        ID3D12Resource* replacement=NULL;
++        hr=device->lpVtbl->CreateCommittedResource(device,&hp,D3D12_HEAP_FLAG_NONE,&output,
++            D3D12_RESOURCE_STATE_UNORDERED_ACCESS,NULL,&IID_ID3D12Resource,(void**)&replacement);
++        if(FAILED(hr)) return hr;
++        if(aa->output) aa->output->lpVtbl->Release(aa->output);
++        aa->output=replacement;aa->width=(unsigned)input.Width;aa->height=input.Height;
++        aa->output_copy_source=0;
++    }
++    D3D12_CPU_DESCRIPTOR_HANDLE cpu;D3D12_GPU_DESCRIPTOR_HANDLE gpu;
++    aa->heap->lpVtbl->GetCPUDescriptorHandleForHeapStart(aa->heap,&cpu);
++    aa->heap->lpVtbl->GetGPUDescriptorHandleForHeapStart(aa->heap,&gpu);
++    D3D12_SHADER_RESOURCE_VIEW_DESC srv={0};srv.Format=input.Format;
++    srv.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;srv.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
++    srv.Texture2D.MipLevels=1;device->lpVtbl->CreateShaderResourceView(device,source,&srv,cpu);
++    const unsigned step=device->lpVtbl->GetDescriptorHandleIncrementSize(device,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
++    cpu.ptr+=step;
++    D3D12_UNORDERED_ACCESS_VIEW_DESC uav={0};uav.Format=input.Format;uav.ViewDimension=D3D12_UAV_DIMENSION_TEXTURE2D;
++    device->lpVtbl->CreateUnorderedAccessView(device,aa->output,NULL,&uav,cpu);
++    rsx_d3d12_fxaa_transition(list,source,D3D12_RESOURCE_STATE_COPY_SOURCE,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
++    if(aa->output_copy_source) rsx_d3d12_fxaa_transition(list,aa->output,D3D12_RESOURCE_STATE_COPY_SOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
++    list->lpVtbl->SetPipelineState(list,aa->pipeline);
++    list->lpVtbl->SetComputeRootSignature(list,aa->root);
++    ID3D12DescriptorHeap* heaps[]={aa->heap};list->lpVtbl->SetDescriptorHeaps(list,1,heaps);
++    list->lpVtbl->SetComputeRootDescriptorTable(list,0,gpu);gpu.ptr+=step;
++    list->lpVtbl->SetComputeRootDescriptorTable(list,1,gpu);
++    list->lpVtbl->Dispatch(list,(aa->width+7)/8,(aa->height+7)/8,1);
++    rsx_d3d12_fxaa_transition(list,aa->output,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_SOURCE);
++    rsx_d3d12_fxaa_transition(list,source,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_COPY_SOURCE);
++    aa->output_copy_source=1;*result=aa->output;
++    return S_OK;
++}
++#endif

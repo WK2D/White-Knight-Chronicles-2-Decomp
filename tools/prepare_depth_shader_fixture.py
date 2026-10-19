@@ -14,4 +14,4 @@ if not match:
 args.output.parent.mkdir(parents=True, exist_ok=True)
 aa=re.search(r'static const char s_fxaa_hlsl\[\] =\s*\n(.*?);\s*\n\s*static struct',source,re.S)
 if not aa: parser.error('The production FXAA shader was not found.')
-args.output.write_text('static const char s_zconv_hlsl[] =\n' + match[1] + ';\nstatic const char s_fxaa_hlsl[] =\n'+aa[1]+';\n', encoding='utf-8')
+args.output.write_text('#include "rsx_fxaa_hlsl.h"\nstatic const char s_zconv_hlsl[] =\n' + match[1] + ';\nstatic const char s_fxaa_hlsl[] =\n'+aa[1]+';\n', encoding='utf-8')

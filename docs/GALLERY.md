@@ -8,9 +8,10 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 109 SDK patches / 98 Windows checks. The shader-translation
+Current source: 110 SDK patches / 99 Windows checks. The shader-translation
 cache reduces measured compilation stalls; existing images retain their original
-build provenance. The newest captures show the DirectX FPS Counter switched On and Off in the 109-patch build.
+build provenance. The newest captures show DirectX Off/FXAA menu selection and the filtered world
+in the 110-patch build; the counter is composed afterward and stays sharp.
 Earlier town captures use the native FPS overlay after Continue in the 104-patch
 Vulkan build, with 30 and Unlocked frame limits; those are final swapchain
 readbacks after the overlay. The earlier depth-range captures use
@@ -32,6 +33,7 @@ Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-19 | [DirectX Off/FXAA](#2026-10-19--directx-fxaa) | <a href="#2026-10-19--directx-fxaa"><img src="../verification/screenshots/2026-10-19-native-directx-fxaa-on.png" width="200" alt="DirectX native FXAA enabled"></a> |
 | 2026-10-19 | [DirectX FPS Counter On/Off](#2026-10-19--directx-fps-counter) | <a href="#2026-10-19--directx-fps-counter"><img src="../verification/screenshots/2026-10-19-native-directx-fps-on.png" width="200" alt="DirectX in-game counter enabled"></a> |
 | 2026-10-19 | [DirectX display and filtering controls](#2026-10-19--directx-graphics-settings) | <a href="#2026-10-19--directx-graphics-settings"><img src="../verification/screenshots/2026-10-19-native-directx-graphics-settings.png" width="200" alt="DirectX graphics settings"></a> |
 | 2026-10-19 | [Town FPS checkpoint](#2026-10-19---town-fps-checkpoint) | <a href="#2026-10-19---town-fps-checkpoint"><img src="../verification/screenshots/2026-10-19-native-town-fps-unlocked.png" width="200" alt="Town with native FPS overlay"></a> |
@@ -56,6 +58,28 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
+
+## 2026-10-19 — DirectX FXAA
+
+DirectX now applies the same project-written FXAA algorithm as Vulkan to a
+separate completed image. The FPS text is added afterward. Native Off/FXAA
+changes were checked against the applied renderer settings and actual pipeline
+and output resources, then the run returned to the world for a camera turn and
+short movement at the 30 FPS setting.
+
+![DirectX native FXAA selection](../verification/screenshots/2026-10-19-native-directx-fxaa-on.png)
+
+![DirectX anti-aliasing Off](../verification/screenshots/2026-10-19-native-directx-fxaa-off.png)
+
+![DirectX world with FXAA enabled](../verification/screenshots/2026-10-19-native-directx-fxaa-world.png)
+
+Source checkpoint: 110 SDK patches / 99 Windows checks in Debug and Release.
+These unmodified final-backbuffer GPU readbacks include FXAA and the counter,
+before DXGI presentation and window scaling. The window is 720p and the guest
+scanout is 1920x1080. Moments differ between captures; these are functional
+checks, not a performance comparison. The eight-case WARP test independently
+checks filtered pixels, exact alpha and unchanged source contents. Full movie,
+fresh avatar portrait, fullscreen and area-transition parity remain open.
 
 ## 2026-10-19 — DirectX FPS Counter
 

@@ -27,15 +27,15 @@ can resume from a local save.
   Continue after restarting.
 - A dedicated **Triangle → System → Graphics Settings** panel with persistent
   preferences, the game's menu frame and a scrollbar.
-- **98 Windows regression checks** pass in both Debug and optimized Release. The
+- **99 Windows regression checks** pass in both Debug and optimized Release. The
   latest native check loads Continue and moves briefly in town.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
 resolutions; VSync; anisotropic filtering from Off to 16×; Off/FXAA anti-aliasing;
 30/40/60/120/144/Unlocked frame limits; and an optional transparent FPS overlay.
 Vulkan is the primary renderer. DirectX 12 is an experimental, restart-selected
-renderer. Window mode, output size, VSync, filtering and the FPS overlay are integrated;
-FXAA and full rendering parity remain in development.
+renderer. Window mode, output size, VSync, filtering, FXAA and the FPS overlay are
+integrated. Full rendering and transition parity remain in development.
 
 **Frame rate:** use the 30 FPS baseline. Higher limits can exceed 30 presentations/s,
 but area transitions, cutscene skips and walking currently have reported faults

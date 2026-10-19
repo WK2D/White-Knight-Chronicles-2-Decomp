@@ -1240,7 +1240,31 @@ The new wkc2_present_metrics check covers clock origin/reset, errors, occlusion,
 stalls and bounded glyph generation. wkc2_d3d12_counter_gpu checks seven WARP
 cases through the production helper, including every RGBA background pixel,
 clipping, Off and fenced buffer reuse. The native menu regression checks that
-DirectX can toggle this setting independently while FXAA remains unavailable.
+DirectX can toggle this setting independently. FXAA was unavailable at this
+checkpoint and is added by patch 0110.
 All 98 Windows checks pass in both Debug and Release. An isolated saved-town run
 verifies the menu Off/On selections against renderer state and real backbuffer
 captures. No frame-rate improvement or broad rendering-parity claim follows.
+
+## Shared FXAA and live DirectX filtering (patch 0110)
+
+Extract the original Vulkan FXAA shader math into rsx_fxaa_hlsl.h without changing
+its expressions. Vulkan retains its bindings and the production shader fixture;
+DirectX uses t0/s0/u0 and a separate compute pipeline. The native Anti-Aliasing
+control is now available on DirectX. Source RGBA8 pixels and alpha are preserved;
+the filtered image is a separate UAV. Transition it to COPY_SOURCE after dispatch,
+restore the source state, copy the result, then add sharp counter glyphs. Off
+returns the original source without allocating or dispatching. Previous GPU
+references retire at the existing presentation fence before resize, descriptor
+updates or destruction. Movie presentation uses the same filter helper but has
+not been revalidated in a native movie run.
+
+wkc2_d3d12_fxaa_gpu verifies eight real WARP dispatch/copy cases against an
+independent CPU implementation, including every source and alpha byte, flat and
+diagonal/checker images, odd dimensions, a one-pixel image, resizing, reuse and
+Off. The RGB tolerance is two UNORM8 values. The native menu regression and
+Vulkan production shader-binding check also pass. All 99 Windows checks pass
+in Debug and Release. Isolated native menu/world captures and read-only applied
+settings verify Off/FXAA switching and a separate 1920x1080 output allocation;
+there are no FXAA-unavailable or D3D-failure messages in that run. This does
+not establish full visual fidelity, smooth traversal or movie/transition parity.
