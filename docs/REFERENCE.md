@@ -32,7 +32,7 @@ documentation. The [build guide](BUILD.md) explains how to run the game; the
 | **Syscall** | A call into the PS3 kernel (LV2), implemented natively by the runtime. |
 | **Lifting** | Translating PPU or SPU machine code to C/C++ ahead of time. |
 | **Interpreter fallback** | SPU code run instruction by instruction because no lifted version exists for it. |
-| **Presentation** | Handing a finished frame to the host window. The `Present/s` counter counts these. |
+| **Presentation** | Handing a finished frame to the host window. Presentation counters count these, including repeated animation states. |
 
 ## Environment variables
 

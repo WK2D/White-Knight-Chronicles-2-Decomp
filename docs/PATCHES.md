@@ -702,6 +702,10 @@ Release; see the [timings and worker census](FINDINGS.md#frame-pacing-and-game-s
 
 ## Vulkan window-title counter (patch 0065)
 
+Historical implementation: patch 0108 removes these window-title statistics
+from Vulkan and both DirectX hosts. The optional in-game FPS overlay remains
+a separate setting.
+
 Patch 0065 originally added an FPS and maximum interval readout to the Vulkan
 window title. Patch 0070 renames its rate label to `Present/s`; the counting
 method remains unchanged. At the 65-patch checkpoint, the Windows Vulkan build
@@ -1203,3 +1207,15 @@ Method layout and transfer semantics were checked against the
 [envytools NV_M2MF register description](https://github.com/envytools/envytools/blob/master/rnndb/graph/nv_m2mf.xml)
 and [RPCS3's NV0039 handler](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/NV47/HW/nv0039.cpp).
 The C handler and synthetic tests were written independently.
+
+## Static window captions (patch 0108)
+
+Keep the original game-name caption on Vulkan, the live DirectX null-window
+host, and the standalone DirectX backend. Remove the caption refresh loops
+and their private timing fields. Diagnostic measurements and the separately
+controlled in-game FPS overlay are unchanged. This is a UI-only change and
+does not alter frame pacing or rendering.
+
+All 96 Windows checks pass in Debug and Release. Hidden, muted startup runs
+confirmed static captions on Vulkan and live DirectX after 12 seconds without
+controller input. Standalone DirectX was compiled, but was not launched.

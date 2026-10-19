@@ -8,7 +8,7 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 107 SDK patches / 96 Windows checks. The shader-translation
+Current source: 108 SDK patches / 96 Windows checks. The shader-translation
 cache reduces measured compilation stalls; existing images retain their original
 build provenance. The newest capture shows DirectX Graphics Settings in the 107-patch build.
 Earlier town captures use the native FPS overlay after Continue in the 104-patch

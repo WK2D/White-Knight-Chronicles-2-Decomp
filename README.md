@@ -39,8 +39,8 @@ the in-game overlay and full rendering parity remain in development.
 
 **Frame rate:** use the 30 FPS baseline. Higher limits can exceed 30 presentations/s,
 but area transitions, cutscene skips and walking currently have reported faults
-above 30. The window-title
-`Present/s` counter measures presentations and can include repeated animation states.
+above 30. Window titles show only the game name. The optional in-game FPS
+overlay measures presentations and can include repeated animation states.
 
 ## Known issues
 

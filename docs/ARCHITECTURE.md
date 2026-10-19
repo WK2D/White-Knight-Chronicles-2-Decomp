@@ -60,9 +60,8 @@ records the fix and the ten-minute idle validation.
 
 The runtime honors real flip requests and the game's vblank/semaphore pacing.
 Graphics Settings adjusts both the host frame cap and the guest timing hooks;
-raising a host cap alone does not unlock the game. The window-title `Present/s`
-counter measures accepted queue presentations and the maximum interval. It does
-not count distinct guest animation updates or display scanout. See
+raising a host cap alone does not unlock the game. Window captions remain static. The optional in-game FPS overlay measures
+presentations; it does not count distinct guest animation updates or display scanout. See
 [graphics settings and timing](PATCHES.md#native-graphics-settings-patches-0081-0082)
 for the current controls and validation limits.
 

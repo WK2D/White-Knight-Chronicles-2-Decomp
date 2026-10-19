@@ -4,7 +4,7 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-19):** the stack contains 107 SDK patches. All
+**Current validation (2026-10-19):** the stack contains 108 SDK patches. All
 96 Windows checks pass in normal Debug and optimized Release. Reapplying the
 complete stack changes no SDK files. Vulkan Continue and short town movement
 were rechecked on patch 0105; isolated DirectX Continue and menu captures are
@@ -38,9 +38,9 @@ request, and `RSX_VK_PRESENT_MODE=mailbox` prefers mailbox presentation when the
 device supports it, with FIFO fallback. Flips wait for the next vblank
 (`WKC2_FLIP_ON_VBLANK=0` turns that off). Vblanks are timed on the high-resolution
 counter at 59.94 Hz for the default 30 FPS option; higher caps select twice
-the requested rate, and Unlocked services ticks without the fixed interval. Note that the
-window title labels the counter `Present/s`; repeated animation states still
-count, so this can exceed the game's own update rate. The startup defaults also
+the requested rate, and Unlocked services ticks without the fixed interval.
+The optional in-game FPS overlay counts presentations; repeated animation states
+still count, so this can exceed the game's own update rate. The startup defaults also
 set `GCM_SEMA_ACQUIRE=1` to honor the game's two-vblank semaphore gate and
 `RSX_ENGINE_ZTEX_GPU=1` for supported GPU depth re-encoding. Patch
 0068 allows flip completion only after an actual FIFO or immediate flip request;
@@ -134,7 +134,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 107 numbered SDK patches, and all 96 checks
+The current source stack contains 108 numbered SDK patches, and all 96 checks
 pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
@@ -203,9 +203,9 @@ Use Continue to load the verified town save for repeat runs. Repeating the
 intro and avatar creator is unnecessary when that slot is present. The save is
 private game data and is not distributed by this repository.
 
-The Vulkan window title includes `Present/s` and the longest
-presentation interval without a diagnostic switch; see
-[counter scope](PATCHES.md#vulkan-window-title-counter-patch-0065).
+Window titles show only the game name on Vulkan and DirectX. Patch 0108
+removes the former title-bar statistics. The optional in-game FPS overlay is
+controlled separately in Graphics Settings; DirectX overlay support is pending.
 
 Runtime switches, all off unless set:
 

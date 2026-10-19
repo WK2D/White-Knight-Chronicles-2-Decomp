@@ -364,14 +364,14 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 107,
-    "last_verified_sdk_patch_count": 107,
+    "current_sdk_patch_count": 108,
+    "last_verified_sdk_patch_count": 108,
     "current_passed_count": 96,
-    "record_scope": "107 SDK patches / 96 Windows checks pass in Debug and Release; media checks ran without skips.",
-    "normal_debug_elapsed_seconds": 28.33,
-    "optimized_release_elapsed_seconds": 24.42,
+    "record_scope": "108 SDK patches / 96 Windows checks pass in Debug and Release; media checks ran without skips.",
+    "normal_debug_elapsed_seconds": 27.06,
+    "optimized_release_elapsed_seconds": 23.53,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 107
+    "repeat_patch_application_verified_sdk_patch_count": 108
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2806,7 +2806,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 107 SDK patches / 96 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 108 SDK patches / 96 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live renderer; restart required; window mode, output size, VSync and filtering integrated; FXAA/overlay and rendering parity remain open",
@@ -3196,5 +3196,20 @@
     "patch_0107_windows_debug_checks_passed": 96,
     "patch_0107_windows_release_checks_passed": 96,
     "real_fullscreen_transition_verified": false
+  },
+  "static_window_captions": {
+    "sdk_patch_count": 108,
+    "renderers": [
+      "Vulkan",
+      "live DirectX host",
+      "standalone DirectX"
+    ],
+    "window_statistics_enabled": false,
+    "in_game_fps_overlay_unchanged": true,
+    "normal_startup_input_automated": false,
+    "native_vulkan_caption_verified": true,
+    "native_live_directx_caption_verified": true,
+    "native_validation_scope": "Hidden, muted startup windows inspected after 12 seconds with no injected controller input; standalone DirectX compiled but not launched.",
+    "full_gameplay_revalidated": false
   }
 }
