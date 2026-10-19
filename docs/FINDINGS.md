@@ -27,6 +27,7 @@ logging, profiler and visibility conditions; they are not interchangeable.
 **Performance, timing and presentation**
 
 - [Shader translation stalls and cache](#shader-translation-stalls-and-cache-patch-0100)
+- [Native texture write-tracking experiment](#native-texture-write-tracking-experiment)
 - [Guest memory and write-tracking follow-up](#guest-memory-and-write-tracking-follow-up)
 - [SPURS polling stalls and register-local candidates](#spurs-polling-stalls-and-register-local-candidates)
 - [GPU command spans and the town wait chain](#gpu-command-spans-and-the-town-wait-chain)
@@ -293,6 +294,48 @@ scanout or console-equivalent game speed. A roughly 100 ms hitch still misses
 three 30 Hz frame budgets. Consistently smooth traversal remains open, as do
 first-use compilation and the remaining CPU/graphics work.
 
+## Native texture write-tracking experiment
+
+**Problem.** Re-hashing unchanged texture bytes remains CPU work after the
+shader-cache fix. A tracker must see native stores as well as guest accessors,
+and prevent host I/O or memory commits from silently bypassing protection.
+
+**Private implementation.** A separate 100-patch SDK snapshot connects the tracker
+to demand paging, reserved-only commits, relevant protection changes, synchronous
+file reads, socket receive buffers and the draw engine's texture hashing.
+Individual page-generation tokens validate each texture range. Kernel-write
+leases keep destinations writable until calls return, including nested leases.
+The default verifier still performs every original hash and compares proposed
+reuses byte-for-byte with retained source bytes. A test deliberately resets page
+protection outside the wrapper and changes a byte; the verifier detects it and
+forces verification mode. Replay use before tracker initialization remains on
+the original I/O path.
+
+**Evidence.** Two hidden, muted native runs reload Continue and complete the short
+town route. Their endpoints record 775,284 and 619,642 proposed reuses checked,
+with zero byte mismatches and zero failed I/O leases. Verification also continues
+while stationary after the route; these counts are not movement-only samples.
+Across both endpoints, about 87.95 GB of source bytes are compared. No hashes are
+skipped in these two runs.
+
+A later same-process comparison switches actual hash skipping and original
+hashing in fast/original/original/fast/original/fast order. Three twelve-second
+fast phases perform 236,565 skips, hashing 22.81 MB, versus 15.18 GB hashed in
+three original phases. Mean presentation rates are 27.63/s and 27.44/s; mean
+process CPU time per presentation is 163.31 ms and 165.81 ms. Scene variation is
+large enough that a consistent FPS improvement is not established. The
+[reviewed record](../verification/performance.json) retains every phase.
+
+**Next work.** Finish kernel-output and shutdown/lifetime coverage, test more
+scenes and verify real resource reuse before promotion. Vertex decoding/fetch
+and the remaining guest-memory/SPU costs are separate remaining work.
+
+**Limits.** This is private experimental code, not part of the desktop build.
+Fast phases do not do the verifier's byte comparison; correctness evidence comes
+from the separate verification runs and synthetic failure tests. The prototype
+has no verified macOS backend or vertex-cache integration. Presentation counts
+do not establish correct animation speed, visible smoothness or locked 30 FPS.
+
 ## Guest memory and write-tracking follow-up
 
 **Problem.** With repeated shader compilation removed, guest-memory access,
@@ -323,7 +366,7 @@ then compare actual resource hashes against every proposed cache reuse in native
 runs before enabling hash skipping. In particular, a kernel write must keep its
 pages unprotected until completion; a timeout alone cannot establish completion.
 
-**Limits.** This is a tested tracker core, not an integrated texture/vertex cache,
+**Initial limits.** At that checkpoint this was a tested tracker core, not an integrated texture/vertex cache,
 a measured tracking speedup or verified macOS support. Live NPC movement changes
 stationary scene cost. Presentation counts and untraced game-clock accumulators
 do not prove unique animation updates or correct game speed.

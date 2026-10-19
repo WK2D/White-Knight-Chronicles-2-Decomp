@@ -1753,5 +1753,275 @@
       "Twelve-second samples; presentation counts do not establish unique game updates",
       "Game clock fields have not been traced to authoritative animation semantics"
     ]
+  },
+  "texture_write_tracking_private_2026_10_19": {
+    "base_sdk_patches": 100,
+    "included_in_desktop_build": false,
+    "verification_mode": "Always hash and compare each proposed reuse byte-for-byte with retained source bytes; individual page generations",
+    "verification_runs": [
+      {
+        "probe": "20261019-061553",
+        "candidate_sha256": "A222E59DFAFAC1E1DE63474EAA4BB85332BE5381DE1971831ED65B79D108DE43",
+        "faults": 15532,
+        "pages_protected": 21630,
+        "coverage": "Continue from WKC1 save, stationary, forward/back movement",
+        "limits": [
+          "Short route, not full-game coverage",
+          "Pending further protection and kernel-output integration",
+          "No performance gain or visual fidelity claim"
+        ],
+        "hash_calls": 779391,
+        "hashed_bytes": 49800510456,
+        "proposed_reuses": 775284,
+        "verified_bytes": 48771646112,
+        "mismatches": 0,
+        "kernel_write_leases": 2845,
+        "lease_failures": 0,
+        "actual_skips": 0
+      },
+      {
+        "probe": "20261019-062012",
+        "candidate_sha256": "E6955DF64155D8DBC204BB4A67A4C4C49B07BA55D7FDB559FBD02B5A5D18FB31",
+        "mode": 2,
+        "hash_calls": 623129,
+        "hashed_bytes": 40198301992,
+        "proposed_reuses": 619642,
+        "verified_bytes": 39178044368,
+        "mismatches": 0,
+        "kernel_write_leases": 2794,
+        "lease_failures": 0,
+        "reserved_commits": 1847,
+        "actual_skips": 0,
+        "faults": 15519,
+        "protected_pages": 21626
+      }
+    ],
+    "hash_skipping_comparison": {
+      "candidate_sha256": "9E80FECC581D869DF3575CF5D87286071ABFBF061D622C86E610A7CA296FB80F",
+      "hidden": true,
+      "muted": true,
+      "same_process_no_input": true,
+      "samples": [
+        {
+          "phase": 0,
+          "mode": 1,
+          "seconds": 12.001704599999357,
+          "frames": 346,
+          "presentations_per_second": 28.829238140057083,
+          "process_cpu_ms_per_present": 153.13403179190752,
+          "p50_ms": 32.625599997118115,
+          "p95_ms": 50.15929997898638,
+          "max_ms": 57.769899955019355,
+          "over_40ms": 29,
+          "observer_max_gap_ms": 8.144300023559481,
+          "clock_deltas": [
+            11.115125178359449,
+            11.09927864279598,
+            332.9783591926098
+          ],
+          "write_watch_delta": {
+            "requests": 97876,
+            "hashed_bytes": 8855552,
+            "proposed_reuses": 96795,
+            "verified_bytes": 0,
+            "mismatches": 0,
+            "unused5": 0,
+            "unused6": 0,
+            "kernel_leases": 27,
+            "lease_failures": 0,
+            "commits": 0,
+            "untrusted": 1063,
+            "actual_skips": 96795
+          }
+        },
+        {
+          "phase": 1,
+          "mode": 0,
+          "seconds": 12.002251600031741,
+          "frames": 317,
+          "presentations_per_second": 26.411710949232365,
+          "process_cpu_ms_per_present": 173.10725552050474,
+          "p50_ms": 32.63425000477582,
+          "p95_ms": 55.15610001748428,
+          "max_ms": 59.95199998142198,
+          "over_40ms": 85,
+          "observer_max_gap_ms": 3.1628000433556736,
+          "clock_deltas": [
+            8.77095525804907,
+            8.705504798330367,
+            261.1651403903961
+          ],
+          "write_watch_delta": {
+            "requests": 66826,
+            "hashed_bytes": 4414083584,
+            "proposed_reuses": 0,
+            "verified_bytes": 0,
+            "mismatches": 0,
+            "unused5": 0,
+            "unused6": 0,
+            "kernel_leases": 48,
+            "lease_failures": 0,
+            "commits": 0,
+            "untrusted": 66826,
+            "actual_skips": 0
+          }
+        },
+        {
+          "phase": 2,
+          "mode": 0,
+          "seconds": 12.000484100019094,
+          "frames": 327,
+          "presentations_per_second": 27.248900733886202,
+          "process_cpu_ms_per_present": 167.3834097859327,
+          "p50_ms": 32.62529999483377,
+          "p95_ms": 54.73329999949783,
+          "max_ms": 58.75689996173605,
+          "over_40ms": 65,
+          "observer_max_gap_ms": 4.653299984056503,
+          "clock_deltas": [
+            10.939534857869148,
+            10.88992378115654,
+            326.6977093219757
+          ],
+          "write_watch_delta": {
+            "requests": 77892,
+            "hashed_bytes": 4916674472,
+            "proposed_reuses": 0,
+            "verified_bytes": 0,
+            "mismatches": 0,
+            "unused5": 0,
+            "unused6": 0,
+            "kernel_leases": 29,
+            "lease_failures": 0,
+            "commits": 0,
+            "untrusted": 77893,
+            "actual_skips": 0
+          }
+        },
+        {
+          "phase": 3,
+          "mode": 1,
+          "seconds": 12.002087599947117,
+          "frames": 328,
+          "presentations_per_second": 27.328579071647937,
+          "process_cpu_ms_per_present": 164.4435975609756,
+          "p50_ms": 32.64869999838993,
+          "p95_ms": 54.20640000374988,
+          "max_ms": 59.753799985628575,
+          "over_40ms": 63,
+          "observer_max_gap_ms": 6.207200000062585,
+          "clock_deltas": [
+            10.206048398278654,
+            10.156273088417947,
+            304.6881894171238
+          ],
+          "write_watch_delta": {
+            "requests": 76308,
+            "hashed_bytes": 7552752,
+            "proposed_reuses": 75412,
+            "verified_bytes": 0,
+            "mismatches": 0,
+            "unused5": 0,
+            "unused6": 0,
+            "kernel_leases": 25,
+            "lease_failures": 0,
+            "commits": 0,
+            "untrusted": 851,
+            "actual_skips": 75412
+          }
+        },
+        {
+          "phase": 4,
+          "mode": 0,
+          "seconds": 12.002311300020665,
+          "frames": 344,
+          "presentations_per_second": 28.66114629099878,
+          "process_cpu_ms_per_present": 156.9313226744186,
+          "p50_ms": 32.67839999170974,
+          "p95_ms": 49.784000031650066,
+          "max_ms": 57.1707000490278,
+          "over_40ms": 30,
+          "observer_max_gap_ms": 3.7545000086538494,
+          "clock_deltas": [
+            11.139859871938825,
+            11.12870610691607,
+            333.86118254065514
+          ],
+          "write_watch_delta": {
+            "requests": 98222,
+            "hashed_bytes": 5845642536,
+            "proposed_reuses": 0,
+            "verified_bytes": 0,
+            "mismatches": 0,
+            "unused5": 0,
+            "unused6": 0,
+            "kernel_leases": 27,
+            "lease_failures": 0,
+            "commits": 0,
+            "untrusted": 98222,
+            "actual_skips": 0
+          }
+        },
+        {
+          "phase": 5,
+          "mode": 1,
+          "seconds": 12.001638999965508,
+          "frames": 321,
+          "presentations_per_second": 26.74634689486349,
+          "process_cpu_ms_per_present": 172.36176012461058,
+          "p50_ms": 33.985149988438934,
+          "p95_ms": 52.717700018547475,
+          "max_ms": 57.65500001143664,
+          "over_40ms": 78,
+          "observer_max_gap_ms": 3.120899957139045,
+          "clock_deltas": [
+            8.544576897285879,
+            8.491625576280057,
+            254.7487635910511
+          ],
+          "write_watch_delta": {
+            "requests": 65139,
+            "hashed_bytes": 6397952,
+            "proposed_reuses": 64358,
+            "verified_bytes": 0,
+            "mismatches": 0,
+            "unused5": 0,
+            "unused6": 0,
+            "kernel_leases": 29,
+            "lease_failures": 0,
+            "commits": 0,
+            "untrusted": 763,
+            "actual_skips": 64358
+          }
+        }
+      ],
+      "summary": {
+        "0": {
+          "mean_presentations_per_second": 27.440585991372448,
+          "mean_process_cpu_ms_per_present": 165.80732932695201,
+          "hashed_bytes": 15176400592,
+          "actual_skips": 0
+        },
+        "1": {
+          "mean_presentations_per_second": 27.63472136885617,
+          "mean_process_cpu_ms_per_present": 163.31312982583123,
+          "hashed_bytes": 22806256,
+          "actual_skips": 236565
+        }
+      }
+    },
+    "scope": [
+      "Continue from verified WKC1 save",
+      "Stationary town and short forward/back route",
+      "Windows native fault, commit and synchronous file/socket read integration"
+    ],
+    "limits": [
+      "No consistent FPS gain established",
+      "Hash-skipping phases do not perform byte-for-byte verification; verification is in separate runs",
+      "Remaining kernel-output and lifecycle audit before promotion",
+      "No integrated vertex cache or macOS write-watch verification",
+      "Game-clock accumulators remain untraced",
+      "Network receive wrappers compile; live network traffic was not tested"
+    ]
   }
 }
