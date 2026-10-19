@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Vulkan shader translation reuse removes repeated compilation stalls. 100 SDK patches / 87 Windows checks in Debug and Release; the regular Release build reloads Continue and completes a short town route. Worst return-leg interval is about 100 ms in this probe; consistently smooth 30 FPS, game-speed fidelity and flicker remain open.",
+    "current_milestone": "Grouped vertex conversion reduces repeated format dispatch without retaining guest data. 101 SDK patches / 88 Windows checks pass in Debug and Release; Continue and a short town route are rechecked. The fixed-work conversion benchmark improves; a sustained game FPS gain, smooth 30 FPS traversal, game-speed fidelity and flicker fixes remain unverified.",
     "updated": "2026-10-19"
   },
   "native_data_installation_verified": true,
@@ -153,9 +153,9 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 100,
-    "runtime_checks_passed": 87,
-    "town_native_run_sdk_patch_count": 100,
+    "sdk_patch_count": 101,
+    "runtime_checks_passed": 88,
+    "town_native_run_sdk_patch_count": 101,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
     "patch_0042_native_game_run_verified": true,
@@ -226,7 +226,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 100,
+    "runtime_checks_verified_sdk_patch_count": 101,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -236,8 +236,8 @@
       "GCM_SEMA_ACQUIRE": "1",
       "RSX_ENGINE_ZTEX_GPU": "1"
     },
-    "normal_debug_checks_elapsed_seconds": 12.6,
-    "optimized_release_checks_elapsed_seconds": 12.56,
+    "normal_debug_checks_elapsed_seconds": 28.06,
+    "optimized_release_checks_elapsed_seconds": 24.82,
     "repeat_patch_application_files_changed": 0,
     "patch_0071_windows_regression_verified": true,
     "patch_0072_windows_regression_verified": true,
@@ -253,7 +253,7 @@
     "patch_0074_native_game_run_verified": true,
     "patch_0074_texture_compare_direction_gpu_verified": true,
     "patch_0074_foot_shadow_flicker_fixed_verified": false,
-    "repeat_patch_application_verified_sdk_patch_count": 94,
+    "repeat_patch_application_verified_sdk_patch_count": 101,
     "patch_0075_windows_regression_verified": true,
     "patch_0075_native_interaction_verified": true,
     "patch_0075_save_load_verified": true,
@@ -332,7 +332,9 @@
     "patch_0099_windows_regression_verified": true,
     "patch_0099_native_game_run_verified": true,
     "patch_0100_windows_regression_verified": true,
-    "patch_0100_native_game_run_verified": true
+    "patch_0100_native_game_run_verified": true,
+    "patch_0101_windows_regression_verified": true,
+    "patch_0101_native_game_run_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -447,8 +449,8 @@
     }
   },
   "current_native_observation": {
-    "sdk_patch_count": 100,
-    "probe": "20261019-055322",
+    "sdk_patch_count": 101,
+    "probe": "20261019-071241",
     "town_reached": true,
     "save_reload_verified": true,
     "short_movement_verified": true,
@@ -460,12 +462,12 @@
     "shader_compilation_hitch_reduction_verified": true,
     "shadow_flicker_fix_verified": false,
     "full_visual_fidelity_verified": false,
-    "scope": "Regular Release build, no experimental fast-memory or generated-code optimization enabled. No shader timing sampler during the movement measurements; host IP sampling follows the route."
+    "scope": "Regular Release build with grouped vertex conversion. Continue and a short town route; no private comparison, fast-memory, write-tracking or vertex-reuse cache enabled. No CPU sampling or concurrent compilation during this route."
   },
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 100 SDK patches / 87 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 101 SDK patches / 88 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -878,5 +880,32 @@
     ],
     "measurement": "verification/performance.json#spirv_translation_cache_2026_10_19",
     "remaining": "First-use compilation, GPU pipeline creation and other CPU/graphics costs; smooth 30 FPS traversal unverified"
+  },
+  "historical_0100_native_observation": {
+    "sdk_patch_count": 100,
+    "probe": "20261019-055322",
+    "town_reached": true,
+    "save_reload_verified": true,
+    "short_movement_verified": true,
+    "hidden": true,
+    "muted": true,
+    "exit_code": null,
+    "termination": "Stopped by private harness after measurement and CPU sampling completed",
+    "sustained_town_fps_gain_verified": false,
+    "shader_compilation_hitch_reduction_verified": true,
+    "shadow_flicker_fix_verified": false,
+    "full_visual_fidelity_verified": false,
+    "scope": "Regular Release build, no experimental fast-memory or generated-code optimization enabled. No shader timing sampler during the movement measurements; host IP sampling follows the route."
+  },
+  "grouped_vertex_conversion": {
+    "sdk_patch": 101,
+    "regression": "wkc2_vertex_batch",
+    "differential_cases": 69140,
+    "native_comparison_draws": 4846180,
+    "native_mismatches": 0,
+    "native_comparison_scope": "Private wrapper around the production batch decoder versus fetch_one; Continue, short town movement and additional idle",
+    "retains_guest_or_output_data_between_draws": false,
+    "fps_gain_verified": false,
+    "measurement": "verification/performance.json#grouped_vertex_conversion_2026_10_19"
   }
 }

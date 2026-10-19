@@ -4,9 +4,11 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-19):** the stack contains 100 SDK patches. All
-87 Windows checks pass in normal Debug and optimized Release. Reapplying the
+**Current validation (2026-10-19):** the stack contains 101 SDK patches. All
+88 Windows checks pass in normal Debug and optimized Release. Reapplying the
 complete stack changes no SDK files. The native Vulkan build loads Continue and moves briefly in town. The latest
+[grouped vertex conversion](FINDINGS.md#grouped-vertex-conversion-patch-0101)
+reduces fixed-work conversion cost without an established game FPS gain. The
 [shader-cache comparison](FINDINGS.md#shader-translation-stalls-and-cache-patch-0100)
 reduces compilation hitches; the [latest town images](GALLERY.md#2026-10-19---window-depth-clip-range-check)
 retain their earlier build provenance.
@@ -122,7 +124,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 100 numbered SDK patches, and all 87 checks
+The current source stack contains 101 numbered SDK patches, and all 88 checks
 pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their

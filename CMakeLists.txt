@@ -630,6 +630,16 @@ if(WKC2_BUILD_TESTS)
     add_test(NAME wkc2_rsx_request_audit COMMAND wkc2_rsx_request_audit_test
         "${CMAKE_CURRENT_BINARY_DIR}/rsx-audit-test.tsv")
     set_tests_properties(wkc2_rsx_request_audit PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_vertex_batch_test tests/vertex_batch_test.cpp
+        "${PS3RECOMP_DIR}/libs/video/rsx_vertex_compact.c"
+        "${PS3RECOMP_DIR}/libs/video/rsx_dispatch.c")
+    target_include_directories(wkc2_vertex_batch_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
+    if(NOT WIN32)
+        target_link_libraries(wkc2_vertex_batch_test PRIVATE m)
+    endif()
+    add_test(NAME wkc2_vertex_batch COMMAND wkc2_vertex_batch_test)
+    set_tests_properties(wkc2_vertex_batch PROPERTIES TIMEOUT 20)
     add_executable(wkc2_draw_engine_test
         "${PS3RECOMP_DIR}/libs/video/tests/test_rsx_draw_engine.c"
         "${PS3RECOMP_DIR}/libs/video/rsx_draw_engine.c"

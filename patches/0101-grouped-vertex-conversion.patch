@@ -1,0 +1,168 @@
+diff --git a/libs/video/rsx_vertex_compact.c b/libs/video/rsx_vertex_compact.c
+--- a/libs/video/rsx_vertex_compact.c
++++ b/libs/video/rsx_vertex_compact.c
+@@ -33,7 +33,16 @@
+     return f;
+ }
+ 
+-int rsx_vertex_decode_element(
++/* Force specialization when a batch passes a constant format. */
++#if defined(_MSC_VER)
++#define RSX_COMPACT_INLINE static __forceinline
++#elif defined(__GNUC__) || defined(__clang__)
++#define RSX_COMPACT_INLINE static inline __attribute__((always_inline))
++#else
++#define RSX_COMPACT_INLINE static inline
++#endif
++
++RSX_COMPACT_INLINE int rsx_vertex_decode_impl(
+     u32 type, u32 size, const u8* source, float out[4])
+ {
+     if (!source || !out)
+@@ -88,6 +97,12 @@
+         }
+     }
+     return 1;
++}
++
++int rsx_vertex_decode_element(
++    u32 type, u32 size, const u8* source, float out[4])
++{
++    return rsx_vertex_decode_impl(type, size, source, out);
+ }
+ 
+ void rsx_vertex_layout_plan_init(
+@@ -292,6 +307,96 @@
+     return 1;
+ }
+ 
++RSX_COMPACT_INLINE const u8* rsx_vertex_batch_source(
++    const rsx_vertex_fetch_plan* plan, const rsx_vertex_fetch_attr* fetch,
++    u32 attr, const rsx_vertex_ref* ref)
++{
++    const u32 element = rsx_vertex_element_index(
++        ref->vertex_id, ref->base_index, fetch->desc.frequency,
++        (plan->divider_mask >> attr) & 1u);
++    if (fetch->stable_base && element >= fetch->stable_first &&
++        element <= fetch->stable_last)
++        return fetch->stable_base +
++            (u64)(element - fetch->stable_first) * fetch->stride;
++    if (plan->inline_data || !plan->guest_ptr)
++        return NULL;
++    const u32 offset = plan->base_offset + fetch->desc.offset +
++        element * fetch->stride;
++    return plan->guest_ptr(plan->guest_user, fetch->desc.location,
++                           offset, fetch->elem_size);
++}
++
++RSX_COMPACT_INLINE int rsx_vertex_batch_column(
++    const rsx_vertex_fetch_plan* plan, const rsx_vertex_ref* refs,
++    u32 count, u8* out, u32 slot, u32 attr, u32 type)
++{
++    const rsx_vertex_fetch_attr* fetch = &plan->attr[attr];
++    for (u32 i = 0; i < count; i++) {
++        float* value = (float*)(out + (size_t)i * plan->layout.stride + slot * 16u);
++        const u8* source = rsx_vertex_batch_source(plan, fetch, attr, &refs[i]);
++        if (source && rsx_vertex_decode_impl(type, fetch->desc.size, source, value))
++            continue;
++        if (attr == 0)
++            return 0;
++        memcpy(value, fetch->default_value, 16);
++    }
++    return 1;
++}
++
++int rsx_vertex_fetch_batch(
++    const rsx_vertex_fetch_plan* plan, const rsx_vertex_ref* refs,
++    u32 count, u8* out)
++{
++    if (!plan || (!refs && count) || (!out && count && plan->layout.stride))
++        return 0;
++    if (!count || !plan->layout.stride)
++        return 1;
++    if (plan->layout.count > RSX_DSP_NUM_VERTEX_ATTR ||
++        plan->layout.stride < plan->layout.count * 16u ||
++        (size_t)count > SIZE_MAX / plan->layout.stride)
++        return 0;
++    for (u32 slot = 0; slot < plan->layout.count; slot++) {
++        const u32 attr = plan->layout.attrs[slot];
++        if (attr >= RSX_DSP_NUM_VERTEX_ATTR)
++            return 0;
++        const rsx_vertex_fetch_attr* fetch = &plan->attr[attr];
++        if (!fetch->desc.type || !fetch->desc.size) {
++            for (u32 i = 0; i < count; i++)
++                memcpy(out + (size_t)i * plan->layout.stride + slot * 16u,
++                       fetch->default_value, 16);
++            continue;
++        }
++        int ok;
++        /* One format dispatch per attribute, outside the vertex/component loops. */
++#define RSX_BATCH_CASE(type) \
++        case type: \
++            ok = rsx_vertex_batch_column(plan, refs, count, out, slot, attr, type); \
++            break
++        switch (fetch->desc.type) {
++            RSX_BATCH_CASE(RSX_VTX_TYPE_FLOAT);
++            RSX_BATCH_CASE(RSX_VTX_TYPE_HALF);
++            RSX_BATCH_CASE(RSX_VTX_TYPE_UNORM8);
++            RSX_BATCH_CASE(RSX_VTX_TYPE_UINT8);
++            RSX_BATCH_CASE(RSX_VTX_TYPE_SNORM16);
++            RSX_BATCH_CASE(RSX_VTX_TYPE_SINT16);
++            RSX_BATCH_CASE(RSX_VTX_TYPE_CMP32);
++        default:
++            if (attr == 0)
++                return 0;
++            for (u32 i = 0; i < count; i++)
++                memcpy(out + (size_t)i * plan->layout.stride + slot * 16u,
++                       fetch->default_value, 16);
++            ok = 1;
++        }
++#undef RSX_BATCH_CASE
++        if (!ok)
++            return 0;
++    }
++    return 1;
++}
++
++#undef RSX_COMPACT_INLINE
++
+ static u64 rsx_vertex_remap_hash(u64 value)
+ {
+     value ^= value >> 33;
+diff --git a/libs/video/rsx_vertex_compact.h b/libs/video/rsx_vertex_compact.h
+--- a/libs/video/rsx_vertex_compact.h
++++ b/libs/video/rsx_vertex_compact.h
+@@ -116,6 +116,14 @@
+ int rsx_vertex_fetch_one(
+     const rsx_vertex_fetch_plan* plan, const rsx_vertex_ref* ref, u8* out);
+ 
++/* Fetch a complete compact draw, grouping work by attribute and format.
++ * Uses fetch_one's conversion and fallback rules without retaining source or
++ * output data. On failure, partial output is unspecified and must be discarded.
++ * A zero-count draw needs neither refs nor output. */
++int rsx_vertex_fetch_batch(
++    const rsx_vertex_fetch_plan* plan, const rsx_vertex_ref* refs,
++    u32 count, u8* out);
++
+ /* Collapse repeated (vertex_id, base_index) references in first-use order.
+  * refs is rewritten in place with the unique prefix.  The occurrence map
+  * remains valid until the next call using the same remap object. */
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -2049,12 +2049,9 @@
+         dc.fetch_ok = 0;
+         return;
+     }
+-    for (u32 i = 0; i < dc.n_refs; i++) {
+-        u8* dst = layout->stride ? dc.verts + (u64)i * layout->stride : NULL;
+-        if (!rsx_vertex_fetch_one(&dc.fetch_plan, &dc.refs[i], dst)) {
+-            dc.fetch_ok = 0;
+-            return;
+-        }
++    if (!rsx_vertex_fetch_batch(&dc.fetch_plan, dc.refs, dc.n_refs, dc.verts)) {
++        dc.fetch_ok = 0;
++        return;
+     }
+     dc.n_verts = dc.n_refs;
+ }

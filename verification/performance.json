@@ -2023,5 +2023,100 @@
       "Game-clock accumulators remain untraced",
       "Network receive wrappers compile; live network traffic was not tested"
     ]
+  },
+  "grouped_vertex_conversion_2026_10_19": {
+    "sdk_patch": 101,
+    "method": "Group conversion by attribute and vertex format; preserve the existing endian, half, normalization, instancing and fallback rules",
+    "synthetic": {
+      "differential_cases": 69140,
+      "all_half_encodings": 65536,
+      "successful_output_comparison": "Exact bytes",
+      "failed_draws": "Return status must match; partial output discarded",
+      "negative_control": "Inverted instancing divider rule fails at differential case 444",
+      "benchmark": {
+        "scope": "Fixed-work synthetic conversion only, not game FPS",
+        "batches": 500000,
+        "vertices_per_batch": 16,
+        "attributes_per_vertex": 3,
+        "format": "Three float32 components per attribute; prepared contiguous sources",
+        "original_ns": 72265300,
+        "grouped_ns": 44625200,
+        "original_checksum": 53216651,
+        "grouped_checksum": 53216651
+      }
+    },
+    "native_differential": {
+      "probe": "20261019-071031",
+      "exe_sha256": "1a46e74e64c5d96450b15f74b04fc46ac35f03ef6cc4ea43005e54d933f6cde8",
+      "scope": "Production C decoder through a private per-draw comparison wrapper; Continue, short movement, then idle",
+      "draws_checked": 4846180,
+      "mismatches": 0,
+      "hidden": true,
+      "muted": true,
+      "fast_guest_reads": false,
+      "write_tracking_or_vertex_reuse_cache": false
+    },
+    "windows_checks": {
+      "passed": 88,
+      "configurations": [
+        "Debug",
+        "Release"
+      ],
+      "debug_seconds": 28.06,
+      "release_seconds": 24.82
+    },
+    "patch_application": {
+      "clean_prefix": 0,
+      "upgrade_prefix": 100,
+      "upgrade_files_changed": 3,
+      "repeat_files_changed": 0
+    },
+    "production_run": {
+      "probe": "20261019-071241",
+      "exe_sha256": "66e3adff204de3a3d951048a86ab829de279d72648036fa31e8e23436db401be",
+      "hidden": true,
+      "muted": true,
+      "save_reload_verified": true,
+      "short_movement_verified": true,
+      "shader_translation_cache": true,
+      "fast_guest_reads": false,
+      "write_tracking_or_vertex_reuse_cache": false,
+      "phases": [
+        {
+          "phase": "idle",
+          "seconds": 10.000323199958075,
+          "presentations": 300,
+          "presentations_per_second": 29.999030431462227,
+          "p95_observed_present_interval_ms": 35.16100003616884,
+          "max_observed_present_interval_ms": 45.16340000554919,
+          "observer_max_gap_ms": 3.855800023302436
+        },
+        {
+          "phase": "forward",
+          "seconds": 10.000177300011273,
+          "presentations": 295,
+          "presentations_per_second": 29.49947697423999,
+          "p95_observed_present_interval_ms": 35.184300038963556,
+          "max_observed_present_interval_ms": 87.72830001544207,
+          "observer_max_gap_ms": 3.696999978274107
+        },
+        {
+          "phase": "back",
+          "seconds": 10.001924799988046,
+          "presentations": 208,
+          "presentations_per_second": 20.795997186486403,
+          "p95_observed_present_interval_ms": 67.70310003776103,
+          "max_observed_present_interval_ms": 127.75300000794232,
+          "observer_max_gap_ms": 14.219500008039176
+        }
+      ],
+      "counter_scope": "Observed completed presentations; not unique animation updates. Read-only observer; no GPU timestamps, CPU sampler or concurrent compilation."
+    },
+    "limits": [
+      "No sustained game FPS gain established",
+      "No new visual fidelity or screenshot claim",
+      "Does not bypass guest-memory validation, retain decoded vertices or change GPU allocations",
+      "Mac and Linux builds not tested for this patch"
+    ]
   }
 }

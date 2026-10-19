@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0101 | [Grouped vertex conversion](#grouped-vertex-conversion-patch-0101) |
 | Patch 0100 | [SPIR-V translation cache](#spir-v-translation-cache-patch-0100) |
 | Patch 0099 | [Platform query outputs and syscall warnings](#platform-query-outputs-and-syscall-warnings-patch-0099) |
 | Patch 0098 | [Vulkan window-depth clip range](#vulkan-window-depth-clip-range-patch-0098) |
@@ -35,6 +36,31 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Grouped vertex conversion (patch 0101)
+
+**Problem.** Compact vertex preparation repeated attribute and format decisions
+for each vertex and component, even though a draw uses one layout.
+
+**Fix.** `rsx_vertex_fetch_batch` groups work by attribute and specializes the
+decoder for each format outside the vertex/component loops. It preserves the
+existing byte-order and numeric conversions, instancing divisors, prepared-span
+bounds, inline-draw defaults and fatal invalid-position behavior. Failed draws
+discard their partial output. No guest pointers or decoded output are retained
+between draws; guest-memory validation and GPU resource ownership are unchanged.
+
+**Evidence.** `wkc2_vertex_batch` compares 69,140 synthetic cases against
+`rsx_vertex_fetch_one`, including all half encodings, complete/partial/missing
+prepared spans, invalid formats and instancing. An inverted divider rule fails
+the test. All 88 Windows checks pass in Debug and Release. The 101-patch stack
+applies from clean, upgrades prefix 100 by three files and reapplies unchanged.
+A private native wrapper checks 4,846,180 draws with zero byte/status mismatches.
+The regular Release build reloads Continue and completes a short town route.
+
+**Limits.** The fixed-work conversion benchmark takes 44.6 ms rather than
+72.3 ms for 500,000 batches on this host. This is not a game FPS result. Sustained
+traversal speed, full rendering fidelity and other platforms remain unverified.
+See the [findings and conditions](FINDINGS.md#grouped-vertex-conversion-patch-0101).
 
 ## SPIR-V translation cache (patch 0100)
 

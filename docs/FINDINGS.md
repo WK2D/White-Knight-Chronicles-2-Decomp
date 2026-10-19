@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 100 SDK patches / 87 Windows checks in Debug and
+**Current source checkpoint:** 101 SDK patches / 88 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -26,6 +26,7 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 **Performance, timing and presentation**
 
+- [Grouped vertex conversion](#grouped-vertex-conversion-patch-0101)
 - [Shader translation stalls and cache](#shader-translation-stalls-and-cache-patch-0100)
 - [Native texture write-tracking experiment](#native-texture-write-tracking-experiment)
 - [Guest memory and write-tracking follow-up](#guest-memory-and-write-tracking-follow-up)
@@ -245,6 +246,43 @@ PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
+
+## Grouped vertex conversion (patch 0101)
+
+**Problem.** Vertex preparation is still a CPU cost after removing repeated
+shader compilation. Per-vertex fetching repeats format decisions shared by the
+whole draw. A separate decoded-vertex cache also reduces conversion work, but
+its key construction, page validation and copying have not shown a consistent
+FPS win; an unexplained startup failure in the combined private tracking/cache
+candidate also needs investigation before promotion.
+
+**Cause.** The compact layout, attribute descriptors and formats are fixed for
+one draw. Selecting each format outside the vertex/component loops avoids
+repeated dispatch without relying on cross-draw invalidation.
+
+**Fix.** The draw engine uses a grouped batch fetch, preserving existing numeric
+conversions, instance-frequency rules, fallback defaults and invalid-position
+failure. It retains no source/output data after the draw and introduces no GPU
+resource or write-tracking dependency.
+
+**Evidence.** On 19 October, 69,140 synthetic cases agree byte for byte on
+successful output and agree on failure status. This includes all 65,536 half
+representations; a wrong-divider negative control fails. All 88 Windows checks
+pass in Debug and Release. A private wrapper around the production C function
+compares 4,846,180 native draws with zero mismatches while loading Continue,
+moving briefly in town and idling afterward. The regular Release build then
+reloads the same save and completes the short route. Testing is hidden and
+verified muted. The synthetic 500,000-batch fixture takes 72.3 ms with individual
+fetches and 44.6 ms with grouped fetches; both checksums match.
+
+**Limits.** This measures conversion efficiency, not a demonstrated game FPS
+gain or smoother animation. Earlier private alternating samples vary with NPC
+motion, and the final sample may overlap build work, so they are not used as a
+speed claim. The native differential wrapper recomputes both paths and is not
+the production performance build. No new screenshot is needed for an unchanged
+frame. Mac/Linux testing, consistently smooth traversal, game-clock tracing,
+write-tracking lifecycle review and the remaining allocation costs stay open.
+Reviewed aggregates are in [the performance record](../verification/performance.json).
 
 ## Shader translation stalls and cache (patch 0100)
 
