@@ -26,6 +26,7 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 **Performance, timing and presentation**
 
+- [Saved-town movement baseline](#saved-town-movement-baseline)
 - [Frame pacing and game speed](#frame-pacing-and-game-speed)
 - [Drakengard 3 performance and settings comparison](#drakengard-3-performance-and-settings-comparison)
 - [Native graphics settings and frame-rate control](#native-graphics-settings-and-frame-rate-control)
@@ -235,6 +236,61 @@ PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
+
+## Saved-town movement baseline
+
+Measured 2026-10-19 on the unchanged 99-patch optimized native executable,
+loading the verified starting-town save through Continue. The copied executable
+matches the published playable checkpoint's SHA-256. Its separate preferences
+select Vulkan, 720p output, the original 30 FPS limit, VSync off, AF off and AA off.
+The test is hidden and muted. It does not alter the desktop playable or its
+preferences. Diagnostic logs, automatic snapshots, the sampling profiler and the
+frame timeline are disabled during this timing pass.
+
+After warm-up, the route holds the left stick forward for eight seconds, then
+back for eight seconds, then the right stick horizontally for eight seconds.
+Each phase has a ten-second observation window; neutral phases bookend the route.
+The pad-file path records actual hold start/end times. This exercises injected
+input, not physical-controller walk/run calibration. Camera and character
+positions are not yet recorded as reproducible spatial waypoints.
+
+| Phase | Presentations/s | Median interval | 95th percentile | Longest interval |
+| --- | ---: | ---: | ---: | ---: |
+| Initial neutral | 29.49 | 32.65 ms | 35.61 ms | 52.71 ms |
+| Forward | 27.90 | 32.68 ms | 50.13 ms | 202.93 ms |
+| Back | 13.70 | 51.21 ms | 163.04 ms | 783.04 ms |
+| Camera turn | 19.40 | 50.10 ms | 62.68 ms | 68.18 ms |
+| Final neutral | 19.50 | 50.13 ms | 62.65 ms | 67.65 ms |
+
+A read-only observer polls the native presentation counter approximately every
+two milliseconds. Its longest read gap is 6.47 ms across these phases, and it
+observes every counter increment. These are host presentation intervals with
+observer uncertainty, not display scanout or independently counted animation
+updates. The changed view/workload matters: standing still after turning is much
+slower than the initial neutral pose. One route is a baseline, not a statistical
+comparison or a verified optimization.
+
+During the slow back phase, two sampled guest clock accumulators advance 10.36 s
+and 7.22 s over 10.00 s of host observation. Their distinction and frame-time
+clamping need tracing before interpreting the latter as an exact simulation-speed
+measurement or changing game timing.
+
+A separate ten-second CPU sample follows the route, suspending only the six
+hottest host threads briefly to read their instruction pointers. It is not used
+for the timing table. Hot sites include the image-19 geometry program,
+`vm_read32` and the other guest-memory helpers, vertex decoding/fetch and texture
+content hashing. One polling thread consumes about 96% of a core; its sampled
+locations are predominantly in the system library, with `sys_timer_usleep` among
+its native callers. The sleep implementation has a sub-millisecond yielding spin;
+the actual wait dependency must be identified before replacing it.
+
+An earlier exploratory timeline records overlapping SPU and FIFO work with short
+reported GPU fence waits in a near-30-presentations/s segment. Its million-record
+dump can introduce pauses, so it is excluded from the timing table. Calibrated GPU
+execution timestamps and allocation/upload cost breakdowns are still missing.
+The next candidates should address measured CPU/memory and renderer work while
+retaining the same input route and separate timing/diagnostic passes. No runtime
+performance improvement is claimed by this measurement checkpoint.
 
 ## Drakengard 3 performance and settings comparison
 
