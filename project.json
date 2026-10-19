@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "The custom avatar portrait now reaches CPU save memory after creator acceptance through a renderer-thread readback. Menu/reload verification remains. User-space guest mutexes are checked without a consistent native FPS gain. 105 SDK patches / 95 Windows checks pass in Debug and Release; smooth traversal and intermittent menu/animation faults remain open.",
+    "current_milestone": "DirectX display and filtering preferences now reach the live renderer. Native menu changes and the actual window size were checked at 30 FPS. 107 SDK patches / 96 Windows checks pass in Debug and Release; FXAA/overlay, fresh DirectX portrait capture and full rendering/transition parity remain open.",
     "updated": "2026-10-19"
   },
   "native_data_installation_verified": true,
@@ -128,7 +128,18 @@
     "vulkan_full_visual_fidelity_verified": false,
     "future_apple_silicon": "Metal shared RSX draw engine; untested",
     "optional_windows": "D3D12",
-    "future_linux": "Vulkan; platform integration and execution untested"
+    "future_linux": "Vulkan; platform integration and execution untested",
+    "directx12_parity_goal": {
+      "status": "active",
+      "baseline_frame_rate": 30,
+      "initial_scope": [
+        "Live clear semantics",
+        "Rendering, copy and readback parity",
+        "Display and quality settings",
+        "Menu, portrait and transition validation"
+      ],
+      "higher_frame_rate_regression": "Deferred; user reports terrain, cutscene-skip and walking faults above 30 FPS"
+    }
   },
   "cpu_execution": {
     "mode": "Ahead-of-time PPU/SPU recompilation with PS3 compatibility runtime and observed SPU interpreter fallback",
@@ -153,8 +164,8 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 105,
-    "runtime_checks_passed": 95,
+    "sdk_patch_count": 107,
+    "runtime_checks_passed": 96,
     "town_native_run_sdk_patch_count": 105,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
@@ -226,7 +237,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 105,
+    "runtime_checks_verified_sdk_patch_count": 107,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -253,7 +264,7 @@
     "patch_0074_native_game_run_verified": true,
     "patch_0074_texture_compare_direction_gpu_verified": true,
     "patch_0074_foot_shadow_flicker_fixed_verified": false,
-    "repeat_patch_application_verified_sdk_patch_count": 105,
+    "repeat_patch_application_verified_sdk_patch_count": 107,
     "patch_0075_windows_regression_verified": true,
     "patch_0075_native_interaction_verified": true,
     "patch_0075_save_load_verified": true,
@@ -346,7 +357,11 @@
     "avatar_portrait_creator_capture_verified": true,
     "avatar_portrait_menu_display_verified": false,
     "avatar_portrait_save_reload_verified": false,
-    "avatar_portrait_empty_save_regeneration_verified": false
+    "avatar_portrait_empty_save_regeneration_verified": false,
+    "patch_0106_windows_regression_verified": true,
+    "patch_0106_native_game_run_verified": true,
+    "patch_0107_windows_regression_verified": true,
+    "patch_0107_native_game_run_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -410,7 +425,7 @@
     "creator_rotation_smoothness_fixed": false,
     "label": "Present/s",
     "label_patch": 70,
-    "current_windows_runtime_checks_passed": 95
+    "current_windows_runtime_checks_passed": 96
   },
   "performance": {
     "record": "verification/performance.json",
@@ -480,13 +495,13 @@
     "scope": "Regular Release with host-layout SPU SHUFB. Continue and short forward/back town route with inspected GPU readbacks; no private helper verifier, fast-memory, register-local, write-watch or render-census override.",
     "automatic_gpu_readbacks": true
   },
-  "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified. The same starting-town slot reloads in the current 105-patch Release build.",
+  "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified. The same starting-town slot was rechecked in the 105-patch Vulkan Release build.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 105 SDK patches / 95 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 107 SDK patches / 96 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
-    "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
+    "directx12": "Experimental live renderer; restart required; window mode, output size, VSync and filtering integrated; FXAA/overlay and rendering parity remain open",
     "frame_limits": [
       30,
       40,

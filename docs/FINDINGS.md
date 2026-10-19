@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 105 SDK patches / 95 Windows checks in Debug and
+**Current source checkpoint:** 107 SDK patches / 96 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -256,6 +256,37 @@ including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
 
+## DirectX display integration (patches 0106-0107)
+
+DirectX uses the older live renderer, independently of Vulkan's shared draw
+engine. The first parity work fixes clear rectangles/zero depth and connects the
+native display/filtering controls. A hidden 30 FPS run loaded the saved scene,
+opened the real panel, changed resolution and VSync, and selected 16x filtering.
+Read-only renderer state and window dimensions confirm the changes reached the
+backend. The [patch notes](PATCHES.md#directx-display-and-sampler-preferences-patch-0107)
+and [capture](GALLERY.md#2026-10-19--directx-graphics-settings) record the scope.
+
+This does not establish rendering or performance parity. DirectX still lacks
+FXAA/overlay integration, texture comparison sampling and the shared engine's
+portrait readback route; stored portraits generated earlier can display.
+Fullscreen is covered by recording-API tests, with interactive validation still
+pending. Its old title telemetry also retains a long averaging window and the
+initial size; telemetry correction is separate work.
+
+## Above-30 FPS transition regression (deferred)
+
+On 2026-10-19, the user reproduced missing terrain and floating scenery after
+moving between Balandor and the plains at frame rates above 30. Cutscene skips
+also exposed partially rendered areas, and Leonard glided while walking. The
+same route behaved correctly for the user at locked 30 FPS. A fresh save load
+could look correct before a later transition broke rendering. Earlier short,
+stationary high-FPS probes did not cover this failure.
+
+The current higher-frame-rate implementation changes the guest vblank cadence;
+that is a lead, not an established root cause. Keep the stable 30 FPS baseline
+for the DirectX 12 work. Higher-frame-rate synchronization and game-speed
+corrections are deferred at the user's request.
+
 ## Custom avatar portrait readback
 
 **Problem.** The native main menu draws Leonard's built-in portrait while the
@@ -309,7 +340,7 @@ WKC speedup. Status on 2026-10-19:
 
 **Cause.** The previous guest lightweight-mutex handlers entered the Windows
 semaphore API even when no other thread holds the lock. A hidden, muted Continue
-run measured 58,849–70,572 lock requests and 117,804–141,320 semaphore calls per
+run measured 58,849â€“70,572 lock requests and 117,804â€“141,320 semaphore calls per
 second across idle/forward/back phases. Over 99.7% of attempts were uncontended.
 There were no observed wait/release failures. These counts exclude internal
 SPU/MFC host locks; external snapshots can straddle an in-flight operation.
@@ -513,7 +544,7 @@ Other nearby angles measure 25.83 and 23.25, so this is not a clean NPC-only tes
 A separate route records 20 new textures going forward, 168 coming back and ten
 during camera movement. The final slow idle window has zero allocations and zero
 image uploads. Vertex, index and constant uploads still occur; the stationary
-views submit roughly 12–17 MB of constants per present callback.
+views submit roughly 12â€“17 MB of constants per present callback.
 
 The existing private local-register geometry-kernel candidate is rechecked on
 the current runtime: 226,404 sampled complete-context/local-store/continuation
@@ -620,7 +651,7 @@ identity and failure handling are covered by the [patch regressions](PATCHES.md#
 **Evidence.** Four hidden, muted runs use one private executable, the same save
 and wall-clock controller sequence, in off/on/on/off order. Each return-leg
 measurement lasts about ten seconds. Output is 720p, the internal scene remains
-1920×1080, the frame limit is 30, VSync is off, and no CPU sampler or GPU readback
+1920Ã—1080, the frame limit is 30, VSync is off, and no CPU sampler or GPU readback
 runs during these timing samples.
 
 | Cache | Presentations/s | 95th-percentile interval | Longest interval | Compilations / requests | Compiler/admission time |
@@ -771,7 +802,7 @@ prototypes now have correctness evidence:
   a nonfinite value. Diagnostics, alternate float modes and unsuitable contexts
   also retain the reference path. One slower kernel variant is discarded.
 
-**Evidence.** Three synthetic PPU variants—plain, locals and verifying—produce
+**Evidence.** Three synthetic PPU variantsâ€”plain, locals and verifyingâ€”produce
 identical observed outputs across 300 randomized runs through the pinned WKC
 lifter. The grouped version passes another 300-run comparison. Focused group
 checks cover unaligned/endian reads, special and wrapping spans, unbacked pages,

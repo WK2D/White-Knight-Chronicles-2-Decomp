@@ -29,7 +29,8 @@ bool pending(wkc::GraphicsOption o) {
     return o==wkc::GraphicsOption::world_distance || o==wkc::GraphicsOption::npc_distance || o==wkc::GraphicsOption::distance_fog;
 }
 bool available(wkc::GraphicsOption o) {
-    return !pending(o) && (!wkc::graphics_active_renderer() || o==wkc::GraphicsOption::renderer || o==wkc::GraphicsOption::frame_limit);
+    return !pending(o) && (!wkc::graphics_active_renderer() ||
+        (o!=wkc::GraphicsOption::anti_aliasing && o!=wkc::GraphicsOption::fps_counter));
 }
 uint32_t call(ppu_context* source,void (*function)(ppu_context*),uint32_t a,uint32_t b,uint32_t c,uint32_t d=0) {
     ppu_context nested=*source;

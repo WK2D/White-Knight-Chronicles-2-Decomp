@@ -601,7 +601,6 @@ static void present_guest_frame(void)
 static void graphics_preferences_tick()
 {
 #ifdef PS3RECOMP_RSX_VULKAN
-    if(wkc::graphics_active_renderer()) return;
     static ULONGLONG next;
     const ULONGLONG now=GetTickCount64();
     if (now<next) return;
@@ -613,7 +612,8 @@ static void graphics_preferences_tick()
     const rsx_vulkan_graphics_config config={options.window_mode,
         widths[options.output_resolution],heights[options.output_resolution],options.vsync,
         filtering[options.anisotropy],wkc::graphics_frame_limit(options),options.fps_counter,options.anti_aliasing};
-    rsx_vulkan_backend_configure(&config);
+    if(wkc::graphics_active_renderer()) rsx_live_draw_configure(&config);
+    else rsx_vulkan_backend_configure(&config);
 #endif
 }
 

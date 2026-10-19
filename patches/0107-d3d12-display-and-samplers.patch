@@ -1,0 +1,426 @@
+Integrate live DirectX display preferences and exact sampler matching.
+Window/fullscreen changes retire GPU references; VSync and supported tearing use DXGI.
+Decode signed LOD bias and apply optional anisotropy without changing point-filtered UI.
+
+diff --git a/libs/video/rsx_live_draw.c b/libs/video/rsx_live_draw.c
+--- a/libs/video/rsx_live_draw.c
++++ b/libs/video/rsx_live_draw.c
+@@ -26,6 +26,7 @@
+ #if !defined(_WIN32)
+ 
+ /* Non-Windows: the whole path is a no-op (D3D12 is Windows-only). */
++void rsx_live_draw_configure(const rsx_graphics_config* c) { (void)c; }
+ int  rsx_live_draw_enabled(void) { return 0; }
+ int  rsx_live_draw_init(void* hwnd, u32 w, u32 h, rsx_live_guest_ptr_fn f, void* u)
+ { (void)hwnd; (void)w; (void)h; (void)f; (void)u; return 0; }
+@@ -101,7 +102,9 @@
+ #include <d3d12.h>
+ #include "rsx_d3d12_clear.h"
+ #include <d3d12sdklayers.h>
+-#include <dxgi1_4.h>
++#include <dxgi1_5.h>
++#include "rsx_d3d12_sampler.h"
++#include "rsx_d3d12_window.h"
+ #include <d3dcompiler.h>
+ #include "rsx_vertex_formats.h"
+ #include <sys/stat.h>
+@@ -333,7 +336,7 @@
+     ID3D12DescriptorHeap*      smp_heap;
+     u32                        smp_step, smp_ring_used;
+     u32                        smp_ring_slots[SMP_RING_TABLES][SMP_TABLE_SIZE];
+-    u32                        smp_keys[SMP_CACHE_SLOTS];
++    D3D12_SAMPLER_DESC         smp_desc[SMP_CACHE_SLOTS];
+     u32                        n_samplers;
+ 
+     ID3D12RootSignature*       rootsig_x;
+@@ -385,6 +388,25 @@
+ } ld_state;
+ 
+ static ld_state g;
++
++/* Only the render owner applies host preferences. Guest geometry and render
++ * target dimensions stay independent of the requested display/window size. */
++static rsx_graphics_config s_ld_graphics = {0,0,0,1,0,0,0,0};
++static rsx_graphics_config s_ld_graphics_applied;
++static int s_ld_graphics_dirty, s_ld_graphics_enabled;
++static HWND s_ld_window;
++static rsx_d3d12_window_state s_ld_window_state;
++static UINT s_ld_swap_flags;
++static int s_ld_swap_resize;
++static void ld_apply_graphics(void);
++void rsx_live_draw_configure(const rsx_graphics_config* config)
++{
++    if (!rsx_graphics_config_valid(config)) return;
++    if (!s_ld_graphics_enabled || memcmp(config, &s_ld_graphics, sizeof *config)) {
++        s_ld_graphics = *config; s_ld_graphics_enabled = 1; s_ld_graphics_dirty = 1;
++    }
++}
++
+ 
+ #define LD_VERTEX_HOIST_FETCH       (1u << 0)
+ #define LD_VERTEX_MASK_SIGNATURE    (1u << 1)
+@@ -1489,54 +1511,6 @@
+     }
+ }
+ 
+-static D3D12_TEXTURE_ADDRESS_MODE gcm_wrap(u32 w)
+-{
+-    switch (w & 0xF) {
+-    case 1: return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+-    case 2: return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+-    case 3: return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+-    case 4: return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+-    case 5: return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+-    case 6:
+-    case 7:
+-    case 8: return D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE;
+-    default: return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+-    }
+-}
+-
+-static D3D12_SAMPLER_DESC decode_sampler(const rsx_dsp_texture* t)
+-{
+-    D3D12_SAMPLER_DESC sd = {0};
+-    const u32 minf = (t->filter >> 16) & 0x7;
+-    const u32 magf = (t->filter >> 24) & 0x7;
+-    const int min_linear = (minf == 2 || minf == 4 || minf == 6);
+-    const int mag_linear = (magf == 2);
+-    const int mip_linear = (minf == 5 || minf == 6);
+-    const int mip_present = (minf >= 3);
+-    D3D12_FILTER_TYPE mnf = min_linear ? D3D12_FILTER_TYPE_LINEAR : D3D12_FILTER_TYPE_POINT;
+-    D3D12_FILTER_TYPE mgf = mag_linear ? D3D12_FILTER_TYPE_LINEAR : D3D12_FILTER_TYPE_POINT;
+-    D3D12_FILTER_TYPE mpf = mip_linear ? D3D12_FILTER_TYPE_LINEAR : D3D12_FILTER_TYPE_POINT;
+-    sd.Filter = D3D12_ENCODE_BASIC_FILTER(mnf, mgf, mpf, D3D12_FILTER_REDUCTION_TYPE_STANDARD);
+-    sd.AddressU = gcm_wrap(t->wrap);
+-    sd.AddressV = gcm_wrap(t->wrap >> 8);
+-    sd.AddressW = gcm_wrap(t->wrap >> 16);
+-    const u32 max_lod_fx = (t->control0 >> 7)  & 0xFFF;
+-    const u32 min_lod_fx = (t->control0 >> 19) & 0xFFF;
+-    sd.MinLOD = (float)min_lod_fx / 256.0f;
+-    sd.MaxLOD = mip_present ? (float)max_lod_fx / 256.0f : 0.0f;
+-    if (sd.MaxLOD < sd.MinLOD) sd.MaxLOD = sd.MinLOD;
+-    sd.MaxAnisotropy = 1;
+-    return sd;
+-}
+-static u32 sampler_key(const rsx_dsp_texture* t)
+-{
+-    const u32 minf = (t->filter >> 16) & 0x7;
+-    const u32 magf = (t->filter >> 24) & 0x7;
+-    const u32 wrap = t->wrap & 0xFFF;
+-    const u32 lod  = (t->control0 >> 7) & 0x1FFFFF;
+-    return minf | (magf << 3) | (wrap << 6) | (lod << 18);
+-}
+-
+ /* ---------------------------------------------------------------------------
+  * descriptor heap helpers
+  * -----------------------------------------------------------------------*/
+@@ -1649,15 +1623,15 @@
+     h.ptr += (size_t)slot * g.smp_step;
+     return h;
+ }
+-static u32 sampler_slot(const rsx_dsp_texture* t, u32 key)
+-{
++static u32 sampler_slot(const rsx_dsp_texture* t)
++{
++    D3D12_SAMPLER_DESC sd = rsx_d3d12_sampler_decode(t, s_ld_graphics.anisotropy);
+     for (u32 i = 0; i < g.n_samplers; i++)
+-        if (g.smp_keys[i] == key) return 1 + i;
++        if (rsx_d3d12_sampler_equal(&g.smp_desc[i], &sd)) return 1 + i;
+     if (g.n_samplers >= SMP_CACHE_SLOTS) return SMP_DEFAULT;
+-    D3D12_SAMPLER_DESC sd = decode_sampler(t);
+     const u32 slot = 1 + g.n_samplers;
+     g.dev->lpVtbl->CreateSampler(g.dev, &sd, smp_cpu(slot));
+-    g.smp_keys[g.n_samplers++] = key;
++    g.smp_desc[g.n_samplers++] = sd;
+     return slot;
+ }
+ static D3D12_GPU_DESCRIPTOR_HANDLE sampler_table(const u32 slots[SMP_TABLE_SIZE])
+@@ -6912,7 +6886,7 @@
+               t.offset = 0x400000u; }
+         if (!t.enabled) continue;
+         texture_mask |= 1u << u;
+-        smp_slots[u] = sampler_slot(&t, sampler_key(&t));
++        smp_slots[u] = sampler_slot(&t);
+         /* Pick WHICH surface at this offset to sample.
+          *
+          * Matching on (location, offset) alone was fine when only one surface
+@@ -7491,22 +7465,47 @@
+ /* CopyResource requires matching dimensions. Keep the swapchain image size
+  * equal to the selected guest scanout; DXGI stretches it to the host window.
+  * Retire all GPU references before releasing its backbuffers. */
++/* Drain references before changing descriptors or display state. DXGI flip
++ * chains require ResizeBuffers after a fullscreen-state change. */
++static void ld_apply_graphics(void)
++{
++    if (!s_ld_graphics_dirty || !g.ready || !g.swap || !s_ld_window) return;
++    s_ld_graphics_dirty = 0;
++    const int window_change = !s_ld_window_state.captured ||
++        s_ld_graphics.window_mode != s_ld_graphics_applied.window_mode ||
++        s_ld_graphics.width != s_ld_graphics_applied.width ||
++        s_ld_graphics.height != s_ld_graphics_applied.height;
++    const int filter_change = s_ld_graphics.anisotropy != s_ld_graphics_applied.anisotropy;
++    if (window_change || filter_change) ld_flush(LD_FLUSH_DESCRIPTOR_RING);
++    if (filter_change) g.n_samplers = 0;
++    if (window_change) {
++        const int result = rsx_d3d12_window_apply(g.swap, s_ld_window,
++            &s_ld_graphics, &s_ld_window_state);
++        /* A failed transition may still have left fullscreen, so retire the
++         * old swapchain references even when DXGI rejects the requested mode. */
++        s_ld_swap_resize = 1;
++        if (result < 0) fprintf(stderr, "[live-draw] requested display mode unavailable\n");
++    }
++    s_ld_graphics_applied = s_ld_graphics;
++}
++
+ static int ld_scanout_size(u32 width,u32 height)
+ {
+     D3D12_RESOURCE_DESC desc={0};
+     if(g.backbuf[0]) g.backbuf[0]->lpVtbl->GetDesc(g.backbuf[0],&desc);
+-    if(desc.Width==width && desc.Height==height) return 0;
++    if(desc.Width==width && desc.Height==height && !s_ld_swap_resize) return 0;
+     ld_flush(LD_FLUSH_PRESENT);
+     for(u32 i=0;i<LD_SWAP_BUFFERS;i++) {
+         if(g.backbuf[i]) g.backbuf[i]->lpVtbl->Release(g.backbuf[i]);
+         g.backbuf[i]=NULL;
+     }
+-    HRESULT hr=g.swap->lpVtbl->ResizeBuffers(g.swap,LD_SWAP_BUFFERS,width,height,DXGI_FORMAT_R8G8B8A8_UNORM,0);
++    HRESULT hr=g.swap->lpVtbl->ResizeBuffers(g.swap,LD_SWAP_BUFFERS,width,height,DXGI_FORMAT_R8G8B8A8_UNORM,s_ld_swap_flags);
+     if(FAILED(hr)) { fprintf(stderr,"[live-draw] scanout resize failed hr=0x%08lX\n",(unsigned long)hr);g.ready=0;return -1; }
+     for(u32 i=0;i<LD_SWAP_BUFFERS;i++) {
+         if(FAILED(g.swap->lpVtbl->GetBuffer(g.swap,i,&IID_ID3D12Resource,(void**)&g.backbuf[i]))) {g.ready=0;return -1;}
+         g.dev->lpVtbl->CreateRenderTargetView(g.dev,g.backbuf[i],NULL,rtv_handle(i));
+     }
++    s_ld_swap_resize=0;
+     return 0;
+ }
+ 
+@@ -7822,11 +7821,24 @@
+     g.dev->lpVtbl->CreateFence(g.dev, 0, D3D12_FENCE_FLAG_NONE, &IID_ID3D12Fence, (void**)&g.fence);
+     g.fence_event = CreateEventA(NULL, FALSE, FALSE, NULL);
+ 
++    s_ld_window = (HWND)hwnd;
++    memset(&s_ld_window_state, 0, sizeof s_ld_window_state);
++    s_ld_swap_flags = 0;
++    IDXGIFactory5* factory5 = NULL;
++    if (SUCCEEDED(factory->lpVtbl->QueryInterface(factory, &IID_IDXGIFactory5, (void**)&factory5))) {
++        BOOL tearing = FALSE;
++        if (SUCCEEDED(factory5->lpVtbl->CheckFeatureSupport(factory5,
++            DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearing, sizeof tearing)) && tearing)
++            s_ld_swap_flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
++        factory5->lpVtbl->Release(factory5);
++    }
++    factory->lpVtbl->MakeWindowAssociation(factory, (HWND)hwnd, DXGI_MWA_NO_ALT_ENTER);
+     /* swap chain bound to the runtime's HWND */
+     DXGI_SWAP_CHAIN_DESC1 scd = {0};
+     scd.Width = width; scd.Height = height; scd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+     scd.SampleDesc.Count = 1; scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+     scd.BufferCount = LD_SWAP_BUFFERS; scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
++    scd.Flags = s_ld_swap_flags;
+     IDXGISwapChain1* sc1 = NULL;
+     if (FAILED(factory->lpVtbl->CreateSwapChainForHwnd(factory, (IUnknown*)g.queue,
+             (HWND)hwnd, &scd, NULL, NULL, &sc1))) {
+@@ -7916,6 +7928,7 @@
+         def.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+         def.AddressU = def.AddressV = def.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+         def.MaxLOD = D3D12_FLOAT32_MAX; def.MaxAnisotropy = 1;
++        def.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+         g.dev->lpVtbl->CreateSampler(g.dev, &def, smp_cpu(SMP_DEFAULT));
+     }
+ 
+@@ -8341,7 +8354,8 @@
+ 
+     ld_flush(LD_FLUSH_MOVIE_PRESENT);
+     {
+-        const HRESULT present_hr = g.swap->lpVtbl->Present(g.swap, 1, 0);
++        const HRESULT present_hr = g.swap->lpVtbl->Present(g.swap, s_ld_graphics.vsync ? 1 : 0,
++            rsx_d3d12_present_flags(s_ld_graphics.vsync, s_ld_swap_flags != 0, s_ld_window_state.fullscreen));
+         if (SUCCEEDED(present_hr))
+             ld_present_measure_record(g_ld_frames);
+         else {
+@@ -8660,6 +8674,7 @@
+ 
+ void rsx_live_draw_present(u32 buffer_id)
+ {
++    ld_apply_graphics();
+     if (!g.ready) return;
+ 
+     /* LD_SURF_DUMP=<dir>: dump EVERY live surface once, with its non-black
+@@ -8886,7 +8901,8 @@
+ 
+     ld_flush(LD_FLUSH_PRESENT);
+     {
+-        const HRESULT present_hr = g.swap->lpVtbl->Present(g.swap, 1, 0);
++        const HRESULT present_hr = g.swap->lpVtbl->Present(g.swap, s_ld_graphics.vsync ? 1 : 0,
++            rsx_d3d12_present_flags(s_ld_graphics.vsync, s_ld_swap_flags != 0, s_ld_window_state.fullscreen));
+         if (SUCCEEDED(present_hr))
+             ld_present_measure_record(g_ld_frames + 1u);
+         else {
+diff --git a/libs/video/rsx_live_draw.h b/libs/video/rsx_live_draw.h
+--- a/libs/video/rsx_live_draw.h
++++ b/libs/video/rsx_live_draw.h
+@@ -31,6 +31,7 @@
+ #define PS3RECOMP_RSX_LIVE_DRAW_H
+ 
+ #include "ps3emu/ps3types.h"
++#include "rsx_graphics_settings.h"
+ 
+ #ifdef __cplusplus
+ extern "C" {
+diff --git a/libs/video/rsx_graphics_settings.h b/libs/video/rsx_graphics_settings.h
+--- a/libs/video/rsx_graphics_settings.h
++++ b/libs/video/rsx_graphics_settings.h
+@@ -9,6 +9,18 @@
+ typedef struct rsx_vulkan_graphics_config {
+     uint32_t window_mode, width, height, vsync, anisotropy, frame_limit, fps_counter, anti_aliasing;
+ } rsx_vulkan_graphics_config;
++/* Shared host preference layout; retain the original Vulkan API name. */
++typedef rsx_vulkan_graphics_config rsx_graphics_config;
++static inline int rsx_graphics_config_valid(const rsx_graphics_config* c)
++{
++    return c && c->window_mode <= 2 && c->vsync <= 1 && c->fps_counter <= 1 &&
++        c->anti_aliasing <= 1 && (!!c->width == !!c->height) &&
++        (!c->width || (c->width >= 320 && c->width <= 8192 && c->height >= 240 && c->height <= 8192)) &&
++        (c->anisotropy == 0 || c->anisotropy == 2 || c->anisotropy == 4 || c->anisotropy == 8 || c->anisotropy == 16) &&
++        (!c->frame_limit || c->frame_limit == 30 || c->frame_limit == 40 || c->frame_limit == 60 ||
++         c->frame_limit == 120 || c->frame_limit == 144);
++}
++void rsx_live_draw_configure(const rsx_graphics_config* config);
+ void rsx_vulkan_backend_configure(const rsx_vulkan_graphics_config* config);
+ 
+ #ifdef __cplusplus
+diff --git a/libs/video/rsx_d3d12_sampler.h b/libs/video/rsx_d3d12_sampler.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_d3d12_sampler.h
+@@ -0,0 +1,62 @@
++/* RSX sampler decoding for the live D3D12 renderer. */
++#ifndef RSX_D3D12_SAMPLER_H
++#define RSX_D3D12_SAMPLER_H
++#include <d3d12.h>
++#include "rsx_dispatch.h"
++
++static inline D3D12_TEXTURE_ADDRESS_MODE rsx_d3d12_sampler_wrap(u32 wrap)
++{
++    switch (wrap & 15u) {
++    case 1: return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
++    case 2: return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
++    case 3: case 5: return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
++    case 4: return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
++    case 6: case 7: case 8: return D3D12_TEXTURE_ADDRESS_MODE_MIRROR_ONCE;
++    default: return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
++    }
++}
++static inline D3D12_SAMPLER_DESC rsx_d3d12_sampler_decode(
++    const rsx_dsp_texture* texture, u32 anisotropy)
++{
++    D3D12_SAMPLER_DESC desc = {0};
++    const u32 min = (texture->filter >> 16) & 7u;
++    const u32 mag = (texture->filter >> 24) & 7u;
++    const int min_linear = min == 2 || min == 4 || min == 6;
++    const int mag_linear = mag == 2;
++    const int mip_present = min >= 3;
++    desc.Filter = D3D12_ENCODE_BASIC_FILTER(
++        min_linear ? D3D12_FILTER_TYPE_LINEAR : D3D12_FILTER_TYPE_POINT,
++        mag_linear ? D3D12_FILTER_TYPE_LINEAR : D3D12_FILTER_TYPE_POINT,
++        min == 5 || min == 6 ? D3D12_FILTER_TYPE_LINEAR : D3D12_FILTER_TYPE_POINT,
++        D3D12_FILTER_REDUCTION_TYPE_STANDARD);
++    desc.AddressU = rsx_d3d12_sampler_wrap(texture->wrap);
++    desc.AddressV = rsx_d3d12_sampler_wrap(texture->wrap >> 8);
++    desc.AddressW = rsx_d3d12_sampler_wrap(texture->wrap >> 16);
++    int bias = (int)(texture->filter & 0x1fffu);
++    if (bias & 0x1000) bias -= 0x2000;
++    desc.MipLODBias = (float)bias / 256.0f;
++    if (desc.MipLODBias > D3D12_MIP_LOD_BIAS_MAX) desc.MipLODBias = D3D12_MIP_LOD_BIAS_MAX;
++    if (desc.MipLODBias < D3D12_MIP_LOD_BIAS_MIN) desc.MipLODBias = D3D12_MIP_LOD_BIAS_MIN;
++    desc.MinLOD = (float)((texture->control0 >> 19) & 0xfffu) / 256.0f;
++    desc.MaxLOD = mip_present ? (float)((texture->control0 >> 7) & 0xfffu) / 256.0f : 0.0f;
++    if (desc.MaxLOD < desc.MinLOD) desc.MaxLOD = desc.MinLOD;
++    desc.MaxAnisotropy = 1;
++    desc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
++    if (anisotropy > 1 && mip_present && min_linear && mag_linear) {
++        desc.Filter = D3D12_FILTER_ANISOTROPIC;
++        desc.MaxAnisotropy = anisotropy > 16 ? 16 : anisotropy;
++    }
++    return desc;
++}
++static inline int rsx_d3d12_sampler_equal(const D3D12_SAMPLER_DESC* a,
++                                         const D3D12_SAMPLER_DESC* b)
++{
++    if (a->Filter != b->Filter || a->AddressU != b->AddressU ||
++        a->AddressV != b->AddressV || a->AddressW != b->AddressW ||
++        a->MipLODBias != b->MipLODBias || a->MaxAnisotropy != b->MaxAnisotropy ||
++        a->ComparisonFunc != b->ComparisonFunc || a->MinLOD != b->MinLOD ||
++        a->MaxLOD != b->MaxLOD) return 0;
++    for (unsigned i = 0; i < 4; ++i) if (a->BorderColor[i] != b->BorderColor[i]) return 0;
++    return 1;
++}
++#endif
+diff --git a/libs/video/rsx_d3d12_window.h b/libs/video/rsx_d3d12_window.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_d3d12_window.h
+@@ -0,0 +1,64 @@
++/* Renderer-thread DXGI/Win32 display changes. No guest timing is altered. */
++#ifndef RSX_D3D12_WINDOW_H
++#define RSX_D3D12_WINDOW_H
++#include <windows.h>
++#include <dxgi1_5.h>
++#include "rsx_graphics_settings.h"
++typedef struct rsx_d3d12_window_state {
++    LONG_PTR windowed_style;
++    RECT windowed_rect;
++    unsigned mode;
++    int captured, fullscreen;
++} rsx_d3d12_window_state;
++
++/* Returns 1 after a mode/size operation; -1 means DXGI rejected it. The caller
++ * must drain GPU references first and ResizeBuffers before the next Present. */
++static inline int rsx_d3d12_window_apply(IDXGISwapChain3* swap, HWND window,
++    const rsx_graphics_config* config, rsx_d3d12_window_state* state)
++{
++    if (!state->captured) {
++        state->windowed_style = GetWindowLongPtrA(window, GWL_STYLE);
++        GetWindowRect(window, &state->windowed_rect);
++        state->captured = 1;
++    }
++    if (state->mode == 0) GetWindowRect(window, &state->windowed_rect);
++    if (state->fullscreen) {
++        if (FAILED(swap->lpVtbl->SetFullscreenState(swap, FALSE, NULL))) return -1;
++        state->fullscreen = 0;
++    }
++    if (config->window_mode == 2) {
++        DXGI_MODE_DESC target = {0};
++        target.Width = config->width; target.Height = config->height;
++        target.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
++        if (FAILED(swap->lpVtbl->ResizeTarget(swap, &target)) ||
++            FAILED(swap->lpVtbl->SetFullscreenState(swap, TRUE, NULL))) return -1;
++        state->fullscreen = 1;
++        /* Let DXGI select a compatible refresh rate. */
++        swap->lpVtbl->ResizeTarget(swap, &target);
++    } else if (config->window_mode == 1) {
++        MONITORINFO monitor = {sizeof(monitor)};
++        if (!GetMonitorInfoA(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST), &monitor)) return -1;
++        const LONG_PTR visible = GetWindowLongPtrA(window, GWL_STYLE) & WS_VISIBLE;
++        SetWindowLongPtrA(window, GWL_STYLE, WS_POPUP | visible);
++        SetWindowPos(window, NULL, monitor.rcMonitor.left, monitor.rcMonitor.top,
++            monitor.rcMonitor.right - monitor.rcMonitor.left,
++            monitor.rcMonitor.bottom - monitor.rcMonitor.top,
++            SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED);
++    } else {
++        RECT rect = {0, 0, (LONG)config->width, (LONG)config->height};
++        SetWindowLongPtrA(window, GWL_STYLE, state->windowed_style);
++        AdjustWindowRectEx(&rect, (DWORD)state->windowed_style, FALSE,
++            (DWORD)GetWindowLongPtrA(window, GWL_EXSTYLE));
++        SetWindowPos(window, NULL, state->windowed_rect.left, state->windowed_rect.top,
++            config->width ? rect.right - rect.left : state->windowed_rect.right - state->windowed_rect.left,
++            config->height ? rect.bottom - rect.top : state->windowed_rect.bottom - state->windowed_rect.top,
++            SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED);
++    }
++    state->mode = config->window_mode;
++    return 1;
++}
++static inline UINT rsx_d3d12_present_flags(int vsync, int tearing, int fullscreen)
++{
++    return !vsync && tearing && !fullscreen ? DXGI_PRESENT_ALLOW_TEARING : 0;
++}
++#endif

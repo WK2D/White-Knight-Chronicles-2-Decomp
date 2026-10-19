@@ -1,0 +1,82 @@
+Honor the live DirectX 12 clear rectangle and explicit zero depth.
+Reuse the tested D3D12 clear decoder for live depth/stencil requests.
+
+diff --git a/libs/video/rsx_live_draw.c b/libs/video/rsx_live_draw.c
+--- a/libs/video/rsx_live_draw.c
++++ b/libs/video/rsx_live_draw.c
+@@ -99,6 +99,7 @@
+ #include <windows.h>
+ #include <initguid.h>
+ #include <d3d12.h>
++#include "rsx_d3d12_clear.h"
+ #include <d3d12sdklayers.h>
+ #include <dxgi1_4.h>
+ #include <d3dcompiler.h>
+@@ -7435,6 +7436,14 @@
+                 rsx_dsp_reg(&g.rsx, M_COLOR_MASK), rsx_dsp_clear_color(&g.rsx));
+         fflush(s_csv_file);
+     }
++    const rsx_surface_clear clear = rsx_d3d12_clear_from_registers(mask,
++        rsx_dsp_reg(&g.rsx, M_ZSTENCIL_CLEAR),
++        rsx_dsp_reg(&g.rsx, M_SCISSOR_HORIZONTAL),
++        rsx_dsp_reg(&g.rsx, M_SCISSOR_VERTICAL),
++        g.surfaces[target].w, g.surfaces[target].h);
++    D3D12_RECT clear_rect;
++    if (!rsx_clear_rect(&clear, g.surfaces[target].w, g.surfaces[target].h,
++                        &clear_rect)) return;
+     D3D12_CPU_DESCRIPTOR_HANDLE rtv = rtv_handle(LD_SWAP_BUFFERS + target);
+     if (mask & (RSX_CLEAR_COLOR_R | RSX_CLEAR_COLOR_G | RSX_CLEAR_COLOR_B | RSX_CLEAR_COLOR_A)) {
+         const u32 c = rsx_dsp_clear_color(&g.rsx);
+@@ -7451,7 +7460,7 @@
+         { static int ct = -1;
+           if (ct < 0) ct = getenv("LD_CLEAR_TEST") ? 1 : 0;
+           if (ct) { col[0] = 1.0f; col[1] = 0.0f; col[2] = 1.0f; col[3] = 1.0f; } }
+-        g.list->lpVtbl->ClearRenderTargetView(g.list, rtv, col, 0, NULL);
++        g.list->lpVtbl->ClearRenderTargetView(g.list, rtv, col, 1, &clear_rect);
+         ld_surface_note_write(target, LD_SURFACE_WRITE_CLEAR);
+     }
+     if ((mask & (RSX_CLEAR_DEPTH | RSX_CLEAR_STENCIL)) && g.depth) {
+@@ -7460,21 +7469,8 @@
+         const u32 zslot = zdepth_get(sf.zeta_location, sf.zeta_offset,
+                                      sf.clip_w, sf.clip_h);
+         D3D12_CPU_DESCRIPTOR_HANDLE dsv = dsv_handle(zslot);
+-        D3D12_CLEAR_FLAGS clear_flags = (D3D12_CLEAR_FLAGS)0;
+-        if (mask & RSX_CLEAR_DEPTH)
+-            clear_flags = (D3D12_CLEAR_FLAGS)(clear_flags | D3D12_CLEAR_FLAG_DEPTH);
+-        if (mask & RSX_CLEAR_STENCIL)
+-            clear_flags = (D3D12_CLEAR_FLAGS)(clear_flags | D3D12_CLEAR_FLAG_STENCIL);
+-        /* ZSTENCIL_CLEAR_VALUE (Z24S8 layout: depth24 << 8 | stencil8; nv40
+-         * reset 0xFFFFFF00 = depth 1.0, stencil 0 — so never-written streams
+-         * keep the old hardcoded behaviour). Previously decoded upstream but
+-         * discarded here: every guest depth clear forced 1.0/0. */
+-        {
+-            const u32 zs = rsx_dsp_reg(&g.rsx, M_ZSTENCIL_CLEAR);
+-            const float cd = (float)(zs >> 8) / 16777215.0f;
+-            g.list->lpVtbl->ClearDepthStencilView(g.list, dsv,
+-                clear_flags, zs ? cd : 1.0f, (UINT8)(zs & 0xFFu), 0, NULL);
+-        }
++        ID3D12Resource* depth = zslot ? g.zdepths[zslot - 1].tex : g.depth;
++        rsx_d3d12_clear_depth(g.list, depth, &clear, dsv);
+         if (zslot) {
+             g.zdepths[zslot - 1].cleared = 1;
+             if (mask & RSX_CLEAR_DEPTH) {
+diff --git a/libs/video/rsx_d3d12_clear.h b/libs/video/rsx_d3d12_clear.h
+--- a/libs/video/rsx_d3d12_clear.h
++++ b/libs/video/rsx_d3d12_clear.h
+@@ -19,6 +19,16 @@
+     if (y >= surface_h) c.h=0;
+     else if (h > surface_h-y) c.h=surface_h-y;
+     return c;
++}
++/* Live NV4097 clear inputs. Zero is an explicit near-depth value, not an
++ * uninitialized sentinel; the dispatcher supplies the hardware reset value. */
++static inline rsx_surface_clear rsx_d3d12_clear_from_registers(uint32_t flags,
++    uint32_t zstencil, uint32_t horizontal, uint32_t vertical,
++    uint32_t surface_w, uint32_t surface_h)
++{
++    return rsx_surface_clear_make(flags, (float)(zstencil >> 8) / 16777215.0f,
++        (uint8_t)zstencil, horizontal & 0xffffu, vertical & 0xffffu,
++        horizontal >> 16, vertical >> 16, surface_w, surface_h);
+ }
+ static inline int rsx_clear_rect(const rsx_surface_clear* c,
+     uint32_t w, uint32_t h, D3D12_RECT* r)

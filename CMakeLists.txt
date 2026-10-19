@@ -613,6 +613,11 @@ if(WKC2_BUILD_TESTS)
         target_link_libraries(wkc2_surface_clear_gpu_test PRIVATE d3d12 dxgi dxguid)
         add_test(NAME wkc2_surface_clear_gpu COMMAND wkc2_surface_clear_gpu_test)
         set_tests_properties(wkc2_surface_clear_gpu PROPERTIES TIMEOUT 20)
+        add_executable(wkc2_d3d12_graphics_test tests/d3d12_graphics_test.c)
+        target_include_directories(wkc2_d3d12_graphics_test PRIVATE
+            "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
+        add_test(NAME wkc2_d3d12_graphics COMMAND wkc2_d3d12_graphics_test)
+        set_tests_properties(wkc2_d3d12_graphics PROPERTIES TIMEOUT 10)
     endif()
     add_executable(wkc2_vp_cache_test tests/vp_cache_test.c
         "${PS3RECOMP_DIR}/libs/video/rsx_vp_decompiler.c")

@@ -4466,5 +4466,18 @@
     "prefix_104_upgrade_files_changed": 2,
     "reapply_files_changed": 0,
     "retained_backend_switch": "PS3RECOMP_LWMUTEX_KERNEL=1"
+  },
+  "above_30_fps_transition_regression_2026_10_19": {
+    "source_commit": "ed03737525de33afdf98fa3335c23a7e40d39c1b",
+    "evidence": "User reproduction and supplied screenshot; agent transition A/B not completed",
+    "affected": [
+      "Missing terrain and floating scenery after area transitions",
+      "Partially rendered areas after cutscene skips",
+      "Walking glides above 30 FPS"
+    ],
+    "user_reports_locked_30_correct": true,
+    "fresh_save_load_can_appear_correct": true,
+    "root_cause_verified": false,
+    "status": "Deferred at user request; DirectX 12 parity is the active goal"
   }
 }

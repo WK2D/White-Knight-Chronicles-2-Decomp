@@ -8,11 +8,12 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 105 SDK patches / 95 Windows checks. The shader-translation
+Current source: 107 SDK patches / 96 Windows checks. The shader-translation
 cache reduces measured compilation stalls; existing images retain their original
-build provenance. The newest captures show the native FPS overlay in town after
-Continue in the 104-patch build, with 30 and Unlocked frame limits. They are final
-Vulkan swapchain readbacks after the overlay. The earlier depth-range captures use
+build provenance. The newest capture shows DirectX Graphics Settings in the 107-patch build.
+Earlier town captures use the native FPS overlay after Continue in the 104-patch
+Vulkan build, with 30 and Unlocked frame limits; those are final swapchain
+readbacks after the overlay. The earlier depth-range captures use
 99 patches and the menu captures use 83 patches, with their original settings.
 The earlier LOD comparison is captured before window scaling. Saving and Continue
 reload work; normal shadow polarity is restored. Foot/Logic Stone flicker,
@@ -31,6 +32,7 @@ Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-19 | [DirectX display and filtering controls](#2026-10-19--directx-graphics-settings) | <a href="#2026-10-19--directx-graphics-settings"><img src="../verification/screenshots/2026-10-19-native-directx-graphics-settings.png" width="200" alt="DirectX graphics settings"></a> |
 | 2026-10-19 | [Town FPS checkpoint](#2026-10-19---town-fps-checkpoint) | <a href="#2026-10-19---town-fps-checkpoint"><img src="../verification/screenshots/2026-10-19-native-town-fps-unlocked.png" width="200" alt="Town with native FPS overlay"></a> |
 | 2026-10-19 | [Depth range check](#2026-10-19---window-depth-clip-range-check) | <a href="#2026-10-19---window-depth-clip-range-check"><img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="200" alt="Depth range check"></a> |
 | 2026-10-18 | [Graphics Settings](#2026-10-18---native-graphics-settings) | <a href="#2026-10-18---native-graphics-settings"><img src="../verification/screenshots/2026-10-18-native-graphics-settings.png" width="200" alt="Graphics Settings"></a> |
@@ -53,6 +55,22 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
+
+## 2026-10-19 — DirectX graphics settings
+
+DirectX now receives the display and filtering preferences from the native
+Graphics Settings panel. This run changed 720p to 1080p, toggled VSync and
+selected 16x filtering at the stable 30 FPS limit. The live renderer's applied
+settings and actual window client size were read back independently.
+
+![DirectX 12 Graphics Settings with 1080p and 16x filtering](../verification/screenshots/2026-10-19-native-directx-graphics-settings.png)
+
+Source checkpoint: 107 SDK patches / 96 Windows checks in Debug and Release.
+This is a completed GPU surface readback, before DXGI output scaling; the private
+capture build hides its Win32 host window. Fullscreen transitions are covered by
+recording-API tests and still need an interactive check. FXAA, the in-game FPS
+overlay and full rendering/transition parity remain open. No performance claim
+is made from this still image.
 
 ## 2026-10-19 - Town FPS checkpoint
 

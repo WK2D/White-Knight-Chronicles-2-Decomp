@@ -4,12 +4,12 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-19",
-    "native_probe": "20261019-131941",
-    "sdk_patch_count": 105,
-    "summary": "The production avatar portrait readback generates the actual face after ordinary WKC1 creator acceptance. Menu/reload verification remains. All 95 Windows checks pass in Debug and Release. Patch 0105 reduces uncontended mutex primitive cost without a consistent native FPS gain.",
-    "gallery_image": "screenshots/2026-10-19-native-town-fps-unlocked.png",
-    "gallery_image_sdk_patch_count": 104,
-    "gallery_image_scope": "Earlier 104-patch game frame with live FPS overlay, actual post-overlay swapchain pixels from a private capture-only backend; no sustained-performance claim",
+    "native_probe": "20261019-143540",
+    "sdk_patch_count": 107,
+    "summary": "DirectX native display/filtering controls verified through the game menu and renderer applied state at 30 FPS. Both Windows suites pass 96 checks. Full rendering and transition parity remain open.",
+    "gallery_image": "screenshots/2026-10-19-native-directx-graphics-settings.png",
+    "gallery_image_sdk_patch_count": 107,
+    "gallery_image_scope": "DirectX presented-surface GPU readback before window scaling; real menu changes, not a performance benchmark",
     "remaining_limits": [
       "Smooth 30 FPS traversal and console-equivalent animation speed unverified",
       "First-use shader compilation and other CPU/graphics costs remain",
@@ -358,19 +358,20 @@
       "wkc2_spu_shufb_scalar",
       "wkc2_graphics_readback",
       "wkc2_lwmutex_user",
-      "wkc2_lwmutex_kernel"
+      "wkc2_lwmutex_kernel",
+      "wkc2_d3d12_graphics"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 105,
-    "last_verified_sdk_patch_count": 105,
-    "current_passed_count": 95,
-    "record_scope": "105 SDK patches / 95 Windows Vulkan checks pass in Debug and Release; all media checks ran without skips.",
-    "normal_debug_elapsed_seconds": 28.56,
-    "optimized_release_elapsed_seconds": 24.35,
+    "current_sdk_patch_count": 107,
+    "last_verified_sdk_patch_count": 107,
+    "current_passed_count": 96,
+    "record_scope": "107 SDK patches / 96 Windows checks pass in Debug and Release; media checks ran without skips.",
+    "normal_debug_elapsed_seconds": 28.33,
+    "optimized_release_elapsed_seconds": 24.42,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 105
+    "repeat_patch_application_verified_sdk_patch_count": 107
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2805,10 +2806,10 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 105 SDK patches / 95 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 107 SDK patches / 96 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
-    "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
+    "directx12": "Experimental live renderer; restart required; window mode, output size, VSync and filtering integrated; FXAA/overlay and rendering parity remain open",
     "frame_limits": [
       30,
       40,
@@ -3155,5 +3156,45 @@
     "existing_empty_save_regeneration_verified": false,
     "intermittent_black_menu_fixed": false,
     "desktop_installed": false
+  },
+  "directx12_parity_2026_10_19": {
+    "status": "active",
+    "sdk_patch_count": 107,
+    "baseline_frame_rate": 30,
+    "live_renderer": "rsx_live_draw on the null Win32 window host",
+    "shares_vulkan_draw_engine": false,
+    "graphics_preferences_applied": true,
+    "patch_0106_windows_debug_checks_passed": 95,
+    "patch_0106_windows_release_checks_passed": 95,
+    "patch_0106_native_comparison_verified": true,
+    "full_parity_verified": false,
+    "baseline_probe": "20261019-141759",
+    "candidate_probe": "20261019-142033",
+    "baseline_private_executable_sha256": "47a99d08de8a808d70515978ffc2887d74fcad335d0943b7f87fbcf4a3af448c",
+    "candidate_private_executable_sha256": "9044179533ea9701768c9ba93a19453c106c5f07c7bdff29c8873b0942d0938d",
+    "private_build_difference": "Hidden Win32 host window; baseline additionally links the earlier live renderer to compare against patch 0106",
+    "audio_mute_api_verified": true,
+    "isolated_save_copy": true,
+    "continue_and_menu_frames_visually_inspected": true,
+    "visual_improvement_from_0106_established": false,
+    "desktop_installed": false,
+    "known_remaining": [
+      "Interactive fullscreen validation",
+      "FXAA and in-game FPS overlay",
+      "Texture comparison sampling",
+      "Guest-readback hook targets the separate shared engine",
+      "Partial component color clears",
+      "Title telemetry averaging and stale size"
+    ],
+    "display_preferences_native_probe": "20261019-143540",
+    "display_preferences_verified": [
+      "720p to 1080p window client resize",
+      "VSync on/off in renderer applied state",
+      "16x anisotropic filtering in renderer applied state"
+    ],
+    "display_preferences_executable_sha256": "eb13de59c275b6c841c887834c2fb5d2d27d0cd436f1df1e5f7c1f1786f8a426",
+    "patch_0107_windows_debug_checks_passed": 96,
+    "patch_0107_windows_release_checks_passed": 96,
+    "real_fullscreen_transition_verified": false
   }
 }

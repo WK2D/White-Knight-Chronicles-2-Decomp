@@ -8,6 +8,8 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0107 | [DirectX display and sampler preferences](#directx-display-and-sampler-preferences-patch-0107) |
+| Patch 0106 | [DirectX live clear rectangles](#directx-live-clear-rectangles-patch-0106) |
 | Patch 0105 | [Guest lightweight mutex tokens](#guest-lightweight-mutex-tokens-patch-0105) |
 | Patch 0104 | [Host-layout SPU byte shuffle](#host-layout-spu-byte-shuffle-patch-0104) |
 | Patch 0103 | [Vulkan constant upload reuse](#vulkan-constant-upload-reuse-patch-0103) |
@@ -40,6 +42,52 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## DirectX display and sampler preferences (patch 0107)
+
+The native menu now forwards window mode, output window size, VSync and
+anisotropic filtering to the DirectX live renderer. Window-mode changes drain
+GPU references, preserve windowed placement and resize flip-model backbuffers
+before the next presentation. VSync-off uses tearing only when DXGI reports
+support and the chain is windowed. This follows Microsoft's
+[DXGI swap-chain requirements](https://learn.microsoft.com/en-us/windows/win32/direct3d12/swap-chains).
+
+Sampler caching now compares complete decoded descriptors instead of a 32-bit
+key that discarded LOD bits. Signed LOD bias is applied; Off/2x/4x/8x/16x
+preferences preserve point-filtered UI and non-mipmapped textures. Descriptor
+changes flush earlier GPU work before sampler slots are reused.
+
+`wkc2_d3d12_graphics` checks the production display-transition helper with
+recording Win32/DXGI calls, tearing restrictions, signed bias, exact LOD matching
+and the filtering policy. The menu regression checks DirectX controls after a
+simulated restart. All 96 Windows checks pass in Debug and Release. A private
+native run changed 720p to 1080p, toggled VSync and selected 16x filtering through
+the actual panel. Read-only inspection confirmed the renderer applied those
+values and the window client resized to 1920x1080. See the
+[DirectX capture](GALLERY.md#2026-10-19--directx-graphics-settings).
+
+Output size is separate from internal rendering resolution. Real fullscreen
+switches, FXAA, the in-game FPS overlay, comparison sampling, fresh DirectX avatar
+capture and complete transition parity remain open. Higher FPS defects are
+deferred; the native run stayed at 30. The desktop installation remains on its
+earlier Vulkan checkpoint.
+
+## DirectX live clear rectangles (patch 0106)
+
+The selected DirectX path uses `rsx_live_draw`, independently of the shared
+Vulkan engine. Its clear callback ignored the scissor and treated an explicit
+zero depth/stencil word as depth 1. Patch 0106 decodes the live register values
+through the common D3D12 clear helper, clips clear rectangles to the color
+surface, and clears the selected depth resource with the requested values.
+Color clears retain their existing channel-mask limitation.
+
+The WARP surface-clear regression now uses the production register decoder,
+including zero depth, far depth, separate aspects, clipped and empty rectangles,
+and padded depth targets. All 95 Windows checks pass in Debug and Release.
+Isolated 30 FPS DirectX Continue and menu captures were visually checked before
+and after the fix. No visible improvement is established in this view. Graphics
+preferences, comparison samplers and generated-portrait readback remain separate
+work.
 
 ## Guest lightweight mutex tokens (patch 0105)
 

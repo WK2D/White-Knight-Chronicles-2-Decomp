@@ -117,17 +117,23 @@ int main(void)
         {0xF0,0,0,8,8,8,8,0.9f}, {0xF3,0,0,8,8,8,8,0.6f},
         {1,1,2,3,4,8,8,0.7f}, {3,0,0,65535,65535,8,8,0.8f},
         {0xF3,9,0,5,8,8,8,0.6f}, {0xF3,0,0,0,8,8,8,0.6f},
-        {0xF3,0,0,8,8,4,3,0.6f}
+        {0xF3,0,0,8,8,4,3,0.6f},
+        {3,0,0,8,8,8,8,0.0f}, {3,1,2,3,4,8,8,1.0f}
     };
+    const rsx_surface_clear zero=rsx_d3d12_clear_from_registers(3,0,
+        8u<<16,8u<<16,8,8);
+    assert(zero.depth==0.0f && zero.stencil==0 && zero.w==8 && zero.h==8);
     for (unsigned c=0; c<sizeof(cases)/sizeof(cases[0]); ++c) {
         checked(s_d3d.cmd_allocators[0]->lpVtbl->Reset(s_d3d.cmd_allocators[0]));
         checked(s_d3d.cmd_list->lpVtbl->Reset(s_d3d.cmd_list, s_d3d.cmd_allocators[0], NULL));
         s_d3d.cmd_list->lpVtbl->ClearRenderTargetView(s_d3d.cmd_list, rtv, red, 0, NULL);
         s_d3d.cmd_list->lpVtbl->ClearDepthStencilView(s_d3d.cmd_list, dsv,
             D3D12_CLEAR_FLAG_DEPTH|D3D12_CLEAR_FLAG_STENCIL, 0.2f, 0x5A, 0, NULL);
-        rsx_surface_clear clear=rsx_surface_clear_make(cases[c].mask,
-            cases[c].z,0xA5,cases[c].x,cases[c].y,cases[c].w,cases[c].h,
-            cases[c].sw,cases[c].sh);
+        const u32 packed_z=(u32)(cases[c].z*16777215.0f);
+        rsx_surface_clear clear=rsx_d3d12_clear_from_registers(cases[c].mask,
+            (packed_z<<8)|0xA5u,(cases[c].w<<16)|cases[c].x,
+            (cases[c].h<<16)|cases[c].y,cases[c].sw,cases[c].sh);
+        assert(fabsf(clear.depth-cases[c].z)<0.000001f && clear.stencil==0xA5);
         assert(rsx_d3d12_clear_color(s_d3d.cmd_list,&clear,blue,rtv,8,8)>=0);
         rsx_d3d12_clear_depth(s_d3d.cmd_list,s_d3d.depth_buffer,&clear,dsv);
         transition(color,D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_COPY_SOURCE);

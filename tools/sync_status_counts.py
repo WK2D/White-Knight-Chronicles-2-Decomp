@@ -24,6 +24,7 @@ SITES = [
     ('docs/CONTRIBUTING.md', r'passes (?P<checks>\d+) checks with (?P<patches>\d+) SDK patches'),
     ('docs/GALLERY.md', r'Current source: (?P<patches>\d+) SDK patches / (?P<checks>\d+) Windows checks'),
     ('docs/FINDINGS.md', r'\*\*Current source checkpoint:\*\* (?P<patches>\d+) SDK patches / (?P<checks>\d+) Windows checks'),
+    ('verification/rendering.json', r'Current source has (?P<patches>\d+) SDK patches / (?P<checks>\d+) passing Windows checks'),
 ]
 
 # These are current-state descriptions in project.json, not dated measurements.
@@ -32,7 +33,6 @@ JSON_TEXT_SITES = [
      r'(?P<patches>\d+) SDK patches / (?P<checks>\d+) Windows checks'),
     (('native_graphics_settings', 'scope'),
      r'Current source has (?P<patches>\d+) SDK patches / (?P<checks>\d+) passing Windows checks'),
-    (('native_save_load_scope',), r'current (?P<patches>\d+)-patch Release build'),
 ]
 
 
