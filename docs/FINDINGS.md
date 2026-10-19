@@ -26,6 +26,7 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 **Performance, timing and presentation**
 
+- [GPU command spans and the town wait chain](#gpu-command-spans-and-the-town-wait-chain)
 - [Saved-town movement baseline](#saved-town-movement-baseline)
 - [Frame pacing and game speed](#frame-pacing-and-game-speed)
 - [Drakengard 3 performance and settings comparison](#drakengard-3-performance-and-settings-comparison)
@@ -237,13 +238,94 @@ including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
 
+## GPU command spans and the town wait chain
+
+**Problem.** The saved-town movement route still stalls despite near-30
+presentation throughput in its initial stationary view. GPU fence waits alone
+could not distinguish graphics execution from CPU scheduling and submission gaps.
+
+**Cause.** Measurements on 2026-10-19 narrow the investigation but do not establish
+one cause for every stall. An isolated native Vulkan candidate records TOP/BOTTOM
+GPU timestamps for each command buffer. Query pools follow the actual command
+buffer handles through slot swaps; completed results are read without an added
+wait. The observer unions overlapping spans rather than adding them twice.
+Timestamp conversion follows the device's period and queue's valid-bit count;
+see the [Vulkan query specification](https://docs.vulkan.org/spec/latest/chapters/queries.html).
+
+The instrumented route uses Continue from the same save, 720p output, original
+30 FPS limit, VSync/AF/AA off and the same timed stick holds. The test window is
+hidden and its Windows audio session is muted and verified. GPU spans and host
+staging-copy/allocation counters are collected separately from stack sampling.
+
+| Phase | Presentations/s | GPU span union per presentation | Device allocations | Allocation CPU time | Engine staging-copy CPU time |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Initial neutral | 29.84 | 8.76 ms | 0 | 0.00 ms | 192.96 ms |
+| Forward | 27.93 | 9.17 ms | 28 | 3.56 ms | 184.77 ms |
+| Back | 15.27 | 13.60 ms | 137 | 12.36 ms | 142.01 ms |
+| Camera turn | 24.15 | 11.71 ms | 4 | 0.54 ms | 206.78 ms |
+| Final neutral | 25.94 | 11.21 ms | 0 | 0.00 ms | 210.37 ms |
+
+CPU times in the last two columns cover each approximately ten-second phase,
+not one frame. The back phase's longest individual GPU command span is 20.40 ms,
+while its independently observed longest presentation gap is 779.82 ms. There
+is a 547.96 ms gap between recorded GPU command spans in that phase. There
+are no missing timestamp records, unavailable results or query errors in this
+route. These observations favor investigating CPU work, job dependencies and
+submission/pacing gaps before expecting allocation pooling alone to cure this
+route. They do not exclude GPU improvements in other workloads.
+
+A separate stack sample resumes each thread before unwinding its captured stack
+copy. It identifies image-19 geometry work, renderer vertex work and a polling
+guest thread in `sys_timer_usleep`. Main-thread waits lead through the native
+lightweight-condition implementation. An additional condition-event trace then
+identifies the next link: guest thread 13 signals the main thread, and its sampled
+stack is predominantly in `cellSpursEventFlagWait` through `func_00AB3E48`.
+The main thread reaches its wait through `func_00A7EC4C` and `func_00A74AFC`.
+
+In that separate instrumented movement run, 156 completed main-thread waits in
+the back phase have median 31.06 ms, 95th percentile 115.09 ms and maximum
+365.37 ms. All have an explicit matching signal. Signal-to-wake observation is
+at most 0.067 ms, measured **before guest mutex reacquisition**. This establishes
+the dependency and prompt condition-variable wake in the sampled cases; it does
+not establish the mutex-reacquisition cost or why the SPURS producer completes
+late. A blanket change to condition timeouts is not justified by this trace.
+
+**Fix.** No gameplay performance fix is promoted at this checkpoint. Ordinary
+read candidates remain isolated: outlining their diagnostic bodies shrinks the
+compiled `vm_read32` entry from 3,168 to 64 bytes, but fixed-pose on/off passes
+still show no consistent end-to-end gain. Stores and SPU reservations retain
+their original implementation. The desktop playable and preferences are unchanged.
+
+**Evidence.** The [performance record](../verification/performance.json) retains
+numeric results and private-record hashes. Focused checks exercise actual loader
+read bodies, bounds, MMIO, reference polling, diagnostic controls and caller
+attribution; three deliberately broken read variants are rejected. A mocked
+Vulkan check covers query availability, command-buffer ownership, valid-bit
+masking, disabled/unsupported paths, counters and cleanup; removing the
+availability guard fails its negative control. Existing lightweight-condition
+regression checks also pass with the private trace disabled and enabled. These
+are exploratory checks, not additions to the published 84-check suite.
+
+**Limits.** GPU command spans include dependencies and are not GPU hardware
+busy-cycle counters or calibrated CPU/GPU absolute timestamps. Result retirement
+and independent observers have slightly different phase boundaries. Staging
+counters cover engine arena and texture-row copies, not all decode/upload work.
+Instrumented routes are diagnostic evidence, not clean speed comparisons. Fixed
+stick durations do not guarantee identical final views when game speed varies.
+Distinct animation speed, the sampled guest clocks' exact roles, sustained
+30 FPS, higher-rate correctness and the full set of requested optimizations
+remain unverified. No new screenshot is published because this is a measurement
+checkpoint without a verified visible rendering change.
+
 ## Saved-town movement baseline
 
 Measured 2026-10-19 on the unchanged 99-patch optimized native executable,
 loading the verified starting-town save through Continue. The copied executable
 matches the published playable checkpoint's SHA-256. Its separate preferences
 select Vulkan, 720p output, the original 30 FPS limit, VSync off, AF off and AA off.
-The test is hidden and muted. It does not alter the desktop playable or its
+The test uses a hidden window. Its original launcher requested audio mute through
+an unsupported environment variable, so that run's audio mute was not verified;
+later runs above use verified Windows session muting. It does not alter the desktop playable or its
 preferences. Diagnostic logs, automatic snapshots, the sampling profiler and the
 frame timeline are disabled during this timing pass.
 
@@ -286,8 +368,10 @@ the actual wait dependency must be identified before replacing it.
 
 An earlier exploratory timeline records overlapping SPU and FIFO work with short
 reported GPU fence waits in a near-30-presentations/s segment. Its million-record
-dump can introduce pauses, so it is excluded from the timing table. Calibrated GPU
-execution timestamps and allocation/upload cost breakdowns are still missing.
+dump can introduce pauses, so it is excluded from the timing table. That baseline
+does not include GPU execution timestamps or an allocation/upload breakdown;
+the [later diagnostic checkpoint](#gpu-command-spans-and-the-town-wait-chain)
+records command spans and host allocation/staging costs.
 The next candidates should address measured CPU/memory and renderer work while
 retaining the same input route and separate timing/diagnostic passes. No runtime
 performance improvement is claimed by this measurement checkpoint.

@@ -850,5 +850,416 @@
       "reason": "Early SIMD samples improve, but later samples slow in both modes; moving NPCs and hidden diagnostic branch limit causal inference. Preliminary nonidentical scalar comparison excluded."
     },
     "macOS_ARM_verified": false
+  },
+  "gpu_and_wait_chain_checkpoint": {
+    "date": "2026-10-19",
+    "published_sdk_patch_count": 99,
+    "published_windows_check_count": 84,
+    "runtime_change_promoted": false,
+    "conditions": {
+      "platform": "Windows x86-64",
+      "renderer": "Vulkan",
+      "output_resolution": [
+        1280,
+        720
+      ],
+      "internal_resolution_scaling_verified": false,
+      "frame_limit_option": 30,
+      "vsync": false,
+      "anisotropy": false,
+      "anti_aliasing": false,
+      "hidden": true,
+      "windows_audio_session_mute_verified": true,
+      "continued_from_verified_town_save": true,
+      "stack_sampling_during_route_timing": false,
+      "automatic_snapshots_during_timing": false,
+      "gpu_timestamps_instrumented": true
+    },
+    "gpu_candidate_exe_sha256": "7a7fd891386e622d4211572d312e52d26b406edf05acf5b939095db3798bb5dc",
+    "gpu_and_host_copy_samples": [
+      {
+        "phase": "idle",
+        "seconds": 10.020756999962032,
+        "presents": 299,
+        "presentations_per_second": 29.838065128326424,
+        "gpu_span_count": 2142,
+        "gpu_span_union_ms": 2620.027072,
+        "gpu_span_union_ms_per_present": 8.762632347826086,
+        "gpu_span_sum_ms": 2620.027072,
+        "gpu_span_max_ms": 19.407456,
+        "lost_spans": 0,
+        "query_unavailable": 0,
+        "query_errors": 0,
+        "allocation_count": 0,
+        "allocation_bytes": 0,
+        "allocation_cpu_ms": 0.0,
+        "staging_bytes": 8232307576,
+        "staging_copy_cpu_ms": 192.9602,
+        "timestamp_bits": 64,
+        "timestamp_period_ns": 1.0,
+        "private_record_sha256": "035fd906ea5f064ad2c3597cd2c13cb5a1f101d0000980814bd2fdaae3714bf7",
+        "gpu_span_gap_max_ms": 15.166144
+      },
+      {
+        "phase": "forward",
+        "seconds": 10.024140800000168,
+        "presents": 280,
+        "presentations_per_second": 27.932568544926593,
+        "gpu_span_count": 2185,
+        "gpu_span_union_ms": 2567.179904,
+        "gpu_span_union_ms_per_present": 9.168499657142858,
+        "gpu_span_sum_ms": 2567.179904,
+        "gpu_span_max_ms": 21.986624,
+        "lost_spans": 0,
+        "query_unavailable": 0,
+        "query_errors": 0,
+        "allocation_count": 28,
+        "allocation_bytes": 844288,
+        "allocation_cpu_ms": 3.5598,
+        "staging_bytes": 8179923060,
+        "staging_copy_cpu_ms": 184.7719,
+        "timestamp_bits": 64,
+        "timestamp_period_ns": 1.0,
+        "private_record_sha256": "835748da9bd2ec142c6dc6dbc2d6dfe8b8ecec87ffa799bf8562848bc95a1d9b",
+        "gpu_span_gap_max_ms": 183.124672
+      },
+      {
+        "phase": "back",
+        "seconds": 10.017645599960815,
+        "presents": 153,
+        "presentations_per_second": 15.273049787327121,
+        "gpu_span_count": 1491,
+        "gpu_span_union_ms": 2080.413792,
+        "gpu_span_union_ms_per_present": 13.597475764705882,
+        "gpu_span_sum_ms": 2080.413792,
+        "gpu_span_max_ms": 20.397504,
+        "lost_spans": 0,
+        "query_unavailable": 0,
+        "query_errors": 0,
+        "allocation_count": 137,
+        "allocation_bytes": 3593728,
+        "allocation_cpu_ms": 12.3648,
+        "staging_bytes": 6191206376,
+        "staging_copy_cpu_ms": 142.0109,
+        "timestamp_bits": 64,
+        "timestamp_period_ns": 1.0,
+        "private_record_sha256": "76f94596ff798ae0cc75adcf13c547efc7d0cf12f633d8f21bf4bfb3e9881925",
+        "gpu_span_gap_max_ms": 547.961216
+      },
+      {
+        "phase": "camera",
+        "seconds": 10.022025600017514,
+        "presents": 242,
+        "presentations_per_second": 24.1468151906913,
+        "gpu_span_count": 2192,
+        "gpu_span_union_ms": 2834.368864,
+        "gpu_span_union_ms_per_present": 11.712268033057851,
+        "gpu_span_sum_ms": 2834.368864,
+        "gpu_span_max_ms": 19.5392,
+        "lost_spans": 0,
+        "query_unavailable": 0,
+        "query_errors": 0,
+        "allocation_count": 4,
+        "allocation_bytes": 227840,
+        "allocation_cpu_ms": 0.5366,
+        "staging_bytes": 9149924812,
+        "staging_copy_cpu_ms": 206.7826,
+        "timestamp_bits": 64,
+        "timestamp_period_ns": 1.0,
+        "private_record_sha256": "b29f475f133e754f833e90e20bf842b7191a549072565468cf929ab1e2c7c071",
+        "gpu_span_gap_max_ms": 17.882976
+      },
+      {
+        "phase": "idle_after",
+        "seconds": 10.023366399982478,
+        "presents": 260,
+        "presentations_per_second": 25.93938898616482,
+        "gpu_span_count": 2263,
+        "gpu_span_union_ms": 2914.250048,
+        "gpu_span_union_ms_per_present": 11.20865403076923,
+        "gpu_span_sum_ms": 2914.250048,
+        "gpu_span_max_ms": 18.646432,
+        "lost_spans": 0,
+        "query_unavailable": 0,
+        "query_errors": 0,
+        "allocation_count": 0,
+        "allocation_bytes": 0,
+        "allocation_cpu_ms": 0.0,
+        "staging_bytes": 9136372512,
+        "staging_copy_cpu_ms": 210.3703,
+        "timestamp_bits": 64,
+        "timestamp_period_ns": 1.0,
+        "private_record_sha256": "10a40372ce7082c45ecef5a15b80b9677dc99af1733ae20630ba6e8443d6e471",
+        "gpu_span_gap_max_ms": 18.532704
+      }
+    ],
+    "condition_candidate_exe_sha256": "d829467b4c2e25a6c8131d6a3d2039c341fc3a13667e78406cf407786c5633fb",
+    "condition_samples": [
+      {
+        "phase": "idle",
+        "seconds": 10.045627899991814,
+        "lost_events": 0,
+        "main_guest_thread_waits": [
+          {
+            "condition": "0x4462277c",
+            "guest_tid": 1,
+            "wait_count": 299,
+            "total_wait_ms": 5274.2955,
+            "p50_ms": 16.5475,
+            "p95_ms": 20.2386,
+            "max_ms": 27.7967,
+            "timeouts": 0,
+            "explicit_signals": 299,
+            "signal_to_return_p95_ms": 0.0076,
+            "signal_to_return_max_ms": 0.0157
+          }
+        ],
+        "private_record_sha256": "7277dc0c2846e734209b09a76a0d92e3feadd2b27a5e1767ac924e399fe47402"
+      },
+      {
+        "phase": "forward",
+        "seconds": 10.040096800017636,
+        "lost_events": 0,
+        "main_guest_thread_waits": [
+          {
+            "condition": "0x4462277c",
+            "guest_tid": 1,
+            "wait_count": 290,
+            "total_wait_ms": 6371.4392,
+            "p50_ms": 22.12605,
+            "p95_ms": 24.5699,
+            "max_ms": 184.759,
+            "timeouts": 0,
+            "explicit_signals": 290,
+            "signal_to_return_p95_ms": 0.008,
+            "signal_to_return_max_ms": 0.0249
+          }
+        ],
+        "private_record_sha256": "1d95434e60871295529cb5bb0d1d713fbc13901feea3679b20dc92df35942528"
+      },
+      {
+        "phase": "back",
+        "seconds": 10.037851999979466,
+        "lost_events": 0,
+        "main_guest_thread_waits": [
+          {
+            "condition": "0x4462277c",
+            "guest_tid": 1,
+            "wait_count": 156,
+            "total_wait_ms": 6011.1431,
+            "p50_ms": 31.0561,
+            "p95_ms": 115.0858,
+            "max_ms": 365.3685,
+            "timeouts": 0,
+            "explicit_signals": 156,
+            "signal_to_return_p95_ms": 0.0104,
+            "signal_to_return_max_ms": 0.0665
+          }
+        ],
+        "private_record_sha256": "35f0e8e9601aa2f87a192b25598dc7615b30b675664b49852ca2c855498f5f26"
+      },
+      {
+        "phase": "camera",
+        "seconds": 10.038979000004474,
+        "lost_events": 0,
+        "main_guest_thread_waits": [
+          {
+            "condition": "0x4462277c",
+            "guest_tid": 1,
+            "wait_count": 202,
+            "total_wait_ms": 1569.9282,
+            "p50_ms": 8.1984,
+            "p95_ms": 12.5912,
+            "max_ms": 58.2297,
+            "timeouts": 0,
+            "explicit_signals": 202,
+            "signal_to_return_p95_ms": 0.0076,
+            "signal_to_return_max_ms": 0.0141
+          }
+        ],
+        "private_record_sha256": "ff60c5f1e93d6dd91088f95540b2f9b73c497c5d2e8ad1fcf0b1eedaa1759bb1"
+      },
+      {
+        "phase": "idle_after",
+        "seconds": 10.04021330003161,
+        "lost_events": 0,
+        "main_guest_thread_waits": [
+          {
+            "condition": "0x4462277c",
+            "guest_tid": 1,
+            "wait_count": 150,
+            "total_wait_ms": 808.6946,
+            "p50_ms": 5.739850000000001,
+            "p95_ms": 10.7058,
+            "max_ms": 12.8243,
+            "timeouts": 0,
+            "explicit_signals": 150,
+            "signal_to_return_p95_ms": 0.0081,
+            "signal_to_return_max_ms": 0.0237
+          }
+        ],
+        "private_record_sha256": "efda22e299f3ae4acc12b9b2c11b627f54e22293fe163efda848516fea3973c0"
+      }
+    ],
+    "condition_dependency": {
+      "main_guest_thread": 1,
+      "signalling_guest_thread": 13,
+      "signaller_sampled_wait": "cellSpursEventFlagWait",
+      "signaller_guest_function": "00AB3E48",
+      "wake_timestamp_before_guest_mutex_reacquisition": true,
+      "private_stack_record_sha256": "9c07daaa8b86f34add58cb826f1473141f57fd3e8cb91628ce0bf1095e176581"
+    },
+    "ordinary_read_fixed_pose_controls": [
+      {
+        "candidate_exe_sha256": "d115a2ad388ec808945f1c98ee8622e9c5426438f1f633902249c77eab77d6a0",
+        "private_record_sha256": "23c29d1f433f43137e84a2083b6cb2da8c80e7b36d20be6249b35244a3031d77",
+        "same_process_no_input": true,
+        "passes": [
+          {
+            "phase": 0,
+            "mode": 1,
+            "presentations_per_second": 19.66257701445443,
+            "process_cpu_ms_per_present": 199.74841101694915,
+            "p50_ms": 50.15969998203218,
+            "p95_ms": 55.20109995268285,
+            "max_ms": 66.81489996844903
+          },
+          {
+            "phase": 1,
+            "mode": 0,
+            "presentations_per_second": 19.999710837446568,
+            "process_cpu_ms_per_present": 199.609375,
+            "p50_ms": 50.1077999942936,
+            "p95_ms": 52.23799997474998,
+            "max_ms": 54.22980000730604
+          },
+          {
+            "phase": 2,
+            "mode": 0,
+            "presentations_per_second": 19.997838233619575,
+            "process_cpu_ms_per_present": 202.86458333333334,
+            "p50_ms": 50.10230001062155,
+            "p95_ms": 52.324999996926636,
+            "max_ms": 55.10040000081062
+          },
+          {
+            "phase": 3,
+            "mode": 1,
+            "presentations_per_second": 19.830684614826982,
+            "process_cpu_ms_per_present": 200.17069327731093,
+            "p50_ms": 50.11769995326176,
+            "p95_ms": 55.0101000117138,
+            "max_ms": 65.9999999916181
+          },
+          {
+            "phase": 4,
+            "mode": 0,
+            "presentations_per_second": 19.914957963206948,
+            "process_cpu_ms_per_present": 207.505230125523,
+            "p50_ms": 50.18079996807501,
+            "p95_ms": 52.744199987500906,
+            "max_ms": 62.81070003751665
+          },
+          {
+            "phase": 5,
+            "mode": 1,
+            "presentations_per_second": 20.579791036781117,
+            "process_cpu_ms_per_present": 193.57287449392712,
+            "p50_ms": 49.91660002269782,
+            "p95_ms": 52.55360004957765,
+            "max_ms": 65.20209996961057
+          }
+        ]
+      },
+      {
+        "candidate_exe_sha256": "c3769c58f2b98c102d18f2c751fe216186557359edb9e00256193e11320a8f5a",
+        "private_record_sha256": "757f67edc4a345362d45b9edcd544aa75514b51fa5575ffd52c47cf90e1af6ce",
+        "same_process_no_input": true,
+        "passes": [
+          {
+            "phase": 0,
+            "mode": 1,
+            "presentations_per_second": 28.08276559345822,
+            "process_cpu_ms_per_present": 156.71364985163206,
+            "p50_ms": 32.6749500236474,
+            "p95_ms": 52.71310004172847,
+            "max_ms": 59.50710002798587
+          },
+          {
+            "phase": 1,
+            "mode": 0,
+            "presentations_per_second": 27.581959751714198,
+            "process_cpu_ms_per_present": 162.05626888217523,
+            "p50_ms": 34.16234999895096,
+            "p95_ms": 50.185399944894016,
+            "max_ms": 52.701400010846555
+          },
+          {
+            "phase": 2,
+            "mode": 0,
+            "presentations_per_second": 29.160636004044346,
+            "process_cpu_ms_per_present": 152.8125,
+            "p50_ms": 32.79830003157258,
+            "p95_ms": 37.846899998839945,
+            "max_ms": 51.74899997655302
+          },
+          {
+            "phase": 3,
+            "mode": 1,
+            "presentations_per_second": 29.332652082423493,
+            "process_cpu_ms_per_present": 155.05149147727272,
+            "p50_ms": 32.74639998562634,
+            "p95_ms": 37.27539995452389,
+            "max_ms": 57.13530001230538
+          },
+          {
+            "phase": 4,
+            "mode": 0,
+            "presentations_per_second": 28.82820143308525,
+            "process_cpu_ms_per_present": 157.33381502890174,
+            "p50_ms": 32.66480000456795,
+            "p95_ms": 47.446400043554604,
+            "max_ms": 53.923600004054606
+          },
+          {
+            "phase": 5,
+            "mode": 1,
+            "presentations_per_second": 29.578695147422643,
+            "process_cpu_ms_per_present": 151.1443661971831,
+            "p50_ms": 32.64509997097775,
+            "p95_ms": 35.224399995058775,
+            "max_ms": 50.21149996900931
+          }
+        ]
+      }
+    ],
+    "focused_private_checks": {
+      "actual_read_function_cases": [
+        "normal",
+        "disabled",
+        "forced read",
+        "reference polling disabled"
+      ],
+      "read_negative_controls_rejected": [
+        "fast path removed",
+        "GCM control page marked ordinary",
+        "caller attributed to slow helper"
+      ],
+      "gpu_query_mock_check_passed": true,
+      "unready_query_reset_negative_control_rejected": true,
+      "existing_lwcond_regression_with_trace_off_and_on_passed": true,
+      "published_full_suite_rerun_for_candidates": false
+    },
+    "limits": [
+      "Private candidates retain experimental read-path changes; no playable improvement is promoted.",
+      "GPU TOP/BOTTOM spans include command dependencies and are not hardware busy-cycle counters.",
+      "Timestamp-span union avoids double counting; retirement and host observations have different boundaries.",
+      "Allocation and staging-copy CPU durations cover each whole phase, not a frame.",
+      "Staging counters cover engine arena/texture-row copies, not every decode/upload.",
+      "Read-path controls show no consistent end-to-end gain.",
+      "Condition wake timestamps precede guest mutex reacquisition; producer lateness remains unexplained.",
+      "Timed input does not guarantee identical spatial viewpoints; game-clock semantics/animation speed remain unverified.",
+      "Earlier baseline mute metadata reflected an unsupported environment flag; later audio-session muting is verified."
+    ]
   }
 }
