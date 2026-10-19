@@ -8,7 +8,7 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 119 SDK patches / 111 Windows checks. The newest capture shows
+Current source: 120 SDK patches / 112 Windows checks. The newest capture shows
 native C++ matrix blending and position transforms on a strict DirectX
 town-to-plains route. It verifies an inspected frame, not a performance gain.
 The earlier captures show

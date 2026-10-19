@@ -1,6 +1,6 @@
 # DirectX and Vulkan parity audit
 
-Source review: 19 October 2026. DirectX uses `rsx_live_draw.c`; Vulkan uses
+Source review: 20 October 2026. DirectX uses `rsx_live_draw.c`; Vulkan uses
 `rsx_draw_engine.c` and `rsx_vulkan_backend.c`. A fix in the shared engine does
 not automatically reach live DirectX. Shared PPU/SPU runtime changes do reach
 both. This table records implementation gaps, not established causes of every
@@ -9,9 +9,10 @@ visual or performance difference.
 | Feature | Vulkan | Live DirectX | Next validation |
 | --- | --- | --- | --- |
 | Shadow comparison and operand order | Patches 0073–0074 | Comparison shader/sampler path added in 0113; 144 synthetic WARP results pass. Native shadow appearance remains unresolved. | Compare the depth producer, sampled snapshot and final character shadow. |
+| Leaf-cutout shadows, moving cloud shadows and vegetation density | Not yet compared on matched views | User comparison shows broad foliage-shadow shapes and reports missing moving cloud shade plus less grass | Match camera/FOV, resolution, save, graphics settings and elapsed scene time; inspect alpha-tested depth producers, ground shader samples and vegetation visibility separately. |
 | Partial color clears | Honors individual RGBA channels | 0112 adds per-channel clears; 128 WARP cases cover RGBA8/FP16, rectangles and depth/stencil preservation. | The sampled town trace contains full-color and depth clears; no visual fix is attributed to partial clears. |
 | Fill polygon offset | 0094 forwards scale/bias and applies host depth bias | 0114 decodes fill state, keys applied values and sets D32 rasterizer bias; sixteen WARP depth cases pass | Native town invokes the implementation, but a visible character-shadow fix is not established. Fractional constants round to D3D's integer field; other depth precision remains unverified. |
-| TC0–7 coordinate override | 0096 forwards the mask to the fragment decompiler and keys shaders on it | Live caller still supplies no override mask | Forward the same state in both constant modes; test generated shaders and mixed texture units. |
+| TC0–7 coordinate override | 0096 forwards the mask; 0120 shares its decoder | 0120 forwards the same request mask in buffered/literal modes and keys PSOs on it | 64 DirectX shader compilations cover all eight inputs, perspective modes and mask controls; native verification and visual effect recorded below. |
 | Window-depth interval | 0098 pairs vertex normalization and host viewport limits | Live viewport remains 0..1 without the paired transform | Implement valid D3D-supported intervals; explicitly audit unsupported ranges. Never change only one half. |
 | Request census | 0095–0098 inspect draw state and compiled shaders | Live renderer does not call the census | Add an independent live entry point with accurate capability flags; a dispatch-table classification alone is insufficient. |
 | Depth snapshot freshness | 0071 serializes snapshots against target generations; clear-only targets supported | Live path uses `had_write`/`snapshot_valid`, invalidates explicit clears, excludes the currently bound depth target and rejects clear-only captures | Test clear-only, bound-target sampling, zeta switches and logical-size reuse. Different code is a review target, not proof of a race. |
@@ -46,3 +47,49 @@ rasterizer clipping. The zero-initialized descriptor had disabled it. Production
 probe `20261019-222607` verifies the transition, short movement and camera rotation
 with zero strict fallback entries. Eight WARP cases cover the correction and old
 state. Non-default RSX clamp modes and the other parity gaps remain open.
+
+## Foliage, cloud shade and grass comparison
+
+On 20 October the user supplied an RPCS3/native plains comparison and reports:
+
+- RPCS3 tree shadows preserve leaf silhouettes and gaps; the native tree shadow
+  has broad solid shapes in the inspected image.
+- Moving clouds cast moving shade on the ground in RPCS3. A still image cannot
+  establish the corresponding animation in the native build.
+- RPCS3 appears to draw denser grass. The supplied views differ in camera,
+  framing and scene timing, so missing vegetation geometry is not yet proven.
+
+Treat these as three open rendering checks. Do not substitute a darker ground
+texture or a higher grass count for reproducing the original rendering behavior.
+A comparison needs matching camera/FOV, output settings, scene/save and time.
+
+Live DirectX already emits fragment discard and alpha tests. The first private
+plains trace (`20261020-001523`) records a 2560×2560 depth producer with alpha-test
+requests; selected frame 2897 contains 4,661 executed draw rows, including 930
+in that shadow pass. The renderer reports zero dropped groups and texture decode
+failures in this window. This does not prove correct sampling, clipping,
+vegetation counts or final pixels. The heavy trace hit a capture timeout before
+the final route step, so it is not a completed route or performance measurement.
+The bounded one-frame follow-up `20261020-002430` completes the native route.
+Frame 2855 records 2,448 draws, including 538 shadow-pass draws across nine actual
+cached pipelines. All nine sample a texture, and the six with non-ALWAYS alpha
+comparisons emit discard. These generated-shader checks do not establish correct
+bound texture bytes, rasterized cutouts or final shadow detail.
+
+That frame contains nonzero TC0–7 input override masks on 2,079 draws. Live
+DirectX previously passed mask zero to the fragment decompiler, unlike Vulkan.
+Patch 0120 forwards the shared decoded mask in buffered and literal modes and
+includes it in PSO identity. This corrects a verified ignored state request; its
+effect on leaf silhouettes, cloud movement or grass density remains unproven.
+
+The corrected native route `20261020-003932` completes Continue, the plains
+transition, short movement and camera rotation with zero strict fallback entries.
+A bounded frame contains 2,450 draw rows and 104 pipeline variants. Forty-four
+variants consume requested overrides, and their actual generated shaders include
+the override expressions. The inspected final view still has the broad solid
+foliage shadow, so this state correction does not resolve that visual fault.
+Moving cloud shade and matched grass density remain unverified. All 112 checks
+pass in Debug and Release. These instrumented routes establish no FPS gain.
+
+Raw shaders, draw records and the supplied comparison remain private. The
+comparison includes desktop content and must not be copied into the public gallery.

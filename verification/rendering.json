@@ -4,9 +4,9 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-20",
-    "native_probe": "20261019-235407",
-    "sdk_patch_count": 119,
-    "summary": "Readable C++ matrix blending and position transforms are integrated in image-19 geometry, with 72 full-state replays, 8,000 fuzz cases and strict DirectX/Vulkan town-to-plains routes. Normal-cofactor arithmetic is tested separately but not yet in live dispatch. 119 SDK patches / 111 Windows checks pass in Debug and Release; broader static coverage, complete jobs and rendering/performance parity remain open.",
+    "native_probe": "20261020-003932",
+    "sdk_patch_count": 120,
+    "summary": "DirectX now forwards requested TC0\u20137 fragment input overrides in both constant modes and keys cached pipelines on the mask. 120 SDK patches / 112 Windows checks pass in Debug and Release. Native C++ matrix blending and position transforms retain their scoped replay/route evidence; leaf-shadow detail, moving cloud shade, vegetation density, broader static coverage and rendering/performance parity remain open.",
     "gallery_image": "screenshots/2026-10-19-native-cpp-geometry-positions.png",
     "gallery_image_sdk_patch_count": 119,
     "gallery_image_scope": "Hidden, muted, isolated DirectX Continue-to-plains route with native C++ matrix blending and position transforms. Strict fallback entries zero. Trace and automatic GPU captures enabled; displayed FPS is an instrumented instant, not a performance comparison. Normal/cofactor integration, complete jobs and rendering parity remain incomplete.",
@@ -410,19 +410,20 @@
       "wkc2_native_skinning",
       "wkc2_native_geometry_hook",
       "wkc2_play_environment",
-      "wkc2_present_measure"
+      "wkc2_present_measure",
+      "wkc2_fragment_inputs"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 119,
-    "last_verified_sdk_patch_count": 119,
-    "current_passed_count": 111,
+    "current_sdk_patch_count": 120,
+    "last_verified_sdk_patch_count": 120,
+    "current_passed_count": 112,
     "record_scope": "118 SDK patches / 107 Windows checks pass in Debug and Release, including media without skips. The strengthened homogeneous-W clipping case also passes both targeted reruns.",
-    "normal_debug_elapsed_seconds": 26.13,
-    "optimized_release_elapsed_seconds": 22.38,
+    "normal_debug_elapsed_seconds": 29.05,
+    "optimized_release_elapsed_seconds": 25.37,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 119
+    "repeat_patch_application_verified_sdk_patch_count": 120
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2857,7 +2858,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 119 SDK patches / 111 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 120 SDK patches / 112 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",
@@ -3700,5 +3701,93 @@
     "npc_spawn_cause_established": false,
     "performance_gain_measured": false,
     "remaining": "Controlled NPC-heavy town profile and matched uninstrumented timing"
+  },
+  "foliage_cloud_vegetation_parity": {
+    "date": "2026-10-20",
+    "status": "open",
+    "reference": "User-supplied RPCS3/native plains comparison and observations",
+    "leaf_shadow_cutouts_match": false,
+    "moving_cloud_ground_shadows_verified": false,
+    "grass_density_matches_verified": false,
+    "matched_camera_fov_settings_time_compared": false,
+    "missing_grass_geometry_proven": false,
+    "native_trace": {
+      "probe": "20261020-001523",
+      "renderer": "DirectX 12",
+      "selected_frame": 2897,
+      "executed_draw_rows": 4661,
+      "shadow_pass_draw_rows": 930,
+      "shadow_map_size": [
+        2560,
+        2560
+      ],
+      "shadow_pass_alpha_test_requests_observed": true,
+      "dropped_draw_groups_reported": 0,
+      "texture_decode_failures_reported": 0,
+      "route_completed": false,
+      "limit": "Heavy diagnostic trace exceeded automatic capture timeout before final route step; shader dump legacy keys do not map all cached pipelines uniquely",
+      "performance_measurement": false
+    },
+    "causes_established": false,
+    "supplied_desktop_comparison_published": false,
+    "bounded_native_trace": {
+      "probe": "20261020-002430",
+      "executable_sha256": "78b7dae59c7c1a813dfbe40f0f4baf208932f0c224011e85486ff43bf6cea484",
+      "frame": 2855,
+      "draws": 2448,
+      "shadow_draws": 538,
+      "shadow_pipelines": 9,
+      "alpha_discard_shadow_pipelines": 6,
+      "tc2d_masks": {
+        "1D": 607,
+        "48": 42,
+        "81": 586,
+        "40": 501,
+        "80": 72,
+        "00": 369,
+        "01": 93,
+        "41": 27,
+        "5F": 1,
+        "1F": 2,
+        "1C": 148
+      },
+      "route_complete": true,
+      "diagnostic_bytes": 2172047,
+      "strict_census": "# rows=0 sessions=0 steps=0 dropped_sessions=0",
+      "all_shadow_pipelines_sample_texture": true
+    }
+  },
+  "directx_fragment_inputs": {
+    "sdk_patch": 120,
+    "shared_decoder": "libs/video/rsx_fragment_inputs.h",
+    "buffered_mode_forwarded": true,
+    "literal_mode_forwarded": true,
+    "pso_identity_includes_mask": true,
+    "coordinate_inputs_tested": 8,
+    "directx_shader_compilations_passed": 64,
+    "zero_mask_legacy_byte_identity_verified": true,
+    "unsupported_mask_rejected": true,
+    "native_nonzero_request_draws_observed_before_fix": 2079,
+    "native_trace_draws": 2448,
+    "native_visual_fix_verified": false,
+    "leaf_shadow_cloud_grass_cause_proven": false,
+    "fps_gain_measured": false,
+    "native_route": {
+      "probe": "20261020-003932",
+      "sdk_patches": 120,
+      "selected_frames": {
+        "3005": 2450
+      },
+      "draw_rows": 2450,
+      "unique_pipelines": 104,
+      "pipelines_using_requested_overrides": 44,
+      "matching_hlsl_dump_verified": true,
+      "route_completed": true,
+      "strict_census": "# rows=0 sessions=0 steps=0 dropped_sessions=0",
+      "executable_sha256": "ad88fa5bd1548d9d904863b0c795d713a4512a455d49db14aa33de088928d40d",
+      "performance_benchmark": false,
+      "leaf_cloud_grass_visual_fix_verified": false
+    },
+    "broad_foliage_shadow_still_visible_after_fix": true
   }
 }

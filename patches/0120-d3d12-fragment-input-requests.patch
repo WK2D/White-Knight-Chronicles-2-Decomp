@@ -1,0 +1,123 @@
+Forward TC0..7 2D input requests in live DirectX, key both constant modes on the mask, and share decoding with Vulkan.
+
+diff --git a/libs/video/rsx_live_draw.c b/libs/video/rsx_live_draw.c
+--- a/libs/video/rsx_live_draw.c
++++ b/libs/video/rsx_live_draw.c
+@@ -106,6 +106,7 @@
+ #include <d3d12sdklayers.h>
+ #include <dxgi1_5.h>
+ #include "rsx_d3d12_sampler.h"
++#include "rsx_fragment_inputs.h"
+ #include "rsx_d3d12_depth_bias.h"
+ #include "rsx_d3d12_raster_clip.h"
+ #include "rsx_d3d12_window.h"
+@@ -4274,6 +4275,7 @@
+         if (rsx_d3d12_texture_is_shadow(&texture))
+             shadow_mask |= 1u << unit;
+     }
++    const u32 tc2d_mask = rsx_fragment_tc2d_mask(&g.rsx);
+     const u32 vtex_mask = vertex_texture_mask();
+     const u32 txl_mask = vp_txl_unit_mask(vp_uc, vp_instrs);
+     if (txl_mask && !(txl_mask & vtex_mask)) {
+@@ -4330,6 +4332,7 @@
+     key = fnv1a(&cube_mask, sizeof(cube_mask), key);
+     key = fnv1a(&shadow_mask, sizeof(shadow_mask), key);
+     key = fnv1a(&vtex_mask, sizeof(vtex_mask), key);
++    key = fnv1a(&tc2d_mask, sizeof(tc2d_mask), key);
+     /* Texel-addressed (RSX_TEX_FMT_UNNORM) units need their coordinates divided
+      * by the texture size in the shader -- D3D12 has no unnormalised addressing
+      * mode. The divisor is baked into the HLSL, so the sizes are part of the
+@@ -4429,8 +4432,8 @@
+     u32 decompiled_constant_count = 0;
+     int fi;
+     if (ld_fp_constants_buffered()) {
+-        fi = rsx_fp_decompile_buffered_shadow_ex(
+-            fp_uc, fp_size, fp_ctrl, cube_mask, shadow_mask, ps_hlsl,
++        fi = rsx_fp_decompile_buffered_requests_ex(
++            fp_uc, fp_size, fp_ctrl, cube_mask, shadow_mask, tc2d_mask, ps_hlsl,
+             sizeof(ps_hlsl), &decompiled_constant_count);
+         if (fi > 0 &&
+             decompiled_constant_count != g.fp_constants.count)
+@@ -4451,8 +4454,8 @@
+             if (np < 0) fi = -1;
+         }
+     } else {
+-        fi = rsx_fp_decompile_shadow_ex(
+-            fp_uc, fp_size, fp_ctrl, cube_mask, shadow_mask,
++        fi = rsx_fp_decompile_requests_ex(
++            fp_uc, fp_size, fp_ctrl, cube_mask, shadow_mask, tc2d_mask,
+             ps_hlsl, sizeof(ps_hlsl));
+         if (fi > 0 && rs.alpha_test_enable &&
+             rsx_fp_apply_alpha_test(
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -13,6 +13,7 @@
+ #include "rsx_draw_engine.h"
+ 
+ #include "rsx_fp_decompiler.h"
++#include "rsx_fragment_inputs.h"
+ #include "rsx_depth_range.h"
+ #include "rsx_request_audit.h"
+ #include "rsx_primitives.h"
+@@ -1799,8 +1800,7 @@
+     const u32 cube_mask = eng_cube_mask();
+     const u32 shadow_mask = eng_shadow_mask();
+     const u32 vtex_mask = eng_vtex_mask();
+-    u32 tc2d_mask = 0;
+-    for (u32 u=0; u<8; u++) tc2d_mask |= (rsx_dsp_reg(&g.rsx,0x0B40+u*4)&1u)<<u;
++    const u32 tc2d_mask = rsx_fragment_tc2d_mask(&g.rsx);
+     u32 unnorm_dim[RSX_DSP_NUM_TEXTURES][2];
+     const u32 unnorm_mask = eng_unnorm_units(unnorm_dim);
+ 
+diff --git a/libs/video/rsx_fp_decompiler.c b/libs/video/rsx_fp_decompiler.c
+--- a/libs/video/rsx_fp_decompiler.c
++++ b/libs/video/rsx_fp_decompiler.c
+@@ -1006,6 +1006,16 @@
+         out, out_size, out_constant_count);
+ }
+ 
++int rsx_fp_decompile_requests_ex(
++    const u8* ucode, u32 max_bytes, u32 ctrl, u32 tex_cube_mask,
++    u32 tex_shadow_mask, u32 tc2d_mask, char* out, u32 out_size)
++{
++    if (tc2d_mask & ~255u) return -1;
++    return rsx_fp_decompile_internal(
++        ucode, max_bytes, ctrl, tex_cube_mask, tex_shadow_mask, tc2d_mask, 0,
++        out, out_size, NULL);
++}
++
+ int rsx_fp_decompile_buffered_requests_ex(
+     const u8* ucode, u32 max_bytes, u32 ctrl, u32 tex_cube_mask,
+     u32 tex_shadow_mask, u32 tc2d_mask, char* out, u32 out_size, u32* out_constant_count)
+diff --git a/libs/video/rsx_fp_decompiler.h b/libs/video/rsx_fp_decompiler.h
+--- a/libs/video/rsx_fp_decompiler.h
++++ b/libs/video/rsx_fp_decompiler.h
+@@ -154,6 +154,10 @@
+ /* Draw-state-aware buffered entry point. TC0..7 bit n replaces input Z/W
+  * with 0/clip-W; SRC2.perspective_corr then supplies reciprocal-W values.
+  * Older entry points use mask zero. TC8/9 remain unsupported. */
++/* Literal-constant counterpart; identical input-request semantics. */
++int rsx_fp_decompile_requests_ex(
++    const u8* ucode, u32 max_bytes, u32 ctrl, u32 tex_cube_mask,
++    u32 tex_shadow_mask, u32 tc2d_mask, char* out, u32 out_size);
+ int rsx_fp_decompile_buffered_requests_ex(
+     const u8* ucode, u32 max_bytes, u32 ctrl, u32 tex_cube_mask,
+     u32 tex_shadow_mask, u32 tc2d_mask, char* out, u32 out_size, u32* out_constant_count);
+diff --git a/libs/video/rsx_fragment_inputs.h b/libs/video/rsx_fragment_inputs.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_fragment_inputs.h
+@@ -0,0 +1,12 @@
++/* Shared NV4097 TC0..7 two-dimensional input request decoding. */
++#ifndef RSX_FRAGMENT_INPUTS_H
++#define RSX_FRAGMENT_INPUTS_H
++#include "rsx_dispatch.h"
++static inline u32 rsx_fragment_tc2d_mask(const rsx_dispatch* state)
++{
++    u32 mask = 0;
++    for (u32 input = 0; input < 8; ++input)
++        mask |= (rsx_dsp_reg(state, 0x0B40u + input * 4u) & 1u) << input;
++    return mask;
++}
++#endif

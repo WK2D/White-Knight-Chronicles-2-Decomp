@@ -2,7 +2,7 @@
 
 Updated 2026-10-20. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 119 SDK patches / 111 Windows checks in Debug and
+**Current source checkpoint:** 120 SDK patches / 112 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -328,6 +328,17 @@ The current higher-frame-rate implementation changes the guest vblank cadence;
 that is a lead, not an established root cause. Keep the stable 30 FPS baseline
 for the DirectX 12 work. Higher-frame-rate synchronization and game-speed
 corrections are deferred at the user's request.
+
+## Leaf shadows, cloud shade and vegetation density
+
+The user's 20 October plains comparison adds three explicit rendering targets:
+leaf-shaped shadow cutouts, moving cloud shade on the ground, and apparent grass
+density relative to RPCS3. Camera/framing differences prevent a draw-count claim
+from the image alone, and cloud movement requires a timed comparison. The
+[rendering audit](DIRECTX_PARITY.md#foliage-cloud-shade-and-grass-comparison)
+records the observations, native trace limits and the ignored DirectX fragment
+input state corrected by patch 0120. None of the three visual issues is marked fixed, and
+these visual differences are not evidence about SPU interpreter coverage.
 
 ## DirectX shadow follow-up and parity review (patches 0112–0115)
 

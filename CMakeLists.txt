@@ -653,6 +653,11 @@ if(WKC2_BUILD_TESTS)
     add_test(NAME wkc2_present_metrics COMMAND wkc2_present_metrics_test)
     set_tests_properties(wkc2_present_metrics PROPERTIES TIMEOUT 10)
     if(WIN32)
+        add_executable(wkc2_fragment_inputs_test tests/fragment_inputs_test.c)
+        target_include_directories(wkc2_fragment_inputs_test PRIVATE "${PS3RECOMP_DIR}/libs/video")
+        target_link_libraries(wkc2_fragment_inputs_test PRIVATE ps3recomp_runtime d3dcompiler)
+        add_test(NAME wkc2_fragment_inputs COMMAND wkc2_fragment_inputs_test)
+        set_tests_properties(wkc2_fragment_inputs PROPERTIES TIMEOUT 20)
         set(PRESENT_MEASURE_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/present_measure_fixture.h")
         add_custom_command(OUTPUT "${PRESENT_MEASURE_FIXTURE}"
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_present_measure_fixture.py"

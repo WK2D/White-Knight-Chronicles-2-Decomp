@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0120 | [DirectX fragment input requests](#directx-fragment-input-requests-patch-0120) |
 | Patch 0119 | [Opt-in DirectX presentation diagnostics](#opt-in-directx-presentation-diagnostics-patch-0119) |
 | Patch 0118 | [DirectX near/far clipping](#directx-nearfar-clipping-patch-0118) |
 | Patches 0116-0117 | [SPU running status and fallback entry guards](#spu-running-status-and-fallback-entry-guards-patches-0116-0117) |
@@ -46,6 +47,25 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## DirectX fragment input requests (patch 0120)
+
+Live DirectX ignored TC0–7 2D input override requests even though the shared
+Vulkan path supplied them to the fragment decompiler. A native plains trace
+contains nonzero masks on 2,079 of 2,448 recorded draws. DirectX now forwards
+the mask in both buffered and literal constant modes and includes it in PSO
+identity. Both renderers use one decoder for the register bits; Vulkan retains
+its existing behavior. The new literal decompiler entry rejects unsupported bits,
+and zero-mask output stays byte-identical to the earlier entry.
+
+`wkc2_fragment_inputs` checks all eight coordinates, perspective modes, enabled/
+disabled requests, upper register bits, unsupported input bits and both constant
+modes through 64 DirectX shader compilations. The existing Vulkan GPU shader
+request oracle remains covered. Leaf-shadow detail, cloud shade and grass
+appearance remain separate visual acceptance checks; this patch is not an FPS
+or full rendering-parity claim. The native `20261020-003932` route verifies
+44 shader variants consuming requested overrides; broad solid foliage shadows
+still appear in the inspected final view.
 
 ## Opt-in DirectX presentation diagnostics (patch 0119)
 
