@@ -4,12 +4,12 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-19",
-    "native_probe": "20261019-213333",
-    "sdk_patch_count": 117,
-    "summary": "Five additional static SPU entries pass 40 private full-state replays. A seven-minute DirectX saved-town route runs with interpreter and microstep entry forbidden and zero fallback. 117 SDK patches / 106 Windows checks pass in Debug and Release. Broader CPU coverage, readable geometry kernels and DirectX character shadows remain open.",
-    "gallery_image": "screenshots/2026-10-19-native-directx-fxaa-on.png",
-    "gallery_image_sdk_patch_count": 110,
-    "gallery_image_scope": "Final DirectX backbuffer readback including FXAA and sharp overlay; functional menu check, not a performance benchmark",
+    "native_probe": "20261019-222607",
+    "sdk_patch_count": 118,
+    "summary": "DirectX near/far clipping fixes foreground ground incorrectly covering Leonard in the inspected Balastor Plain transition, walking and camera views. 118 SDK patches / 107 Windows checks pass in Debug and Release. Strict native town-to-plains route records zero SPU fallback; broader coverage, readable geometry kernels and rendering/performance parity remain open.",
+    "gallery_image": "screenshots/2026-10-19-native-directx-plains-clipping-fixed-front.png",
+    "gallery_image_sdk_patch_count": 118,
+    "gallery_image_scope": "DirectX plains after near/far clipping fix, camera rotation and short movement; no performance claim",
     "remaining_limits": [
       "Smooth 30 FPS traversal and console-equivalent animation speed unverified",
       "First-use shader compilation and other CPU/graphics costs remain",
@@ -67,6 +67,33 @@
     "window_close_title_and_saved_town_settings": true
   },
   "captures": [
+    {
+      "file": "screenshots/2026-10-19-native-directx-plains-clipping-fixed-front.png",
+      "sha256": "67fbe87234eac69303d3d4d217d6ee2e36f80524477338b35d631c5a74ee42bb",
+      "width": 1920,
+      "height": 1080,
+      "sdk_patch_count": 118,
+      "native_probe": "20261019-222607",
+      "scope": "Hidden, muted isolated Continue-to-plains route. 118 enables near/far rasterizer clipping; 117 baseline shows foreground ground covering lower body. Walking and camera rotation inspected in 118. Captures differ in animation/camera and do not establish performance or full rendering parity."
+    },
+    {
+      "file": "screenshots/2026-10-19-native-directx-plains-clipping-fixed-walk.png",
+      "sha256": "18fc23b3bb4f046e5211ebf21efaf1d83ea17d9a79715ae2c67ace15dc80875f",
+      "width": 1920,
+      "height": 1080,
+      "sdk_patch_count": 118,
+      "native_probe": "20261019-222607",
+      "scope": "Hidden, muted isolated Continue-to-plains route. 118 enables near/far rasterizer clipping; 117 baseline shows foreground ground covering lower body. Walking and camera rotation inspected in 118. Captures differ in animation/camera and do not establish performance or full rendering parity."
+    },
+    {
+      "file": "screenshots/2026-10-19-native-directx-plains-clipping-before.png",
+      "sha256": "a3f3523072a53a9dd1a08e374cba085f1c772bc8f2d5971fc35abd5ab4946575",
+      "width": 1920,
+      "height": 1080,
+      "sdk_patch_count": 117,
+      "native_probe": "20261019-215032",
+      "scope": "Hidden, muted isolated Continue-to-plains route. 118 enables near/far rasterizer clipping; 117 baseline shows foreground ground covering lower body. Walking and camera rotation inspected in 118. Captures differ in animation/camera and do not establish performance or full rendering parity."
+    },
     {
       "file": "screenshots/2026-10-19-native-town-fps-unlocked.png",
       "sha256": "1f7faa73eaf387b5f29add68de88ba72801d2b86b76934ac0a81c34295ebe278",
@@ -369,19 +396,20 @@
       "wkc2_event_queue",
       "wkc2_spu_entry_manifest",
       "wkc2_spu_interp_forbidden",
-      "wkc2_spu_microstep_forbidden"
+      "wkc2_spu_microstep_forbidden",
+      "wkc2_d3d12_raster_clip"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 117,
-    "last_verified_sdk_patch_count": 117,
-    "current_passed_count": 106,
-    "record_scope": "117 SDK patches / 106 Windows checks pass in Debug and Release; media checks ran without skips. Includes static-entry manifest validation and separate interpreter/microstep fatal-entry negative controls.",
-    "normal_debug_elapsed_seconds": 28.91,
-    "optimized_release_elapsed_seconds": 25.35,
+    "current_sdk_patch_count": 118,
+    "last_verified_sdk_patch_count": 118,
+    "current_passed_count": 107,
+    "record_scope": "118 SDK patches / 107 Windows checks pass in Debug and Release, including media without skips. The strengthened homogeneous-W clipping case also passes both targeted reruns.",
+    "normal_debug_elapsed_seconds": 26.93,
+    "optimized_release_elapsed_seconds": 23.44,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 117
+    "repeat_patch_application_verified_sdk_patch_count": 118
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -1579,7 +1607,7 @@
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
     "remaining_requirement": "Validate wider NPC/transition/cutscene routes and readable hot-job replacements; keep strict entry checks in diagnostic runs. Full-game CPU coverage is unverified.",
-    "latest_census_probe": "20261019-213333"
+    "latest_census_probe": "20261019-222607"
   },
   "wkc1_town_world_view": {
     "probe": "20261016-233313",
@@ -2816,7 +2844,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 117 SDK patches / 106 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 118 SDK patches / 107 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",
@@ -3485,15 +3513,41 @@
       "lower_body_rendering_correct": false,
       "lower_body_occluded_by_ground": true,
       "performance_benchmark": false
+    },
+    "latest_confirmed_route": {
+      "id": "20261019-222607",
+      "sdk_patch_count": 118,
+      "renderer": "DirectX 12",
+      "frame_limit": 30,
+      "scope": "Continue, town gate, Balastor Plain transition, five-second forward movement and camera rotation",
+      "interpreter_sessions": 0,
+      "microstep_sessions": 0,
+      "strict_guard_enabled": true,
+      "performance_benchmark": false
     }
   },
   "directx_plains_lower_body": {
-    "status": "open",
+    "status": "fixed_in_inspected_route",
     "native_probe": "20261019-215032",
     "previous_115_probe": "20261019-215530",
     "reproduced_before_static_entry_changes": true,
     "vulkan_117_probe": "20261019-215842",
     "vulkan_lower_body_visible": true,
-    "cause_verified": false
+    "cause_verified": false,
+    "fix": {
+      "sdk_patch_count": 118,
+      "status": "fixed_in_inspected_route",
+      "native_probe": "20261019-222607",
+      "frame_limit": 30,
+      "cause": "Live zero-initialized D3D12 rasterizer descriptor disabled near/far clipping; enable DepthClipEnable before PSO creation.",
+      "gpu_test": "wkc2_d3d12_raster_clip",
+      "gpu_cases": 8,
+      "old_disabled_state_controls": 2,
+      "transition_walking_camera_verified": true,
+      "complete_renderer_fidelity_verified": false,
+      "performance_improvement_measured": false,
+      "strict_spu_fallback_entries": 0,
+      "normal_startup_manual": true
+    }
   }
 }

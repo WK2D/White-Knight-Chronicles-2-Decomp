@@ -8,17 +8,13 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 117 SDK patches / 106 Windows checks. The shader-translation
-cache reduces measured compilation stalls; existing images retain their original
-build provenance. The newest captures show DirectX Off/FXAA menu selection and the filtered world
-in the 110-patch build; the counter is composed afterward and stays sharp.
-Fresh DirectX portrait capture is verified, while same-session portrait menu/reload
-checks remain pending. The latest source also adds tested DirectX comparison
-sampling, per-channel clears and polygon bias; a visible character-shadow fix
-is not established. The current source also integrates five static SPU entries,
-with zero fallback on scoped strict town/transition routes; that CPU evidence
-comes from entry guards and state replays, not a screenshot. DirectX plains
-lower-body clipping remains open. These changes have no new gallery image.
+Current source: 118 SDK patches / 107 Windows checks. The newest captures show
+the DirectX near/far clipping fix in Balastor Plain after a town transition,
+walking and camera rotation, plus the earlier broken view. The foreground no
+longer incorrectly covers Leonard's lower body in these inspected views.
+Full rendering, shadow/flicker and performance fidelity remain open. Static SPU
+coverage comes from strict entry guards and state replays, not these screenshots.
+Fresh DirectX portrait capture is verified; same-session menu/reload remains open.
 Earlier town captures use the native FPS overlay after Continue in the 104-patch
 Vulkan build, with 30 and Unlocked frame limits; those are final swapchain
 readbacks after the overlay. The earlier depth-range captures use
@@ -41,6 +37,7 @@ Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-19 | [DirectX plains clipping fixed](#2026-10-19--directx-plains-clipping-fixed) | <a href="#2026-10-19--directx-plains-clipping-fixed"><img src="../verification/screenshots/2026-10-19-native-directx-plains-clipping-fixed-front.png" width="200" alt="DirectX plains clipping fixed"></a> |
 | 2026-10-19 | [DirectX Off/FXAA](#2026-10-19--directx-fxaa) | <a href="#2026-10-19--directx-fxaa"><img src="../verification/screenshots/2026-10-19-native-directx-fxaa-on.png" width="200" alt="DirectX native FXAA enabled"></a> |
 | 2026-10-19 | [DirectX FPS Counter On/Off](#2026-10-19--directx-fps-counter) | <a href="#2026-10-19--directx-fps-counter"><img src="../verification/screenshots/2026-10-19-native-directx-fps-on.png" width="200" alt="DirectX in-game counter enabled"></a> |
 | 2026-10-19 | [DirectX display and filtering controls](#2026-10-19--directx-graphics-settings) | <a href="#2026-10-19--directx-graphics-settings"><img src="../verification/screenshots/2026-10-19-native-directx-graphics-settings.png" width="200" alt="DirectX graphics settings"></a> |
@@ -66,6 +63,31 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
+
+## 2026-10-19 — DirectX plains clipping fixed
+
+The 118-patch DirectX build enables ordinary near/far rasterizer clipping. A
+zero-initialized descriptor had disabled it, allowing foreground ground to cover
+Leonard's lower body after entering Balastor Plain. The issue also reproduced on
+the older 115-patch renderer; Vulkan showed the body on the corresponding route.
+
+The corrected route loads Continue, leaves town, walks farther into the plains
+and turns the camera. Both fatal SPU fallback guards remain enabled with zero
+entries. All 107 Windows checks pass in Debug and Release; eight WARP cases
+exercise clip boundaries, homogeneous W and the old disabled controls.
+
+![DirectX plains after camera rotation](../verification/screenshots/2026-10-19-native-directx-plains-clipping-fixed-front.png)
+
+![DirectX plains after short movement](../verification/screenshots/2026-10-19-native-directx-plains-clipping-fixed-walk.png)
+
+Earlier 117-patch view, before this fix:
+
+![Ground incorrectly covering Leonard's lower body](../verification/screenshots/2026-10-19-native-directx-plains-clipping-before.png)
+
+Unmodified final backbuffer pixels, optional metadata removed. The views differ
+in position and animation; these images establish the inspected visual result,
+not an FPS gain, complete rendering parity or full-game CPU coverage.
+
 
 ## 2026-10-19 — DirectX FXAA
 

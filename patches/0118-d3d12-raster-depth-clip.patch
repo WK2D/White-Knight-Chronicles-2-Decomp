@@ -1,0 +1,38 @@
+Enable ordinary near/far clipping in live DirectX instead of the zero descriptor clamp behavior.
+
+diff --git a/libs/video/rsx_live_draw.c b/libs/video/rsx_live_draw.c
+--- a/libs/video/rsx_live_draw.c
++++ b/libs/video/rsx_live_draw.c
+@@ -107,6 +107,7 @@
+ #include <dxgi1_5.h>
+ #include "rsx_d3d12_sampler.h"
+ #include "rsx_d3d12_depth_bias.h"
++#include "rsx_d3d12_raster_clip.h"
+ #include "rsx_d3d12_window.h"
+ #include "rsx_d3d12_counter.h"
+ #include "rsx_d3d12_fxaa.h"
+@@ -1493,6 +1494,7 @@
+         b->BlendOpAlpha  = gcm_blend_op(rs->eq_a);
+     }
+     pd->RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
++    rsx_d3d12_raster_clip(&pd->RasterizerState);
+     pd->RasterizerState.DepthBias = rs->polygon_bias;
+     pd->RasterizerState.SlopeScaledDepthBias = rs->polygon_slope;
+     pd->RasterizerState.DepthBiasClamp = 0.0f;
+diff --git a/libs/video/rsx_d3d12_raster_clip.h b/libs/video/rsx_d3d12_raster_clip.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_d3d12_raster_clip.h
+@@ -0,0 +1,12 @@
++/* The ordinary RSX/Vulkan clip volume discards geometry outside near/far.
++ * A zero-initialized D3D12 descriptor DISABLES that clipping, unlike the
++ * documented API default. Behind-camera ground can then occlude characters.
++ * Non-default RSX depth-clamp modes still require separate implementation. */
++#ifndef RSX_D3D12_RASTER_CLIP_H
++#define RSX_D3D12_RASTER_CLIP_H
++#include <d3d12.h>
++static inline void rsx_d3d12_raster_clip(D3D12_RASTERIZER_DESC* state)
++{
++    state->DepthClipEnable = TRUE;
++}
++#endif

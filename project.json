@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Five additional static SPU entries pass 40 private full-state replays. A seven-minute DirectX saved-town route runs with interpreter and microstep entry forbidden and zero fallback. 117 SDK patches / 106 Windows checks pass in Debug and Release. Broader CPU coverage, readable geometry kernels and DirectX character shadows remain open.",
+    "current_milestone": "DirectX near/far clipping fixes foreground ground incorrectly covering Leonard in the inspected Balastor Plain transition, walking and camera views. 118 SDK patches / 107 Windows checks pass in Debug and Release. Strict native town-to-plains route records zero SPU fallback; broader coverage, readable geometry kernels and rendering/performance parity remain open.",
     "updated": "2026-10-19"
   },
   "native_data_installation_verified": true,
@@ -155,7 +155,7 @@
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
     "remaining_requirement": "Validate wider NPC/transition/cutscene routes and readable hot-job replacements; keep strict entry checks in diagnostic runs. Full-game CPU coverage is unverified.",
-    "latest_census_probe": "20261019-213333"
+    "latest_census_probe": "20261019-222607"
   },
   "native_character_creation_completed_scope": "Default male avatar named and accepted through Quick Start; opening cutscenes advance to the town. Full visual fidelity and all customization options are not verified.",
   "native_wkc1_town_world_view_verified": true,
@@ -164,8 +164,8 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 117,
-    "runtime_checks_passed": 106,
+    "sdk_patch_count": 118,
+    "runtime_checks_passed": 107,
     "town_native_run_sdk_patch_count": 105,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
@@ -237,7 +237,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 117,
+    "runtime_checks_verified_sdk_patch_count": 118,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -247,8 +247,8 @@
       "GCM_SEMA_ACQUIRE": "1",
       "RSX_ENGINE_ZTEX_GPU": "1"
     },
-    "normal_debug_checks_elapsed_seconds": 28.91,
-    "optimized_release_checks_elapsed_seconds": 25.35,
+    "normal_debug_checks_elapsed_seconds": 26.93,
+    "optimized_release_checks_elapsed_seconds": 23.44,
     "repeat_patch_application_files_changed": 0,
     "patch_0071_windows_regression_verified": true,
     "patch_0072_windows_regression_verified": true,
@@ -264,7 +264,7 @@
     "patch_0074_native_game_run_verified": true,
     "patch_0074_texture_compare_direction_gpu_verified": true,
     "patch_0074_foot_shadow_flicker_fixed_verified": false,
-    "repeat_patch_application_verified_sdk_patch_count": 117,
+    "repeat_patch_application_verified_sdk_patch_count": 118,
     "patch_0075_windows_regression_verified": true,
     "patch_0075_native_interaction_verified": true,
     "patch_0075_save_load_verified": true,
@@ -380,7 +380,9 @@
     "directx_character_shadow_visual_fix_verified": false,
     "patch_0115_kernel_deadline_repeat_runs_passed": 10,
     "patch_0116_windows_regression_verified": true,
-    "patch_0117_strict_entry_negative_controls_verified": true
+    "patch_0117_strict_entry_negative_controls_verified": true,
+    "patch_0118_windows_regression_verified": true,
+    "patch_0118_native_transition_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -444,7 +446,7 @@
     "creator_rotation_smoothness_fixed": false,
     "label": "Present/s",
     "label_patch": 70,
-    "current_windows_runtime_checks_passed": 106,
+    "current_windows_runtime_checks_passed": 107,
     "enabled": false,
     "removed_in_patch": 108,
     "current_scope": "Historical measurements retained below; current Vulkan and DirectX window captions show only the game name. In-game overlay is a separate setting.",
@@ -524,7 +526,7 @@
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified. The same starting-town slot was rechecked in the 105-patch Vulkan Release build.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 117 SDK patches / 106 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 118 SDK patches / 107 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",
@@ -1124,15 +1126,41 @@
       "lower_body_rendering_correct": false,
       "lower_body_occluded_by_ground": true,
       "performance_benchmark": false
+    },
+    "latest_confirmed_route": {
+      "id": "20261019-222607",
+      "sdk_patch_count": 118,
+      "renderer": "DirectX 12",
+      "frame_limit": 30,
+      "scope": "Continue, town gate, Balastor Plain transition, five-second forward movement and camera rotation",
+      "interpreter_sessions": 0,
+      "microstep_sessions": 0,
+      "strict_guard_enabled": true,
+      "performance_benchmark": false
     }
   },
   "directx_plains_lower_body": {
-    "status": "open",
+    "status": "fixed_in_inspected_route",
     "native_probe": "20261019-215032",
     "previous_115_probe": "20261019-215530",
     "reproduced_before_static_entry_changes": true,
     "vulkan_117_probe": "20261019-215842",
     "vulkan_lower_body_visible": true,
-    "cause_verified": false
+    "cause_verified": false,
+    "fix": {
+      "sdk_patch_count": 118,
+      "status": "fixed_in_inspected_route",
+      "native_probe": "20261019-222607",
+      "frame_limit": 30,
+      "cause": "Live zero-initialized D3D12 rasterizer descriptor disabled near/far clipping; enable DepthClipEnable before PSO creation.",
+      "gpu_test": "wkc2_d3d12_raster_clip",
+      "gpu_cases": 8,
+      "old_disabled_state_controls": 2,
+      "transition_walking_camera_verified": true,
+      "complete_renderer_fidelity_verified": false,
+      "performance_improvement_measured": false,
+      "strict_spu_fallback_entries": 0,
+      "normal_startup_manual": true
+    }
   }
 }

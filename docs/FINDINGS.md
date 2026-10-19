@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 117 SDK patches / 106 Windows checks in Debug and
+**Current source checkpoint:** 118 SDK patches / 107 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -117,6 +117,16 @@ macOS. The native Windows text-entry window is a temporary development interface
 Maintain this log as research progresses. Publish checked code, concise findings
 and new verified screenshots together when a meaningful milestone is reached.
 Keep full traces, generated game code, assets and local paths in the private workspace.
+
+## DirectX plains near/far clipping (patch 0118)
+
+Ground incorrectly covering Leonard's lower body after the plains transition
+reproduces on DirectX 115 and 117. Vulkan 117 shows the body on the corresponding
+route. The live DirectX rasterizer descriptor was zero-initialized without
+enabling near/far clipping. The single-flag correction removes the artifact;
+final production probe `20261019-222607` verifies transition, short walking and
+camera rotation with zero strict SPU fallback entries. Eight WARP cases and all
+107 Windows checks pass in Debug and Release. See [captures and limits](GALLERY.md#2026-10-19--directx-plains-clipping-fixed).
 
 ## Static SPU entry coverage (patches 0116-0117)
 

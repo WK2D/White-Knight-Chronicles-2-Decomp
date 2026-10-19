@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0118 | [DirectX near/far clipping](#directx-nearfar-clipping-patch-0118) |
 | Patches 0116-0117 | [SPU running status and fallback entry guards](#spu-running-status-and-fallback-entry-guards-patches-0116-0117) |
 | Patches 0112–0115 | [DirectX clear/comparison/bias and kernel deadline](#directx-clearcomparisonbias-and-kernel-deadline-patches-01120115) |
 | Patch 0107 | [DirectX display and sampler preferences](#directx-display-and-sampler-preferences-patch-0107) |
@@ -44,6 +45,20 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## DirectX near/far clipping (patch 0118)
+
+Live DirectX now explicitly enables `DepthClipEnable` before creating a graphics
+pipeline. Its zero-initialized descriptor had disabled near/far clipping, unlike
+the ordinary Vulkan path. In the reproduced plains view, behind-camera ground
+then incorrectly covered Leonard's lower body. The single flag change removes
+that artifact after transition, movement and camera rotation.
+
+The production helper is exercised by eight WARP cases covering out-of-range,
+boundary/interior and non-unit-W depths, including two old disabled-state
+controls. All 107 Windows checks pass in Debug and Release. Non-default RSX
+depth-clamp modes, other parity gaps and performance remain separate work.
+See the [capture and limits](GALLERY.md#2026-10-19--directx-plains-clipping-fixed).
 
 ## SPU running status and fallback entry guards (patches 0116-0117)
 

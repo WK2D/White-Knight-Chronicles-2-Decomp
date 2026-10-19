@@ -4,8 +4,8 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-19):** the stack contains 117 SDK patches. All
-106 Windows checks pass in normal Debug and optimized Release. Reapplying the
+**Current validation (2026-10-19):** the stack contains 118 SDK patches. All
+107 Windows checks pass in normal Debug and optimized Release. Reapplying the
 complete stack changes no SDK files. Vulkan Continue and short town movement
 were rechecked on patch 0105; isolated DirectX Continue, menu FXAA toggling
 and a short world movement are checked on patch 0110.
@@ -134,7 +134,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 117 numbered SDK patches, and all 106 checks
+The current source stack contains 118 numbered SDK patches, and all 107 checks
 pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
@@ -356,3 +356,13 @@ alongside the existing profile on/off tests. Both complete Windows suites pass
 106 checks. The scoped saved-town run and replay limits are in
 [native execution work](NATIVE_CODE.md); do not infer complete game coverage or
 an FPS improvement from a zero-row census.
+
+### DirectX near/far clipping (patch 0118)
+
+Live DirectX explicitly enables near/far rasterizer clipping. The eight-case
+`wkc2_d3d12_raster_clip` WARP regression checks rejection, clip boundaries,
+homogeneous W and old disabled-state controls. Both Windows suites pass 107
+checks. The final native candidate reaches Balastor Plain after Continue and
+preserves Leonard's lower body through movement/camera inspection with zero
+strict SPU fallback entries. Non-default depth-clamp modes remain unimplemented.
+See [screenshots and scope](GALLERY.md#2026-10-19--directx-plains-clipping-fixed).

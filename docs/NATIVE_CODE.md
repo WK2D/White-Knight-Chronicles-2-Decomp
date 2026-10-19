@@ -30,7 +30,9 @@ A separate strict DirectX route `20261019-215032` confirms the actual town-to-
 Balastor Plain transition with zero fallback. The ground incorrectly occludes
 Leonard’s lower body there. That fault reproduces on the older 115-patch DirectX
 build; Vulkan 117 shows the lower body on the corresponding route. This remains
-an open DirectX rendering issue, not a successful visual validation.
+a DirectX rendering issue fixed in the inspected route by patch 0118; it was
+not caused by the static SPU entries. Production probe `20261019-222607` also
+completes transition, short movement and camera rotation with zero strict fallback.
 
 The geometry block `0xCE08` has eight captured input/output pairs and eight
 passing reference replays. It has 12 local-store stores and no channel calls

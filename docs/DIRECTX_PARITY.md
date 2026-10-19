@@ -41,4 +41,8 @@ in DirectX 115 (`20261019-215530`), before the added static SPU entries. Vulkan 
 (`20261019-215842`) shows the lower body on the corresponding route. The strict
 117 runs reach the plains with zero interpreter/microstep entries. This narrows
 the visual failure to the renderer path without establishing its exact cause.
-Depth state and viewport mapping are being compared; no visual fix is claimed.
+Patch 0118 fixes this inspected artifact by explicitly enabling DirectX near/far
+rasterizer clipping. The zero-initialized descriptor had disabled it. Production
+probe `20261019-222607` verifies the transition, short movement and camera rotation
+with zero strict fallback entries. Eight WARP cases cover the correction and old
+state. Non-default RSX clamp modes and the other parity gaps remain open.

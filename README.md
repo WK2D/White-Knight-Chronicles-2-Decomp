@@ -27,8 +27,9 @@ can resume from a local save.
   Continue after restarting.
 - A dedicated **Triangle → System → Graphics Settings** panel with persistent
   preferences, the game's menu frame and a scrollbar.
-- **106 Windows regression checks** pass in both Debug and optimized Release. The
-  latest native check loads Continue and moves briefly in town.
+- **107 Windows regression checks** pass in both Debug and optimized Release. The
+  latest native check loads Continue, enters Balastor Plain and checks short
+  movement/camera response. DirectX foreground clipping is fixed in that route.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
 resolutions; VSync; anisotropic filtering from Off to 16×; Off/FXAA anti-aliasing;
