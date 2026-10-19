@@ -2,7 +2,7 @@
 
 Updated 2026-10-19. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 99 SDK patches / 84 Windows checks in Debug and
+**Current source checkpoint:** 100 SDK patches / 87 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -26,6 +26,7 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 **Performance, timing and presentation**
 
+- [Shader translation stalls and cache](#shader-translation-stalls-and-cache-patch-0100)
 - [SPURS polling stalls and register-local candidates](#spurs-polling-stalls-and-register-local-candidates)
 - [GPU command spans and the town wait chain](#gpu-command-spans-and-the-town-wait-chain)
 - [Saved-town movement baseline](#saved-town-movement-baseline)
@@ -242,6 +243,54 @@ PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
+
+## Shader translation stalls and cache (patch 0100)
+
+**Problem.** Returning toward the busier part of the starting town produces
+long frame intervals despite relatively short measured GPU command spans.
+
+**Cause.** Sparse instrumentation identifies the long image-19 loop as an
+output-ring allocator polling GCM label 216, not useful geometry math. During a
+377 ms job, simultaneous host samples place the renderer in SPIR-V optimization.
+The FIFO reaches consumer-label publication only after preceding host rendering
+work. Separately, translation counters prove that most shader compilations on
+the return leg repeat text already compiled in that process.
+
+**Fix.** Patch 0100 adds bounded, exact-source/stage SPIR-V reuse. Label ordering,
+SPU polling semantics and the generated game instructions are unchanged. Cache
+identity and failure handling are covered by the [patch regressions](PATCHES.md#spir-v-translation-cache-patch-0100).
+
+**Evidence.** Four hidden, muted runs use one private executable, the same save
+and wall-clock controller sequence, in off/on/on/off order. Each return-leg
+measurement lasts about ten seconds. Output is 720p, the internal scene remains
+1920×1080, the frame limit is 30, VSync is off, and no CPU sampler or GPU readback
+runs during these timing samples.
+
+| Cache | Presentations/s | 95th-percentile interval | Longest interval | Compilations / requests | Compiler/admission time |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Off, first | 16.90 | 147.99 ms | 758.11 ms | 188 / 188 | 2,954.83 ms |
+| On, first | 21.90 | 67.62 ms | 103.98 ms | 8 / 196 | 148.19 ms |
+| On, repeat | 21.30 | 67.16 ms | 105.05 ms | 8 / 208 | 149.62 ms |
+| Off, repeat | 15.70 | 135.67 ms | 698.49 ms | 194 / 194 | 3,005.61 ms |
+
+The enabled runs reuse 188 and 200 translations respectively on this leg.
+The production patch also passes all 87 Windows checks in Debug and Release.
+A separate regular Release reload, without the private fast-memory or register-local
+experiments, measures 30.00 presentations/s at rest, 29.50 on the forward leg and
+21.30 returning, with a 100.43 ms longest return interval. Subsequent stationary
+CPU samples find vertex decoding/fetch, texture hashing, FIFO/driver work, guest
+memory access and SPU job work; shader optimization is absent from the renderer's
+reported top 25 leaves. This supports continuing the memory/vertex/texture work.
+Raw game shaders and captures remain private; reviewed aggregates are in the
+[performance record](../verification/performance.json).
+
+**Limits.** These are instrumented private candidates with the ordinary-read
+experiment enabled, not measurements of the earlier desktop binary. They compare
+the same input durations, not identical world positions: lag can change movement
+progress. Presentation counts do not establish unique animation updates, visible
+scanout or console-equivalent game speed. A roughly 100 ms hitch still misses
+three 30 Hz frame budgets. Consistently smooth traversal remains open, as do
+first-use compilation and the remaining CPU/graphics work.
 
 ## SPURS polling stalls and register-local candidates
 

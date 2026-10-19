@@ -8,7 +8,9 @@ These captures come from a host-compiled recompilation build with a PS3 runtime
 layer and observed SPU interpreter fallback. They do not establish
 interpreter-free execution; see [architecture](ARCHITECTURE.md).
 
-Current source: 99 SDK patches / 84 Windows checks. The newest town captures
+Current source: 100 SDK patches / 87 Windows checks. The shader-translation
+cache reduces measured compilation stalls; existing images retain their original
+build provenance. The newest town captures
 check the 99-patch depth-range/query candidate; the menu captures use 83 patches. They
 are final Vulkan swapchain readbacks, including window scaling and FXAA.
 The earlier LOD comparison is captured before window scaling. Saving and Continue

@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Vulkan depth-interval handling and initialized timezone/retail GPIO query outputs. Unhandled syscall warnings now report each valid ID once instead of stopping after 30 messages. 99 SDK patches / 84 Windows checks in Debug and Release; hidden/muted Continue and short town movement pass. FPS and flicker remain open.",
+    "current_milestone": "Vulkan shader translation reuse removes repeated compilation stalls. 100 SDK patches / 87 Windows checks in Debug and Release; the regular Release build reloads Continue and completes a short town route. Worst return-leg interval is about 100 ms in this probe; consistently smooth 30 FPS, game-speed fidelity and flicker remain open.",
     "updated": "2026-10-19"
   },
   "native_data_installation_verified": true,
@@ -153,9 +153,9 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 99,
-    "runtime_checks_passed": 84,
-    "town_native_run_sdk_patch_count": 99,
+    "sdk_patch_count": 100,
+    "runtime_checks_passed": 87,
+    "town_native_run_sdk_patch_count": 100,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
     "patch_0042_native_game_run_verified": true,
@@ -226,7 +226,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 99,
+    "runtime_checks_verified_sdk_patch_count": 100,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -330,7 +330,9 @@
     "patch_0098_windows_regression_verified": true,
     "patch_0098_native_game_run_verified": true,
     "patch_0099_windows_regression_verified": true,
-    "patch_0099_native_game_run_verified": true
+    "patch_0099_native_game_run_verified": true,
+    "patch_0100_windows_regression_verified": true,
+    "patch_0100_native_game_run_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -445,23 +447,25 @@
     }
   },
   "current_native_observation": {
-    "sdk_patch_count": 99,
-    "probe": "20261019-004357",
+    "sdk_patch_count": 100,
+    "probe": "20261019-055322",
     "town_reached": true,
     "save_reload_verified": true,
     "short_movement_verified": true,
     "hidden": true,
     "muted": true,
-    "exit_code": 0,
+    "exit_code": null,
+    "termination": "Stopped by private harness after measurement and CPU sampling completed",
     "sustained_town_fps_gain_verified": false,
+    "shader_compilation_hitch_reduction_verified": true,
     "shadow_flicker_fix_verified": false,
     "full_visual_fidelity_verified": false,
-    "scope": "Final hidden/muted query/depth-range candidate reloads Continue and exits 0. No unhandled syscall warnings; no FPS gain or flicker fix established."
+    "scope": "Regular Release build, no experimental fast-memory or generated-code optimization enabled. No shader timing sampler during the movement measurements; host IP sampling follows the route."
   },
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 99 SDK patches / 84 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 100 SDK patches / 87 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -845,5 +849,34 @@
     "native_reproduction_independently_verified": false,
     "cause_verified": false,
     "next_check": "Trace portrait generation, storage and menu sampling; compare equivalent game version, scene and save."
+  },
+  "historical_0099_native_observation": {
+    "sdk_patch_count": 99,
+    "probe": "20261019-004357",
+    "town_reached": true,
+    "save_reload_verified": true,
+    "short_movement_verified": true,
+    "hidden": true,
+    "muted": true,
+    "exit_code": 0,
+    "sustained_town_fps_gain_verified": false,
+    "shadow_flicker_fix_verified": false,
+    "full_visual_fidelity_verified": false,
+    "scope": "Final hidden/muted query/depth-range candidate reloads Continue and exits 0. No unhandled syscall warnings; no FPS gain or flicker fix established."
+  },
+  "spirv_translation_cache": {
+    "sdk_patch": 100,
+    "retained_payload_limit_bytes": 16777216,
+    "entry_limit": 1024,
+    "identity": "Shader stage and exact generated HLSL bytes; hash collisions cannot alias programs",
+    "disk_cache": false,
+    "allocation_failure_preserves_entries": true,
+    "regressions": [
+      "wkc2_spirv_cache",
+      "wkc2_spirv_translation_cache",
+      "wkc2_spirv_translation_cache_off"
+    ],
+    "measurement": "verification/performance.json#spirv_translation_cache_2026_10_19",
+    "remaining": "First-use compilation, GPU pipeline creation and other CPU/graphics costs; smooth 30 FPS traversal unverified"
   }
 }

@@ -1,0 +1,211 @@
+diff --git a/libs/video/rsx_shader_spirv.cpp b/libs/video/rsx_shader_spirv.cpp
+--- a/libs/video/rsx_shader_spirv.cpp
++++ b/libs/video/rsx_shader_spirv.cpp
+@@ -27,6 +27,18 @@
+ #include <glslang/SPIRV/GlslangToSpv.h>
+ 
+ #include <vector>
++#include <mutex>
++#include <chrono>
++#include <cstdlib>
++#include "rsx_spirv_cache.h"
++
++static rsx_spirv_cache_statistics s_cache_stats = {};
++static std::mutex s_compile_mutex;
++static RsxSpirvCache s_spirv_cache(16u*1024u*1024u, 1024);
++static bool cache_enabled() {
++    static const bool enabled = [] { const char* v=getenv("RSX_SPIRV_CACHE"); return !v || v[0]!='0'; }();
++    return enabled;
++}
+ 
+ namespace {
+ 
+@@ -51,6 +63,13 @@
+ 
+ extern "C" int rsx_hlsl_to_spirv_available(void) { return 1; }
+ 
++extern "C" void rsx_hlsl_to_spirv_cache_statistics(rsx_spirv_cache_statistics* out)
++{
++    if (!out) return;
++    std::lock_guard<std::mutex> lock(s_compile_mutex);
++    *out=s_cache_stats;
++}
++
+ extern "C" int rsx_hlsl_to_spirv(const char* hlsl, int stage,
+                                  u32* words, u32 max_words, u32* out_words,
+                                  char* log, u32 log_size)
+@@ -65,6 +84,26 @@
+         put_log(log, log_size, "unknown shader stage", nullptr);
+         return -1;
+     }
++    std::lock_guard<std::mutex> compile_lock(s_compile_mutex);
++    ++s_cache_stats.requests;
++    const size_t source_size = strlen(hlsl);
++    const uint64_t source_hash = RsxSpirvCache::hash(hlsl, source_size);
++    const RsxSpirvCache::Words* cached = cache_enabled() ? s_spirv_cache.find(stage, hlsl, source_size, source_hash) : nullptr;
++    if (cached && cache_enabled()) {
++        if (cached->size() > max_words) {
++            char n[64]; snprintf(n,sizeof n,"%zu words, room for %u",cached->size(),max_words);
++            put_log(log,log_size,"SPIR-V output too large",n); return -1;
++        }
++        memcpy(words,cached->data(),cached->size()*sizeof(u32));
++        *out_words=(u32)cached->size();
++        ++s_cache_stats.hits;
++        return 0;
++    }
++    ++s_cache_stats.compilations;
++    struct CompileTimer {
++        std::chrono::steady_clock::time_point start=std::chrono::steady_clock::now();
++        ~CompileTimer() { s_cache_stats.compile_ns += (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-start).count(); }
++    } compile_timer;
+     if (!glslang_ready()) {
+         put_log(log, log_size, "glslang::InitializeProcess failed", nullptr);
+         return -1;
+@@ -124,6 +163,12 @@
+         put_log(log, log_size, "SPIR-V output too large", n);
+         return -1;
+     }
++    if (!cached && cache_enabled()) {
++        if (!s_spirv_cache.insert(stage,hlsl,source_size,source_hash,spirv.data(),spirv.size())) ++s_cache_stats.admission_failures;
++    }
++    s_cache_stats.payload_bytes=s_spirv_cache.bytes();
++    s_cache_stats.entries=s_spirv_cache.count();
++    s_cache_stats.evictions=s_spirv_cache.evictions();
+     memcpy(words, spirv.data(), spirv.size() * sizeof(u32));
+     *out_words = (u32)spirv.size();
+     return 0;
+@@ -132,6 +177,11 @@
+ #else /* !PS3RECOMP_HAVE_SPIRV_TRANSLATION */
+ 
+ extern "C" int rsx_hlsl_to_spirv_available(void) { return 0; }
++
++extern "C" void rsx_hlsl_to_spirv_cache_statistics(rsx_spirv_cache_statistics* out)
++{
++    if (out) memset(out,0,sizeof *out);
++}
+ 
+ extern "C" int rsx_hlsl_to_spirv(const char* hlsl, int stage,
+                                  u32* words, u32 max_words, u32* out_words,
+diff --git a/libs/video/rsx_shader_spirv.h b/libs/video/rsx_shader_spirv.h
+--- a/libs/video/rsx_shader_spirv.h
++++ b/libs/video/rsx_shader_spirv.h
+@@ -45,6 +45,14 @@
+ /* 1 when built with glslang, 0 when the stub is in. */
+ int rsx_hlsl_to_spirv_available(void);
+ 
++/* Bounded, process-local translation cache. RSX_SPIRV_CACHE=0 disables reuse.
++ * Timings include the synchronous compiler call and cache admission. */
++typedef struct rsx_spirv_cache_statistics {
++    u64 requests, hits, compilations, compile_ns;
++    u64 payload_bytes, entries, evictions, admission_failures;
++} rsx_spirv_cache_statistics;
++void rsx_hlsl_to_spirv_cache_statistics(rsx_spirv_cache_statistics* out);
++
+ /* Translate one HLSL shader whose entry point is `main` into SPIR-V 1.0 for a
+  * Vulkan 1.0 client.
+  *   hlsl      : NUL-terminated HLSL, as the decompilers emit it.
+diff --git a/libs/video/rsx_spirv_cache.h b/libs/video/rsx_spirv_cache.h
+new file mode 100644
+--- /dev/null
++++ b/libs/video/rsx_spirv_cache.h
+@@ -0,0 +1,100 @@
++#ifndef RSX_SPIRV_CACHE_H
++#define RSX_SPIRV_CACHE_H
++
++#include <cstddef>
++#include <cstdint>
++#include <cstdlib>
++#include <cstring>
++#include <limits>
++
++/* Exact HLSL/stage -> SPIR-V cache. The caller serializes access. Storage is
++ * process-local: no guest source or compiler output is written to disk.
++ * Returned views remain valid until the next insertion or destruction. */
++class RsxSpirvCache {
++public:
++    struct Words {
++        const uint32_t* pointer = nullptr;
++        size_t count = 0;
++        const uint32_t* data() const { return pointer; }
++        size_t size() const { return count; }
++    };
++    using Allocate = void* (*)(size_t);
++    using Release = void (*)(void*);
++    static constexpr size_t capacity = 1024;
++private:
++    struct Entry {
++        void* block = nullptr;
++        Words words;
++        size_t source_size = 0, bytes = 0;
++        uint64_t hash = 0, touched = 0;
++        int stage = 0;
++    } entries_[capacity];
++    size_t budget_, limit_, bytes_ = 0, count_ = 0;
++    uint64_t clock_ = 0, evictions_ = 0;
++    Allocate allocate_;
++    Release release_;
++    uint64_t touch() {
++        if (++clock_ == 0) {
++            // Only recency is lost on wrap; source identity remains exact.
++            for (auto& entry : entries_) entry.touched = 0;
++            clock_ = 1;
++        }
++        return clock_;
++    }
++    void evict_oldest() {
++        Entry* oldest = nullptr;
++        for (auto& entry : entries_)
++            if (entry.block && (!oldest || entry.touched < oldest->touched)) oldest = &entry;
++        if (!oldest) return;
++        bytes_ -= oldest->bytes; --count_; ++evictions_;
++        release_(oldest->block); *oldest = Entry{};
++    }
++public:
++    RsxSpirvCache(size_t budget, size_t limit,
++                  Allocate allocate = std::malloc, Release release = std::free)
++        : budget_(budget), limit_(limit < capacity ? limit : capacity),
++          allocate_(allocate), release_(release) {}
++    RsxSpirvCache(const RsxSpirvCache&) = delete;
++    RsxSpirvCache& operator=(const RsxSpirvCache&) = delete;
++    ~RsxSpirvCache() { for (auto& entry : entries_) if (entry.block) release_(entry.block); }
++    static uint64_t hash(const char* text, size_t size) {
++        uint64_t value = 14695981039346656037ull;
++        for (size_t i = 0; i < size; ++i) { value ^= (unsigned char)text[i]; value *= 1099511628211ull; }
++        return value;
++    }
++    const Words* find(int stage, const char* text, size_t size, uint64_t hash) {
++        for (auto& entry : entries_) {
++            if (!entry.block || entry.stage != stage || entry.hash != hash ||
++                entry.source_size != size || std::memcmp(entry.block, text, size)) continue;
++            entry.touched = touch();
++            return &entry.words;
++        }
++        return nullptr;
++    }
++    bool insert(int stage, const char* text, size_t size, uint64_t hash,
++                const uint32_t* words, size_t count) {
++        if (!limit_ || !text || !words || !count || size >= budget_ ||
++            size > std::numeric_limits<size_t>::max() - 4u) return false;
++        const size_t offset = (size + 4u) & ~size_t(3u);
++        if (offset > budget_ || count > (budget_ - offset) / sizeof(uint32_t)) return false;
++        const size_t cost = offset + count * sizeof(uint32_t);
++        void* block = allocate_(cost);
++        if (!block) return false; // Admission failure must not evict useful data.
++        std::memcpy(block, text, size);
++        static_cast<char*>(block)[size] = '\0';
++        uint32_t* copy = reinterpret_cast<uint32_t*>(static_cast<char*>(block) + offset);
++        std::memcpy(copy, words, count * sizeof(uint32_t));
++        while (bytes_ > budget_ - cost || count_ >= limit_) evict_oldest();
++        for (auto& entry : entries_) if (!entry.block) {
++            entry.block = block; entry.words = {copy, count}; entry.source_size = size;
++            entry.bytes = cost; entry.hash = hash; entry.stage = stage; entry.touched = touch();
++            bytes_ += cost; ++count_; return true;
++        }
++        release_(block); return false;
++    }
++    size_t bytes() const { return bytes_; }
++    size_t count() const { return count_; }
++    uint64_t evictions() const { return evictions_; }
++};
++
++#endif

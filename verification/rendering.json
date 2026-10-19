@@ -4,18 +4,18 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-19",
-    "native_probe": "20261019-004357",
-    "sdk_patch_count": 99,
-    "summary": "Vulkan depth-interval handling and initialized timezone/retail GPIO query outputs. Unhandled syscall warnings now report each valid ID once instead of stopping after 30 messages. 99 SDK patches / 84 Windows checks in Debug and Release; hidden/muted Continue and short town movement pass. FPS and flicker remain open.",
+    "native_probe": "20261019-055322",
+    "sdk_patch_count": 100,
+    "summary": "Vulkan shader translation reuse removes repeated compilation stalls. 100 SDK patches / 87 Windows checks in Debug and Release; the regular Release build reloads Continue and completes a short town route. Worst return-leg interval is about 100 ms in this probe; consistently smooth 30 FPS, game-speed fidelity and flicker remain open.",
     "gallery_image": "screenshots/2026-10-19-native-depth-range-front.png",
+    "gallery_image_sdk_patch_count": 99,
+    "gallery_image_scope": "Earlier town rendering reference; no new visual-fidelity claim or screenshot for the timing-only milestone",
     "remaining_limits": [
-      "Town performance remains below the 30 fps target",
-      "Black foot flicker and rotating Logic Stone light flicker remain open",
-      "Physical-controller comparison after the analogue conversion fix and slower loading/cutscenes than RPCS3 remain open",
-      "Sustained traversal, combat, other save slots/scenes and PS3/RPCS3 save interchange unverified",
-      "SPU interpreter fallback remains enabled"
-    ],
-    "gallery_capture_sdk_patch_count": 99
+      "Smooth 30 FPS traversal and console-equivalent animation speed unverified",
+      "First-use shader compilation and other CPU/graphics costs remain",
+      "Foot shadows, Logic Stone light flicker and user-reported missing avatar menu portrait remain open",
+      "Complete static CPU coverage, combat, wider saves and future platforms remain unverified"
+    ]
   },
   "verified": {
     "native_language_selection_rendered": true,
@@ -288,9 +288,16 @@
       "wkc2_surface_clear_gpu",
       "wkc2_vp_cache",
       "wkc2_vp_coissue",
+      "wkc2_spirv_cache",
+      "wkc2_spirv_translation_cache",
+      "wkc2_spirv_translation_cache_off",
       "wkc2_fp_identity",
+      "wkc2_rsx_request_audit",
       "wkc2_draw_engine",
       "wkc2_nv3089_blit",
+      "wkc2_rsx_shader_requests_gpu",
+      "wkc2_vk_polygon_offset_gpu",
+      "wkc2_vk_depth_range_gpu",
       "wkc2_vk_sampler_lod",
       "wkc2_vk_present_source",
       "wkc2_vk_graphics",
@@ -317,27 +324,23 @@
       "wkc2_pamf",
       "wkc2_lwcond",
       "wkc2_memory",
+      "wkc2_platform_queries",
       "wkc2_ppu_thread_lifetime",
       "wkc2_spu_async_lifetime",
       "wkc2_lfqueue",
-      "wkc2_event_queue",
-      "wkc2_vk_polygon_offset_gpu",
-      "wkc2_rsx_request_audit",
-      "wkc2_rsx_shader_requests_gpu",
-      "wkc2_vk_depth_range_gpu",
-      "wkc2_platform_queries"
+      "wkc2_event_queue"
     ],
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 99,
-    "last_verified_sdk_patch_count": 99,
-    "current_passed_count": 84,
-    "record_scope": "Vulkan depth-interval handling and initialized timezone/retail GPIO query outputs. Unhandled syscall warnings now report each valid ID once instead of stopping after 30 messages. 99 SDK patches / 84 Windows checks in Debug and Release; hidden/muted Continue and short town movement pass. FPS and flicker remain open.",
-    "normal_debug_elapsed_seconds": 12.64,
-    "optimized_release_elapsed_seconds": 12.75,
+    "current_sdk_patch_count": 100,
+    "last_verified_sdk_patch_count": 100,
+    "current_passed_count": 87,
+    "record_scope": "100 SDK patches / 87 Windows Vulkan checks pass in Debug and Release; all media checks ran without skips.",
+    "normal_debug_elapsed_seconds": 26.47,
+    "optimized_release_elapsed_seconds": 21.36,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 99
+    "repeat_patch_application_verified_sdk_patch_count": 100
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -1591,7 +1594,7 @@
     "native_game_run_verified": true,
     "native_scope": "Short starting-town movement, facing/walking animation, minimap position change and camera rotation; sustained traversal, combat and save/load unverified."
   },
-  "record_scope": "Current source checks and gallery checkpoint are summarized in checks and current_milestone. Other probes and milestone records retain their historical counts and limits.",
+  "record_scope": "Vulkan shader translation reuse removes repeated compilation stalls. 100 SDK patches / 87 Windows checks in Debug and Release; the regular Release build reloads Continue and completes a short town route. Worst return-leg interval is about 100 ms in this probe; consistently smooth 30 FPS, game-speed fidelity and flicker remain open.",
   "host_runtime_review": {
     "audio_error_end_restart_regression_passed": true,
     "old_audio_implementation_fails_regression": true,
@@ -2607,6 +2610,21 @@
         "Sustained traversal, combat, other save slots/scenes and PS3/RPCS3 save interchange unverified",
         "SPU interpreter fallback remains enabled"
       ]
+    },
+    {
+      "date": "2026-10-19",
+      "native_probe": "20261019-004357",
+      "sdk_patch_count": 99,
+      "summary": "Vulkan depth-interval handling and initialized timezone/retail GPIO query outputs. Unhandled syscall warnings now report each valid ID once instead of stopping after 30 messages. 99 SDK patches / 84 Windows checks in Debug and Release; hidden/muted Continue and short town movement pass. FPS and flicker remain open.",
+      "gallery_image": "screenshots/2026-10-19-native-depth-range-front.png",
+      "remaining_limits": [
+        "Town performance remains below the 30 fps target",
+        "Black foot flicker and rotating Logic Stone light flicker remain open",
+        "Physical-controller comparison after the analogue conversion fix and slower loading/cutscenes than RPCS3 remain open",
+        "Sustained traversal, combat, other save slots/scenes and PS3/RPCS3 save interchange unverified",
+        "SPU interpreter fallback remains enabled"
+      ],
+      "gallery_capture_sdk_patch_count": 99
     }
   ],
   "texture_comparison_operand_order": {
@@ -2757,7 +2775,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 99 SDK patches / 84 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 100 SDK patches / 87 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live-draw comparison path; restart required; Vulkan display preferences, FXAA and overlay not integrated",
@@ -3075,5 +3093,12 @@
     "concurrent_first_reports": 1024,
     "probe_result_field": "unimplemented_syscall_ids",
     "registered_handler_semantics_fully_verified": false
+  },
+  "spirv_translation_cache": {
+    "sdk_patch": 100,
+    "native_probe": "20261019-055322",
+    "windows_tests_passed": 87,
+    "details": "performance.json",
+    "full_fidelity_verified": false
   }
 }

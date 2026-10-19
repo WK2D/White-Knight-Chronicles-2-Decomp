@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0100 | [SPIR-V translation cache](#spir-v-translation-cache-patch-0100) |
 | Patch 0099 | [Platform query outputs and syscall warnings](#platform-query-outputs-and-syscall-warnings-patch-0099) |
 | Patch 0098 | [Vulkan window-depth clip range](#vulkan-window-depth-clip-range-patch-0098) |
 | Patches 0095-0096 | [RSX request audit and fragment inputs](#rsx-request-audit-and-fragment-inputs-patches-0095-0096) |
@@ -34,6 +35,36 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## SPIR-V translation cache (patch 0100)
+
+**Problem.** Different render-state pipelines can use the same generated shader
+text. Vulkan compiled both stages again for each such pipeline, stalling FIFO
+consumption and, in observed town jobs, SPU output-ring allocation.
+
+**Fix.** Cache successful HLSL-to-SPIR-V translations by exact stage and source
+bytes. Hashes only accelerate comparison. The process-local LRU retains at most
+1,024 entries and 16 MiB of allocated source/output payload, plus fixed entry
+metadata. One incoming allocation can temporarily add up to another 16 MiB.
+Allocation failure preserves existing entries and returns the newly compiled
+output normally. Invalid programs are not cached. A cache hit preserves the
+original output-capacity checks. Access and glslang initialization are serialized.
+
+`RSX_SPIRV_CACHE=0` disables reuse. The statistics API reports requests, hits,
+compilations, elapsed compiler/admission time, retained bytes/entries, evictions
+and admission failures. No shader data is written to disk.
+
+**Evidence.** `wkc2_spirv_cache` checks stage/source identity, deliberate hash
+collisions, LRU eviction, byte/count limits, overflow rejection and allocation
+failure. Two translation tests cover reuse enabled/disabled, byte-identical
+compiled/cached VS/FS/CS, invalid input, small output buffers and concurrent calls.
+A deliberately broken collision comparison fails the regression. All 87 Windows
+checks pass in Debug and Release, including media checks with their dependencies.
+The 100-patch stack upgrades a 99-patch checkout and reapplies without changes.
+
+**Limits.** The cache removes repeated compilation, not first-use compilation,
+GPU pipeline creation, all traversal lag or the remaining SPU interpreter fallback.
+See the [measurement conditions](FINDINGS.md#shader-translation-stalls-and-cache-patch-0100).
 
 ## Platform query outputs and syscall warnings (patch 0099)
 

@@ -1398,5 +1398,217 @@
       "No consistent end-to-end gain, sustained 30 FPS, animation-speed parity or higher-rate correctness is claimed.",
       "No new public runtime patch or visible milestone at this checkpoint."
     ]
+  },
+  "spirv_translation_cache_2026_10_19": {
+    "sdk_patch": 100,
+    "private_comparison_exe_sha256": "7d0b70b8a89ba3e2ab2d03160142f9e4ed286b66f5c51f11495ca4e810c66078",
+    "comparison": "Same executable off/on/on/off; ordinary-read candidate enabled throughout",
+    "hidden": true,
+    "muted": true,
+    "output_size": [
+      1280,
+      720
+    ],
+    "internal_scene_size": [
+      1920,
+      1080
+    ],
+    "frame_limit": 30,
+    "vsync": false,
+    "sampler_during_timing": false,
+    "gpu_readbacks_during_timing": false,
+    "samples": [
+      {
+        "probe": "20261019-053826",
+        "cache_enabled": false,
+        "phase": "back",
+        "timing": {
+          "seconds": 10.000109900021926,
+          "frames": 169,
+          "average_presentations": 16.899814271004107,
+          "interval_count": 168,
+          "interval_p50_ms": 47.59499995270744,
+          "interval_p95_ms": 147.99409999977797,
+          "interval_max_ms": 758.112000010442,
+          "intervals_over_40ms": 93,
+          "max_read_gap_ms": 12.131199997384101,
+          "control_values": {}
+        },
+        "translation_delta": {
+          "calls": 188,
+          "hits": 0,
+          "compiles": 188,
+          "compile_ns": 2954827000,
+          "bytes": 447425,
+          "entries": 10,
+          "evictions": 0,
+          "bypasses": 178,
+          "reusable": 178,
+          "oversized": 0
+        }
+      },
+      {
+        "probe": "20261019-054013",
+        "cache_enabled": true,
+        "phase": "back",
+        "timing": {
+          "seconds": 10.001577799965162,
+          "frames": 219,
+          "average_presentations": 21.896545163180438,
+          "interval_count": 218,
+          "interval_p50_ms": 49.393099965527654,
+          "interval_p95_ms": 67.61750002624467,
+          "interval_max_ms": 103.97649998776615,
+          "intervals_over_40ms": 133,
+          "max_read_gap_ms": 4.990599991288036,
+          "control_values": {}
+        },
+        "translation_delta": {
+          "calls": 196,
+          "hits": 188,
+          "compiles": 8,
+          "compile_ns": 148185700,
+          "bytes": 360890,
+          "entries": 8,
+          "evictions": 0,
+          "bypasses": 0,
+          "reusable": 188,
+          "oversized": 0
+        }
+      },
+      {
+        "probe": "20261019-054615",
+        "cache_enabled": true,
+        "phase": "back",
+        "timing": {
+          "seconds": 10.000173499982338,
+          "frames": 213,
+          "average_presentations": 21.299630451449286,
+          "interval_count": 212,
+          "interval_p50_ms": 49.73279999103397,
+          "interval_p95_ms": 67.16310000047088,
+          "interval_max_ms": 105.05280003417283,
+          "intervals_over_40ms": 142,
+          "max_read_gap_ms": 18.616700021084398,
+          "control_values": {}
+        },
+        "translation_delta": {
+          "calls": 208,
+          "hits": 200,
+          "compiles": 8,
+          "compile_ns": 149617400,
+          "bytes": 360890,
+          "entries": 8,
+          "evictions": 0,
+          "bypasses": 0,
+          "reusable": 200,
+          "oversized": 0
+        }
+      },
+      {
+        "probe": "20261019-054735",
+        "cache_enabled": false,
+        "phase": "back",
+        "timing": {
+          "seconds": 10.000930000038352,
+          "frames": 157,
+          "average_presentations": 15.698540035716471,
+          "interval_count": 156,
+          "interval_p50_ms": 50.11800001375377,
+          "interval_p95_ms": 135.6680999742821,
+          "interval_max_ms": 698.4926000004634,
+          "intervals_over_40ms": 112,
+          "max_read_gap_ms": 4.993899958208203,
+          "control_values": {}
+        },
+        "translation_delta": {
+          "calls": 194,
+          "hits": 0,
+          "compiles": 194,
+          "compile_ns": 3005613300,
+          "bytes": 400081,
+          "entries": 9,
+          "evictions": 0,
+          "bypasses": 185,
+          "reusable": 185,
+          "oversized": 0
+        }
+      }
+    ],
+    "limits": [
+      "Same wall-clock inputs, not guaranteed identical world positions",
+      "Presentation counts do not prove unique animation updates or game-speed fidelity",
+      "Private cache implementation measured; production implementation additionally checked separately",
+      "Smooth 30 FPS traversal remains unverified"
+    ],
+    "production_recheck": {
+      "probe": "20261019-055322",
+      "sdk_patch_count": 100,
+      "exe_sha256": "815bcd0b44c67c51427461857a7e02894bee9d5736b400c0850de373578cae56",
+      "experimental_fast_memory_enabled": false,
+      "experimental_ppu_or_spu_locals_enabled": false,
+      "host_ip_sampling_during_route": false,
+      "hidden": true,
+      "muted": true,
+      "phases": {
+        "idle": {
+          "seconds": 10.000861200038344,
+          "frames": 300,
+          "average_presentations": 29.99741662236546,
+          "interval_count": 299,
+          "interval_p50_ms": 32.62750001158565,
+          "interval_p95_ms": 35.15949996653944,
+          "interval_max_ms": 42.33550000935793,
+          "intervals_over_40ms": 1,
+          "max_read_gap_ms": 3.4465999924577773,
+          "control_values": {}
+        },
+        "forward": {
+          "seconds": 10.000877300044522,
+          "frames": 295,
+          "average_presentations": 29.497412191897077,
+          "interval_count": 294,
+          "interval_p50_ms": 32.815399987157434,
+          "interval_p95_ms": 35.15100001823157,
+          "interval_max_ms": 90.16520000295714,
+          "intervals_over_40ms": 9,
+          "max_read_gap_ms": 4.060200008098036,
+          "control_values": {}
+        },
+        "back": {
+          "seconds": 10.001062099996489,
+          "frames": 213,
+          "average_presentations": 21.297737967257977,
+          "interval_count": 212,
+          "interval_p50_ms": 49.9600000330247,
+          "interval_p95_ms": 67.65590002760291,
+          "interval_max_ms": 100.4279000335373,
+          "intervals_over_40ms": 139,
+          "max_read_gap_ms": 4.4357999577187,
+          "control_values": {}
+        }
+      }
+    },
+    "remaining_cpu_observation": {
+      "scope": "Separate ten-second stationary host-IP sample after movement, not part of timing comparison",
+      "renderer_hotspots": [
+        "Vertex decoding/fetch",
+        "Texture content hashing",
+        "FIFO dispatch",
+        "Driver work"
+      ],
+      "ppu_hotspots": [
+        "Guest memory reads/writes and coherence checks"
+      ],
+      "spu_hotspots": [
+        "Image-19 geometry routines",
+        "Other SPU job work"
+      ],
+      "limits": [
+        "Leaf sample counts are not exclusive CPU duration",
+        "Waiting/clock-related ntdll leaves need stack attribution",
+        "No smoothness or animation-speed proof"
+      ]
+    }
   }
 }

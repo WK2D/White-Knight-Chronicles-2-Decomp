@@ -27,7 +27,7 @@ can resume from a local save.
   Continue after restarting.
 - A dedicated **Triangle → System → Graphics Settings** panel with persistent
   preferences, the game's menu frame and a scrollbar.
-- **84 Windows regression checks** pass in both Debug and optimized Release. The
+- **87 Windows regression checks** pass in both Debug and optimized Release. The
   latest native check loads Continue and moves briefly in town.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output

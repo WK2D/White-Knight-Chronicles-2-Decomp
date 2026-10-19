@@ -4,10 +4,12 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-19):** the stack contains 99 SDK patches. All
-84 Windows checks pass in normal Debug and optimized Release. Reapplying the
-complete stack changes no SDK files. The final native Vulkan candidate loads
-Continue and moves briefly in town; see the [latest town captures](GALLERY.md#2026-10-19---window-depth-clip-range-check).
+**Current validation (2026-10-19):** the stack contains 100 SDK patches. All
+87 Windows checks pass in normal Debug and optimized Release. Reapplying the
+complete stack changes no SDK files. The native Vulkan build loads Continue and moves briefly in town. The latest
+[shader-cache comparison](FINDINGS.md#shader-translation-stalls-and-cache-patch-0100)
+reduces compilation hitches; the [latest town images](GALLERY.md#2026-10-19---window-depth-clip-range-check)
+retain their earlier build provenance.
 
 Triangle -> System -> Graphics Settings is available in the native game, including
 Off/FXAA, frame-rate limits and an experimental DirectX 12 selector. See the
@@ -42,6 +44,10 @@ alone was insufficient, which the current guest-timing hooks correct.
 - [Diagnostic probes](#diagnostic-probes)
 - [Runtime patch notes](PATCHES.md) (moved from this page, newest first)
 - [Runtime subsystem notes](SUBSYSTEMS.md): renderer, movie decoding, frame presentation and text entry
+
+The Vulkan translator retains up to 1,024 exact source/stage entries and 16 MiB
+of allocated source/SPIR-V payload in memory. `RSX_SPIRV_CACHE=0` disables reuse
+for comparison. It writes no shader cache to disk.
 
 ## Requirements and workspace
 
@@ -116,7 +122,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 99 numbered SDK patches, and all 84 checks
+The current source stack contains 100 numbered SDK patches, and all 87 checks
 pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their

@@ -596,6 +596,24 @@ if(WKC2_BUILD_TESTS)
         "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
     add_test(NAME wkc2_vp_coissue COMMAND wkc2_vp_coissue_test)
     set_tests_properties(wkc2_vp_coissue PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_spirv_cache_test tests/spirv_cache_test.cpp)
+    target_include_directories(wkc2_spirv_cache_test PRIVATE "${PS3RECOMP_DIR}/libs/video")
+    add_test(NAME wkc2_spirv_cache COMMAND wkc2_spirv_cache_test)
+    if(PS3RECOMP_RSX_VULKAN AND TARGET glslang::SPIRV)
+        add_executable(wkc2_spirv_translation_cache_test tests/spirv_translation_cache_test.cpp)
+        target_include_directories(wkc2_spirv_translation_cache_test PRIVATE
+            "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
+        target_link_libraries(wkc2_spirv_translation_cache_test PRIVATE ps3recomp_runtime)
+        if(MSVC)
+            target_compile_options(wkc2_spirv_translation_cache_test PRIVATE /EHsc)
+        endif()
+        add_test(NAME wkc2_spirv_translation_cache COMMAND wkc2_spirv_translation_cache_test 1)
+        add_test(NAME wkc2_spirv_translation_cache_off COMMAND wkc2_spirv_translation_cache_test 0)
+        set_tests_properties(wkc2_spirv_translation_cache PROPERTIES
+            ENVIRONMENT "RSX_SPIRV_CACHE=1" TIMEOUT 20)
+        set_tests_properties(wkc2_spirv_translation_cache_off PROPERTIES
+            ENVIRONMENT "RSX_SPIRV_CACHE=0" TIMEOUT 20)
+    endif()
     add_executable(wkc2_fp_identity_test tests/fp_identity_test.c
         "${PS3RECOMP_DIR}/libs/video/rsx_fp_decompiler.c")
     target_include_directories(wkc2_fp_identity_test PRIVATE
