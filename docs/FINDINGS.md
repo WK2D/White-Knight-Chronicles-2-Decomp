@@ -14,9 +14,9 @@ physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
-Readable C++ matrix blending and position transforms now replace parts of one
-image-19 geometry block. A separately tested normal-cofactor core remains outside
-live dispatch. Complete-state replay and fuzz comparisons, plus strict
+Readable C++ matrix blending, position transforms and normal-cofactor math now
+replace parts of one image-19 geometry block. Cofactor products and results are
+written at their original register boundaries. Complete-state replay and fuzz comparisons, plus strict
 DirectX/Vulkan town-to-plains routes, are recorded in [native work](NATIVE_CODE.md).
 This is partial semantic recovery; no FPS improvement is claimed. Desktop
 clean-play mode also removes inherited diagnostics, and patch 0119 disables the

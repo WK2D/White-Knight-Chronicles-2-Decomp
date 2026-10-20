@@ -37,19 +37,26 @@ completes transition, short movement and camera rotation with zero strict fallba
 ## Readable C++ geometry prefix
 
 The image-19 `0xCE08` block now calls a project-written C++ four-influence matrix
-blend and four position transforms in `native_skinning.h`, through
+blend, four position transforms and four normal-cofactor matrices in `native_skinning.h`, through
 `native_skinning_bridge.cpp`. The core uses
 named vertex, weight and cyclic affine-matrix types; it has no guest registers,
 addresses or DMA interface. The bridge decodes packed indices and local-store
 palettes, preserves the original multiply/FMA order and exports the required
 register boundary. The position bridge checks affine masks and cyclic input
 layout before writing five registers; unsupported layouts keep the compiled tail.
-The remaining compiled tail still handles normal processing and local-store
+The remaining compiled tail still handles scaled-normal processing and local-store
 stores. These are parts of one block, not a complete geometry job.
+
+The cofactor bridge computes 12 rounded products and 12 fused subtract results
+into private storage without changing the context. The hook materializes each
+value at the original register write, preserving intervening stack stores and
+register uses. Noncanonical controls keep the compiled arithmetic. Expanded fuzzing
+also exposed a missing xyz-copy mask guard in the position bridge; that guard now
+rejects unsupported layouts before changing state.
 
 `tools/apply_native_geometry.py` checks the complete original block hash, retains
 its compiled reference and installs the native calls idempotently. An existing
-blend-only hook upgrades only after its exact retained reference and wrapper
+blend-only or blend/position hook upgrades only after its exact retained reference and wrapper
 match. Unknown image or weight masks decline without changing state and use
 that compiled reference.
 `WKC_NATIVE_SKINNING=0` selects the reference for research comparisons. No game
@@ -64,18 +71,19 @@ Validation on Windows x86-64:
 - A separate recovered position operation matches all 256 positions from the
   64 mixed-weight captures. The position operation is now installed; all 72
   full-block capture replays still match the complete state and continuation.
-- 8,000 full-state fuzz cases pass against the retained compiled reference:
-  4,000 host-mode and 4,000 exact-SPU-mode cases, including arbitrary weight and
+- 12,000 full-state fuzz cases pass against the retained compiled reference:
+  6,000 host-mode and 6,000 exact-SPU-mode cases, including arbitrary weight and
   position float bits, 16-bit index wrap, overlapping output/stack addresses,
-  unsupported masks and inconsistent late-vertex cyclic layouts.
+  unsupported weight/position/normal masks and inconsistent late-vertex cyclic layouts.
 - The portable arithmetic test checks 32,000 finite cases against a lane oracle.
   A further 32,000 finite cases match the optional x86 FMA policy bit for bit.
   Live execution keeps SDK float helpers to preserve host/exact/audit semantics;
   the finite host-FMA test does not establish exceptional-value SPU equivalence.
-- A separate portable cofactor operation matches all 864 matrix vectors from the
+- The portable cofactor operation matches all 864 matrix vectors from the
   72 captures. It passes 64 independent signed-minor matrix tests and 32,000
-  finite scalar/x86 FMA comparisons. It is not yet installed in live dispatch;
-  the compiled tail still owns its register-write timing and scaled normal work.
+  finite scalar/x86 FMA comparisons of both products and results. It is now
+  installed in live dispatch; all 72 complete block replays still match. The
+  compiled tail retains scaled normal work and local-store stores.
 - Strict DirectX route `20261019-230123` and Vulkan route `20261019-231203` load
   Continue, enter Balastor Plain, walk and rotate the camera with zero fallback
   entries. Trace markers establish at least 16,777,216 native blend calls per
@@ -92,6 +100,15 @@ Both Windows suites now pass 112 checks with 120 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
 is claimed.
 
+The cofactor replacement completes strict DirectX route `20261020-010450` and
+Vulkan route `20261020-010805`, each through Continue, the plains transition,
+walking and camera rotation. Both report zero interpreter/microstep entries and
+at least 16,777,216 native cofactor blocks. Final frames were inspected. The
+hidden, muted runs use isolated save copies, tracing and automatic captures;
+they are not performance benchmarks. The broad solid foliage-shadow edges
+remain visible. The full suites pass in 26.73 seconds (Debug) and 23.10 seconds
+(Release).
+
 ## Work order
 
 1. **Refresh runtime evidence.** Capture fallback sessions and sampled CPU time
@@ -105,7 +122,7 @@ is claimed.
    entry before promoting a wider interpreter-free claim.
 3. **Take semantic control of hot jobs.** An earlier profile identifies image-19
    geometry code, including entry `0xCE08`, as a useful candidate. Matrix blending
-   and position transforms are integrated beside compiled references. Recover
+   and position transforms plus normal cofactors are integrated beside compiled references. Recover
    the remaining normal processing/output packing and establish job boundaries
    before replacing more of the compiled tail. Preserve SPU float
    behavior, byte order, alignment, aliasing, DMA visibility and job ordering.

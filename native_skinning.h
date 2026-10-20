@@ -25,6 +25,10 @@ struct PositionStages {
     Float4 second;
     Float4 position;
 };
+struct CofactorStages {
+    CyclicAffine products;
+    CyclicAffine cofactors;
+};
 
 // Arithmetic is explicit so a caller can preserve SPU extended-float behavior.
 // This default implements host IEEE math; it is not an exact-SPU specification.
@@ -50,14 +54,21 @@ struct HostScalarMath {
 // rounded subtrahend product distinct from the fused multiply-subtract. The w
 // lanes retain homogeneous identity (1,0,0), rather than matrix translation.
 template<class Math=HostScalarMath>
-CyclicAffine cofactor_skin_matrix(const CyclicAffine& matrix) {
+CofactorStages cofactor_skin_stages(const CyclicAffine& matrix) {
     const auto& a=matrix[0];const auto& b=matrix[1];const auto& c=matrix[2];
     const Float4 ay{a[1],a[2],a[0],1},az{a[2],a[0],a[1],1};
     const Float4 by{b[1],b[2],b[0],0},bz{b[2],b[0],b[1],0};
     const Float4 cy{c[1],c[2],c[0],0},cz{c[2],c[0],c[1],0};
-    return {Math::multiply_subtract(ay,az,Math::multiply(cz,by)),
-            Math::multiply_subtract(bz,by,Math::multiply(cy,az)),
-            Math::multiply_subtract(cy,cz,Math::multiply(bz,ay))};
+    CofactorStages out;
+    out.products={Math::multiply(cz,by),Math::multiply(cy,az),Math::multiply(bz,ay)};
+    out.cofactors={Math::multiply_subtract(ay,az,out.products[0]),
+                   Math::multiply_subtract(bz,by,out.products[1]),
+                   Math::multiply_subtract(cy,cz,out.products[2])};
+    return out;
+}
+template<class Math=HostScalarMath>
+CyclicAffine cofactor_skin_matrix(const CyclicAffine& matrix) {
+    return cofactor_skin_stages<Math>(matrix).cofactors;
 }
 
 // Preserve a rounded first product followed by three fused accumulations.

@@ -1,4 +1,4 @@
-"""Install project-written matrix blending and position transforms into the pinned private SPU lift.
+"""Install project-written blend, position and cofactor operations into the pinned private SPU lift.
 
 No generated game source is stored here. Refuse changed function bodies rather
 than guessing a new boundary. The unchanged compiled body remains the fallback.
@@ -31,7 +31,7 @@ def replacement_v1(block, expected=EXPECTED):
     return BEGIN + original + '\n' + wrapper + END
 
 
-def replacement(block, expected=EXPECTED):
+def replacement_v2(block, expected=EXPECTED):
     # Validate the original complete block, not just the rewritten fragment.
     replacement_v1(block, expected)
     tail = block[block.index(TAIL):]
@@ -51,6 +51,49 @@ def replacement(block, expected=EXPECTED):
     return BEGIN + original + '\n' + tail_reference + '\n' + wrapper + END
 
 
+def replacement(block, expected=EXPECTED):
+    installed = replacement_v2(block, expected)
+    # Precompute into private locals. Materialize each result at its original
+    # architectural write, after any intervening stack stores that use the GPR.
+    destination = {39:0, 27:1, 41:2, 40:3, 28:4, 42:5,
+                   44:6, 30:7, 45:8, 43:9, 32:10, 46:11}
+    marker = 'extern int wkc_native_blend_geometry'
+    boundary = installed.index(marker)
+    prefix, wrapper = installed[:boundary], installed[boundary:]
+    wrapper = wrapper.replace('extern int wkc_native_transform_geometry(spu_context* ctx);\n',
+        'extern int wkc_native_transform_geometry(spu_context* ctx);\n'
+        'extern int wkc_native_cofactor_geometry(const spu_context* ctx, void* output, unsigned bytes);\n', 1)
+    marker = '    if (!wkc_native_transform_geometry(ctx))'
+    at = wrapper.index(marker)
+    wrapper = wrapper[:at] + ('    u128 _wkc_cofactors[24];\n'
+        '    const int _wkc_has_cofactors = wkc_native_cofactor_geometry(ctx, _wkc_cofactors, sizeof _wkc_cofactors);\n') + wrapper[at:]
+    rewritten = set()
+    def substitute(match):
+        register = int(match[1])
+        if register not in destination or register in rewritten:
+            raise ValueError('Cofactor destination boundary changed')
+        rewritten.add(register)
+        return ('        ctx->gpr[' + str(register) + '] = _wkc_has_cofactors ? '
+                '_wkc_cofactors[' + str(destination[register]) + '] : ' + match[2] + ';')
+    wrapper = re.sub(r'^        ctx->gpr\[(\d+)\] = (spu_fms\([^\n]+\));$', substitute, wrapper, flags=re.M)
+    if rewritten != set(destination):
+        raise ValueError('Incomplete cofactor boundary')
+    products = {50:12, 9:13, 3:14, 25:15, 8:16, 4:17,
+                29:18, 7:19, 5:20, 31:21, 74:22, 2:23}
+    rewritten_products = set()
+    def substitute_product(match):
+        register = int(match[1])
+        if register not in products or register in rewritten_products:
+            return match[0]
+        rewritten_products.add(register)
+        return ('        ctx->gpr[' + str(register) + '] = _wkc_has_cofactors ? '
+                '_wkc_cofactors[' + str(products[register]) + '] : ' + match[2] + ';')
+    wrapper = re.sub(r'^        ctx->gpr\[(\d+)\] = (spu_fm\([^\n]+\));$', substitute_product, wrapper, flags=re.M)
+    if rewritten_products != set(products):
+        raise ValueError('Incomplete cofactor product boundary')
+    return prefix + wrapper
+
+
 def apply(text):
     if BEGIN in text:
         if text.count(BEGIN) != 1 or text.count(END) != 1:
@@ -64,7 +107,7 @@ def apply(text):
         block = text[ref:ref + match.end()].replace('static void ' + REFERENCE, 'void ' + ENTRY, 1)
         installed = text[start:stop]
         updated = replacement(block)
-        if installed == replacement_v1(block):
+        if installed in (replacement_v1(block), replacement_v2(block)):
             return text[:start] + updated + text[stop:]
         if installed != updated:
             raise ValueError('Installed geometry hook has changed')

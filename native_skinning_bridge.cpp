@@ -16,6 +16,9 @@ struct RuntimeMath {
     static Float4 multiply_add(const Float4& a,const Float4& b,const Float4& c) {
         return unpack(spu_fma(pack(a),pack(b),pack(c)));
     }
+    static Float4 multiply_subtract(const Float4& a,const Float4& b,const Float4& c) {
+        return unpack(spu_fms(pack(a),pack(b),pack(c)));
+    }
 };
 bool broadcast_mask(u128 mask,unsigned lane) {
     const auto expected=spu_splat_u32(0x00010203u+lane*0x04040404u);
@@ -96,11 +99,13 @@ extern "C" int wkc_native_transform_geometry(spu_context* ctx) {
     const unsigned xyz_mask[]={0xffffffffu,0xffffffffu,0xffffffffu,0};
     const unsigned translation_mask[]={0x1c1d1e1fu,0x04050607u,0x08090a0bu,0x80808080u};
     const unsigned transpose_mask[]={0x80808080u,0x0c0d0e0fu,0x1c1d1e1fu,0x80808080u};
+    const unsigned xyz_copy[]={0x00010203u,0x04050607u,0x08090a0bu,0x80808080u};
     const auto ones=spu_splat_u32(0x3f800000u);
     if(std::memcmp(&ctx->gpr[66],&ones,16) ||
        std::memcmp(&ctx->gpr[73],&xyz_mask,16) ||
        std::memcmp(&ctx->gpr[122],&translation_mask,16) ||
-       std::memcmp(&ctx->gpr[123],&transpose_mask,16))return 0;
+       std::memcmp(&ctx->gpr[123],&transpose_mask,16) ||
+       std::memcmp(&ctx->gpr[30],xyz_copy,16))return 0;
     const unsigned matrices[4][3]={{45,50,41},{23,49,32},{24,36,15},{42,13,14}};
     const unsigned positions[]={82,81,80,83};
     const unsigned second_coordinates[]={10,31,22,21};
@@ -125,6 +130,35 @@ extern "C" int wkc_native_transform_geometry(spu_context* ctx) {
         static std::atomic<unsigned long long> calls{0};
         const auto count=calls.fetch_add(1,std::memory_order_relaxed)+1;
         if(count<=4 || !(count&(count-1)))std::fprintf(stderr,"[native-skinning] transformed_blocks=%llu\n",count);
+    }
+    return 1;
+}
+
+extern "C" int wkc_native_cofactor_geometry(const spu_context* ctx,void* output,unsigned bytes) {
+    if(!ctx || !ctx->ls || ctx->image_id!=19 || !output || bytes<384)return 0;
+    const unsigned xyz[]={0xffffffffu,0xffffffffu,0xffffffffu,0};
+    const unsigned rotate_left[]={0x04050607u,0x08090a0bu,0x00010203u,0x0c0d0e0fu};
+    const unsigned rotate_right[]={0x08090a0bu,0x00010203u,0x04050607u,0x0c0d0e0fu};
+    const unsigned xyz_copy[]={0x00010203u,0x04050607u,0x08090a0bu,0x80808080u};
+    const auto ones=spu_splat_u32(0x3f800000u);
+    if(std::memcmp(&ctx->gpr[66],&ones,16) || std::memcmp(&ctx->gpr[73],xyz,16) ||
+       std::memcmp(&ctx->gpr[71],rotate_left,16) || std::memcmp(&ctx->gpr[65],rotate_right,16) ||
+       std::memcmp(&ctx->gpr[30],xyz_copy,16))return 0;
+    const unsigned registers[4][3]={{45,50,41},{23,49,32},{24,36,15},{42,13,14}};
+    CyclicAffine result[8];
+    for(unsigned vertex=0;vertex<4;++vertex) {
+        CyclicAffine matrix;
+        for(unsigned phase=0;phase<3;++phase)matrix[phase]=unpack(ctx->gpr[registers[vertex][phase]]);
+        const auto stages=cofactor_skin_stages<RuntimeMath>(matrix);
+        result[vertex]=stages.cofactors;result[vertex+4]=stages.products;
+    }
+    static_assert(sizeof result==384,"Packed cofactor matrices and products");
+    std::memcpy(output,result,sizeof result);
+    static const bool trace=std::getenv("WKC_NATIVE_SKINNING_TRACE")!=nullptr;
+    if(trace) {
+        static std::atomic<unsigned long long> calls{0};
+        const auto count=calls.fetch_add(1,std::memory_order_relaxed)+1;
+        if(count<=4 || !(count&(count-1)))std::fprintf(stderr,"[native-skinning] cofactor_blocks=%llu\n",count);
     }
     return 1;
 }

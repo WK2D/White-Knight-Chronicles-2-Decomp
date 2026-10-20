@@ -93,3 +93,10 @@ pass in Debug and Release. These instrumented routes establish no FPS gain.
 
 Raw shaders, draw records and the supplied comparison remain private. The
 comparison includes desktop content and must not be copied into the public gallery.
+
+A subsequent control-state census (`20261020-005556`, 2,448 draws in one complete
+frame) finds zero texture-level alpha-kill requests across the enabled texture
+units. Missing texture alpha-kill is therefore not supported as the cause in
+this frame. This does not exclude other alpha, texture, mip or depth errors, nor
+establish behavior outside the sample. The leaf-shadow, cloud and grass checks
+remain open.
