@@ -17,7 +17,8 @@ for capture settings and the progress gallery, newest first.</sub>
 ## Status
 
 Early development build. The native Windows build reaches the WKC1 starting town and
-can resume from a local save.
+can resume from a local save. The long-term SPU target is complete replacement
+with readable project-written C++; current coverage is partial.
 
 **Verified**
 

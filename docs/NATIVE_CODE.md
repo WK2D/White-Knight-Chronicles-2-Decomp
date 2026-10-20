@@ -1,7 +1,20 @@
 # Native execution work
 
-The target is host-compiled C/C++ gameplay and platform services, with no guest
-CPU interpreter required on supported routes. Python is currently used to
+The target is **100% replacement of the game's generated SPU code with
+project-written, readable, publicly available C++**, across all 24 currently
+identified images and any additional code discovered during validation.
+This includes job interfaces, outputs, DMA visibility and scheduling behavior.
+Generated instruction-by-instruction C and its register/local-store ABI are
+temporary references, not the final implementation. Native compilation and
+interpreter-free sampled routes alone do not satisfy this target.
+
+No complete SPU image has yet been replaced. The current readable geometry
+kernels are intermediate work. Completion requires a player build that links
+no generated SPU game code, uses no SPU interpreter, and has validated native
+interfaces and behavior throughout the game. Build-only reference replays may
+retain private generated code for differential verification.
+
+Python is currently used to
 extract inputs, generate C/C++, prepare fixtures and analyze captures. These
 tools run outside the game. Rewriting them in C++ is not an FPS optimization
 and does not remove the SPU interpreter fallback.
@@ -162,8 +175,8 @@ and performance remain open.
 3. **Take semantic control of hot jobs.** An earlier profile identifies image-19
    geometry code, including entry `0xCE08`, as a useful candidate. Matrix blending
    and a supported complete post-blend batch boundary are integrated beside
-   compiled references. Recover later normal accumulation/output packing and
-   establish whole-job boundaries. Preserve SPU float
+   compiled references. The final normal-output batches are now replaced separately below. Recover
+   the remaining normal-loop variants and establish whole-job boundaries. Preserve SPU float
    behavior, byte order, alignment, aliasing, DMA visibility and job ordering.
    The refreshed town profile below confirms work on this geometry worker,
    alongside channel waits, PPU polling and renderer waits; it does not establish
@@ -270,3 +283,48 @@ The additional 50,000-case arithmetic regression remains. Both complete Windows
 suites pass all 113 checks without media skips: Debug 26.90 seconds, Release
 22.21 seconds. Town performance, later normal processing and whole-job ownership
 remain open; the next optimization needs evidence from the critical path.
+
+## Readable final normal output
+
+The image-19 `0xD500` boundary now uses project-written C++ for its final two
+batches of four normals. `normal_length_stages` transposes decoded components
+and preserves the rounded x-square, fused z-square addition, then fused y-square
+addition. `scale_skin_normals` applies four reciprocal lengths while multiplying
+w by one. These core interfaces have no SPU registers, addresses or local store.
+
+The narrow bridge retains SDK reciprocal-square-root estimate/interpolation and
+host/exact/audit arithmetic. It does not substitute host `sqrt`. Eight output
+stores retain their original order when streams overlap, wrap local store or
+use unaligned pointers. Every scratch/live register is exported; the wrapper
+owns PC/continuation dispatch. The block has no DMA or channel operations, so
+this verifies no whole-job DMA/scheduling boundary. Other normal-loop variants
+and most of the image remain generated code.
+
+All 32 captured complete contexts from saved-game run `20261020-031202` match,
+and all 32 take the new C++ path, including exceptional host inputs. Wider fuzzing
+first found a two-NaN multiplication payload mismatch: LLVM commuted a product
+after decoding native values. The host policy now explicitly gives the first
+normal operand's quiet payload priority when both operands are NaNs. Exact/audit
+continue through their SDK policies. This matches the validated Windows reference;
+ARM behavior remains to be tested.
+
+The corrected implementation passes 96,000 complete-context comparisons: 32,000
+each in host, exact and audit mode, using the same random sequence in every mode.
+They mix finite and arbitrary arithmetic bits, malformed control/packing,
+wrapped/unaligned outputs and overlapping streams. Each mode accepts 25,272
+native cases and declines 6,728 intentionally invalid layouts to its compiled
+reference. There is no nonfinite-value guard on supported layouts. Comparisons
+include all registers, local store, normalized full context and continuation.
+Another 32,000 finite arithmetic tests match independent per-normal calculations
+and optional x86 FMA; live SIMD remains disabled following the earlier slowdown.
+Public tests also cover the NaN payload and rejection without state changes.
+
+Strict DirectX route `20261020-032618` and Vulkan route `20261020-033037` load
+Continue, confirm the exit prompt, enter Balastor Plain, walk and rotate the
+camera. Both have zero interpreter/microstep entries and positive final-normal
+trace counts; final frames were inspected. Hidden windows, mute, isolated saves,
+tracing and GPU snapshots make these correctness checks unsuitable for FPS claims.
+Both full Windows suites pass 113 checks without media skips: Debug 29.90 seconds,
+Release 23.04 seconds. A hash-checked generation hook retains a private reference
+and rejects altered inputs/installations. Full SPU replacement remains incomplete:
+**zero of the 24 identified images have been completely replaced**.

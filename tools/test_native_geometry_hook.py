@@ -40,3 +40,22 @@ with patch.object(hook,'replacement',lambda value:replace(value,digest)), \
         except ValueError:pass
         else:raise AssertionError('Edited or duplicate hook accepted')
 print('Native geometry hook rejects unknown bodies and edited installations; reapplication is a no-op')
+
+spec=importlib.util.spec_from_file_location('normal_hook',Path(__file__).with_name('apply_native_normals.py'))
+normals=importlib.util.module_from_spec(spec);spec.loader.exec_module(normals)
+block=('void '+normals.ENTRY+'(spu_context* ctx) {\n'
+       '    /* Synthetic normal boundary only; no game code. */\n}\n')
+text=block+'\nvoid synthetic_next(spu_context* ctx) {}\n'
+try:normals.apply(text)
+except ValueError:pass
+else:raise AssertionError('Unrecognized normal body accepted')
+normal_replacement=normals.replacement;digest=hashlib.sha256(block.encode()).hexdigest()
+with patch.object(normals,'replacement',lambda value:normal_replacement(value,digest)):
+    modified=normals.apply(text)
+    assert normals.apply(modified)==modified
+    assert 'wkc_native_finish_normals(ctx)' in modified and normals.REFERENCE+'(ctx)' in modified
+    for corrupt in (modified.replace('0xD874','0xD875'),modified+normals.BEGIN,modified.replace(normals.END,'')):
+        try:normals.apply(corrupt)
+        except ValueError:pass
+        else:raise AssertionError('Edited or duplicate normal hook accepted')
+print('Native normal hook rejects unknown bodies and edited installations; reapplication is a no-op')

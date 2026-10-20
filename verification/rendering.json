@@ -4,12 +4,12 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-20",
-    "native_probe": "20261020-015412",
+    "native_probe": "20261020-032618",
     "sdk_patch_count": 121,
-    "summary": "Leaf-shaped foliage shadow cutouts are restored in inspected DirectX and Vulkan plains views by correcting shared alpha-reference surface-format IDs. 121 SDK patches / 113 Windows checks pass in Debug and Release. Readable C++ now handles a complete supported geometry batch boundary with full-state differential evidence; whole jobs, broader static coverage, cloud shade, grass density, remaining flicker and performance parity remain open. No FPS gain measured.",
-    "gallery_image": "screenshots/2026-10-20-native-foliage-alpha-shadows.png",
+    "summary": "Readable C++ now also handles the final two four-normal output batches in image 19, with 32 real complete-state replays and 96,000 host/exact/audit differential cases. Strict DirectX and Vulkan town-to-plains routes pass. The target is replacement of every game SPU job with readable public C++; zero complete images are replaced so far. 121 SDK patches / 113 Windows checks pass. No FPS gain or whole-job equivalence claimed; DirectX fidelity and town lag remain open.",
+    "gallery_image": "screenshots/2026-10-20-native-cpp-normal-output.png",
     "gallery_image_sdk_patch_count": 121,
-    "gallery_image_scope": "DirectX Continue-to-plains route. Leaf-shaped cutouts replace the earlier solid shadow polygons after correcting the shared alpha-reference format IDs. Hidden, muted, isolated save; trace, strict guard and automatic GPU snapshots enabled. Approximate comparison camera and different animation/scene timing. FPS overlay is an instrumented instant, not a performance comparison. Moving cloud shade and grass density remain unverified.",
+    "gallery_image_scope": "DirectX Continue-to-plains route after integrating the readable final-normal C++ boundary. Trace evidence, not the image, confirms the new kernel executes; complete-state replay/fuzz comparisons establish its bounded equivalence. Hidden, muted, isolated save, strict fallback guard, tracing and automatic GPU captures. The counter shows an instrumented instant, not a speed comparison. No whole-job, full-SPU or full rendering parity claim.",
     "remaining_limits": [
       "Smooth 30 FPS traversal and console-equivalent animation speed unverified",
       "First-use shader compilation and other CPU/graphics costs remain",
@@ -67,6 +67,15 @@
     "window_close_title_and_saved_town_settings": true
   },
   "captures": [
+    {
+      "file": "screenshots/2026-10-20-native-cpp-normal-output.png",
+      "sha256": "cb8e9b9c337e9585907498ed5ff8d1ab2f7c29a3139bc4df6d21be875794a3c8",
+      "width": 1920,
+      "height": 1080,
+      "sdk_patch_count": 121,
+      "native_probe": "20261020-032618",
+      "scope": "DirectX Continue-to-plains route after integrating the readable final-normal C++ boundary. Trace evidence, not the image, confirms the new kernel executes; complete-state replay/fuzz comparisons establish its bounded equivalence. Hidden, muted, isolated save, strict fallback guard, tracing and automatic GPU captures. The counter shows an instrumented instant, not a speed comparison. No whole-job, full-SPU or full rendering parity claim."
+    },
     {
       "file": "screenshots/2026-10-20-native-foliage-alpha-shadows.png",
       "sha256": "7ba5d0c10f39c07f4c0f0290db27e843fe2500f5dafc2aab380db1135225683f",
@@ -439,8 +448,8 @@
     "last_verified_sdk_patch_count": 121,
     "current_passed_count": 113,
     "record_scope": "121 SDK patches / 113 Windows checks pass in Debug and Release, including media without skips, native batch guards and 68,372 alpha-reference decoder cases.",
-    "normal_debug_elapsed_seconds": 26.9,
-    "optimized_release_elapsed_seconds": 22.21,
+    "normal_debug_elapsed_seconds": 29.9,
+    "optimized_release_elapsed_seconds": 23.04,
     "repeat_patch_application_files_changed": 0,
     "repeat_patch_application_verified_sdk_patch_count": 121
   },
@@ -1640,7 +1649,7 @@
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
     "remaining_requirement": "Validate wider NPC/transition/cutscene routes and readable hot-job replacements; keep strict entry checks in diagnostic runs. Full-game CPU coverage is unverified.",
-    "latest_census_probe": "20261020-015927"
+    "latest_census_probe": "20261020-033037"
   },
   "wkc1_town_world_view": {
     "probe": "20261016-233313",
@@ -4186,5 +4195,97 @@
     ],
     "scope": "Different camera/position windows after Continue, not an NPC-only causal experiment. No captures during timing. Presentation rate is not unique animation speed.",
     "separate_cpu_evidence": "Image-19 geometry worker executes compiled and native work and waits in spu_rdch. Another PPU worker samples in sys_timer_usleep yield/QPC polling. Renderer samples include a fence wait in ld_flush. Separate 480 offline-unwound stack snapshots suspend threads for at most 246 microseconds; these samples are not timed-window whole-frame percentages."
+  },
+  "native_normal_output": {
+    "date": "2026-10-20",
+    "image_id": 19,
+    "entry": "0xD500",
+    "integrated": true,
+    "native_core": "normal_length_stages / scale_skin_normals in native_skinning.h",
+    "bridge": "wkc_native_finish_normals",
+    "generator": "tools/apply_native_normals.py",
+    "pinned_generated_block_sha256": "bd7c73abae3f70d47d74ded635b83449496394cf6e8c60ffabe97155cb56716f",
+    "interface": "Two batches of four decoded Float4 normals; first batch carries squared lengths and SPU reciprocal estimate; second batch computes squared lengths in recovered x/z/y order.",
+    "reciprocal_estimate_interpolation": "Unchanged SDK FRSQEST/FI behavior, not host sqrt",
+    "host_nan_multiply_rule": "First normal operand quiet-NaN payload takes precedence when both operands are NaNs; explicit to prevent compiler commuting the host product.",
+    "arithmetic_modes": [
+      "host",
+      "exact",
+      "audit"
+    ],
+    "nonfinite_value_guard": false,
+    "compatibility_scope": "Unsupported image, fixed control words or inconsistent packed/decoded components decline unchanged to retained compiled reference; all arithmetic bit patterns accepted in supported layouts.",
+    "captured_complete_state_pairs": 32,
+    "captured_native_accepts": 32,
+    "captured_compiled_accepts": 0,
+    "differential_cases": 96000,
+    "differential_cases_per_mode": 32000,
+    "native_accepts_per_mode": 25272,
+    "negative_control_declines_per_mode": 6728,
+    "differential_inputs": "Same random sequence in all modes; finite and arbitrary arithmetic bits, malformed control/packing negatives, wrapped/unaligned pointers and aliased output streams.",
+    "equality_scope": "All 128 registers, 256KiB local store and normalized complete context, PC/status and continuation against private compiled reference.",
+    "portable_arithmetic_cases": 32000,
+    "finite_x86_fma_cases": 32000,
+    "x86_fma_live": false,
+    "ordered_output_vectors": 8,
+    "channel_operations_in_boundary": 0,
+    "dma_operations_in_boundary": 0,
+    "pc_dispatch_owned_by_wrapper": true,
+    "whole_job_dma_scheduling_proven": false,
+    "arm_execution_tested": false,
+    "fps_gain_measured": false,
+    "routes": [
+      {
+        "id": "20261020-032618",
+        "renderer": "DirectX 12",
+        "frame_limit": 30,
+        "scope": "Continue, town movement, confirmed exit prompt and plains transition, walking and camera rotation",
+        "hidden": true,
+        "muted": true,
+        "isolated_save": true,
+        "strict_guard": true,
+        "interpreter_sessions": 0,
+        "microstep_sessions": 0,
+        "native_final_normal_calls_lower_bound": 32768,
+        "final_frame_inspected": true,
+        "instrumented": true,
+        "performance_benchmark": false
+      },
+      {
+        "id": "20261020-033037",
+        "renderer": "Vulkan",
+        "frame_limit": 30,
+        "scope": "Continue, town movement, confirmed exit prompt and plains transition, walking and camera rotation",
+        "hidden": true,
+        "muted": true,
+        "isolated_save": true,
+        "strict_guard": true,
+        "interpreter_sessions": 0,
+        "microstep_sessions": 0,
+        "native_final_normal_calls_lower_bound": 131072,
+        "final_frame_inspected": true,
+        "instrumented": true,
+        "performance_benchmark": false
+      }
+    ]
+  },
+  "spu_cpp_recovery": {
+    "target": "100% replacement of game SPU code with project-written readable public C++, including job interfaces, outputs, DMA and scheduling.",
+    "identified_baseline_images": 24,
+    "fully_replaced_images": 0,
+    "completion_proven": false,
+    "final_player_must_exclude_generated_spu_game_code": true,
+    "final_player_must_exclude_spu_interpreter": true,
+    "final_player_without_generated_spu_code_verified": false,
+    "private_build_time_reference_code_allowed": true,
+    "scope_includes_additional_images_if_discovered": true,
+    "remaining": [
+      "Recover remaining image-19 normal-loop variants, dispatch and whole-job interface.",
+      "Replace every remaining identified SPU image with semantic C++ algorithms or equivalent native services.",
+      "Prove DMA visibility, output ownership and scheduling through whole-job comparisons and real routes.",
+      "Validate additional NPC-heavy, transition, cutscene and combat routes, not only these saved scenes.",
+      "Build and verify a player with no generated SPU code or interpreter linked.",
+      "Validate portable scalar and future ARM implementations; x86-only tests are insufficient."
+    ]
   }
 }

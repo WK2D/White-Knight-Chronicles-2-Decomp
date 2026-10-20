@@ -120,6 +120,10 @@ matrix-blend and complete supported batch hooks; rerunning it validates the reta
 references and wrapper. The earlier blend-only, blend/position and cofactor versions upgrade
 after the same validation.
 See [kernel evidence and limits](NATIVE_CODE.md#readable-c-geometry-prefix).
+`tools/apply_native_normals.py` then installs the independently hash-checked
+final-normal output boundary. It retains a private compiled reference and
+rejects edited bodies or wrappers. The same hook regression checks both
+installations. See [normal-output evidence](NATIVE_CODE.md#readable-final-normal-output).
 `tools/import_spu_misses.py` is available for discovering additional jobs.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported

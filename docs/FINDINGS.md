@@ -19,7 +19,10 @@ boundary in one image-19 block: positions, cofactors, first normal products,
 ordered local-store output and next-batch preparation. Nonfinite host/audit inputs
 retain the compiled C tail; exact-SPU mode has no value guard. Complete-state replay and fuzz comparisons, plus strict
 DirectX/Vulkan town-to-plains routes, are recorded in [native work](NATIVE_CODE.md).
-This is partial semantic recovery; no FPS improvement is claimed. Desktop
+The final two normal-output batches now have a separate readable C++ path,
+validated with 32 captured contexts and 96,000 differential cases across all
+three float modes. This is partial semantic recovery; no complete SPU image has
+been replaced and no FPS improvement is claimed. Desktop
 clean-play mode also removes inherited diagnostics, and patch 0119 disables the
 previously unconditional DirectX benchmark recorder unless explicitly requested.
 

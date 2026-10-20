@@ -30,6 +30,7 @@ if ($Regenerate) {
     Invoke-CheckedPython "$project/tools/build_spu.py" --sdk $sdk --images "$analysis/spu-images" --lifted "$generated/spu"
 }
 Invoke-CheckedPython "$project/tools/apply_native_geometry.py" "$generated/spu"
+Invoke-CheckedPython "$project/tools/apply_native_normals.py" "$generated/spu"
 Invoke-CheckedPython "$project/tools/apply_port_hooks.py" "$generated/ppu"
 Invoke-CheckedPython "$project/tools/apply_diagnostics.py" "$generated/ppu"
 Invoke-CheckedPython "$project/tools/prepare_ffmpeg.py" "$Workspace/work/deps"

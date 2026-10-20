@@ -37,6 +37,15 @@ struct GeometryStages {
     CyclicAffine right;
     Float4 first_normal_product;
 };
+using NormalBatch = std::array<Float4,4>;
+struct NormalLengthStages {
+    Float4 x, y, z;
+    Float4 x_squared, zx_squared, length_squared;
+};
+struct NormalScaleStages {
+    NormalBatch scales;
+    NormalBatch normals;
+};
 
 // Arithmetic is explicit so a caller can preserve SPU extended-float behavior.
 // This default implements host IEEE math; it is not an exact-SPU specification.
@@ -57,6 +66,36 @@ struct HostScalarMath {
         return out;
     }
 };
+
+// Four normals share one vector of squared lengths. Preserve the recovered
+// x*x, fma(z,z,x*x), fma(y,y,...) order; w is not part of the length.
+template<class Math=HostScalarMath>
+NormalLengthStages normal_length_stages(const NormalBatch& normals) {
+    NormalLengthStages out;
+    for(unsigned vertex=0;vertex<4;++vertex) {
+        out.x[vertex]=normals[vertex][0];
+        out.y[vertex]=normals[vertex][1];
+        out.z[vertex]=normals[vertex][2];
+    }
+    out.x_squared=Math::multiply(out.x,out.x);
+    out.zx_squared=Math::multiply_add(out.z,out.z,out.x_squared);
+    out.length_squared=Math::multiply_add(out.y,out.y,out.zx_squared);
+    return out;
+}
+
+// Reciprocal lengths are supplied by the caller. The ABI bridge retains the
+// SPU estimate/interpolation rules rather than substituting host sqrt().
+// Multiplying w by one also retains the selected arithmetic policy.
+template<class Math=HostScalarMath>
+NormalScaleStages scale_skin_normals(const NormalBatch& normals,const Float4& reciprocal_lengths) {
+    NormalScaleStages out;
+    for(unsigned vertex=0;vertex<4;++vertex) {
+        const float scale=reciprocal_lengths[vertex];
+        out.scales[vertex]={scale,scale,scale,1};
+        out.normals[vertex]=Math::multiply(normals[vertex],out.scales[vertex]);
+    }
+    return out;
+}
 
 // Cofactors transform a normal without dividing by the determinant. Keep the
 // rounded subtrahend product distinct from the fused multiply-subtract. The w

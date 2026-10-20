@@ -4,6 +4,37 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_cpp_final_normal_output",
+      "date": "2026-10-20",
+      "image": "screenshots/2026-10-20-native-cpp-normal-output.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "DirectX 12 live draw renderer",
+      "source_format": "Unmodified final swap-chain GPU readback with in-game counter",
+      "source_sha256": "75b79a26e91b5668f274ed4a6afa046b7df1f1ce771e90708fc6f2596edffd73",
+      "png_sha256": "cb8e9b9c337e9585907498ed5ff8d1ab2f7c29a3139bc4df6d21be875794a3c8",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IHDR",
+        "IDAT",
+        "IEND"
+      ],
+      "native_probe": "20261020-032618",
+      "native_readback": "frame_003300.ppm",
+      "native_executable_sha256": "452b31de2c3bd77c7eae8b99bf38003e2d6523a8eeb3b517a7aa039ed14062b1",
+      "sdk_patch_count_in_captured_run": 121,
+      "spu_image_inputs": 24,
+      "frame_limit": 30,
+      "fps_counter": true,
+      "vsync": false,
+      "capture_only_backend_instrumentation": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false,
+      "performance_proven_by_still_image": false,
+      "capture_scope": "DirectX Continue-to-plains route after integrating the readable final-normal C++ boundary. Trace evidence, not the image, confirms the new kernel executes; complete-state replay/fuzz comparisons establish its bounded equivalence. Hidden, muted, isolated save, strict fallback guard, tracing and automatic GPU captures. The counter shows an instrumented instant, not a speed comparison. No whole-job, full-SPU or full rendering parity claim."
+    },
+    {
       "milestone": "foliage_alpha_reference_fixed",
       "date": "2026-10-20",
       "image": "screenshots/2026-10-20-native-foliage-alpha-shadows.png",

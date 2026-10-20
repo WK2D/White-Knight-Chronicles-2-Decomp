@@ -21,6 +21,11 @@ int wkc_native_cofactor_geometry(const struct spu_context* ctx, void* output, un
 // compiled path for NaN-payload compatibility; exact mode has no value guard.
 // The caller owns PC/continuation dispatch.
 int wkc_native_finish_geometry(struct spu_context* ctx);
+// Final two batches of four normals, including squared lengths, SPU estimate
+// interpolation, ordered output stores and scratch/live register export.
+// Unsupported control/packing declines before writes. Arithmetic uses the SDK
+// float policy. The caller retains PC/continuation dispatch. No DMA/channel calls.
+int wkc_native_finish_normals(struct spu_context* ctx);
 #ifdef __cplusplus
 }
 #endif

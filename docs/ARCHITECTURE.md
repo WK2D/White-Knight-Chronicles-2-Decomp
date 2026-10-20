@@ -9,7 +9,10 @@ translate or execute code while the game runs.
 Full-game static coverage is not yet verified. Earlier probes reached SPU
 interpreter fallback; five newly compiled entries remove the observed cases on a
 strict saved-town route. Fallback remains available for untested paths. This is
-not a recovered, readable version of the original source.
+not a recovered, readable version of the original source. The final SPU target
+is complete replacement with project-written readable public C++, with no
+generated SPU game code or interpreter linked into the player. No complete image
+has been replaced yet; the current kernels are intermediate work.
 
 ## What executes
 
@@ -25,8 +28,10 @@ not a recovered, readable version of the original source.
   Its retained
   compiled reference and
   full-state replay/fuzz checks are described in [native execution work](NATIVE_CODE.md).
-  Later normal accumulation/output packing and the rest of the job remain
-  compiled guest code. Host/audit nonfinite inputs retain the compiled C tail;
+  A separate final-normal boundary now uses decoded C++ batches with full-state
+  replay/fuzz checks, including host NaN-payload handling. Other normal-loop
+  variants and the rest of the job remain compiled guest code. The earlier
+  geometry boundary retains its compiled C tail for host/audit nonfinite inputs;
   exact-SPU mode accepts all arithmetic bit patterns.
 - Firmware SPURS job-queue/port calls now execute registered jobs and pass the
   control block required by the job's C runtime startup. The current implementation

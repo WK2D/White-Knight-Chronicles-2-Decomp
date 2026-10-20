@@ -19,6 +19,47 @@ static CyclicAffine cyclic(const float matrix[3][4]) {
 }
 
 int wkc2_test_native_skinning() {
+    const NormalBatch sample_normals={Float4{3,4,0,7},Float4{0,0,2,-3},Float4{1,2,2,0},Float4{0,0,0,1}};
+    const auto lengths=normal_length_stages(sample_normals);
+    assert((lengths.length_squared==Float4{25,4,9,0}));
+    const auto scaled=scale_skin_normals(sample_normals,Float4{.2f,.5f,1.f/3,0});
+    for(unsigned vertex=0;vertex<4;++vertex)assert(scaled.normals[vertex][3]==sample_normals[vertex][3]);
+    assert(scaled.normals[1][2]==1 && scaled.normals[3][0]==0);
+    {
+        auto normal_ctx=std::make_unique<spu_context>(),snapshot=std::make_unique<spu_context>();
+        spu_context_init(normal_ctx.get(),0);normal_ctx->image_id=19;normal_ctx->pc=0xD500;
+        const unsigned regs[]={97,89,106,75,76,105};
+        const unsigned masks[][4]={
+            {0xffffffffu,0xffffffffu,0,0},{0x18191a1bu,0x1c1d1e1fu,0x00010203u,0x04050607u},
+            {0x00010203u,0x00010203u,0x00010203u,0x10111213u},
+            {0x04050607u,0x04050607u,0x04050607u,0x14151617u},
+            {0x08090a0bu,0x08090a0bu,0x08090a0bu,0x18191a1bu},
+            {0x0c0d0e0fu,0x0c0d0e0fu,0x0c0d0e0fu,0x1c1d1e1fu}};
+        for(unsigned i=0;i<6;++i)std::memcpy(&normal_ctx->gpr[regs[i]],masks[i],16);
+        normal_ctx->gpr[66]=spu_splat_u32(0x3f800000u);
+        const Float4 normal{0,1,0,1};
+        for(unsigned reg:{94u,92u,93u,91u,17u,15u,12u,11u})std::memcpy(&normal_ctx->gpr[reg],normal.data(),16);
+        const Float4 packed79{1,1,0,0},packed78{0,0,1,1},zero{};
+        std::memcpy(&normal_ctx->gpr[79],packed79.data(),16);std::memcpy(&normal_ctx->gpr[78],packed78.data(),16);
+        std::memcpy(&normal_ctx->gpr[88],zero.data(),16);std::memcpy(&normal_ctx->gpr[87],zero.data(),16);
+        normal_ctx->gpr[84]=normal_ctx->gpr[90]=spu_splat_u32(0x3f800000u);
+        normal_ctx->gpr[91]._u32[2]=0x7ffd520au;normal_ctx->gpr[90]._u32[3]=0xffcb3000u;
+        normal_ctx->gpr[86]._u32[0]=0x2000;normal_ctx->gpr[85]._u32[0]=0x2100;
+        const int mode=g_spu_float_mode;g_spu_float_mode=SPU_FLOAT_HOST;
+        std::memcpy(snapshot.get(),normal_ctx.get(),sizeof *normal_ctx);
+        assert(wkc_native_finish_normals(normal_ctx.get()));
+        assert(normal_ctx->gpr[114]._u32[2]==0x7ffd520au);
+        assert(spu_ls_read128(normal_ctx.get(),0x2030)._u32[2]==0x7ffd520au);
+        assert(normal_ctx->pc==0xD500); // wrapper owns dispatch
+        for(unsigned reg:{97u,89u,106u,75u,76u,105u,66u,79u,78u,88u,87u}) {
+            std::memcpy(normal_ctx.get(),snapshot.get(),sizeof *normal_ctx);
+            normal_ctx->gpr[reg]._u32[0]^=1;
+            auto untouched=std::make_unique<spu_context>();std::memcpy(untouched.get(),normal_ctx.get(),sizeof *normal_ctx);
+            assert(!wkc_native_finish_normals(normal_ctx.get()));
+            assert(!std::memcmp(normal_ctx.get(),untouched.get(),sizeof *normal_ctx));
+        }
+        g_spu_float_mode=mode;
+    }
     // Independent ordinary-matrix oracle with exact small integer results.
     SkinVertex vertex{};vertex.position={2,3,5,1};vertex.weights={.125f,.25f,.5f,.125f};
     float expected[3]={0,0,0};
@@ -56,6 +97,32 @@ int wkc2_test_native_skinning() {
     }
 
     std::mt19937 random(0xCE08);unsigned simd_cases=0;
+    for(unsigned trial=0;trial<32000;++trial) {
+        NormalBatch batch;Float4 inverse;
+        for(unsigned vertex=0;vertex<4;++vertex) {
+            inverse[vertex]=float(random()%1024)/128;
+            for(float& lane:batch[vertex])lane=float(int(random()%8193)-4096)/64;
+        }
+        const auto stages=normal_length_stages(batch);
+        const auto outputs=scale_skin_normals(batch,inverse);
+        for(unsigned vertex=0;vertex<4;++vertex) {
+            const float x=batch[vertex][0],y=batch[vertex][1],z=batch[vertex][2];
+            const float first=x*x,second=std::fma(z,z,first),last=std::fma(y,y,second);
+            assert(!std::memcmp(&stages.x_squared[vertex],&first,4));
+            assert(!std::memcmp(&stages.zx_squared[vertex],&second,4));
+            assert(!std::memcmp(&stages.length_squared[vertex],&last,4));
+            for(unsigned lane=0;lane<4;++lane) {
+                const float expected=batch[vertex][lane]*(lane==3?1:inverse[vertex]);
+                assert(!std::memcmp(&outputs.normals[vertex][lane],&expected,4));
+            }
+        }
+#ifdef WKC_NATIVE_SKINNING_HOST_FMA
+        const auto vector_stages=normal_length_stages<HostFmaMath>(batch);
+        const auto vector_outputs=scale_skin_normals<HostFmaMath>(batch,inverse);
+        assert(!std::memcmp(&stages,&vector_stages,sizeof stages));
+        assert(!std::memcmp(&outputs,&vector_outputs,sizeof outputs));
+#endif
+    }
     for(unsigned trial=0;trial<32000;++trial) {
         auto finite=[&] {return float(int(random()%8193)-4096)/64;};
         for(auto& value:vertex.position)value=finite();

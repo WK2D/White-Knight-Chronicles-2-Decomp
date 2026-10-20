@@ -20,6 +20,21 @@ struct RuntimeMath {
         return unpack(spu_fms(pack(a),pack(b),pack(c)));
     }
 };
+struct NormalMath:RuntimeMath {
+    static Float4 multiply(const Float4& a,const Float4& b) {
+        auto result=RuntimeMath::multiply(a,b);
+        // The validated host boundary gives the normal (first operand)
+        // priority when both operands are NaNs. LLVM may commute a product
+        // after decoding Float4 values, changing the payload. Make the rule
+        // explicit. Exact/audit continue through their unchanged SDK helpers.
+        if(g_spu_float_mode==SPU_FLOAT_HOST)for(unsigned lane=0;lane<4;++lane)
+            if(std::isnan(a[lane]) && std::isnan(b[lane])) {
+                u32 bits;std::memcpy(&bits,&a[lane],4);bits|=0x00400000u;
+                std::memcpy(&result[lane],&bits,4);
+            }
+        return result;
+    }
+};
 bool broadcast_mask(u128 mask,unsigned lane) {
     const auto expected=spu_splat_u32(0x00010203u+lane*0x04040404u);
     return std::memcmp(&mask,&expected,16)==0;
@@ -88,6 +103,68 @@ extern "C" int wkc_native_blend_geometry(spu_context* ctx) {
         static std::atomic<unsigned long long> calls{0};
         const auto count=calls.fetch_add(1,std::memory_order_relaxed)+1;
         if(count<=4 || !(count&(count-1)))std::fprintf(stderr,"[native-skinning] blended_blocks=%llu\n",count);
+    }
+    return 1;
+}
+
+extern "C" int wkc_native_finish_normals(spu_context* ctx) {
+    if(!ctx || !ctx->ls || ctx->image_id!=19)return 0;
+    const unsigned mask_regs[]={97,89,106,75,76,105};
+    const unsigned masks[][4]={
+        {0xffffffffu,0xffffffffu,0,0},
+        {0x18191a1bu,0x1c1d1e1fu,0x00010203u,0x04050607u},
+        {0x00010203u,0x00010203u,0x00010203u,0x10111213u},
+        {0x04050607u,0x04050607u,0x04050607u,0x14151617u},
+        {0x08090a0bu,0x08090a0bu,0x08090a0bu,0x18191a1bu},
+        {0x0c0d0e0fu,0x0c0d0e0fu,0x0c0d0e0fu,0x1c1d1e1fu}};
+    for(unsigned i=0;i<6;++i)if(std::memcmp(&ctx->gpr[mask_regs[i]],masks[i],16))return 0;
+    const auto ones=spu_splat_u32(0x3f800000u);
+    if(std::memcmp(&ctx->gpr[66],&ones,16))return 0;
+    const unsigned first_regs[]={94,92,93,91},last_regs[]={17,15,12,11};
+    NormalBatch first,last;
+    for(unsigned vertex=0;vertex<4;++vertex) {
+        first[vertex]=unpack(ctx->gpr[first_regs[vertex]]);
+        last[vertex]=unpack(ctx->gpr[last_regs[vertex]]);
+    }
+    // D374 produces these packed components. Validate their relation to the
+    // decoded normals before replacing their shuffles with a native transpose.
+    const Float4 packed[]={
+        {last[2][1],last[3][1],last[2][0],last[3][0]},
+        {last[0][0],last[1][0],last[0][1],last[1][1]},
+        {last[2][2],last[3][2],last[2][2],last[3][2]},
+        {last[0][2],last[1][2],last[0][2],last[1][2]}};
+    const unsigned packed_regs[]={79,78,88,87};
+    for(unsigned i=0;i<4;++i)if(std::memcmp(packed[i].data(),&ctx->gpr[packed_regs[i]],16))return 0;
+    if(g_spu_float_mode<0)spu_float_mode_init();
+    const auto lengths=normal_length_stages<NormalMath>(last);
+    const auto first_inverse=spu_fi(ctx->gpr[84],ctx->gpr[90]);
+    const auto last_estimate=spu_frsqest(pack(lengths.length_squared));
+    const auto last_inverse=spu_fi(pack(lengths.length_squared),last_estimate);
+    const auto first_scaled=scale_skin_normals<NormalMath>(first,unpack(first_inverse));
+    const auto last_scaled=scale_skin_normals<NormalMath>(last,unpack(last_inverse));
+    // All inputs are decoded before any output. Store order matters even when
+    // either stream wraps local store or the two output ranges overlap.
+    const unsigned first_order[]={0,2,1,3},last_order[]={3,0,1,2};
+    const auto first_output=ctx->gpr[86]._u32[0],last_output=ctx->gpr[85]._u32[0];
+    for(unsigned vertex:first_order)spu_ls_write128(ctx,first_output+vertex*16,pack(first_scaled.normals[vertex]));
+    for(unsigned vertex:last_order)spu_ls_write128(ctx,last_output+vertex*16,pack(last_scaled.normals[vertex]));
+    ctx->gpr[82]=pack(lengths.x);ctx->gpr[123]=pack(lengths.y);ctx->gpr[127]=pack(lengths.z);
+    ctx->gpr[80]=pack(lengths.x_squared);ctx->gpr[124]=pack(lengths.zx_squared);
+    ctx->gpr[111]=pack(lengths.length_squared);ctx->gpr[125]=first_inverse;
+    ctx->gpr[112]=last_estimate;ctx->gpr[110]=last_inverse;
+    const unsigned first_scale_regs[]={122,121,120,119},first_result_regs[]={118,117,115,114};
+    const unsigned last_scale_regs[]={104,97,94,107},last_result_regs[]={76,75,66,93};
+    for(unsigned vertex=0;vertex<4;++vertex) {
+        ctx->gpr[first_scale_regs[vertex]]=pack(first_scaled.scales[vertex]);
+        ctx->gpr[first_result_regs[vertex]]=pack(first_scaled.normals[vertex]);
+        ctx->gpr[last_scale_regs[vertex]]=pack(last_scaled.scales[vertex]);
+        ctx->gpr[last_result_regs[vertex]]=pack(last_scaled.normals[vertex]);
+    }
+    static const bool trace=std::getenv("WKC_NATIVE_SKINNING_TRACE")!=nullptr;
+    if(trace) {
+        static std::atomic<unsigned long long> calls{0};
+        const auto count=calls.fetch_add(1,std::memory_order_relaxed)+1;
+        if(count<=4 || !(count&(count-1)))std::fprintf(stderr,"[native-skinning] final_normal_batches=%llu\n",count);
     }
     return 1;
 }
