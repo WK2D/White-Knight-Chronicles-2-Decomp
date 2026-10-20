@@ -123,6 +123,10 @@ comparisons match complete state. Strict DirectX and Vulkan transition routes
 also pass sampled live comparisons. Unsupported interfaces retain their compiled
 reference. See [routine evidence and limits](NATIVE_CODE.md#readable-whole-skinning-stream).
 Outer jobs, DMA/output ownership and scheduling remain to be recovered.
+A [whole-job reference replay](NATIVE_CODE.md#whole-geometry-job-boundary) now
+checks 32 captured jobs through their observed DMA outputs. It supplies recorded
+external inputs; asynchronous scheduling and shared-output ownership remain
+unproven.
 
 The [native execution work plan](NATIVE_CODE.md) separates removal of interpreter
 fallback from readable replacements for already compiled hot jobs. Python tools

@@ -4482,5 +4482,79 @@
     "full_spu_image_replacement": false,
     "fps_gain_measured": false,
     "desktop_runtime_updated": false
+  },
+  "native_geometry_whole_job_replay": {
+    "date": "2026-10-20",
+    "image_id": 19,
+    "implementation_source_commit": "091401a",
+    "sdk_patches": 122,
+    "arithmetic_mode": "host",
+    "scope": "Complete raw geometry job main, from its staged SPURS inputs to return; compiled reference and current partial readable-C++ integration. No whole-job native replacement.",
+    "entry": "0x1FE0",
+    "complete_jobs": 32,
+    "position_only_jobs": 16,
+    "one_direction_jobs": 8,
+    "two_direction_jobs": 8,
+    "processing_stage_snapshot_pairs": 288,
+    "channel_events": 1889,
+    "bulk_dma_writes": 99,
+    "bulk_dma_output_bytes": 270080,
+    "atomic_allocator_writes": 31,
+    "atomic_allocator_write_bytes": 3968,
+    "unhooked_compiled_reference_complete_state_matches": 32,
+    "current_native_skinning_integration_complete_state_matches": 32,
+    "normal_job_native_skinning_calls": 16,
+    "normal_job_native_skinning_declines": 0,
+    "full_context_scope": "All 128 GPRs, all 256 KiB local store, complete context with its LS pointer normalized, return and runtime step count.",
+    "channel_scope": "Observed write/read events in order, including MFC arguments, returned values, tag masks and status. Effective-memory outputs are checked at recorded command completions.",
+    "replay_external_inputs": "Inject the recorded DMA/atomic read receipts and write-destination preimages into private VM memory at the corresponding event; run the real runtime channel/DMA implementation. This is recorded-input replay, not a concurrent-scheduling test.",
+    "negative_controls": {
+      "corrupt_dma_output_rejected": true,
+      "corrupt_register_result_rejected": true,
+      "position_and_normal_job_controls_verified": true
+    },
+    "captures": [
+      {
+        "probe": "20261020-065842",
+        "jobs": 16,
+        "direction_streams": 0,
+        "channel_events": 944,
+        "bulk_dma_writes": 48,
+        "bulk_dma_bytes": 55088
+      },
+      {
+        "probe": "20261020-072615",
+        "jobs": 16,
+        "one_direction_jobs": 8,
+        "two_direction_jobs": 8,
+        "channel_events": 945,
+        "bulk_dma_writes": 51,
+        "bulk_dma_bytes": 214992
+      }
+    ],
+    "capture_conditions": {
+      "renderer": "DirectX 12",
+      "hidden": true,
+      "muted": true,
+      "isolated_save": true,
+      "frame_limit": 30,
+      "strict_fallback_guard": true,
+      "interpreter_sessions": 0,
+      "microstep_sessions": 0
+    },
+    "shared_output_allocation_observed": true,
+    "whole_job_replaced": false,
+    "asynchronous_scheduling_equivalence_proven": false,
+    "external_unobserved_reads_ruled_out": false,
+    "arm_execution_verified": false,
+    "fps_gain_measured": false,
+    "desktop_executable_changed": false,
+    "remaining": [
+      "Recover packed input/output formats and the complete semantic job algorithm.",
+      "Prove every externally observable write and lifetime, including shared allocator and command-publication ordering.",
+      "Compare an owned-buffer C++ job against this reference before removing its LS/register boundary.",
+      "Broaden input categories, scenes, cutscenes, NPC-heavy traversal and concurrency/interleaving coverage.",
+      "Measure CPU/performance separately with diagnostic capture and replay disabled."
+    ]
   }
 }

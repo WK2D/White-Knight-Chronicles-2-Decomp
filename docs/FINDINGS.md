@@ -40,6 +40,7 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 **Performance, timing and presentation**
 
 - [Readable whole skinning stream](NATIVE_CODE.md#readable-whole-skinning-stream)
+- [Whole geometry job boundary](NATIVE_CODE.md#whole-geometry-job-boundary)
 - [NPC cadence and rejected host FMA](#npc-cadence-and-rejected-host-fma)
 - [Remaining fork candidates and mutex measurement](#remaining-fork-candidates-and-mutex-measurement)
 - [PPU register-local validation follow-up](#ppu-register-local-validation-follow-up)
@@ -3468,3 +3469,18 @@ This replaces the skinning routine's setup, loops and drain, not the whole SPURS
 job. No complete image is replaced. Outer descriptors, DMA visibility, output
 ownership and scheduling remain open, as do broader routes and ARM execution.
 No FPS gain was measured. See [interface and evidence](NATIVE_CODE.md#readable-whole-skinning-stream).
+
+## Whole geometry job replay
+
+Thirty-two complete image-19 jobs now replay against their captured state and
+DMA outputs: 16 position-only, eight one-direction and eight two-direction jobs.
+Both the unhooked reference and current partial readable-C++ integration pass.
+The journals check 1,889 channel events and 99 bulk output writes (270,080 bytes),
+plus 31 atomic allocator-line writes. Register and output-corruption controls
+fail as expected. The second set confirms actual execution of the new skinning
+routine; the position-only set does not exercise it.
+
+This is recorded-input replay, with external read receipts supplied at their
+recorded events. It is not a whole-job replacement or concurrency proof. The
+observed shared allocator and fenced output publication remain requirements for
+any parallel implementation. See [method, counts and limits](NATIVE_CODE.md#whole-geometry-job-boundary).

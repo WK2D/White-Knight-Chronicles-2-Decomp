@@ -432,3 +432,63 @@ automated-input switches are cleared, with a research-mode negative control.
 No FPS gain has been measured. Whole-job descriptors, DMA visibility, output
 ownership and scheduling, other layouts, additional NPC-heavy/cutscene/combat
 routes and replacement of all remaining generated SPU code are still required.
+
+## Whole geometry job boundary
+
+The next replacement target is the complete image-19 geometry job: staged SPURS
+descriptor and input buffers in, published output buffers and completion out.
+The current outer algorithm remains compiled guest code. A new private replay
+now checks that entire boundary, rather than only a skinning routine.
+
+Two hidden, muted, isolated-save DirectX probes at the 30 FPS baseline provide
+32 complete jobs. Probe `20261020-065842` captures 16 position-only jobs;
+`20261020-072615` adds eight one-direction and eight two-direction skinning jobs.
+There are also 288 before/after pairs at nine processing stages per job. The
+second set is selected using the original descriptor's request flags; part of
+the packed input header is rewritten during setup and is unsuitable as an
+unchanged job-class identifier.
+
+Both the unhooked compiled reference and the current build's partial C++
+integration reproduce all 32 jobs, comparing every register, every local-store
+byte, normalized complete context, return and runtime step count. Trace evidence
+confirms 16 accepted whole-skinning C++ calls, with no declines, in the second
+set. The first set does not exercise that routine.
+
+| Recorded observation | Count across the 32 jobs |
+| --- | ---: |
+| Channel events, including tag masks/status and returned values | 1,889 |
+| Bulk DMA output writes | 99 |
+| Bulk DMA output bytes | 270,080 |
+| Atomic allocator-line writes | 31 |
+| Atomic allocator-line bytes | 3,968 |
+
+The replay checks the observed channel sequence and effective-memory outputs at
+each command completion. It supplies recorded DMA/atomic read receipts and
+write-destination preimages in private VM memory, then uses the actual channel
+and DMA implementation. Deliberately corrupting one output byte or a restored
+register is rejected for both capture sets. Raw contexts, LS, memory receipts,
+generated references and the replay fixtures stay private.
+
+These checks establish a reproducible **recorded-input whole-job reference**.
+They do not establish asynchronous scheduling equivalence, rule out every
+unobserved external read, or replace the whole job. Both live probes use the
+strict fallback guard and end with zero interpreter/microstep sessions; that
+coverage is limited to the recorded routes. Arithmetic here is host mode on
+Windows x86-64; other arithmetic modes and ARM need separate whole-job checks.
+
+The traces expose shared allocation/publication state: observed jobs use atomic
+line operations, tag-controlled transfers and a final fenced PUT. Some jobs take
+a different allocation branch, so one fixed command count is not a valid general
+contract. Owning each job's private C++ buffers alone does not prove parallel jobs
+safe. The shared allocator, command ordering, output visibility and lifetimes
+must also be recovered and validated.
+
+Next comes the complete semantic input/decode/transform/pack/publication algorithm
+using owned host buffers. Only after that boundary is understood can a faster
+path omit pipeline scratch writes shown to be private. The retained exact
+reference remains the comparison target. Normal play makes no full-LS copy per
+skinning call: those copies belong to opt-in verification. The native routine's
+`4*g+1`/`3*g+2` additions preserve step bookkeeping without dispatching through
+the old loop. Neither fact is an FPS measurement. This research leaves the
+desktop executable unchanged; no CPU/FPS gain or complete SPU-image replacement
+is claimed.
