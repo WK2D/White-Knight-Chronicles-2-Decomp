@@ -206,6 +206,7 @@ add_executable(${PROJECT_NAME}
     spu_job_diagnostics.cpp
     native_skinning_bridge.cpp
     native_skinning_stream_bridge.cpp
+    native_geometry_runtime.cpp
     play_environment.cpp
     ${PLAY_ENV_NAMES}
     ${PS3RECOMP_SCAFFOLD}
@@ -238,6 +239,17 @@ endif()
 
 set_source_files_properties(spu_job_diagnostics.cpp PROPERTIES
     INCLUDE_DIRECTORIES "${PS3RECOMP_DIR}/runtime/spu")
+
+# The owned geometry job catches allocation/admission failures before crossing
+# its C dispatch boundary. Keep the measured host arithmetic evaluation order.
+if(MSVC)
+    set_property(SOURCE native_geometry_runtime.cpp APPEND PROPERTY COMPILE_OPTIONS /EHsc)
+endif()
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    set_property(SOURCE native_geometry_runtime.cpp APPEND PROPERTY COMPILE_OPTIONS -ffp-contract=off)
+elseif(MSVC)
+    set_property(SOURCE native_geometry_runtime.cpp APPEND PROPERTY COMPILE_OPTIONS /fp:strict)
+endif()
 
 # Embed the project lettermark in Windows executables. SDL uses the first
 # icon resource for the game window; Explorer uses it for the executable.
@@ -622,7 +634,8 @@ if(WKC2_BUILD_TESTS)
         add_test(NAME wkc2_pad_report COMMAND wkc2_pad_report_test)
         set_tests_properties(wkc2_pad_report PROPERTIES TIMEOUT 15)
         add_executable(wkc2_ppu_join_test tests/ppu_join_test.c
-            "${PS3RECOMP_DIR}/runtime/syscalls/sys_ppu_thread.c")
+            "${PS3RECOMP_DIR}/runtime/syscalls/sys_ppu_thread.c"
+            "${PS3RECOMP_DIR}/runtime/memory/vm_mapping_epoch.c")
         target_include_directories(wkc2_ppu_join_test PRIVATE
             "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/syscalls")
         add_test(NAME wkc2_ppu_join COMMAND wkc2_ppu_join_test)
@@ -648,6 +661,51 @@ if(WKC2_BUILD_TESTS)
             "${PS3RECOMP_DIR}/runtime/spu" "${PS3RECOMP_DIR}/runtime/ppu")
         add_test(NAME wkc2_spurs_job COMMAND wkc2_spurs_job_test)
         set_tests_properties(wkc2_spurs_job PROPERTIES TIMEOUT 20)
+        add_executable(wkc2_spu_native_atomic_test tests/spu_native_atomic_test.cpp
+            "${PS3RECOMP_DIR}/runtime/spu/spu_coherency.c")
+        target_include_directories(wkc2_spu_native_atomic_test PRIVATE
+            "${PS3RECOMP_DIR}/runtime/spu")
+        if(MSVC)
+            target_compile_options(wkc2_spu_native_atomic_test PRIVATE /EHsc /experimental:c11atomics)
+        endif()
+        add_test(NAME wkc2_spu_native_atomic COMMAND wkc2_spu_native_atomic_test)
+        set_tests_properties(wkc2_spu_native_atomic PROPERTIES TIMEOUT 20)
+        set(SPU_NATIVE_DISPATCH_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/spu_native_dispatch_fixture.inc")
+        add_custom_command(OUTPUT "${SPU_NATIVE_DISPATCH_FIXTURE}"
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spu_native_dispatch_fixture.py"
+                "${PS3RECOMP_DIR}" "${SPU_NATIVE_DISPATCH_FIXTURE}"
+            DEPENDS "${PS3RECOMP_DIR}/runtime/spu/spu_workload.c"
+                "${PS3RECOMP_DIR}/runtime/spu/spu_workload.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_spu_native_dispatch_fixture.py"
+            VERBATIM)
+        add_executable(wkc2_spu_native_dispatch_test tests/spu_native_dispatch_test.c
+            "${SPU_NATIVE_DISPATCH_FIXTURE}")
+        target_include_directories(wkc2_spu_native_dispatch_test PRIVATE
+            "${CMAKE_CURRENT_BINARY_DIR}" "${PS3RECOMP_DIR}/runtime/spu")
+        add_test(NAME wkc2_spu_native_dispatch COMMAND wkc2_spu_native_dispatch_test)
+        set_tests_properties(wkc2_spu_native_dispatch PROPERTIES TIMEOUT 15)
+        add_executable(wkc2_vm_mapping_epoch_test tests/vm_mapping_epoch_test.cpp
+            tests/vm_mapping_epoch_c_test.c
+            "${PS3RECOMP_DIR}/runtime/memory/vm_mapping_epoch.c")
+        target_include_directories(wkc2_vm_mapping_epoch_test PRIVATE
+            "${PS3RECOMP_DIR}/runtime/memory")
+        target_link_libraries(wkc2_vm_mapping_epoch_test PRIVATE Threads::Threads)
+        if(MSVC)
+            target_compile_options(wkc2_vm_mapping_epoch_test PRIVATE
+                $<$<COMPILE_LANGUAGE:CXX>:/EHsc>)
+        endif()
+        add_test(NAME wkc2_vm_mapping_epoch COMMAND wkc2_vm_mapping_epoch_test)
+        set_tests_properties(wkc2_vm_mapping_epoch PROPERTIES TIMEOUT 30)
+        add_executable(wkc2_native_geometry_mapping_test
+            tests/native_geometry_mapping_test.cpp)
+        target_include_directories(wkc2_native_geometry_mapping_test PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(wkc2_native_geometry_mapping_test PRIVATE kernel32)
+        if(MSVC)
+            target_compile_options(wkc2_native_geometry_mapping_test PRIVATE /EHsc)
+        endif()
+        add_test(NAME wkc2_native_geometry_mapping COMMAND wkc2_native_geometry_mapping_test)
+        set_tests_properties(wkc2_native_geometry_mapping PROPERTIES TIMEOUT 15)
     endif()
     add_executable(wkc2_indexed_geometry_test tests/indexed_geometry_test.cpp
         "${PS3RECOMP_DIR}/libs/video/rsx_commands.c")
@@ -1088,7 +1146,8 @@ if(WKC2_BUILD_TESTS)
     add_test(NAME wkc2_lwmutex_kernel COMMAND wkc2_lwmutex_test kernel)
     set_tests_properties(wkc2_lwmutex_user wkc2_lwmutex_kernel PROPERTIES TIMEOUT 20)
     add_executable(wkc2_memory_test tests/memory_test.c
-        "${PS3RECOMP_DIR}/runtime/syscalls/sys_memory.c")
+        "${PS3RECOMP_DIR}/runtime/syscalls/sys_memory.c"
+        "${PS3RECOMP_DIR}/runtime/memory/vm_mapping_epoch.c")
     target_include_directories(wkc2_memory_test PRIVATE "${PS3RECOMP_DIR}/runtime/syscalls")
     target_link_libraries(wkc2_memory_test PRIVATE Threads::Threads)
     add_test(NAME wkc2_memory COMMAND wkc2_memory_test)
@@ -1098,7 +1157,8 @@ if(WKC2_BUILD_TESTS)
     target_link_libraries(wkc2_platform_queries_test PRIVATE Threads::Threads)
     add_test(NAME wkc2_platform_queries COMMAND wkc2_platform_queries_test)
     add_executable(wkc2_ppu_thread_lifetime_test tests/ppu_thread_lifetime_test.c
-        "${PS3RECOMP_DIR}/runtime/syscalls/sys_ppu_thread.c")
+        "${PS3RECOMP_DIR}/runtime/syscalls/sys_ppu_thread.c"
+        "${PS3RECOMP_DIR}/runtime/memory/vm_mapping_epoch.c")
     target_include_directories(wkc2_ppu_thread_lifetime_test PRIVATE
         "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/runtime/syscalls")
     target_link_libraries(wkc2_ppu_thread_lifetime_test PRIVATE Threads::Threads)

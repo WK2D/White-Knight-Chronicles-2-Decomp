@@ -31,7 +31,8 @@ with readable project-written C++; current coverage is partial.
 - The town-to-Balastor Plain transition after Continue, with short movement and
   camera control. DirectX foreground clipping is fixed on that route, and
   leaf-shaped foliage shadow cutouts are restored on both renderers.
-- **113 Windows regression checks** pass in both Debug and optimized Release.
+- **117 Windows regression checks** pass in normal Debug (33.35 seconds) and
+  optimized Release (27.63 seconds).
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
 resolutions; VSync; anisotropic filtering from Off to 16×; Off/FXAA anti-aliasing;
@@ -92,22 +93,20 @@ interpreter fallback forbidden, after five missing SPU entries were added to the
 static build. The fallback remains available for untested paths.
 
 The SPU code is being replaced with readable, project-written C++. The supported
-skinning routine already runs that way: matrix blending, positions, normals and
-ordered output. Recorded, randomized and sampled live comparisons match the
-compiled reference. Whole SPURS jobs and their DMA and scheduling still need
-readable replacements, and no complete SPU image has been replaced yet. See the
-[native C++ evidence](docs/NATIVE_CODE.md#readable-whole-skinning-stream).
-The recovered decoding, skinning, filtering and packing algorithms are also
-connected through [owned C++ buffers](docs/NATIVE_CODE.md#owned-logical-geometry-pipeline),
-verified offline on all 32 recorded jobs, including their aligned index payloads.
-Readable C++ [allocation, transfers and rendering commands](docs/NATIVE_CODE.md#native-allocation-export-and-command-construction)
-now reproduce those jobs' external payloads, allocator state and final packets
-offline. A complete live job replacement and its scheduling remain to be enabled
-and validated.
-The [typed input adapter and job coordinator](docs/NATIVE_CODE.md#typed-input-and-job-coordinator)
-now connect those stages in C++, with owned output buffers retained through
-pending operations. Their recorded-job comparisons pass; the live runtime bridge
-is still being implemented.
+skinning routine already runs that way. An experimental
+[whole image-19 geometry job route](docs/NATIVE_CODE.md#opt-in-live-geometry-job)
+now connects owned C++ inputs, decoding, skinning, filtering, allocation,
+transfers and final rendering commands in the player source. Enable it with
+`WKC_NATIVE_GEOMETRY_JOB=1`; normal launches leave its hooks unregistered.
+Unsupported layouts retain compiled execution after declining before native
+external effects. Separate diagnostics use `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1`.
+All 32 recorded jobs match byte for byte through the real SDK native atomics,
+guest VM and transfer callbacks, and live execution reaches the starting town.
+The route still uses SDK arithmetic helpers and covers a limited constructor and
+layout domain. A quiet same-executable comparison is near the compiled path in
+two stationary town views, with no FPS gain established. Walking and NPC-heavy
+traversal comparisons remain open. No new desktop installation is claimed, and
+no complete SPU image has been replaced.
 Full-game static coverage and a readable reconstruction of the original source
 remain unverified.
 

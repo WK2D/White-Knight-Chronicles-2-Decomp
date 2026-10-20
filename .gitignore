@@ -44,6 +44,9 @@
 !/native_geometry_commands.h
 !/native_geometry_input.h
 !/native_geometry_job.h
+!/native_geometry_runtime.cpp
+!/native_geometry_runtime.h
+!/native_geometry_mapping_cache.h
 !/native_skinning_stream_bridge.cpp
 !/native_skinning_bridge.h
 !/native_skinning_bridge.cpp

@@ -8,12 +8,14 @@ Generated instruction-by-instruction C and its register/local-store ABI are
 temporary references, not the final implementation. Native compilation and
 interpreter-free sampled routes alone do not satisfy this target.
 
-No complete SPU image has yet been replaced. The current readable geometry
-kernels and output transactions are intermediate work. The connected offline
-path now reproduces the external outputs of all 32 recorded geometry jobs;
-[allocation, export and command construction](#native-allocation-export-and-command-construction)
-have project-written C++ implementations. No complete live job replacement is
-enabled. Completion requires a player build that links
+No complete SPU image has yet been replaced. The supported whole image-19
+geometry job is now connected in the public player source as an
+[experimental opt-in route](#opt-in-live-geometry-job), including original-input
+acquisition, native allocation, transfers and command publication. Other
+constructor/layout domains still use compiled execution. The route retains SDK
+arithmetic helper policies. A quiet same-executable comparison is near the
+compiled path in two stationary town views, with no FPS gain established.
+Completion requires a player build that links
 no generated SPU game code, uses no SPU interpreter, and has validated native
 interfaces and behavior throughout the game. Build-only reference replays may
 retain private generated code for differential verification.
@@ -136,7 +138,7 @@ zero fallback and at least 16,777,216 transformed blocks in each run. Both final
 frames were inspected. The Vulkan run additionally samples CPU time; profiling,
 tracing and GPU captures make it unsuitable as an FPS benchmark.
 
-Both Windows suites now pass 113 checks with 123 SDK patches. No FPS gain,
+Both Windows suites now pass 117 checks with 126 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
 is claimed.
 
@@ -503,8 +505,8 @@ The input side of the whole geometry job now has a project-written portable
 C++ decoder in [`native_vertex_decode.h`](../native_vertex_decode.h). It accepts
 a byte span, vertex count, format and three signed position biases, and writes
 owned host position/direction arrays. There are no guest registers, local-store
-addresses or DMA calls in the core. **This decoder is tested offline and is not
-yet used by the desktop game.**
+addresses or DMA calls in the core. Its standalone evidence below is offline;
+the [opt-in whole-job runtime](#opt-in-live-geometry-job) now uses this core.
 
 The two recovered layouts use nine or twelve bytes per vertex: three big-endian
 unsigned 16-bit positions followed by one or two 24-bit directions. Positions add
@@ -557,7 +559,8 @@ The geometry stage at `0x78F0`, previously provisionally labeled as packing,
 actually decompresses triangle indices. The new project-written
 [`native_index_decode.h`](../native_index_decode.h) accepts stable packed bytes
 and writes logical host `uint16_t` indices. It uses no guest registers, local
-store, DMA or allocation. **It is tested offline, with no live game hook.**
+store, DMA or allocation. The offline tests below now support its use in the
+[opt-in whole-job runtime](#opt-in-live-geometry-job).
 
 The recovered header supplies an explicit-value count, delta bias, selector-byte
 count and delta bit width. One-bit selectors choose sequential new indices or
@@ -607,8 +610,8 @@ from the supported live direction-skinning routine. Its project-written
 `skin_positions_stream` in [`native_skinning_stream.h`](../native_skinning_stream.h)
 now uses typed position, influence and palette storage callbacks. Palette
 preparation uses a bit-preserving row-major-to-cyclic reorder in
-[`native_skinning.h`](../native_skinning.h). **This branch is verified offline;
-it is not installed as a new game hook.**
+[`native_skinning.h`](../native_skinning.h). The offline evidence below also
+supports this branch in the [opt-in whole-job runtime](#opt-in-live-geometry-job).
 
 The core processes four vertices per group, reads all four influences even for
 zero weights, preserves ordered blend/FMA operations, then commits positions in
@@ -675,16 +678,17 @@ All 32 jobs publish a final fenced PUT after earlier same-tag payload PUTs, wher
 present. The final packet size matches metadata header byte 1 × 16. Native
 replacement must retain payload-before-command visibility, shared state
 ownership and retry behavior; an owned buffer per job is insufficient by itself.
-The decoded allocator/export notes are research contracts, not new live C++
-implementations. Broader synthetic branch and concurrency tests remain required.
+These decoded contracts underlie the C++ allocation/export transactions and
+their [opt-in runtime bridge](#opt-in-live-geometry-job). Broader branch and
+concurrent gameplay validation remain required.
 
 ## Vertex export packing
 
 The custom geometry export callback now has a project-written portable C++ core
 in [`native_vertex_pack.h`](../native_vertex_pack.h). It reads stable host
 position/normal/tangent spans and writes big-endian vertex records without guest
-registers, local store, allocation or DMA. **It is verified offline and has no
-new live game hook.**
+registers, local store, allocation or DMA. The offline evidence below now
+supports its use in the [opt-in whole-job runtime](#opt-in-live-geometry-job).
 
 The recovered formats are XYZ float bits plus a packed signed 11/11/10 normal
 (16 bytes), the same with four tangent components (24 bytes), and XYZ alone
@@ -744,8 +748,9 @@ accepts typed model/projection matrices, viewport and clip bounds, decoded
 positions and explicit arithmetic policies. It writes screen XY, clip codes,
 quantized coordinates and the homogeneous-W marker. `filter_triangles` takes
 these projected records and logical indices, then preserves the surviving
-triangles in their original order. **These are verified offline cores, with no
-new live game hook or whole-job replacement.**
+triangles in their original order. These cores are now called by the
+[opt-in whole-job runtime](#opt-in-live-geometry-job); their individual
+comparisons below remain offline evidence.
 
 Projection retains the ordered matrix arithmetic, reciprocal estimate and
 explicit FNMS/FMA refinement. Arithmetic, reciprocal, comparison and scaled
@@ -906,12 +911,11 @@ cases and 13 unchanged structural/alias rejects.
 The filtering bypass still needs separately recovered physical decoder padding;
 it is not silently handled by this compaction algorithm. Vertex alignment tails
 outside the observed aligned counts also remain to be recovered. The pipeline
-has no live whole-job hook yet. The allocation, export and command implementations
-below reproduce the recorded external outputs offline; payload-before-command
-visibility, lifetime and concurrent scheduling still need native ownership and
-real-route validation. No complete live SPU job or image is
-replaced, no CPU/FPS gain is measured, and the desktop executable, preferences
-and save remain unchanged.
+is now connected to the [opt-in live whole-job runtime](#opt-in-live-geometry-job).
+The allocation, export and command implementations below reproduce the recorded
+external outputs offline and through the real SDK backend. Wider layout and
+concurrent gameplay coverage remain open. No complete SPU image is replaced,
+no CPU/FPS gain is measured, and this work has not installed a new desktop build.
 
 ## Native allocation, export and command construction
 
@@ -984,13 +988,14 @@ The comparisons exposed the runtime's incorrect `SPU_RdMachStat` answer.
 the interrupt-enable bit, independently of thread run status. The reference
 comparisons above use the corrected channel implementation.
 
-**This is not yet a complete live job replacement.** The production input
-adapter, shared slot lease, asynchronous source lifetime, memory visibility and
-concurrent scheduling must still be connected and tested on real routes. A
+The [opt-in live bridge](#opt-in-live-geometry-job) now connects these components
+for the supported whole-job domain. Its synchronous SDK backend supplies native
+coherency, mixed native/fallback slot ownership and renderer PUT notifications.
+Wider routes and asynchronous scheduling remain unverified. A
 pending allocation transaction cannot be copied or moved; its backend and lease
 must remain alive until completion. Export/publication acceptance is not DMA or
 GPU completion, and their owned buffers must survive asynchronous consumption.
-Location 0's extra fenced read remains an explicit platform operation. Unknown
+Location 0's extra fenced read is an explicit platform operation. Unknown
 constructor layouts, physical bypass-index padding, odd vertex tails and wider
 game coverage remain open. No new CPU/FPS gain or gameplay result is claimed;
 the desktop executable, preferences and save are unchanged.
@@ -1053,14 +1058,93 @@ zero packets, destination phases, tags and both interrupt states: 4,968 bytes an
 243 operation observations match. Suppressing the fence, reordering operations,
 changing the DMA command or corrupting a byte each makes that comparison fail.
 
-**The live job remains unfinished.** Its actual whole-job root is `0x1FE0`;
-the earlier `0xCE08` target is transform arithmetic within the same image. The
-runtime bridge must acquire stable original input bytes, participate in real
-memory coherency, preserve renderer PUT notifications, and hold a slot lease
-shared by native and fallback execution. Different job chains can run
-concurrently while the current scheduler assigns virtual slot zero to each;
-serial execution within one chain does not prove exclusive slot ownership.
-The coordinator's test backend is not that production bridge. Native CAS,
-mixed fallback ownership, memory visibility, real routes and remaining jobs
-still need implementation and validation. No complete live job or SPU image,
-new gameplay result, FPS gain or desktop update is claimed.
+The actual whole-job root is `0x1FE0`; the earlier `0xCE08` target is transform
+arithmetic within the same image. The runtime bridge described below now owns
+the original inputs and external operations for its admitted domain. The
+coordinator's synthetic backend remains useful for delayed completion and
+failure tests, without proving broader gameplay or asynchronous scheduling.
+
+## Opt-in live geometry job
+
+[`native_geometry_runtime.cpp`](../native_geometry_runtime.cpp) and its header
+are built into the player and initialized from `main.cpp`. Setting
+`WKC_NATIVE_GEOMETRY_JOB=1` registers the supported host-mode image-19 whole-job
+route before original SPURS input staging. Unset or `0` leaves its dispatch,
+scope and PUT hooks unregistered and produces no module diagnostics. Sampled
+completion/decline counters are separately enabled by
+`WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1`.
+
+The bridge copies original descriptors and source spans into owned C++ storage,
+constructs typed inputs, and runs the public pipeline and job coordinator. It
+uses SDK arithmetic, reciprocal-estimate and conversion helpers as explicit
+policies; readable job control and owned buffers do not yet make the arithmetic
+independent of the SDK. Unknown constructor/cache layouts, unsupported backing
+or padding, and arithmetic modes outside the admitted host mode decline before
+native allocation/publication and retain compiled execution.
+
+SDK patch 0124 supplies the original-descriptor dispatch and balanced scope
+callbacks. The port serializes image-19 native and fallback calls through the
+same virtual-slot-zero gate, including fallback calls from different chains.
+Patch 0125 supplies native 128-byte reservation tickets and conditional and
+unconditional stores without an SPU context or local store. Both coherent write
+notification paths invalidate tickets, including ABA writes. The synchronous
+bulk bridge copies under the shared coherency lock, then preserves installed
+renderer PUT and trace notifications after commit. Location-0 fenced reads fetch
+fresh big-endian bytes; tag completion proves synchronous source consumption
+before the owned job is destroyed.
+
+The producer must retain submitted mappings through job return. Positive
+permission checks are cached with the VM base and patch-0126 mapping epoch;
+initialization, shutdown, successful protection changes and PPU guard changes
+invalidate that epoch. Reserved pages follow the SDK's demand-commit policy.
+The epoch prevents reuse of stale permissions across mapping lifetimes; it is
+not a pin against concurrent unmapping. The mapping adapter is Windows-only.
+
+Unsupported inputs may fall back only before native external operations begin.
+A backend failure or unexpected pending operation after admission is terminal.
+The port cleans up owned buffers and reservation tickets and stops the process
+before later chain jobs can observe partial output; it never replays a partially
+published job through compiled code.
+
+All **32 original-input replays match byte for byte with zero mismatches**
+through the actual SDK native CAS, guest VM, coherent PUT and installed observer
+callbacks. These are recorded-job comparisons, not 32 new gameplay routes.
+Separate public tests exercise shared-coherency invalidation, ABA, concurrent
+native CAS, dispatch decline/fatal behavior and real VM lifecycle/protection
+invalidation. Both complete suites pass **117/117 checks**: normal Debug in
+**33.35 seconds** and optimized Release in **27.63 seconds**.
+
+The opt-in live job reaches the rendered starting town. A separate logging-on
+profile/census run (`20261020-143840`) records at least **131,072 completed native
+jobs** and zero fatal errors. That establishes execution in its sampled route;
+it is not the quiet performance run.
+
+### Quiet two-view comparison
+
+DirectX runs `20261020-144524` (native job enabled) and `20261020-144807`
+(compiled job) use the same executable, save and rendering settings at the 30 FPS
+cap. Each stationary view is measured for about twelve seconds per mode. Normal
+player log suppression and the FPS overlay are enabled; native-job diagnostics
+and CPU profiling are off. GPU readbacks are armed only outside the measured
+intervals.
+
+| View | Native FPS | Compiled FPS | Native process CPU ms/present | Compiled process CPU ms/present |
+| --- | ---: | ---: | ---: | ---: |
+| Logic Stone | 29.914 | 29.996 | 127.13 | 139.71 |
+| Turned entrance view | 19.746 | 20.581 | 182.36 | 188.20 |
+
+The result is near parity in these two views, with **no FPS gain established**.
+This is one run per mode, without a confidence interval; NPC timing and camera
+endpoints can differ. The turned view is at the entrance/bridge, not the requested
+NPC-heavy main road. Timed stick segments reach the **Leave area** prompt and mix
+movement with menu time, so they are excluded from walking-performance claims.
+No area transition is established by this route. The earlier instrumented timing
+regression had debug logging enabled and `WriteFile` hot; those results are not
+normal-player FPS measurements. The reviewed aggregates are in the
+[performance record](../verification/performance.json), and the
+[town capture](GALLERY.md#2026-10-20--native-c-whole-job-town) is outside timing.
+
+No new desktop installation is claimed.
+NPC-heavy traversal, transitions, cutscenes, broader constructor/layout domains,
+asynchronous backends, remaining images and complete scheduling equivalence
+still need validation. No complete SPU image has been replaced.

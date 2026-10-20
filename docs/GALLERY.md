@@ -9,12 +9,17 @@ layer. Earlier runs observed SPU interpreter fallback; newer strict routes have
 zero entries. Neither establishes full-game interpreter-free execution; see
 [architecture](ARCHITECTURE.md).
 
-Current source: 123 SDK patches / 113 Windows checks. The newest capture follows
-the readable complete supported C++ skinning routine on a strict DirectX
-town-to-plains route. The earlier capture shows leaf-shaped shadow cutouts after correcting
+Current source: 126 SDK patches / 117 Windows checks in normal Debug and optimized
+Release. The newest capture shows the opt-in supported whole C++ geometry job
+running in town. A separate quiet two-view comparison is near the compiled path,
+with no FPS gain established. The previous capture follows the complete supported
+C++ skinning routine on a strict DirectX town-to-plains route. Earlier captures
+show leaf-shaped shadow cutouts after correcting
 alpha-reference formats. These verify inspected frames, not performance gains.
 Complete replacement of every game SPU job remains the target; no complete image
-has been replaced yet.
+has been replaced yet. The opt-in supported whole-job runtime is documented in
+[native work](NATIVE_CODE.md#opt-in-live-geometry-job); these screenshots
+do not establish its performance or wider layout coverage.
 The earlier captures show
 the DirectX near/far clipping fix in Balastor Plain after a town transition,
 walking and camera rotation, plus the earlier broken view. The foreground no
@@ -44,6 +49,7 @@ Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-20 | [Native C++ whole-job town](#2026-10-20--native-c-whole-job-town) | <a href="#2026-10-20--native-c-whole-job-town"><img src="../verification/screenshots/2026-10-20-native-cpp-whole-job-town.png" width="200" alt="Native C++ whole geometry job in town"></a> |
 | 2026-10-20 | [Native C++ skinning routine](#2026-10-20--native-c-skinning-routine) | <a href="#2026-10-20--native-c-skinning-routine"><img src="../verification/screenshots/2026-10-20-native-cpp-skinning-stream.png" width="200" alt="Native C++ skinning routine in Balastor Plain"></a> |
 | 2026-10-20 | [Native C++ normal output](#2026-10-20--native-c-normal-output) | <a href="#2026-10-20--native-c-normal-output"><img src="../verification/screenshots/2026-10-20-native-cpp-normal-output.png" width="200" alt="Native C++ final-normal output route"></a> |
 | 2026-10-20 | [Leaf shadow cutouts](#2026-10-20--leaf-shadow-cutouts) | <a href="#2026-10-20--leaf-shadow-cutouts"><img src="../verification/screenshots/2026-10-20-native-foliage-alpha-shadows.png" width="200" alt="Leaf-shaped foliage shadows"></a> |
@@ -74,6 +80,28 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
+
+## 2026-10-20 — Native C++ whole-job town
+
+![DirectX town with the supported whole C++ geometry job enabled](../verification/screenshots/2026-10-20-native-cpp-whole-job-town.png)
+
+The opt-in public C++ runtime now handles the complete supported image-19
+geometry job, from owned original inputs through allocation, coherent transfers
+and command publication. All 32 original-input replays match byte for byte through
+the real SDK backend. A separate logging-on profile/census records at least
+131,072 completed native jobs and zero fatal errors; it is not the timing run.
+Other layouts retain compiled jobs, SDK math helpers remain required, and no
+complete SPU image has been replaced.
+
+This DirectX frame comes from quiet run `20261020-144524`, with an isolated save,
+hidden/muted window, 30 FPS cap, normal log suppression and the FPS counter on.
+It is an unmodified final-swapchain GPU readback with optional PNG metadata
+removed, manually armed outside the measured intervals. The displayed 16.2 is
+an instant, not the benchmark average. The separate same-executable comparison
+is near parity in two stationary town views, with no FPS gain established.
+Movement segments are excluded because they end at the Leave area prompt;
+NPC-heavy traversal and area-transition coverage remain unverified. See the
+[measurements and limits](NATIVE_CODE.md#quiet-two-view-comparison).
 
 ## 2026-10-20 — Native C++ skinning routine
 

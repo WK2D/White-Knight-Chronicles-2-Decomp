@@ -50,8 +50,17 @@ gives the play defaults. Keep any files these write private.
 | --- | --- | --- |
 | `WKC2_PLAYER_MODE=1` | Native clean-play guard; clears inherited research/input switches and forces quiet logs | [Build guide](BUILD.md#playing-and-performance-options) |
 | `RSX_PRESENT_MEASURE=1` | Opt-in DirectX benchmark ring/CSV, always blocked in player mode | [Build guide](BUILD.md#presentation-measurement) |
+| `WKC_NATIVE_GEOMETRY_JOB=1` | Enables the public runtime for complete supported image-19 geometry jobs in Windows host-float mode. Unset or `0` leaves its dispatch, scope gates and PUT observers unregistered and silent. | [Build guide](BUILD.md#playing-and-performance-options) |
+| `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1` | Separately enables sampled whole-job admission/result logs when the native job runtime is enabled; does not enable it by itself | [Build guide](BUILD.md#playing-and-performance-options) |
 | `WKC_NATIVE_SKINNING_TRACE=1` | Count native blend calls for coverage | [Native kernel](NATIVE_CODE.md#readable-c-geometry-prefix) |
 | `WKC_NATIVE_SKINNING=0` | Use retained compiled geometry prefix for research comparison | [Native kernel](NATIVE_CODE.md#readable-c-geometry-prefix) |
+
+The whole-job route declines other constructor/layout domains before native
+external effects and retains compiled fallback. Failures after effects are fatal
+after local cleanup, without fallback replay. Original compiled SPU code remains
+linked, and the C++ route still uses SDK arithmetic and reciprocal helper policies.
+No complete image replacement or FPS gain is established. Both whole-job switches
+are cleared by player mode and require a separate research launch.
 
 ### SPU coverage diagnostics
 

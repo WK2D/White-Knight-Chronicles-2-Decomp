@@ -1,0 +1,187 @@
+diff --git a/runtime/spu/spu_coherency.h b/runtime/spu/spu_coherency.h
+--- a/runtime/spu/spu_coherency.h
++++ b/runtime/spu/spu_coherency.h
+@@ -70,6 +70,26 @@
+  * write does not cost it its reservation on hardware. */
+ void spu_coh_notify_write_except(uint32_t ea, const void* self);
+ 
++/* Native host-buffer atomic bridge. No SPU context or LS participates.
++ * Each function ACQUIRES the shared lock: never call it while holding that
++ * lock. Caller must preflight/pin the complete aligned 128-byte guest mapping;
++ * these functions do not demand-commit memory, validate GPU aliases or lease a
++ * scheduler slot. Host buffers must be valid, independent of guest memory.
++ * GETLLAR returns4 or -1 (bad arguments/full registry/token exhaustion), writes
++ * out/token only on success. PUTLLC returns0 success,1 conflict/unknown token,
++ * or -1 bad arguments, and consumes a found token on every valid attempt.
++ * PUTLLUC returns2 or -1; successful stores perform the same post-unlock
++ * taskset/installed line-commit notifications as the existing SPU atomics.
++ * Tokens are unique, nonzero, nonreused; both coherent writer paths invalidate
++ * native generations, including ABA writes. A ticket stays allocated until
++ * conditional use or explicit release, even after invalidation. Release every
++ * unused slot/global ticket before its owning job is destroyed.
++ */
++int spu_native_getllar(uint32_t ea, uint8_t output[128], uint64_t* token);
++int spu_native_putllc(uint32_t ea, const uint8_t input[128], uint64_t token);
++int spu_native_putlluc(uint32_t ea, const uint8_t input[128]);
++void spu_native_release_reservation(uint64_t token);
++
+ /* Count of LR events delivered. A parked SPURS service that never wakes with
+  * this at zero is a coherence miss; nonzero moves the question downstream. */
+ extern unsigned long g_spu_lr_raise;
+diff --git a/runtime/spu/spu_coherency.c b/runtime/spu/spu_coherency.c
+--- a/runtime/spu/spu_coherency.c
++++ b/runtime/spu/spu_coherency.c
+@@ -86,6 +86,35 @@
+ #define SPU_COH_MAX_CTX 8
+ static spu_context* s_coh_ctxs[SPU_COH_MAX_CTX];
+ 
++/* Bounded active native reservations, protected by the existing shared lock.
++ * Per-ticket generations avoid hash collisions and detect ABA on every marked
++ * line write. No ticket/slot is recycled while its unique identity is live.
++ * Registry exhaustion is an explicit failure before snapshot/mark/output.
++ */
++#define SPU_COH_MAX_NATIVE 256
++typedef struct {
++    uint64_t token, generation, observed_generation;
++    uint32_t ea;
++    int valid;
++    uint8_t snapshot[128];
++} spu_native_reservation;
++static spu_native_reservation s_native_reservations[SPU_COH_MAX_NATIVE];
++static uint64_t s_native_next_token = 1;
++/* Accessed only under the shared coherency lock. Invalidated reservations
++ * still count until consumed/released; a disabled native path costs one test. */
++static unsigned s_native_active_reservations;
++
++static void spu_native_notify_write(uint32_t line)
++{
++    if (!s_native_active_reservations) return;
++    for (int i = 0; i < SPU_COH_MAX_NATIVE; ++i) {
++        spu_native_reservation* r = &s_native_reservations[i];
++        if (!r->token || r->ea != line) continue;
++        if (r->generation == UINT64_MAX) r->valid = 0;
++        else ++r->generation;
++    }
++}
++
+ unsigned long g_spu_lr_raise = 0;
+ 
+ void spu_coh_reserve(spu_context* ctx, uint32_t ea)
+@@ -175,6 +204,7 @@
+ void spu_coh_notify_write_except(uint32_t ea, const void* self)
+ {
+     uint32_t line = ea & ~127u;
++    spu_native_notify_write(line);
+     for (int i = 0; i < SPU_COH_MAX_CTX; i++) {
+         spu_context* c = s_coh_ctxs[i];
+         if (!c || (const void*)c == self) continue;
+@@ -190,6 +220,7 @@
+ void spu_coh_notify_write(uint32_t ea)
+ {
+     uint32_t line = ea & ~127u;
++    spu_native_notify_write(line);
+     for (int i = 0; i < SPU_COH_MAX_CTX; i++) {
+         spu_context* c = s_coh_ctxs[i];
+         if (!c) continue;
+@@ -214,6 +245,101 @@
+     }
+ }
+ 
++/* Host-buffer atomics use the same memory/notification contract as the actual
++ * spu_channels.c atomic path, while owning no emulated execution state. */
++extern uint8_t* vm_base;
++extern void spu_taskset_line_committed(uint32_t line);
++extern void (*g_spu_line_commit_hook)(uint32_t line);
++
++static int spu_native_atomic_arguments(uint32_t ea, const void* bytes)
++{
++    if (!vm_base || !bytes || (ea & 127u)) return 0;
++    if ((uint64_t)ea + 128u > UINT64_C(0x100000000)) return 0;
++    return 1;
++}
++
++int spu_native_getllar(uint32_t ea, uint8_t output[128], uint64_t* token)
++{
++    if (!token || !spu_native_atomic_arguments(ea, output)) return -1;
++    spu_lockline_lock();
++    spu_native_reservation* r = NULL;
++    if (s_native_next_token) {
++        for (int i = 0; i < SPU_COH_MAX_NATIVE; ++i)
++            if (!s_native_reservations[i].token) {
++                r = &s_native_reservations[i]; break;
++            }
++    }
++    if (!r) { spu_lockline_unlock(); return -1; }
++    const uint64_t issued = s_native_next_token;
++    s_native_next_token = issued == UINT64_MAX ? 0 : issued + 1;
++    r->token = issued; r->ea = ea; r->valid = 1;
++    ++s_native_active_reservations;
++    r->generation = r->observed_generation = 1;
++    /* Mark first so subsequent coherent PPU/block stores notify native users.
++     * Capture guest bytes once, then copy that exact snapshot to the caller. */
++    spu_coh_reserve(NULL, ea);
++    memcpy(r->snapshot, vm_base + ea, 128);
++    memcpy(output, r->snapshot, 128);
++    *token = issued;
++    spu_lockline_unlock();
++    return 4;
++}
++
++int spu_native_putllc(uint32_t ea, const uint8_t input[128], uint64_t token)
++{
++    if (!spu_native_atomic_arguments(ea, input)) return -1;
++    spu_lockline_lock();
++    spu_native_reservation* r = NULL;
++    if (token) {
++        for (int i = 0; i < SPU_COH_MAX_NATIVE; ++i)
++            if (s_native_reservations[i].token == token) {
++                r = &s_native_reservations[i]; break;
++            }
++    }
++    const int commit = r && r->valid && r->ea == ea &&
++        r->generation == r->observed_generation &&
++        memcmp(r->snapshot, vm_base + ea, 128) == 0;
++    /* Consume before notifying: the successful writer does not lose its own
++     * reservation; all peer SPU/native reservations on this line do. */
++    if (r) { r->token = 0; r->valid = 0; --s_native_active_reservations; }
++    if (commit) {
++        memcpy(vm_base + ea, input, 128);
++        spu_coh_notify_write(ea);
++    }
++    spu_lockline_unlock();
++    if (commit) {
++        spu_taskset_line_committed(ea);
++        if (g_spu_line_commit_hook) g_spu_line_commit_hook(ea);
++    }
++    return commit ? 0 : 1;
++}
++
++int spu_native_putlluc(uint32_t ea, const uint8_t input[128])
++{
++    if (!spu_native_atomic_arguments(ea, input)) return -1;
++    spu_lockline_lock();
++    memcpy(vm_base + ea, input, 128);
++    spu_coh_notify_write(ea);
++    spu_lockline_unlock();
++    spu_taskset_line_committed(ea);
++    if (g_spu_line_commit_hook) g_spu_line_commit_hook(ea);
++    return 2;
++}
++
++void spu_native_release_reservation(uint64_t token)
++{
++    if (!token) return;
++    spu_lockline_lock();
++    for (int i = 0; i < SPU_COH_MAX_NATIVE; ++i)
++        if (s_native_reservations[i].token == token) {
++            s_native_reservations[i].token = 0;
++            s_native_reservations[i].valid = 0;
++            --s_native_active_reservations;
++            break;
++        }
++    spu_lockline_unlock();
++}
++
+ #ifdef __cplusplus
+ }
+ #endif

@@ -4479,5 +4479,59 @@
     "fresh_save_load_can_appear_correct": true,
     "root_cause_verified": false,
     "status": "Deferred at user request; DirectX 12 parity is the active goal"
+  },
+  "native_geometry_whole_job_quiet_comparison": {
+    "date": "2026-10-20",
+    "renderer": "DirectX 12",
+    "sdk_patches": 126,
+    "executable_sha256": "e54d2a4ab273e0ffc4d0046c030337512195189cf92b63ec4f0084155de10d6f",
+    "cap": 30,
+    "native_probe": "20261020-144524",
+    "compiled_probe": "20261020-144807",
+    "conditions": {
+      "same_executable_and_save": true,
+      "same_render_settings": true,
+      "native_job_toggle_only": true,
+      "hidden": true,
+      "muted": true,
+      "isolated_save": true,
+      "fps_overlay": true,
+      "player_log_suppression": true,
+      "sampling_profiler": false,
+      "native_job_diagnostics": false,
+      "strict_fallback_guard": true,
+      "captures_outside_timing_only": true,
+      "rendered_scene_confirmed_before_timing": true
+    },
+    "static_views": [
+      {
+        "view": "logic_stone",
+        "native_fps": 29.914157367479348,
+        "compiled_fps": 29.9962844601668,
+        "native_cpu_ms_per_present": 127.13266016713092,
+        "compiled_cpu_ms_per_present": 139.71354166666666,
+        "native_seconds": 12.001006599981338,
+        "compiled_seconds": 12.001486400025897
+      },
+      {
+        "view": "turned_entrance_view",
+        "native_fps": 19.745981199225092,
+        "compiled_fps": 20.580941656362796,
+        "native_cpu_ms_per_present": 182.35759493670886,
+        "compiled_cpu_ms_per_present": 188.19585020242914,
+        "native_seconds": 12.002442299970426,
+        "compiled_seconds": 12.001394500024617
+      }
+    ],
+    "conclusion": "Supported whole-job C++ execution is near the compiled path in these two views; no FPS improvement established.",
+    "movement_segments_excluded_from_performance_conclusion": true,
+    "movement_limit": "The timed stick route reaches the Balastor Plain exit prompt. Its input segments mix movement and menu time, so they are not a walking or NPC-heavy traversal benchmark.",
+    "limits": [
+      "One run per mode; no confidence interval.",
+      "NPC timing and camera endpoints may differ despite matching timed input.",
+      "The turned view is at the entrance/bridge; this is not the requested NPC-heavy main-road comparison.",
+      "Read-only polling estimates frame cadence; still images show instantaneous overlay values.",
+      "Other layouts still decline to generated jobs; no full-image or full-game parity claim."
+    ]
   }
 }

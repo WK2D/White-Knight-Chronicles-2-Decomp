@@ -34,7 +34,12 @@ preamble = r'''/* Generated from production source; not a copied implementation.
 #include "spu_async_lifetime.h"
 #include "spu_coherency.h"
 typedef void (*spu_lifted_entry_fn)(void*);
-static uint8_t* vm_base;
+uint8_t* vm_base;
+/* Native atomics are linked from the real coherence TU too. This fixture
+ * supplies their external notification boundary; no native atomic executes
+ * in the detached-worker ownership cases. */
+void (*g_spu_line_commit_hook)(uint32_t line);
+void spu_taskset_line_committed(uint32_t line) {(void)line;}
 static void fixture_entry(void* p) { (void)p; abort(); }
 static struct { uint64_t fp; spu_lifted_entry_fn fn; int image_id; } s_registry[]={{1,fixture_entry,1}};
 static unsigned s_registry_count=1;

@@ -1,0 +1,86 @@
+diff --git a/runtime/spu/spu_workload.h b/runtime/spu/spu_workload.h
+--- a/runtime/spu/spu_workload.h
++++ b/runtime/spu/spu_workload.h
+@@ -87,6 +87,40 @@
+ int spu_run_spurs_job(spu_lifted_entry_fn entry, int image_id,
+                       uint32_t job_ea, uint32_t job_desc_size);
+ 
++/* Optional whole-job dispatch binding, installed before worker dispatch starts
++ * and kept stable until all job-chain workers have stopped. The exact registered
++ * image fingerprint has already matched when these callbacks run; no job input
++ * has been staged and no lifted game routine has executed yet.
++ *
++ * Scope begin/end must be installed together. A native hook requires both.
++ * begin returns a port-owned opaque token (NULL is allowed for an uninterested
++ * image); end is called exactly once after native completion/failure OR after
++ * a declined native attempt's lifted fallback returns. The port must serialize
++ * every user of the same allocator slot, including native and fallback paths.
++ * In this SPURS constructor the virtual slot is0, shared across host chains.
++ *
++ * Callbacks must not throw, longjmp out, unregister themselves or stop dispatch
++ * ownership before end. begin owns any blocking/lease acquisition. Native
++ * DECLINED means no external write or queued operation was committed. FATAL
++ * means failure after which fallback must not run. Any other hook result is
++ * treated as FATAL. COMPLETED is the same synchronous chain success as the
++ * lifted runner returning0; the port owns required visibility/completion.
++ */
++enum {
++    SPU_NATIVE_JOB_FATAL = -1,
++    SPU_NATIVE_JOB_DECLINED = 0,
++    SPU_NATIVE_JOB_COMPLETED = 1
++};
++typedef int (*spu_native_job_hook_fn)(int image_id, uint32_t job_ea,
++                                      uint32_t job_desc_size);
++typedef void* (*spu_job_scope_begin_fn)(int image_id, uint32_t job_ea,
++                                        uint32_t job_desc_size);
++typedef void (*spu_job_scope_end_fn)(int image_id, uint32_t job_ea,
++                                     uint32_t job_desc_size, void* token);
++extern spu_native_job_hook_fn g_spu_native_job_hook;
++extern spu_job_scope_begin_fn g_spu_job_scope_begin;
++extern spu_job_scope_end_fn g_spu_job_scope_end;
++
+ /* Fingerprint `image`, look up its lifted entry, and run it as a SPURS jobchain
+  * job via spu_run_spurs_job. Runs SYNCHRONOUSLY on the caller's thread: a job
+  * is not persistent (it runs to completion and returns to the manager), and a
+diff --git a/runtime/spu/spu_workload.c b/runtime/spu/spu_workload.c
+--- a/runtime/spu/spu_workload.c
++++ b/runtime/spu/spu_workload.c
+@@ -40,6 +40,11 @@
+ #else
+ #  define SPU_WORKLOAD_DIAG_TLS __thread
+ #endif
++
++/* Installed once by the port before any job-chain worker can dispatch. */
++spu_native_job_hook_fn g_spu_native_job_hook = NULL;
++spu_job_scope_begin_fn g_spu_job_scope_begin = NULL;
++spu_job_scope_end_fn g_spu_job_scope_end = NULL;
+ 
+ /* ---- fingerprint ------------------------------------------------------- */
+ 
+@@ -964,7 +969,25 @@
+                 (unsigned long long)fp, image_id, job_ea);
+         fflush(stderr);
+     }
+-    int rc = spu_run_spurs_job(fn, image_id, job_ea, job_desc_size);
++    /* One port-owned lease covers BOTH native and lifted attempts. Snapshot
++     * the init-only callbacks so every accepted scope has its matching end. */
++    spu_native_job_hook_fn native_job = g_spu_native_job_hook;
++    spu_job_scope_begin_fn scope_begin = g_spu_job_scope_begin;
++    spu_job_scope_end_fn scope_end = g_spu_job_scope_end;
++    if ((scope_begin == NULL) != (scope_end == NULL) ||
++        (native_job != NULL && scope_begin == NULL)) return -1;
++    void* scope_token = scope_begin
++        ? scope_begin(image_id, job_ea, job_desc_size) : NULL;
++    int native_result = native_job
++        ? native_job(image_id, job_ea, job_desc_size) : SPU_NATIVE_JOB_DECLINED;
++    int rc;
++    if (native_result == SPU_NATIVE_JOB_DECLINED)
++        rc = spu_run_spurs_job(fn, image_id, job_ea, job_desc_size);
++    else if (native_result == SPU_NATIVE_JOB_COMPLETED)
++        rc = 0;
++    else
++        rc = -1; /* No fallback after any native failure/unknown result. */
++    if (scope_end) scope_end(image_id, job_ea, job_desc_size, scope_token);
+     if (verbose) {
+         fprintf(stderr, "[spurs-job] job 0x%08X RETURNED rc=%d\n", job_ea, rc);
+         fflush(stderr);

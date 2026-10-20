@@ -25,6 +25,7 @@
 #include "ppu_recomp.h"
 #include "graphics_settings.h"
 #include "graphics_pacing.h"
+#include "native_geometry_runtime.h"
 #ifdef PS3RECOMP_RSX_VULKAN
 #include "rsx_graphics_settings.h"
 #endif
@@ -968,6 +969,7 @@ int main(int argc, char** argv)
     wkc2_start_sample_profiler();
 #endif
     spu_float_mode_init();   /* SPU_FLOAT_MODE, read before any SPU thread starts */
+    wkc2_init_native_geometry_jobs();
     ps3_load_prx_modules();  /* this game's lifted system PRX, if it has any */
     ppu_hle_init();          /* firmware import NID -> HLE handlers */
     wkc2_register_lwcond();  /* register before the SDK's fallback ctx handlers */

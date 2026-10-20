@@ -1,0 +1,157 @@
+diff --git a/runtime/memory/vm.h b/runtime/memory/vm.h
+--- a/runtime/memory/vm.h
++++ b/runtime/memory/vm.h
+@@ -16,6 +16,7 @@
+ 
+ #include "../../include/ps3emu/ps3types.h"
+ #include "../../include/ps3emu/error_codes.h"
++#include "vm_mapping_epoch.h"
+ 
+ #include <stdint.h>
+ #include <stddef.h>
+@@ -163,6 +164,9 @@
+ static inline int32_t vm_init(void)
+ {
+     if (vm_base != NULL) return CELL_OK; /* already initialized */
++
++    /* Discard permissions from every earlier mapping, even at the same base. */
++    vm_mapping_epoch_invalidate();
+ 
+ #ifdef _WIN32
+     /*
+@@ -263,6 +267,9 @@
+ {
+     if (!vm_base) return;
+ 
++    /* Publish invalidation before the reservation can be released/reused. */
++    vm_mapping_epoch_invalidate();
++
+ #ifdef _WIN32
+     VirtualFree(vm_base, 0, MEM_RELEASE);
+ #else
+@@ -318,6 +325,7 @@
+         return CELL_EFAULT;
+ #endif
+ 
++    vm_mapping_epoch_invalidate();
+     return CELL_OK;
+ }
+ 
+diff --git a/runtime/ppu/ppu_loader.cpp b/runtime/ppu/ppu_loader.cpp
+--- a/runtime/ppu/ppu_loader.cpp
++++ b/runtime/ppu/ppu_loader.cpp
+@@ -1126,7 +1126,9 @@
+              * single-step below can report a non-zero -> zero transition and name
+              * exactly who cleared it. */
+             s_guard_pre = __builtin_bswap32(*(volatile uint32_t*)(vm_base + s_guard_ea));
+-            DWORD old; VirtualProtect((void*)s_guard_page, 0x1000, PAGE_READWRITE, &old);
++            DWORD old;
++            if (VirtualProtect((void*)s_guard_page, 0x1000, PAGE_READWRITE, &old))
++                vm_mapping_epoch_invalidate();
+             ep->ContextRecord->EFlags |= 0x100;   /* single-step to re-arm after the write */
+             return EXCEPTION_CONTINUE_EXECUTION;
+         }
+@@ -1153,7 +1155,9 @@
+                   ppu_guest_callstack("guard-zeroed");
+               }
+           } }
+-        DWORD old; VirtualProtect((void*)s_guard_page, 0x1000, PAGE_READONLY, &old);
++        DWORD old;
++        if (VirtualProtect((void*)s_guard_page, 0x1000, PAGE_READONLY, &old))
++            vm_mapping_epoch_invalidate();
+         ep->ContextRecord->EFlags &= ~0x100u;
+         return EXCEPTION_CONTINUE_EXECUTION;
+     }
+@@ -1177,7 +1181,8 @@
+      * silently disarming the guard. */
+     VirtualAlloc((void*)(s_guard_page & ~(uintptr_t)0xFFFF), 0x10000, MEM_COMMIT, PAGE_READWRITE);
+     DWORD old;
+-    VirtualProtect((void*)s_guard_page, 0x1000, PAGE_READONLY, &old);
++    if (VirtualProtect((void*)s_guard_page, 0x1000, PAGE_READONLY, &old))
++        vm_mapping_epoch_invalidate();
+     fprintf(stderr, "[GUARD] armed on guest 0x%08X (host page %p)\n", guest_ea, (void*)s_guard_page);
+     fflush(stderr);
+ }
+diff --git a/runtime/memory/vm_mapping_epoch.h b/runtime/memory/vm_mapping_epoch.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/memory/vm_mapping_epoch.h
+@@ -0,0 +1,30 @@
++/* Shared identity for cached positive guest-mapping permissions. */
++#ifndef PS3RECOMP_VM_MAPPING_EPOCH_H
++#define PS3RECOMP_VM_MAPPING_EPOCH_H
++
++#include <stdint.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/* This process-wide epoch is shared by C and C++ translation units. Compare it
++ * together with vm_base before reusing cached positive mapping permissions.
++ * Zero is permanent exhaustion: callers must disable caching in that case.
++ *
++ * An epoch does not pin a mapping. The producer must still keep the mapping and
++ * its permissions stable while a consumer uses it, including during a cache
++ * fill. Hosts that replace/release guest mappings or change their permissions
++ * outside vm_init/vm_shutdown/vm_protect must call invalidate as part of that
++ * same externally serialized operation (before release, after protection).
++ * Mere writes and demand commits of previously inaccessible memory need no
++ * invalidation: this API supports positive permission caches only.
++ */
++uint64_t vm_mapping_epoch_read(void);
++void vm_mapping_epoch_invalidate(void);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+diff --git a/runtime/memory/vm_mapping_epoch.c b/runtime/memory/vm_mapping_epoch.c
+new file mode 100644
+--- /dev/null
++++ b/runtime/memory/vm_mapping_epoch.c
+@@ -0,0 +1,43 @@
++#include "vm_mapping_epoch.h"
++
++/* Keep the atomic object private so C and C++ consumers share one ABI without
++ * exposing either language's atomic types. Never reuse an epoch after wrap. */
++#if defined(_MSC_VER)
++#include <intrin.h>
++static __declspec(align(8)) volatile __int64 s_vm_mapping_epoch = 1;
++
++uint64_t vm_mapping_epoch_read(void)
++{
++    return (uint64_t)_InterlockedCompareExchange64(&s_vm_mapping_epoch, 0, 0);
++}
++
++void vm_mapping_epoch_invalidate(void)
++{
++    uint64_t current = vm_mapping_epoch_read();
++    while (current != 0) {
++        uint64_t next = current == UINT64_MAX ? 0 : current + 1;
++        uint64_t observed = (uint64_t)_InterlockedCompareExchange64(
++            &s_vm_mapping_epoch, (__int64)next, (__int64)current);
++        if (observed == current) return;
++        current = observed;
++    }
++}
++#else
++#include <stdatomic.h>
++static _Atomic uint64_t s_vm_mapping_epoch = 1;
++
++uint64_t vm_mapping_epoch_read(void)
++{
++    return atomic_load_explicit(&s_vm_mapping_epoch, memory_order_acquire);
++}
++
++void vm_mapping_epoch_invalidate(void)
++{
++    uint64_t current = vm_mapping_epoch_read();
++    while (current != 0) {
++        uint64_t next = current == UINT64_MAX ? 0 : current + 1;
++        if (atomic_compare_exchange_weak_explicit(&s_vm_mapping_epoch, &current,
++                next, memory_order_acq_rel, memory_order_acquire)) return;
++    }
++}
++#endif

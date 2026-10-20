@@ -12,7 +12,9 @@ strict saved-town route. Fallback remains available for untested paths. This is
 not a recovered, readable version of the original source. The final SPU target
 is complete replacement with project-written readable public C++, with no
 generated SPU game code or interpreter linked into the player. No complete image
-has been replaced yet; the current kernels are intermediate work.
+has been replaced yet. The current source includes an opt-in readable C++ runtime
+for complete supported image-19 geometry jobs; original compiled SPU code remains
+linked for other jobs and unsupported inputs.
 
 ## What executes
 
@@ -32,9 +34,20 @@ has been replaced yet; the current kernels are intermediate work.
   replay/fuzz checks, including host NaN-payload handling. Other normal-loop
   variants remain available on the compiled fallback path. The supported whole
   skinning routine now replaces both loops and their setup/drain with readable
-  C++; the outer job still uses compiled guest code. The earlier
+  C++. The earlier
   geometry boundary retains its compiled C tail for host/audit nonfinite inputs;
   exact-SPU mode accepts all arithmetic bit patterns.
+- Main now connects a public C++ runtime for complete supported image-19 geometry
+  jobs, from original descriptor/input acquisition through decoding, skinning,
+  filtering, allocation, payload export and command publication. This Windows
+  route owns its inputs and outputs in C++ but still uses SDK arithmetic and
+  reciprocal helper policies; independent host math remains unfinished. The
+  host-float route is enabled only by `WKC_NATIVE_GEOMETRY_JOB=1`. Unset or `0`
+  leaves its dispatch, scope gates and PUT observers unregistered and silent.
+  `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1` separately enables sampled diagnostics.
+  Other constructor/layout domains decline before native external effects and
+  retain compiled fallback. A failure after effects stops the process after local
+  cleanup; it cannot replay the compiled job over partially published output.
 - Firmware SPURS job-queue/port calls now execute registered jobs and pass the
   control block required by the job's C runtime startup. The current implementation
   runs jobs synchronously in submission order within each queue. This restores
@@ -73,6 +86,14 @@ so duplicate active submissions coalesce; active owner reuse/removal returns
 `BUSY`. Cancellation and arbitrary unowned diagnostic dispatch are not implemented
 by that ownership mechanism. The [worker lifetime investigation](FINDINGS.md#frame-pacing-and-game-speed)
 records the fix and the ten-minute idle validation.
+
+When enabled, the supported image-19 route holds the same allocator-slot scope
+across native attempts and compiled fallback. It uses the SDK's native reservation
+and CAS protocol, copies submitted inputs into owned storage, and preserves the
+installed GCM PUT notifications. The synchronous producer contract pins submitted
+mappings until job return. A VM mapping epoch invalidates cached positive range
+checks on protection changes and VM teardown/recreation; it is not a lease against
+arbitrary concurrent unmapping. General asynchronous scheduling remains unproven.
 
 The runtime honors real flip requests and the game's vblank/semaphore pacing.
 Graphics Settings adjusts both the host frame cap and the guest timing hooks;
@@ -122,11 +143,22 @@ with a checked ABI bridge. All 32 recorded calls and 99,417 accepted stress
 comparisons match complete state. Strict DirectX and Vulkan transition routes
 also pass sampled live comparisons. Unsupported interfaces retain their compiled
 reference. See [routine evidence and limits](NATIVE_CODE.md#readable-whole-skinning-stream).
-Outer jobs, DMA/output ownership and scheduling remain to be recovered.
-A [whole-job reference replay](NATIVE_CODE.md#whole-geometry-job-boundary) now
-checks 32 captured jobs through their observed DMA outputs. It supplies recorded
-external inputs; asynchronous scheduling and shared-output ownership remain
-unproven.
+The opt-in public whole-job runtime now connects the supported constructor/layout
+domains to actual SDK memory, native CAS and PUT operations. All 32 recorded jobs
+replay with byte-exact external outputs and zero mismatches. The original
+[whole-job reference replay](NATIVE_CODE.md#whole-geometry-job-boundary) retains
+the captured-input provenance and comparison boundary. Broader job/image domains,
+asynchronous scheduling and complete image replacement remain open.
+
+The first instrumented performance comparison regressed with debug logging
+enabled; profiling found `WriteFile` hot. A later quiet comparison used the same
+executable with the FPS overlay enabled and found near parity in two stationary
+town views: native versus compiled measured 29.914 versus 29.996 fps at the Logic
+Stone and 19.746 versus 20.581 fps facing the entrance. No FPS gain or new desktop
+installation is established. Movement segments ended at the Leave area exit
+prompt and were excluded, so there is no benchmark for walking among NPCs on the
+main road or for area transitions. Broader layouts and NPC-heavy routes remain
+unverified. See the [comparison conditions](BUILD.md).
 
 The [native execution work plan](NATIVE_CODE.md) separates removal of interpreter
 fallback from readable replacements for already compiled hot jobs. Python tools

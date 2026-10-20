@@ -8,6 +8,9 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0126 | [Guest mapping lifetime epoch](#guest-mapping-lifetime-epoch-patch-0126) |
+| Patch 0125 | [Native SPU atomic receipts](#native-spu-atomic-receipts-patch-0125) |
+| Patch 0124 | [Original-input native SPURS dispatch](#original-input-native-spurs-dispatch-patch-0124) |
 | Patch 0123 | [SPU machine-status interrupt bit](#spu-machine-status-interrupt-bit-patch-0123) |
 | Patch 0122 | [SPURS job caller frame](#spurs-job-caller-frame-patch-0122) |
 | Patch 0121 | [Alpha-reference surface formats](#alpha-reference-surface-formats-patch-0121) |
@@ -54,6 +57,59 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Guest mapping lifetime epoch (patch 0126)
+
+A shared C/C++ atomic epoch identifies the lifetime of cached positive guest
+mapping permissions. It changes before a new `vm_init` attempt, before
+`vm_shutdown` releases the reservation, after successful `vm_protect` calls and
+after each successful PPU guard protection change. Repeated initialization and
+failed protection changes leave it stable. Demand commit adds access and does
+not invalidate positive checks. Exhaustion permanently disables caching rather
+than reusing an old identity.
+
+The native geometry bridge keys its permission cache with the VM base and epoch.
+The producer must still retain mappings and permissions throughout each job;
+an epoch is not an unmapping lease. Real Windows VM tests check protection and
+release state, observe invalidation before `VirtualFree`, share the API between
+C and C++, and verify 400 concurrent invalidations. Both complete suites pass
+117 checks: normal Debug in 33.35 seconds and optimized Release in 27.63 seconds.
+
+## Native SPU atomic receipts (patch 0125)
+
+Native host buffers can now reserve, conditionally replace or unconditionally
+write a complete 128-byte guest line through the same coherency lock as SPU MFC
+and coherent PPU writes. Unique reservation tickets capture line bytes and a
+generation. Both write-notification paths invalidate affected tickets, including
+ABA writes; conditional use consumes the ticket. Registry/token exhaustion
+declines before copying or marking a new reservation. Unused tickets have an
+explicit release operation. No SPU context or local-store object is required.
+
+Committed stores retain the existing post-commit SPURS and line-observer
+notifications. Public tests use the actual coherency implementation to check
+native/SPU-peer invalidation, ABA, conflicts, full-registry rejection and
+concurrent native increments. An active-ticket count skips native generation
+scans when no ticket is outstanding. The port still supplies mapping admission,
+source lifetime and mixed native/fallback slot ownership.
+
+## Original-input native SPURS dispatch (patch 0124)
+
+The registered-job dispatcher now offers an optional native hook after image
+selection and before original input staging. Balanced scope callbacks surround
+both native and compiled execution. The hook receives the original descriptor
+address and size, rather than a staged SPU register/local-store object. A decline
+retains compiled execution; completion skips it; a fatal result cannot safely
+fall back after external effects.
+
+The public dispatch regression extracts the actual SDK function and checks
+completion, pre-effect decline, fatal handling, legacy dispatch and balanced
+scope ownership. The opt-in geometry port uses the shared scope to lease
+virtual slot zero across native and fallback image-19 jobs. The current SPURS
+chain walker ignores negative dispatch returns, so the port stops after cleanup
+on a partial native failure before chain continuation. This patch supplies an
+integration boundary, not full asynchronous scheduling equivalence. See the
+[live geometry route](NATIVE_CODE.md#opt-in-live-geometry-job) for its admission
+limits, real-backend replay evidence and bounded quiet timing comparison.
 
 ## SPU machine-status interrupt bit (patch 0123)
 

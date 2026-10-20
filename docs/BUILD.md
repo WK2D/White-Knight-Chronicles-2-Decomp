@@ -4,22 +4,42 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-20):** the stack contains 123 SDK patches. All
-113 Windows checks pass in normal Debug and optimized Release. Reapplying the
-complete stack changes no SDK files. Strict DirectX and Vulkan routes on patch
+**Current validation (2026-10-20):** the stack contains 126 SDK patches. All
+117 Windows checks pass in normal Debug (33.35 seconds) and optimized Release
+(27.63 seconds). Reapplying the complete stack changes no SDK files.
+Strict DirectX and Vulkan routes on patch
 0121 confirm Continue, the plains transition, walking, camera rotation and the
 leaf-cutout shadow correction. Menu FXAA toggling was checked separately on 0110.
 What each patch changes, how it was checked and its measured
 results are in the [patch notes](PATCHES.md).
 
-The latest source adds readable C++ allocation, payload-export and rendering
-command builders. Their connected offline comparison matches all 32 recorded
-geometry jobs, including final external bytes and allocator publication. They
-are not enabled as a complete live job replacement. See the
-[native output transaction evidence](NATIVE_CODE.md#native-allocation-export-and-command-construction).
-The typed input constructor and resumable C++ job coordinator also pass the
-recorded jobs and standalone regressions. Live acquisition, memory/coherency and
-scheduler binding are still incomplete; these tests do not install a new player build.
+The latest source connects a public readable C++ runtime for complete supported
+image-19 geometry jobs to main. It acquires original descriptors and inputs, then
+executes the typed pipeline and allocation/export/publication coordinator through
+actual SDK memory, native CAS and PUT operations. All 32 recorded jobs replay with
+byte-exact external outputs and zero mismatches. C++ owns the job inputs and
+outputs; numeric policies still use SDK arithmetic and reciprocal helpers rather
+than an independent host-math implementation. See the
+[native output transaction evidence](NATIVE_CODE.md#native-allocation-export-and-command-construction)
+and [public runtime](../native_geometry_runtime.cpp).
+The live route is explicitly opt-in; unsupported constructor/layout domains retain
+compiled fallback before native external effects. Failures after effects stop
+execution after local cleanup, without replaying fallback. Original compiled SPU
+code remains linked, and no complete SPU image has been replaced.
+The first instrumented comparison regressed with debug logging enabled;
+profiling found `WriteFile` hot. A later quiet A/B used the same executable with
+the FPS overlay enabled and compared two stationary town views:
+
+| View | Native fps | Compiled fps | Native CPU ms/presentation | Compiled CPU ms/presentation |
+| --- | --- | --- | --- | --- |
+| Logic Stone | 29.914 | 29.996 | 127.13 | 139.71 |
+| Facing the entrance | 19.746 | 20.581 | 182.36 | 188.20 |
+
+These bounded samples show near parity and no FPS gain. Movement segments ended
+at the Leave area exit prompt and were excluded, so there is no benchmark for
+walking among NPCs on the main road or for area transitions. Broader layouts and
+NPC-heavy routes remain unverified. No complete image has been replaced and no
+new desktop-player installation is established.
 Patch 0123 corrects the SPU machine-status interrupt bit; this source change has
 passed regression tests but has no new live game route or desktop installation.
 
@@ -122,8 +142,9 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 123 numbered SDK patches, and all 113 checks
-pass in both Windows suites. Graphics panel captures use 83 patches; saving
+The current source stack contains 126 numbered SDK patches, and all 117 checks
+pass in normal Debug and optimized Release. Graphics panel
+captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their
 52- and 42-patch provenance; the first town world-view capture used 39. Patch 0043 passed
@@ -241,6 +262,15 @@ probe environment to enable them:
 
 - `RSX_PRESENT_MEASURE=1` enables the DirectX benchmark sample ring and CSV.
   `RSX_SCHEDULE_DIAG=1` adds process/thread times only when that recorder is enabled.
+- `WKC_NATIVE_GEOMETRY_JOB=1` enables the public runtime for complete supported
+  image-19 geometry jobs in Windows host-float mode. Unset or `0` leaves this
+  route's dispatch, scope gates and PUT observers unregistered and silent.
+  Unsupported constructor/layout domains decline before native external effects
+  and run the retained compiled job. A failure after effects is fatal after local
+  cleanup; compiled fallback cannot run over partially published output.
+  `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1` separately enables sampled admission and
+  result logs; it does not enable the runtime by itself. This remains a research
+  option while performance optimization and broader route validation continue.
 - `WKC_NATIVE_SKINNING_TRACE=1` reports native calls, declines and verification
   counts; normal play keeps it off. `WKC_NATIVE_SKINNING=0` retains the earlier
   batch's compiled reference path.

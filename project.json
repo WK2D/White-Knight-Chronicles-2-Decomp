@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Typed C++ input construction and an owned job coordinator now connect the geometry stages offline. All 32 recorded jobs match their complete external payloads/commands and allocator publications, including delayed receipts/source retirement. 123 SDK patches / 113 Windows checks pass. Live memory, shared slot ownership and scheduler integration remain incomplete; no complete live SPU job/image or FPS gain is claimed.",
+    "current_milestone": "The supported whole image-19 geometry job is connected in public source behind WKC_NATIVE_GEOMETRY_JOB=1, with owned C++ inputs/outputs, native SDK CAS, coherent PUTs and mixed native/fallback slot ownership. All 32 real-SDK VM replays match byte for byte. 126 SDK patches / 117 Windows checks pass in normal Debug (33.35 seconds) and optimized Release (27.63 seconds). Normal launches leave the new hooks unregistered. Quiet same-executable comparisons measured 29.91 versus 30.00 FPS at the stone and 19.75 versus 20.58 in the turned entrance view: near parity, no FPS gain. SDK math helpers, wider layouts/routes, NPC-heavy traversal and other images remain; the desktop installation is unchanged.",
     "updated": "2026-10-20"
   },
   "native_data_installation_verified": true,
@@ -156,7 +156,9 @@
     "generated_ppu_function_hook_demonstrated": true,
     "remaining_requirement": "Validate wider NPC/transition/cutscene routes and readable hot-job replacements; keep strict entry checks in diagnostic runs. Full-game CPU coverage is unverified.",
     "latest_census_probe": "20261020-035339",
-    "latest_census_scope": "Hidden/muted Continue-to-town loading and bounded complete skinning-function captures; zero strict interpreter/microstep entries. No new transition, cutscene or combat validation in this probe."
+    "latest_census_scope": "Hidden/muted Continue-to-town loading and bounded complete skinning-function captures; zero strict interpreter/microstep entries. No new transition, cutscene or combat validation in this probe.",
+    "native_geometry_job_opt_in_supported": true,
+    "native_geometry_job_scope": "Windows host-float image19 admitted constructor/layout domain; original SPU generated code and SDK arithmetic policies remain linked. Default unregistered; WKC_NATIVE_GEOMETRY_JOB=1 enables the supported whole-job path."
   },
   "native_character_creation_completed_scope": "Default male avatar named and accepted through Quick Start; opening cutscenes advance to the town. Full visual fidelity and all customization options are not verified.",
   "native_wkc1_town_world_view_verified": true,
@@ -165,8 +167,8 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 123,
-    "runtime_checks_passed": 113,
+    "sdk_patch_count": 126,
+    "runtime_checks_passed": 117,
     "town_native_run_sdk_patch_count": 105,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
@@ -238,7 +240,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 123,
+    "runtime_checks_verified_sdk_patch_count": 126,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -248,8 +250,8 @@
       "GCM_SEMA_ACQUIRE": "1",
       "RSX_ENGINE_ZTEX_GPU": "1"
     },
-    "normal_debug_checks_elapsed_seconds": 27.43,
-    "optimized_release_checks_elapsed_seconds": 23.54,
+    "normal_debug_checks_elapsed_seconds": 33.35,
+    "optimized_release_checks_elapsed_seconds": 27.63,
     "repeat_patch_application_files_changed": 0,
     "patch_0071_windows_regression_verified": true,
     "patch_0072_windows_regression_verified": true,
@@ -394,7 +396,19 @@
     "patch_0122_native_game_run_verified": true,
     "native_complete_skinning_stream": true,
     "patch_0123_windows_regression_verified": true,
-    "patch_0123_native_game_run_verified": false
+    "patch_0123_native_game_run_verified": false,
+    "runtime_checks_configuration": "Normal Debug and optimized Release",
+    "current_debug_checks_passed": 117,
+    "current_debug_checks_pending": false,
+    "patch_0124_windows_release_regression_verified": true,
+    "patch_0125_windows_release_regression_verified": true,
+    "patch_0126_windows_release_regression_verified": true,
+    "patch_0124_windows_debug_regression_verified": true,
+    "patch_0124_windows_regression_verified": true,
+    "patch_0125_windows_debug_regression_verified": true,
+    "patch_0125_windows_regression_verified": true,
+    "patch_0126_windows_debug_regression_verified": true,
+    "patch_0126_windows_regression_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -538,7 +552,7 @@
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified. The same starting-town slot was rechecked in the 105-patch Vulkan Release build.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 123 SDK patches / 113 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 126 SDK patches / 117 passing Windows checks in normal Debug and optimized Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",
@@ -2306,7 +2320,7 @@
     "public_core": "native_vertex_decode.h",
     "entry": "0x3608",
     "format_callback": "0x0760",
-    "status": "Offline owned-buffer stream decoder; not integrated in the live game",
+    "status": "Owned-buffer stream decoder used by the opt-in supported whole image-19 job",
     "formats": [
       32,
       33
@@ -2356,7 +2370,7 @@
     "whole_job_replaced": false,
     "full_spu_image_replaced": false,
     "asynchronous_scheduling_equivalence_proven": false,
-    "live_decoder_integration_verified": false,
+    "live_decoder_integration_verified": true,
     "arm_execution_verified": false,
     "fps_gain_measured": false,
     "desktop_executable_changed": false,
@@ -2365,7 +2379,8 @@
       "Validate complete externally visible outputs, shared allocator, DMA ordering, lifetimes and concurrent scheduling.",
       "Integrate only after comparison with the whole-job reference; broaden real scene and cutscene coverage.",
       "Measure CPU and speed separately with verification/capture disabled."
-    ]
+    ],
+    "live_integration_scope": "Opt-in supported host-mode Windows image19 whole-job route; broader constructor/layout coverage remains unverified."
   },
   "native_triangle_index_decoder": {
     "date": "2026-10-20",
@@ -2374,7 +2389,7 @@
     "corrected_stage_role": "Compressed triangle-index decoding, not the previously provisional packing label",
     "public_core": "native_index_decode.h",
     "algorithm": "decode_triangle_indices",
-    "status": "Offline logical owned-buffer decoder; no live game integration",
+    "status": "Logical owned-buffer decoder used by the opt-in supported whole image-19 job",
     "interface": "Stable packed bytes and a u16-range triangle index count in; host u16 logical indices out. Allocation-free, with an eight-value predictor and no register/LS/DMA ABI.",
     "recorded_calls": 32,
     "recorded_logical_indices": 20220,
@@ -2414,7 +2429,7 @@
     "recorded_allocated_tail_bytes_outside_logical_indices": 696,
     "original_padded_tail_writes_reproduced": false,
     "stage_metadata_register_stack_abi_replaced": false,
-    "live_game_integration_verified": false,
+    "live_game_integration_verified": true,
     "whole_job_replaced": false,
     "full_spu_image_replaced": false,
     "asynchronous_scheduling_equivalence_proven": false,
@@ -2426,7 +2441,8 @@
       "Prove external liveness of rounded tail writes, or reproduce them and their ordering.",
       "Complete remaining geometry stages and compare complete job/DMA outputs before live integration.",
       "Validate shared allocation, output lifetimes, publication and scheduling on broader routes."
-    ]
+    ],
+    "live_integration_scope": "Opt-in supported host-mode Windows image19 whole-job route; broader constructor/layout coverage remains unverified."
   },
   "native_position_only_stream": {
     "date": "2026-10-20",
@@ -2435,7 +2451,7 @@
     "outer_palette_preparation_entry": "0x4AF8",
     "public_core": "skin_positions_stream in native_skinning_stream.h",
     "public_palette_reorder": "cyclic_skin_matrix in native_skinning.h",
-    "status": "Offline typed position-only stream; no new live hook",
+    "status": "Typed position-only stream used by the opt-in supported whole image-19 job",
     "interface": "Four-vertex groups with typed influence/position/palette IO; read all joints including zero-weight influences, commit positions in order3,0,1,2, preserve live palette visibility.",
     "recorded": {
       "mode": 0,
@@ -2491,11 +2507,12 @@
     "complete_stage_register_stack_scratch_abi_replaced": false,
     "whole_job_replaced": false,
     "full_spu_image_replaced": false,
-    "live_game_integration_verified": false,
+    "live_game_integration_verified": true,
     "arm_execution_verified": false,
     "asynchronous_scheduling_equivalence_proven": false,
     "fps_gain_measured": false,
-    "desktop_executable_changed": false
+    "desktop_executable_changed": false,
+    "live_integration_scope": "Opt-in supported host-mode Windows image19 whole-job route; broader constructor/layout coverage remains unverified."
   },
   "geometry_allocation_publication_contract": {
     "date": "2026-10-20",
@@ -2532,7 +2549,7 @@
     "outer_export": "0x4FC0",
     "public_core": "native_vertex_pack.h",
     "algorithm": "pack_vertex_stream",
-    "status": "Offline portable logical vertex packer; no new live game hook",
+    "status": "Portable logical vertex packer used by the opt-in supported whole image-19 job",
     "interface": "Stable host Float4 position/normal/tangent spans and typed format/suppression/count in; big-endian byte records out; consumed input and written output ranges disjoint; structural rejects before writes.",
     "formats": {
       "32": "16 bytes: raw XYZ plus packed signed11/11/10 normal or zero",
@@ -2631,13 +2648,14 @@
     "output_bit_corruption_rejected_in_both_capture_sets": true,
     "old_pair_padding_and_arena_cursor_replaced": false,
     "complete_register_stack_scratch_abi_replaced": false,
-    "live_game_integration_verified": false,
+    "live_game_integration_verified": true,
     "whole_job_replaced": false,
     "full_spu_image_replaced": false,
     "asynchronous_scheduling_equivalence_proven": false,
     "arm_execution_verified": false,
     "fps_gain_measured": false,
-    "desktop_executable_changed": false
+    "desktop_executable_changed": false,
+    "live_integration_scope": "Opt-in supported host-mode Windows image19 whole-job route; broader constructor/layout coverage remains unverified."
   },
   "native_geometry_filter": {
     "date": "2026-10-20",
@@ -2648,7 +2666,7 @@
       "project_geometry",
       "filter_triangles"
     ],
-    "status": "Offline portable projection and stable logical triangle filtering; no new live game hook",
+    "status": "Portable projection and stable triangle filtering used by the opt-in supported whole image-19 job",
     "interface": "Typed model/projection matrices, viewport/clip bounds, decoded positions and arithmetic policies produce projected records; projected records plus logical indices produce a stable surviving index prefix. Same-start in-place index compaction is supported. Structural declines occur before output/count changes.",
     "arithmetic_scope": "Differential replay supplies existing host/exact/audit arithmetic, reciprocal estimate/interpolation, FNMS, comparison and scaled-conversion policies. Ordinary host division/FNMS is not an exact-SPU specification. Public host-policy regressions are separate.",
     "subpixel_scope": "State5 processes four triangles together. Its selector reads next-lane quarter-grid Y bits. Final partial groups require three explicit projected padding vertices per unused lane; padding is caller-owned, not synthesized.",
@@ -2719,7 +2737,7 @@
       "sdk_patches": 122
     },
     "complete_stage_register_stack_scratch_metadata_abi_replaced": false,
-    "live_game_integration_verified": false,
+    "live_game_integration_verified": true,
     "whole_job_replaced": false,
     "full_spu_image_replaced": false,
     "asynchronous_scheduling_equivalence_proven": false,
@@ -2732,14 +2750,15 @@
       "Recover shared allocation, payload DMA, command fixups/publication and their visibility/lifetimes.",
       "Validate whole-job scheduling and broader real NPC-heavy, transition and cutscene routes before live replacement.",
       "Measure CPU and speed separately with capture/verification disabled."
-    ]
+    ],
+    "live_integration_scope": "Opt-in supported host-mode Windows image19 whole-job route; broader constructor/layout coverage remains unverified."
   },
   "native_owned_geometry_pipeline": {
     "date": "2026-10-20",
     "image_id": 19,
     "public_core": "native_geometry_pipeline.h",
     "estimate_policy": "native_estimate_interpolation.h",
-    "status": "Connected offline logical geometry algorithms through owned host buffers; no live whole-job hook",
+    "status": "Owned C++ geometry pipeline connected to the opt-in supported whole image-19 job",
     "stages": [
       "packed vertex decode",
       "palette preparation",
@@ -2815,7 +2834,7 @@
     "supported_input_precondition": "Every vertex/joint needs bounded owned backing. Validated entry adapter reconstructs adjacent owned prefixes and explicit literal/live palette rows for all32 recorded layouts; unknown layouts or unjustified zero/save rows still decline.",
     "subpixel_scope": "Pure composition accepts bounded owned padding indices and derives their projected records itself; current captured entry adapter covers basic filtering only.",
     "transfer_size_plan_is_complete_payload": false,
-    "live_game_integration_verified": false,
+    "live_game_integration_verified": true,
     "whole_job_replaced": false,
     "full_spu_image_replaced": false,
     "scheduling_equivalence_proven": false,
@@ -2845,12 +2864,13 @@
       "no_row_straddles_sources": true,
       "arbitrary_lifetime_or_ambient_state_support_proven": false
     },
-    "filtered_index_payload_reconstructed": true
+    "filtered_index_payload_reconstructed": true,
+    "live_integration_scope": "Opt-in supported host-mode Windows image19 whole-job route; broader constructor/layout coverage remains unverified."
   },
   "native_filtered_index_payload": {
     "date": "2026-10-20",
     "public_core": "native_index_payload.h",
-    "status": "Offline complete aligned bytes for supported filtered geometry; no DMA/publication hook",
+    "status": "Complete aligned filtered-index bytes connected to the opt-in supported whole image-19 job",
     "recorded": {
       "jobs": 32,
       "external_index_puts": 31,
@@ -2883,15 +2903,16 @@
       "unchanged_rejects": 13
     },
     "bypass_physical_padding_supported": false,
-    "live_game_integration_verified": false,
+    "live_game_integration_verified": true,
     "whole_job_replaced": false,
     "scheduling_equivalence_proven": false,
     "fps_gain_measured": false,
-    "desktop_executable_changed": false
+    "desktop_executable_changed": false,
+    "live_integration_scope": "Opt-in supported host-mode Windows image19 whole-job route; broader constructor/layout coverage remains unverified."
   },
   "native_geometry_output_transactions": {
     "date": "2026-10-20",
-    "status": "Public C++ allocation/export/command implementations; complete recorded external outputs match offline; no live whole-job hook",
+    "status": "Connected to the opt-in supported whole image-19 job through the synchronous SDK native atomic/memory bridge",
     "public_cores": [
       "native_geometry_allocation.h",
       "native_geometry_export.h",
@@ -2983,7 +3004,7 @@
       "isolated_state_modelled": false,
       "new_live_route_verified": false
     },
-    "whole_live_job_replaced": false,
+    "whole_live_job_replaced": true,
     "whole_image_replaced": false,
     "production_slot_lease_and_async_visibility_verified": false,
     "location_zero_extra_fenced_read_adapter_verified": false,
@@ -2992,17 +3013,20 @@
     "fps_gain_measured": false,
     "desktop_executable_changed": false,
     "remaining": [
-      "Connect production input adapter and stable slot lease to the typed native pipeline and transactions.",
-      "Prove asynchronous source lifetime, same-tag payload-before-command visibility and concurrent scheduling.",
-      "Bind location0 fenced-read behavior and validate unobserved constructor/bypass/padding domains.",
-      "Run strict NPC-heavy, transition and cutscene routes; refresh CPU/fallback measurements.",
-      "Continue remaining SPU images and incomplete DirectX parity."
-    ]
+      "Validate broader constructor/cache/backing layouts, bypass-index physical padding and vertex tails.",
+      "Validate strict NPC-heavy traversal, transitions and cutscenes with the opt-in whole-job route.",
+      "Establish broader concurrent scheduling and any future asynchronous source/visibility semantics.",
+      "Measure clean-player performance after the instrumented logging-on regression; compare the persistent mapping cache without profiling/capture interference.",
+      "Replace remaining SDK arithmetic dependencies and remaining generated SPU images; complete DirectX parity."
+    ],
+    "whole_live_job_replacement_scope": "Admitted Windows host-float image19 constructor/layout domain only; other layouts decline before native external effects.",
+    "synchronous_sdk_source_retirement_verified": true,
+    "sdk_math_helpers_remain_required": true
   },
   "native_geometry_input_adapter": {
     "date": "2026-10-20",
     "public_core": "native_geometry_input.h",
-    "status": "Typed original-descriptor/source-span constructor verified offline; live acquisition remains separate",
+    "status": "Typed original-descriptor/source-span constructor with live acquisition for the admitted image19 domain",
     "no_spu_context_register_or_local_store_object_input": true,
     "descriptor_derived_constructor_coordinates": true,
     "explicit_initialization_and_preserved_zero_contracts": true,
@@ -3029,13 +3053,14 @@
       "exception_before_commit_passed": true,
       "standalone_without_sdk_or_generated_code_passed": true
     },
-    "live_input_acquisition_verified": false,
-    "full_game_layout_coverage": false
+    "live_input_acquisition_verified": true,
+    "full_game_layout_coverage": false,
+    "live_integration_scope": "Opt-in supported host-mode Windows image19 whole-job route; broader constructor/layout coverage remains unverified."
   },
   "native_geometry_job_coordinator": {
     "date": "2026-10-20",
     "public_core": "native_geometry_job.h",
-    "status": "Typed C++ job composition and source ownership verified offline; no live runtime bridge",
+    "status": "Connected to the opt-in supported whole image-19 job through the synchronous SDK native atomic/memory bridge",
     "actual_image_whole_job_root": "0x1FE0",
     "earlier_transform_target": "0xCE08",
     "recorded": {
@@ -3102,18 +3127,134 @@
     },
     "completion_receipt_scope": "New source-lifetime requirement for an asynchronous backend; original job has no final tag wait and current runtime transfers are synchronous.",
     "remaining": [
-      "Live original-input acquisition and mapping lifetime.",
-      "Native memory/coherency bridge retaining renderer PUT notifications.",
-      "Native reservations/CAS and slot lease shared with fallback jobs.",
-      "Concurrent scheduling, real NPC-heavy/transition/cutscene routes and broader layouts.",
-      "Remaining SPU images, fresh CPU/fallback measurements and incomplete DirectX parity."
+      "Validate broader constructor/cache/backing layouts, bypass-index physical padding and vertex tails.",
+      "Validate strict NPC-heavy traversal, transitions and cutscenes with the opt-in whole-job route.",
+      "Establish broader concurrent scheduling and any future asynchronous source/visibility semantics.",
+      "Measure clean-player performance after the instrumented logging-on regression; compare the persistent mapping cache without profiling/capture interference.",
+      "Replace remaining SDK arithmetic dependencies and remaining generated SPU images; complete DirectX parity."
     ],
-    "whole_live_job_replaced": false,
+    "whole_live_job_replaced": true,
     "whole_image_replaced": false,
     "native_backend_concurrent_correctness_proven": false,
     "new_gameplay_route_verified": false,
     "arm_execution_verified": false,
     "fps_gain_measured": false,
-    "desktop_executable_changed": false
+    "desktop_executable_changed": false,
+    "whole_live_job_replacement_scope": "Admitted Windows host-float image19 constructor/layout domain only; other layouts decline before native external effects.",
+    "synchronous_sdk_source_retirement_verified": true,
+    "sdk_math_helpers_remain_required": true
+  },
+  "native_geometry_runtime": {
+    "date": "2026-10-20",
+    "public_source": "native_geometry_runtime.cpp",
+    "public_header": "native_geometry_runtime.h",
+    "mapping_cache": "native_geometry_mapping_cache.h",
+    "status": "Public opt-in supported whole image-19 job connected in main; limited admission; first quiet two-view speed comparison near parity",
+    "enable_environment": "WKC_NATIVE_GEOMETRY_JOB=1",
+    "diagnostics_environment": "WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1",
+    "default_hooks_registered": false,
+    "default_module_diagnostics": false,
+    "main_initialization_connected": true,
+    "whole_supported_job_connected": true,
+    "whole_image_replaced": false,
+    "image_id": 19,
+    "whole_job_root": "0x1FE0",
+    "admission_scope": "Windows host-float mode; original descriptor and completed source spans reconstructed through the supported constructor/backing contracts.",
+    "unsupported_before_native_external_effects_uses_compiled_fallback": true,
+    "post_effect_failure_stops_before_chain_continuation": true,
+    "owns_typed_inputs_and_outputs": true,
+    "uses_spu_context_or_local_store_as_algorithm_input": false,
+    "sdk_arithmetic_reciprocal_conversion_helpers_required": true,
+    "synchronous_bulk_source_consumption_on_return": true,
+    "shared_native_fallback_virtual_slot_zero_gate": true,
+    "native_atomic_reservations_share_sdk_coherency": true,
+    "renderer_put_and_trace_observers_preserved_after_commit": true,
+    "mapping_cache_key": "VM base plus shared mapping epoch (SDK patch 0126); positive permissions only; submitted mappings remain pinned through job return.",
+    "sdk_patches": [
+      124,
+      125,
+      126
+    ],
+    "actual_sdk_vm_replay": {
+      "jobs": 32,
+      "passed": 32,
+      "mismatches": 0,
+      "constructor_input_only": true,
+      "native_cas_guest_vm_and_put_callbacks_executed": true,
+      "scope": "Recorded original-input differential replays, not new gameplay routes or full scheduling proof."
+    },
+    "windows_regression": {
+      "sdk_patches": 126,
+      "release_checks_passed": 117,
+      "release_seconds": 27.63,
+      "debug_checks_passed": 117,
+      "debug_status": "passed",
+      "debug_seconds": 33.35
+    },
+    "live_starting_town_reached": true,
+    "broader_gameplay_routes_verified": false,
+    "whole_job_concurrent_scheduling_proven": false,
+    "performance_status": "Supported whole-job C++ execution is near the compiled path in these two views; no FPS improvement established.",
+    "fps_gain_measured": false,
+    "desktop_executable_changed": false,
+    "arm_execution_verified": false,
+    "quiet_two_view_comparison": {
+      "date": "2026-10-20",
+      "renderer": "DirectX 12",
+      "sdk_patches": 126,
+      "executable_sha256": "e54d2a4ab273e0ffc4d0046c030337512195189cf92b63ec4f0084155de10d6f",
+      "cap": 30,
+      "native_probe": "20261020-144524",
+      "compiled_probe": "20261020-144807",
+      "conditions": {
+        "same_executable_and_save": true,
+        "same_render_settings": true,
+        "native_job_toggle_only": true,
+        "hidden": true,
+        "muted": true,
+        "isolated_save": true,
+        "fps_overlay": true,
+        "player_log_suppression": true,
+        "sampling_profiler": false,
+        "native_job_diagnostics": false,
+        "strict_fallback_guard": true,
+        "captures_outside_timing_only": true,
+        "rendered_scene_confirmed_before_timing": true
+      },
+      "static_views": [
+        {
+          "view": "logic_stone",
+          "native_fps": 29.914157367479348,
+          "compiled_fps": 29.9962844601668,
+          "native_cpu_ms_per_present": 127.13266016713092,
+          "compiled_cpu_ms_per_present": 139.71354166666666,
+          "native_seconds": 12.001006599981338,
+          "compiled_seconds": 12.001486400025897
+        },
+        {
+          "view": "turned_entrance_view",
+          "native_fps": 19.745981199225092,
+          "compiled_fps": 20.580941656362796,
+          "native_cpu_ms_per_present": 182.35759493670886,
+          "compiled_cpu_ms_per_present": 188.19585020242914,
+          "native_seconds": 12.002442299970426,
+          "compiled_seconds": 12.001394500024617
+        }
+      ],
+      "conclusion": "Supported whole-job C++ execution is near the compiled path in these two views; no FPS improvement established.",
+      "movement_segments_excluded_from_performance_conclusion": true,
+      "movement_limit": "The timed stick route reaches the Balastor Plain exit prompt. Its input segments mix movement and menu time, so they are not a walking or NPC-heavy traversal benchmark.",
+      "limits": [
+        "One run per mode; no confidence interval.",
+        "NPC timing and camera endpoints may differ despite matching timed input.",
+        "The turned view is at the entrance/bridge; this is not the requested NPC-heavy main-road comparison.",
+        "Read-only polling estimates frame cadence; still images show instantaneous overlay values.",
+        "Other layouts still decline to generated jobs; no full-image or full-game parity claim."
+      ]
+    },
+    "live_native_completion_lower_bound": 131072,
+    "live_native_completion_probe": "20261020-143840",
+    "completion_probe_conditions": "Separate logging-on strict saved-town CPU profile; diagnostic census enabled. This is not the quiet speed run.",
+    "live_fatal_errors_logged": 0
   }
 }

@@ -2,8 +2,9 @@
 
 Updated 2026-10-20. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 123 SDK patches / 113 Windows checks in Debug and
-Release. The native System menu now has Graphics Settings, Off/FXAA and a
+**Current source checkpoint:** 126 SDK patches / 117 Windows checks in normal Debug
+and optimized Release. The native System menu now has
+Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
 without accelerating the sampled game clock. Rendering fidelity and lag remain open.
@@ -17,12 +18,18 @@ logging, profiler and visibility conditions; they are not interchangeable.
 Readable C++ now executes the complete supported image-19 skinning routine,
 including setup, matrix blending, position/normal outputs and pipeline drain.
 Complete-state comparisons and sampled strict DirectX/Vulkan town-to-plains
-routes pass. The owned-buffer geometry pipeline now connects to native allocation,
-export and command construction in offline comparisons of all 32 recorded jobs.
-It is not yet enabled as a complete live job replacement. These interfaces and their bounded
-evidence are recorded in [native work](NATIVE_CODE.md). Whole jobs, DMA and
-scheduling remain open. No complete SPU image has been replaced and no FPS
-improvement is claimed. Desktop
+routes pass. The public source now connects the supported whole image-19 job
+through owned input construction, native allocation, coherent transfers and
+command publication with `WKC_NATIVE_GEOMETRY_JOB=1`. Default launches leave its
+hooks unregistered. All 32 original-input jobs match byte for byte through the
+actual SDK native CAS, VM and PUT callbacks; live execution reaches town.
+Unsupported layouts decline before native external effects. SDK math helpers,
+broader layout/gameplay coverage and complete scheduling validation remain.
+The quiet same-executable comparison is near the compiled path in two stationary
+town views, with no FPS gain established. Walking and NPC-heavy comparisons
+remain open. These interfaces and their bounded evidence are recorded in
+[native work](NATIVE_CODE.md#opt-in-live-geometry-job). No complete SPU image,
+FPS improvement or new desktop installation is claimed. Desktop
 clean-play mode also removes inherited diagnostics, and patch 0119 disables the
 previously unconditional DirectX benchmark recorder unless explicitly requested.
 
@@ -3632,6 +3639,37 @@ recorded jobs' geometry transfers, command packets and shared allocator outputs.
 Preparation consumes original descriptor/source bytes; delayed operations retain
 their owned sources. Standalone tests and both complete Windows suites pass.
 The final-publication architectural fence is now covered by 54 comparisons with
-the original routine. The live memory/scheduler bridge, including a lease shared
-with fallback jobs, remains incomplete; no complete live job/image or speed gain
-is claimed. See [interfaces and evidence](NATIVE_CODE.md#typed-input-and-job-coordinator).
+the original routine. These are the offline ownership results preceding the
+live bridge below. See [interfaces and evidence](NATIVE_CODE.md#typed-input-and-job-coordinator).
+
+## Opt-in live whole geometry job
+
+The public runtime now connects the complete supported image-19 job in `main`,
+from original descriptor/source acquisition through owned C++ preparation,
+native allocation, coherent payload transfers and final fenced publication.
+`WKC_NATIVE_GEOMETRY_JOB=1` enables it; default launches leave its hooks
+unregistered. Sampled diagnostics require the separate
+`WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1` switch. Unknown constructor/layout domains
+decline before native external effects, while failures after effects stop before
+chain continuation. SDK arithmetic and reciprocal policies remain dependencies.
+
+All 32 original-input replays match byte for byte through actual SDK native CAS,
+guest VM and PUT callbacks. The live route reaches the rendered starting town.
+SDK patches 0124–0126 supply original-input dispatch/scopes, native atomic
+receipts and a shared mapping-lifetime epoch. The port leases virtual slot zero
+across native and fallback image-19 calls and chains renderer PUT notifications.
+These mechanisms have regression coverage; broader gameplay scheduling and
+arbitrary concurrent mapping changes are not proven.
+
+Both complete suites pass 117/117 checks: normal Debug in 33.35 seconds and
+optimized Release in 27.63 seconds. Quiet same-executable DirectX runs measure
+29.914 versus 29.996 FPS at the Logic Stone and 19.746 versus 20.581 FPS in the
+turned entrance view (native versus compiled). These are near parity, with no
+FPS gain established. Earlier instrumented regressions had debug logging enabled
+and `WriteFile` hot. Timed movement segments reach the Leave area prompt and mix
+movement with menu time; they are excluded from walking-performance claims.
+NPC-heavy main-road traversal and area-transition coverage remain unverified.
+No new desktop installation is claimed. Full image
+replacement, broader constructor/layout coverage, NPC-heavy routes, transitions,
+cutscenes and remaining SPU jobs remain open. See the
+[runtime evidence and limits](NATIVE_CODE.md#opt-in-live-geometry-job).

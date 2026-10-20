@@ -4,6 +4,37 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_cpp_whole_job_town",
+      "date": "2026-10-20",
+      "image": "screenshots/2026-10-20-native-cpp-whole-job-town.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "DirectX 12 live draw renderer",
+      "source_format": "Unmodified final swap-chain GPU readback with in-game counter",
+      "source_sha256": "1dff1afdc3f3603c6df01aba2e943d5dac9fd1a9c186374925d7b791796882fb",
+      "png_sha256": "fe44ba64a028cfddef2adeae24a3e5e657313d068bd6fcf09e69b6eb489fe0de",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IHDR",
+        "IDAT",
+        "IEND"
+      ],
+      "native_probe": "20261020-144524",
+      "native_readback": "frame_001650.ppm",
+      "native_executable_sha256": "e54d2a4ab273e0ffc4d0046c030337512195189cf92b63ec4f0084155de10d6f",
+      "sdk_patch_count_in_captured_run": 126,
+      "spu_image_inputs": 24,
+      "frame_limit": 30,
+      "fps_counter": true,
+      "vsync": false,
+      "capture_only_backend_instrumentation": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false,
+      "performance_proven_by_still_image": false,
+      "capture_scope": "DirectX town after loading the saved game, with supported whole geometry jobs handled by the opt-in C++ runtime. 30 FPS cap, FPS overlay, isolated save, hidden/muted, normal log suppression. This manually armed readback is outside the measured intervals. Other layouts/images still use generated code. The still does not prove performance or scheduling coverage."
+    },
+    {
       "milestone": "native_cpp_skinning_stream",
       "date": "2026-10-20",
       "image": "screenshots/2026-10-20-native-cpp-skinning-stream.png",
