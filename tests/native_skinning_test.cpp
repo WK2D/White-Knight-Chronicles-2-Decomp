@@ -13,6 +13,7 @@
 
 using namespace wkc::geometry;
 int wkc2_test_native_skinning_stream();
+int wkc2_test_native_vertex_decode();
 static CyclicAffine cyclic(const float matrix[3][4]) {
     return {Float4{matrix[0][0],matrix[1][1],matrix[2][2],matrix[0][3]},
             Float4{matrix[0][1],matrix[1][2],matrix[2][0],matrix[1][3]},
@@ -21,6 +22,7 @@ static CyclicAffine cyclic(const float matrix[3][4]) {
 
 int wkc2_test_native_skinning() {
     assert(wkc2_test_native_skinning_stream()==0);
+    assert(wkc2_test_native_vertex_decode()==0);
     assert(!wkc_native_skin_stream(nullptr));
     // Malformed ABI controls must not change a register, LS byte or sidecar.
     // Begin with a structurally supported stream, then reject one condition.

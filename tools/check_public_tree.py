@@ -14,6 +14,7 @@ def git(*args):
     return subprocess.check_output(['git', '-C', str(root), *args])
 
 root_files = {
+    'native_vertex_decode.h',
     'native_skinning_stream.h',
     'native_skinning_stream_bridge.cpp',
     '.gitignore', '.gitattributes', 'README.md', 'LICENSE', 'LICENSE.ps3recomp', 'CMakeLists.txt', 'app.rc',

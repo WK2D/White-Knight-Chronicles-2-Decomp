@@ -14,15 +14,14 @@ physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
-Readable C++ now handles matrix blending and a complete supported post-blend
-boundary in one image-19 block: positions, cofactors, first normal products,
-ordered local-store output and next-batch preparation. Nonfinite host/audit inputs
-retain the compiled C tail; exact-SPU mode has no value guard. Complete-state replay and fuzz comparisons, plus strict
-DirectX/Vulkan town-to-plains routes, are recorded in [native work](NATIVE_CODE.md).
-The final two normal-output batches now have a separate readable C++ path,
-validated with 32 captured contexts and 96,000 differential cases across all
-three float modes. This is partial semantic recovery; no complete SPU image has
-been replaced and no FPS improvement is claimed. Desktop
+Readable C++ now executes the complete supported image-19 skinning routine,
+including setup, matrix blending, position/normal outputs and pipeline drain.
+Complete-state comparisons and sampled strict DirectX/Vulkan town-to-plains
+routes pass. A separate owned-buffer packed vertex decoder is verified offline;
+it is not yet integrated in the game. These interfaces and their bounded
+evidence are recorded in [native work](NATIVE_CODE.md). Whole jobs, DMA and
+scheduling remain open. No complete SPU image has been replaced and no FPS
+improvement is claimed. Desktop
 clean-play mode also removes inherited diagnostics, and patch 0119 disables the
 previously unconditional DirectX benchmark recorder unless explicitly requested.
 
@@ -41,6 +40,7 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 
 - [Readable whole skinning stream](NATIVE_CODE.md#readable-whole-skinning-stream)
 - [Whole geometry job boundary](NATIVE_CODE.md#whole-geometry-job-boundary)
+- [Owned-buffer packed vertex decoder](NATIVE_CODE.md#packed-vertex-decoding-in-owned-buffers)
 - [NPC cadence and rejected host FMA](#npc-cadence-and-rejected-host-fma)
 - [Remaining fork candidates and mutex measurement](#remaining-fork-candidates-and-mutex-measurement)
 - [PPU register-local validation follow-up](#ppu-register-local-validation-follow-up)
@@ -3484,3 +3484,19 @@ This is recorded-input replay, with external read receipts supplied at their
 recorded events. It is not a whole-job replacement or concurrency proof. The
 observed shared allocator and fenced output publication remain requirements for
 any parallel implementation. See [method, counts and limits](NATIVE_CODE.md#whole-geometry-job-boundary).
+
+## Packed vertex decoder recovery
+
+The geometry job's input decoder now has readable C++ operating on stable byte
+spans and owned position/direction buffers. All 32 recorded stage calls match:
+11,584 position vectors and 16,352 direction vectors. Another 6,144 randomized
+comparisons cover packed bytes, full-width position biases, host/exact/audit
+arithmetic and the rounding/FTZ/DAZ matrix, with zero output mismatches. Sequences
+repeat across arithmetic settings. Output-bit corruption controls fail as
+expected; public byte-wiring, direction-property, x86 FMA and bounds regressions
+pass in both 113-check Windows suites.
+
+This is an offline decoded-stream implementation, not a live replacement of the
+input stage or the whole job. The captured parameter layouts are retained, ARM
+execution is untested, and no game speed gain has been measured. The desktop
+executable is unchanged. See [formats, policies and limits](NATIVE_CODE.md#packed-vertex-decoding-in-owned-buffers).

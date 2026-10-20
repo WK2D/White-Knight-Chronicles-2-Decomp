@@ -492,3 +492,57 @@ skinning call: those copies belong to opt-in verification. The native routine's
 the old loop. Neither fact is an FPS measurement. This research leaves the
 desktop executable unchanged; no CPU/FPS gain or complete SPU-image replacement
 is claimed.
+
+## Packed vertex decoding in owned buffers
+
+The input side of the whole geometry job now has a project-written portable
+C++ decoder in [`native_vertex_decode.h`](../native_vertex_decode.h). It accepts
+a byte span, vertex count, format and three signed position biases, and writes
+owned host position/direction arrays. There are no guest registers, local-store
+addresses or DMA calls in the core. **This decoder is tested offline and is not
+yet used by the desktop game.**
+
+The two recovered layouts use nine or twelve bytes per vertex: three big-endian
+unsigned 16-bit positions followed by one or two 24-bit directions. Positions add
+the bias with 32-bit wraparound and convert from twelve fractional bits. Each
+direction packs two ten-bit components, an axis selector, a reconstructed-component
+sign and handedness. The decoder preserves the recovered fused and separately
+rounded arithmetic steps. Its reciprocal and position-conversion policies are
+explicit: substituting an ordinary square root is not a bitwise-equivalent policy.
+Callers must disable implicit floating-point contraction; the regression build
+does so. No optimized ARM execution has been checked yet.
+
+The consumed input stays stable while decoding. Requested output spans must be
+large enough, and consumed/written ranges must be disjoint; unsupported formats, short
+buffers and overlap decline before any write. Empty direction spans suppress
+unrequested outputs. This interface reconstructs decoded streams, not the old
+routine's scratch/register side effects. Additional formats and parameter layouts
+remain to be recovered.
+
+Private differential tests compare the actual public decoder with the unhooked
+compiled input stage from the whole-job captures. They retain the existing
+host/exact/audit arithmetic helpers as policies for this comparison.
+
+| Dataset | Decoder calls | Position vectors | Direction vectors | Mismatches |
+| --- | ---: | ---: | ---: | ---: |
+| Original 32 recorded stage calls | 32 | 11,584 | 16,352 | 0 |
+| Random packed bytes and full-width biases, three arithmetic modes | 3,072 | 1,703,424 | 3,139,584 | 0 |
+| Four rounding modes × four FTZ/DAZ settings × three arithmetic modes | 3,072 | 1,703,424 | 3,139,584 | 0 |
+
+Random sequences repeat across arithmetic modes/settings. These are bounded
+comparisons over the captured counts/layouts and selected output streams, not
+6,144 distinct interfaces or complete input coverage. The recorded parameter
+layout is retained while packed bytes and position biases vary. Deliberately
+changing one output bit is rejected in both the position-only and direction
+capture sets.
+
+Public tests extend `wkc2_native_skinning` with 32,576 independent direction
+property checks, 32,000 scalar/x86 FMA comparisons, distinct vertex/stream byte
+wiring, zero/short/tail cases, wrapped biases and reject-before-write controls.
+Both Windows suites pass all 113 checks. The decoder adds no new SDK patch.
+
+The next stages still need owned-buffer implementations and complete-job output
+comparison, including shared allocation, DMA ordering and publication. No whole
+job/image replacement, live decoder integration, scheduling proof or performance
+gain is claimed by these tests. The player executable, saves and preferences are
+unchanged, and generated reference code and raw fixtures remain private.

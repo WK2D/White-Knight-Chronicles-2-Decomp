@@ -4556,5 +4556,72 @@
       "Broaden input categories, scenes, cutscenes, NPC-heavy traversal and concurrency/interleaving coverage.",
       "Measure CPU/performance separately with diagnostic capture and replay disabled."
     ]
+  },
+  "native_packed_vertex_decoder": {
+    "date": "2026-10-20",
+    "image_id": 19,
+    "public_core": "native_vertex_decode.h",
+    "entry": "0x3608",
+    "format_callback": "0x0760",
+    "status": "Offline owned-buffer stream decoder; not integrated in the live game",
+    "formats": [
+      32,
+      33
+    ],
+    "bytes_per_vertex": [
+      9,
+      12
+    ],
+    "inputs": "Stable big-endian byte span, count, three signed position biases; captured parameter layouts only.",
+    "outputs": "Owned Float4 position and optional direction spans; consumed input/written ranges must be disjoint. Structural rejects occur before writes.",
+    "arithmetic_policies": "Private differential harness uses existing host/exact/audit arithmetic, reciprocal/refinement and fixed-point conversion helpers. Default host policy alone is not an exact-SPU specification.",
+    "recorded_stage_calls": {
+      "calls": 32,
+      "positions": 11584,
+      "directions": 16352,
+      "failpos": 0,
+      "faildir": 0
+    },
+    "randomized_three_arithmetic_modes": {
+      "calls": 3072,
+      "positions": 1703424,
+      "directions": 3139584,
+      "failpos": 0,
+      "faildir": 0
+    },
+    "rounding_flush_arithmetic_matrix": {
+      "calls": 3072,
+      "positions": 1703424,
+      "directions": 3139584,
+      "failpos": 0,
+      "faildir": 0
+    },
+    "sequence_scope": "Same random sequence reused across modes/settings; captured counts, formats, parameter layout and output selection retained. Not exhaustive or 6144 unique interfaces.",
+    "public_regression": {
+      "existing_check_extended": "wkc2_native_skinning",
+      "direction_property_checks": 32576,
+      "scalar_x86_fma_comparisons": 32000,
+      "distinct_vertex_stream_byte_wiring": true,
+      "short_zero_tail_wrap_and_alias_controls": true,
+      "implicit_fp_contraction_disabled": true,
+      "debug_windows_checks_passed": 113,
+      "release_windows_checks_passed": 113,
+      "sdk_patches": 122
+    },
+    "output_bit_corruption_controls_rejected": true,
+    "complete_stage_register_scratch_abi_replaced": false,
+    "whole_job_replaced": false,
+    "full_spu_image_replaced": false,
+    "asynchronous_scheduling_equivalence_proven": false,
+    "live_decoder_integration_verified": false,
+    "arm_execution_verified": false,
+    "fps_gain_measured": false,
+    "desktop_executable_changed": false,
+    "remaining": [
+      "Recover the remaining complete-job stages in owned buffers and the supported parameter/format variants.",
+      "Validate complete externally visible outputs, shared allocator, DMA ordering, lifetimes and concurrent scheduling.",
+      "Integrate only after comparison with the whole-job reference; broaden real scene and cutscene coverage.",
+      "Measure CPU and speed separately with verification/capture disabled."
+    ]
   }
 }
