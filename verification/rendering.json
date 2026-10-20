@@ -439,8 +439,8 @@
     "last_verified_sdk_patch_count": 121,
     "current_passed_count": 113,
     "record_scope": "121 SDK patches / 113 Windows checks pass in Debug and Release, including media without skips, native batch guards and 68,372 alpha-reference decoder cases.",
-    "normal_debug_elapsed_seconds": 29.85,
-    "optimized_release_elapsed_seconds": 26.35,
+    "normal_debug_elapsed_seconds": 26.9,
+    "optimized_release_elapsed_seconds": 22.21,
     "repeat_patch_application_files_changed": 0,
     "repeat_patch_application_verified_sdk_patch_count": 121
   },
@@ -3807,6 +3807,158 @@
           "performance_benchmark": false
         }
       ]
+    },
+    "host_fma_trial": {
+      "date": "2026-10-20",
+      "probe": "20261020-025524",
+      "renderer": "DirectX 12",
+      "frame_limit": 30,
+      "candidate_executable_sha256": "1d8129d348737791399b93adf2b3295a68855a8fda7284b800b67daecb39b1da",
+      "runtime_change_integrated": false,
+      "decision": "Withdrawn: no consistent street gain and all SIMD walking windows slower than scalar walking windows.",
+      "tested_policy": "Finite-input x86 FMA in host mode only; exact/audit and exceptional inputs retained SDK/compiled compatibility paths.",
+      "public_test_extension": {
+        "wide_finite_bit_pattern_cases": 50000,
+        "bitwise_comparison": true,
+        "includes_nonfinite_intermediates": true
+      },
+      "prototype_validation": {
+        "full_state_fuzz_cases": 40000,
+        "complete_captured_contexts_matched": 72,
+        "native_finish_accepts": 71,
+        "compiled_tail_accepts": 1
+      },
+      "mode_order": [
+        "scalar",
+        "simd",
+        "simd",
+        "scalar",
+        "scalar",
+        "simd"
+      ],
+      "window_seconds": 12,
+      "warmup_between_modes_seconds": 2,
+      "hidden": true,
+      "muted": true,
+      "isolated_save": true,
+      "strict_fallback_guard": true,
+      "interpreter_sessions": 0,
+      "microstep_sessions": 0,
+      "sampling_profiler_during_timing": false,
+      "automatic_gpu_snapshots": false,
+      "diagnostic_logs": false,
+      "counter_scope": "Renderer presentation counter, not unique animation or gameplay update rate. NPC animation and scene time vary between windows; not a deterministic benchmark.",
+      "windows": [
+        {
+          "label": "street-1-scalar",
+          "seconds": 12.000327099987771,
+          "renderer_frame_counter_delta": 152,
+          "renderer_frames_per_second": 12.66632140386864,
+          "cpu_ms_per_renderer_frame": 296.56661184210526,
+          "observed_interval_p95_ms": 88.6865999782458,
+          "captures_during_window": 0
+        },
+        {
+          "label": "street-2-simd",
+          "seconds": 12.004570999997668,
+          "renderer_frame_counter_delta": 120,
+          "renderer_frames_per_second": 9.996192283757855,
+          "cpu_ms_per_renderer_frame": 375.78125,
+          "observed_interval_p95_ms": 110.22930004401132,
+          "captures_during_window": 0
+        },
+        {
+          "label": "street-3-simd",
+          "seconds": 12.000284100009594,
+          "renderer_frame_counter_delta": 124,
+          "renderer_frames_per_second": 10.33308869745016,
+          "cpu_ms_per_renderer_frame": 363.40725806451616,
+          "observed_interval_p95_ms": 104.38460001023486,
+          "captures_during_window": 0
+        },
+        {
+          "label": "street-4-scalar",
+          "seconds": 12.000525899988133,
+          "renderer_frame_counter_delta": 148,
+          "renderer_frames_per_second": 12.332792848698935,
+          "cpu_ms_per_renderer_frame": 312.9222972972973,
+          "observed_interval_p95_ms": 102.96629997901618,
+          "captures_during_window": 0
+        },
+        {
+          "label": "street-5-scalar",
+          "seconds": 12.001183199987281,
+          "renderer_frame_counter_delta": 146,
+          "renderer_frames_per_second": 12.165467151618412,
+          "cpu_ms_per_renderer_frame": 314.7474315068493,
+          "observed_interval_p95_ms": 103.05969999171793,
+          "captures_during_window": 0
+        },
+        {
+          "label": "street-6-simd",
+          "seconds": 12.000971999950707,
+          "renderer_frame_counter_delta": 152,
+          "renderer_frames_per_second": 12.665640749817959,
+          "cpu_ms_per_renderer_frame": 292.3519736842105,
+          "observed_interval_p95_ms": 87.66030002152547,
+          "captures_during_window": 0
+        },
+        {
+          "label": "after-walk-1-scalar",
+          "seconds": 12.00291780004045,
+          "renderer_frame_counter_delta": 102,
+          "renderer_frames_per_second": 8.497933727385542,
+          "cpu_ms_per_renderer_frame": 425.09191176470586,
+          "observed_interval_p95_ms": 121.22679996537045,
+          "captures_during_window": 0
+        },
+        {
+          "label": "after-walk-2-simd",
+          "seconds": 12.001216800010297,
+          "renderer_frame_counter_delta": 95,
+          "renderer_frames_per_second": 7.9158639980504715,
+          "cpu_ms_per_renderer_frame": 450.0,
+          "observed_interval_p95_ms": 142.8414999973029,
+          "captures_during_window": 0
+        },
+        {
+          "label": "after-walk-3-simd",
+          "seconds": 12.002593100012746,
+          "renderer_frame_counter_delta": 97,
+          "renderer_frames_per_second": 8.08158696972715,
+          "cpu_ms_per_renderer_frame": 447.16494845360825,
+          "observed_interval_p95_ms": 137.4027999700047,
+          "captures_during_window": 0
+        },
+        {
+          "label": "after-walk-4-scalar",
+          "seconds": 12.001816599979065,
+          "renderer_frame_counter_delta": 104,
+          "renderer_frames_per_second": 8.665354876376082,
+          "cpu_ms_per_renderer_frame": 430.4387019230769,
+          "observed_interval_p95_ms": 120.74630003189668,
+          "captures_during_window": 0
+        },
+        {
+          "label": "after-walk-5-scalar",
+          "seconds": 12.00144399999408,
+          "renderer_frame_counter_delta": 101,
+          "renderer_frames_per_second": 8.415653982974867,
+          "cpu_ms_per_renderer_frame": 432.240099009901,
+          "observed_interval_p95_ms": 131.37030001962557,
+          "captures_during_window": 0
+        },
+        {
+          "label": "after-walk-6-simd",
+          "seconds": 12.002296899969224,
+          "renderer_frame_counter_delta": 89,
+          "renderer_frames_per_second": 7.415247326553654,
+          "cpu_ms_per_renderer_frame": 475.2457865168539,
+          "observed_interval_p95_ms": 138.8234999612905,
+          "captures_during_window": 0
+        }
+      ],
+      "desktop_replaced": false
     }
   },
   "desktop_clean_play": {
@@ -3990,5 +4142,49 @@
     "screenshot_pixels_modified": false,
     "optional_screenshot_metadata": false,
     "scope": "Hidden, muted, isolated save copies. Actual plains transitions, walking and camera rotation inspected on each renderer. Trace and automatic GPU snapshots enabled; no performance comparison."
+  },
+  "npc_cadence_audit": {
+    "date": "2026-10-20",
+    "probe": "20261020-023115",
+    "sdk_patches": 121,
+    "renderer": "DirectX 12",
+    "frame_limit": 30,
+    "hidden": true,
+    "muted": true,
+    "isolated_save": true,
+    "strict_fallback_guard": true,
+    "interpreter_sessions": 0,
+    "microstep_sessions": 0,
+    "sampling_profiler_during_timing": false,
+    "automatic_gpu_snapshots": false,
+    "diagnostic_logs": false,
+    "measurements": [
+      {
+        "label": "stone-view",
+        "seconds": 12.004587699950207,
+        "renderer_frame_counter_delta": 359,
+        "renderer_frames_per_second": 29.90523364675732,
+        "cpu_ms_per_renderer_frame": 131.3109331476323,
+        "captures_during_window": 0
+      },
+      {
+        "label": "street-view",
+        "seconds": 12.004737499984913,
+        "renderer_frame_counter_delta": 144,
+        "renderer_frames_per_second": 11.995264369602499,
+        "cpu_ms_per_renderer_frame": 316.94878472222223,
+        "captures_during_window": 0
+      },
+      {
+        "label": "after-walk",
+        "seconds": 12.000797600019723,
+        "renderer_frame_counter_delta": 97,
+        "renderer_frames_per_second": 8.082796096806147,
+        "cpu_ms_per_renderer_frame": 454.57474226804123,
+        "captures_during_window": 0
+      }
+    ],
+    "scope": "Different camera/position windows after Continue, not an NPC-only causal experiment. No captures during timing. Presentation rate is not unique animation speed.",
+    "separate_cpu_evidence": "Image-19 geometry worker executes compiled and native work and waits in spu_rdch. Another PPU worker samples in sys_timer_usleep yield/QPC polling. Renderer samples include a fence wait in ld_flush. Separate 480 offline-unwound stack snapshots suspend threads for at most 246 microseconds; these samples are not timed-window whole-frame percentages."
   }
 }

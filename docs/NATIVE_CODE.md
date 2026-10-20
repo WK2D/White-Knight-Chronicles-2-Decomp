@@ -94,6 +94,9 @@ Validation on Windows x86-64:
   compiled tail. These totals include compatibility cases, not 40,000 native accepts.
 - The portable arithmetic test checks 32,000 finite cases against a lane oracle.
   A further 32,000 finite cases match the optional x86 FMA policy bit for bit.
+  Another 50,000 wide finite bit-pattern cases check blend and complete geometry
+  stages, including overflow, subnormals and nonfinite intermediates, with no
+  NaN-payload or signed-zero tolerance.
   Live execution keeps SDK float helpers to preserve host/exact/audit semantics;
   the finite host-FMA test does not establish exceptional-value SPU equivalence.
 - The portable cofactor operation matches all 768 matrix vectors from the
@@ -162,7 +165,9 @@ and performance remain open.
    compiled references. Recover later normal accumulation/output packing and
    establish whole-job boundaries. Preserve SPU float
    behavior, byte order, alignment, aliasing, DMA visibility and job ordering.
-   The older profile is a lead; a current NPC-heavy profile must confirm priority.
+   The refreshed town profile below confirms work on this geometry worker,
+   alongside channel waits, PPU polling and renderer waits; it does not establish
+   that the recovered arithmetic determines the whole frame.
 4. **Optimize validated kernels.** Use portable scalar C++ as the specification,
    with tested x86 SIMD and future ARM/NEON implementations where useful. SIMD
    must preserve required SPU rounding, denormal, saturation and fused-operation
@@ -216,5 +221,52 @@ loop. Native instructions confirm the two-call deadline loop. This is active
 polling overhead, not evidence of SPU arithmetic time or an NPC-spawn cause.
 Other samples include guest-memory helpers and renderer conversion/texture work.
 DLL-side caller attribution uses a stack scan and is approximate. A controlled
-NPC-heavy town profile and matched timing comparison remain required before
-choosing a performance fix or assigning whole-frame percentages.
+NPC-heavy town profile was subsequently collected as described below. The
+older stack scan is not used for the new offline-unwound caller evidence.
+
+## NPC-facing cadence and rejected host-FMA trial
+
+The 121-patch DirectX run `20261020-023115` loads the current save privately at
+the 30 FPS limit. Three separate 12-second windows count renderer presentations:
+
+| View | Presentations/s | Process CPU ms/presentation |
+| --- | ---: | ---: |
+| Facing the Logic Stone | 29.91 | 131.31 |
+| Camera facing the street | 12.00 | 316.95 |
+| After walking into the main road | 8.08 | 454.57 |
+
+The window is hidden, audio is muted and the save is copied. Sampling, tracing,
+diagnostic logs and automatic GPU snapshots are disabled during timing; the
+capture counter confirms no readback in any window. The strict fallback guard
+stays enabled and the interpreter/microstep census remains zero. Camera,
+position and scene time change, so this is not proof that NPC spawning alone
+causes the slowdown. These counters do not measure unique animation updates.
+
+A separate CPU sample identifies image-19 geometry work on the active SPU worker,
+including the recovered C++ functions and compiled routines. Offline unwinding
+of 480 stack snapshots also identifies channel waits in `spu_rdch`, a PPU worker
+in `sys_timer_usleep` yield/QPC polling, and renderer fence waits in `ld_flush`.
+Maximum thread suspension was 246 microseconds; unwinding happened after resume.
+These separate profiles are not whole-frame percentages or performance windows.
+
+An experimental bridge selected x86 vector FMA for finite host-mode inputs,
+retaining SDK exact/audit and exceptional-value behavior. It passed all 72
+captured full-state comparisons and both 20,000-case differential fuzz runs.
+Correctness did not translate into a measured speed improvement. Private run
+`20261020-025524` switches the arithmetic policy in the same process, without
+moving the camera between modes within either view. Six 12-second windows per
+view use scalar/SIMD/SIMD/scalar/scalar/SIMD order, with two seconds to settle:
+
+| View | Scalar presentations/s | SIMD presentations/s |
+| --- | --- | --- |
+| Street | 12.67, 12.33, 12.17 | 10.00, 10.33, 12.67 |
+| After walking | 8.50, 8.67, 8.42 | 7.92, 8.08, 7.42 |
+
+Scene time and NPC animation still vary; these are bounded live comparisons,
+not deterministic replays. No GPU snapshots, diagnostic logging or sampling
+occur in the timed windows. The strict census stays empty. The runtime change
+was withdrawn before publication and was never installed in the desktop build.
+The additional 50,000-case arithmetic regression remains. Both complete Windows
+suites pass all 113 checks without media skips: Debug 26.90 seconds, Release
+22.21 seconds. Town performance, later normal processing and whole-job ownership
+remain open; the next optimization needs evidence from the critical path.

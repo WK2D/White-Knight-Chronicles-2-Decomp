@@ -36,6 +36,7 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 
 **Performance, timing and presentation**
 
+- [NPC cadence and rejected host FMA](#npc-cadence-and-rejected-host-fma)
 - [Remaining fork candidates and mutex measurement](#remaining-fork-candidates-and-mutex-measurement)
 - [PPU register-local validation follow-up](#ppu-register-local-validation-follow-up)
 - [Host-layout SPU shuffle and unlocked headroom](#host-layout-spu-byte-shuffle-and-unlocked-headroom-patch-0104)
@@ -3398,3 +3399,23 @@ secondary-bone strips removed in inspected views. The 70-patch idle run exposes 
 ten-minute idle test does not reproduce its accumulating SPU workers. Full rendering
 fidelity, broader gameplay, wider save compatibility and imports needed on untested
 paths remain unverified. Starting-town local save/reload was verified at patch 0075 and used again for patch 0076.
+
+## NPC cadence and rejected host FMA
+
+A fresh 121-patch DirectX audit reproduces severe town slowdown at the 30 FPS
+limit. Separate saved-scene windows record 29.91 renderer presentations/s facing
+the Logic Stone, 12.00 facing the street, and 8.08 after walking into the main
+road. No captures, sampling profiler or diagnostic logs run in those windows.
+The strict interpreter/microstep census remains zero. Changing the camera and
+position does not isolate NPC spawning as the sole cause, and presentations are
+not a measurement of unique gameplay updates.
+
+The geometry worker performs both native C++ and compiled image-19 work and also
+waits on SPU channels. Separate offline-unwound stacks identify PPU timer polling
+and renderer fence waits. Those profiles are leads, not whole-frame percentages.
+A finite-input host-FMA bridge passes full-state comparisons but fails to improve
+the live comparison: walking scalar windows record 8.42–8.67 presentations/s,
+versus 7.42–8.08 with SIMD. It was withdrawn and never installed on the desktop.
+Only the additional 50,000 wide finite bit-pattern regression cases are retained.
+See the [native-code measurement and limits](NATIVE_CODE.md#npc-facing-cadence-and-rejected-host-fma-trial)
+for all windows, mode order, validation and remaining work. No town FPS fix is claimed.

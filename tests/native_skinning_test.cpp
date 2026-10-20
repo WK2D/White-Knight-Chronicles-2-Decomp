@@ -101,6 +101,25 @@ int wkc2_test_native_skinning() {
 #endif
     }
 
+#ifdef WKC_NATIVE_SKINNING_HOST_FMA
+    // Wide finite bit patterns cover subnormals, overflow and cancellation,
+    // including nonfinite intermediates produced from finite inputs. Compare
+    // every output bit; do not mask NaN payload or signed-zero differences.
+    for(unsigned trial=0;trial<50000;++trial) {
+        auto wide=[&] {unsigned bits=random();if((bits&0x7f800000u)==0x7f800000u)bits^=0x00800000u;float v;std::memcpy(&v,&bits,4);return v;};
+        for(auto& value:vertex.position)value=wide();
+        for(auto& value:vertex.weights)value=wide();
+        for(auto& matrix:vertex.influences)for(auto& phase:matrix)for(auto& value:phase)value=wide();
+        const auto scalar=blend_skin_matrix(vertex.weights,vertex.influences);
+        const auto vector=blend_skin_matrix<HostFmaMath>(vertex.weights,vertex.influences);
+        assert(!std::memcmp(&scalar,&vector,sizeof scalar));
+        const Float4 normal{wide(),wide(),wide(),wide()};
+        const auto geometry=prepare_skin_geometry(vertex.influences[0],vertex.position,normal);
+        const auto vector_geometry=prepare_skin_geometry<HostFmaMath>(vertex.influences[0],vertex.position,normal);
+        assert(!std::memcmp(&geometry,&vector_geometry,sizeof geometry));
+    }
+#endif
+
     auto ctx=std::make_unique<spu_context>();spu_context_init(ctx.get(),0);ctx->image_id=19;
     auto before=std::make_unique<spu_context>();
     // Unknown mask/image/null inputs must reject without changing any state.
