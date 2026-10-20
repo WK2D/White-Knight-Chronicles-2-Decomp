@@ -2750,55 +2750,58 @@
     "interface": "Owned packed input vectors, typed influences/palette/transforms/flags and explicit arithmetic policies in; owned intermediate vectors, filtered logical indices, packed logical vertices and transfer-size plan out. Input remains unchanged; output commits only on complete logical success.",
     "captured_host_composition": {
       "examined": 32,
-      "admitted": 8,
-      "position_only_jobs": 3,
-      "normal_tangent_jobs": 5,
-      "unsupported_input_backing_jobs": 24,
-      "passed": 8,
+      "admitted": 32,
+      "position_only_jobs": 16,
+      "normal_tangent_jobs": 16,
+      "unsupported_input_backing_jobs": 0,
+      "passed": 32,
       "pipeline_declines_after_admission": 0,
-      "positions": 5576,
-      "directions": 10928,
-      "prepared_palette_matrices": 120,
-      "projected_records": 5576,
-      "decoded_indices": 8598,
-      "filtered_indices": 3327,
-      "packed_vertex_bytes": 132928,
+      "positions": 11584,
+      "directions": 16352,
+      "prepared_palette_matrices": 292,
+      "projected_records": 11584,
+      "decoded_indices": 20220,
+      "filtered_indices": 9618,
+      "packed_vertex_bytes": 241728,
       "mismatches": 0,
       "same_packed_bytes_also_match_final_job_snapshot": true,
-      "bootstrap_independence_repeats": 8,
+      "bootstrap_independence_repeats": 32,
       "bootstrap_independence_failures": 0,
       "original_entry_owned_inputs_only": true,
       "entry_snapshot_destroyed_before_execution": true,
       "comparison_oracles_loaded_after_execution": true,
       "compiled_game_routine_invoked_to_supply_inputs": false,
-      "exact_audit_composed_oracles_verified": false
+      "exact_audit_composed_oracles_verified": false,
+      "index_payload_bytes": 19456
     },
     "negative_controls": {
-      "processes": 9,
-      "expected_failures": 9,
+      "processes": 11,
+      "expected_failures": 11,
       "intended_output_class_mismatch_checked": true,
       "classes": [
         "position",
         "direction",
         "projected record",
         "filtered index",
-        "packed vertex"
+        "packed vertex",
+        "aligned index payload"
       ]
     },
     "public_regression": {
       "existing_check_extended": "wkc2_native_skinning",
-      "synthetic_successes": 38,
-      "unchanged_declines": 20,
+      "synthetic_successes": 40,
+      "unchanged_declines": 24,
       "input_immutability_checked": true,
       "exception_before_commit_checked": true,
       "explicit_owned_subpixel_padding_indices_checked": true,
       "precision_filter_state_consistency_checked": true,
       "standalone_without_sdk_or_generated_game_code_passed": true,
       "debug_windows_checks_passed": 113,
-      "debug_seconds": 29.56,
+      "debug_seconds": 28.40,
       "release_windows_checks_passed": 113,
-      "release_seconds": 25.66,
-      "sdk_patches": 122
+      "release_seconds": 24.56,
+      "sdk_patches": 122,
+      "live_and_literal_palette_bindings_checked": true
     },
     "estimate_interpolation": {
       "explicit_final_fma": true,
@@ -2807,7 +2810,7 @@
       "filter_validation_processes_passed": 138,
       "scope": "Current compiled Windows reference interpolation policy, including rounding/FTZ/DAZ comparisons; not new hardware-wide or ARM equivalence."
     },
-    "supported_input_precondition": "Every declared vertex input and all four palette joints, including zero weights, need owned backing; otherwise unchanged decline. Declines are not native player coverage.",
+    "supported_input_precondition": "Every vertex/joint needs bounded owned backing. Validated entry adapter reconstructs adjacent owned prefixes and explicit literal/live palette rows for all32 recorded layouts; unknown layouts or unjustified zero/save rows still decline.",
     "subpixel_scope": "Pure composition accepts bounded owned padding indices and derives their projected records itself; current captured entry adapter covers basic filtering only.",
     "transfer_size_plan_is_complete_payload": false,
     "live_game_integration_verified": false,
@@ -2818,11 +2821,70 @@
     "fps_gain_measured": false,
     "desktop_executable_changed": false,
     "remaining": [
-      "Recover missing packed-input/influence/palette backing for the other24 recorded layouts.",
-      "Reconstruct externally visible index/export padding without reference-produced bytes.",
+      "Recover unobserved input/constructor variants and unsupported bypass/codec domains.",
+      "Recover vertex transfer tails for unobserved odd/alignment counts and physical bypass index padding.",
       "Implement shared allocation transactions, command packets/fixups and ordered payload/publication.",
       "Verify scheduling and lifetimes on real NPC-heavy, transition and cutscene routes.",
       "Extend all remaining SPU images and measure CPU/FPS separately from diagnostics."
-    ]
+    ],
+    "bounded_backing": {
+      "vertex_prefix_bytes": 792,
+      "influence_prefix_bytes": 720,
+      "outside_palette_influence_reads": 301,
+      "zero_weight_outside_reads": 10,
+      "outside_palette_vertices": 90,
+      "row_reads": 903,
+      "raw_owned_input_rows": 438,
+      "live_position_rows": 72,
+      "live_direction_rows": 24,
+      "justified_cleared_rows": 357,
+      "verified_zero_save_rows": 12,
+      "bootstrap_alias_reads": 0,
+      "no_row_straddles_sources": true,
+      "arbitrary_lifetime_or_ambient_state_support_proven": false
+    },
+    "filtered_index_payload_reconstructed": true
+  },
+  "native_filtered_index_payload": {
+    "date": "2026-10-20",
+    "public_core": "native_index_payload.h",
+    "status": "Offline complete aligned bytes for supported filtered geometry; no DMA/publication hook",
+    "recorded": {
+      "jobs": 32,
+      "external_index_puts": 31,
+      "logical_bytes": 19236,
+      "tail_bytes": 220,
+      "payload_bytes": 19456,
+      "mismatched_bytes": 0,
+      "derived_reconstruction_matches_external_receipts": true,
+      "actual_cpp_pipeline_matches_complete_stage_payload": true
+    },
+    "algorithm": "Explicit native keep decision per triangle; compact groups of4 to a32-byte block with defined shuffle zeros; preserve prefix, join next line and circularly rotate the last half for aligned stores; return align16(logical bytes).",
+    "validation": {
+      "processes": 140,
+      "passed": 140,
+      "expected_corruption_failures": 6,
+      "captured_calls": 32,
+      "randomized_matrix_calls": 18432,
+      "directed_calls": 52440,
+      "directed_cases_per_configuration": 4370,
+      "directed_configurations": 12,
+      "fuzz_payload_bytes": 6150992,
+      "matrix_payload_bytes": 1388896,
+      "directed_payload_bytes": 1596608,
+      "mismatches": 0,
+      "sequences_repeat": true
+    },
+    "public_regression": {
+      "payload_cases": 644,
+      "decision_output_cases": 2,
+      "unchanged_rejects": 13
+    },
+    "bypass_physical_padding_supported": false,
+    "live_game_integration_verified": false,
+    "whole_job_replaced": false,
+    "scheduling_equivalence_proven": false,
+    "fps_gain_measured": false,
+    "desktop_executable_changed": false
   }
 }

@@ -126,10 +126,15 @@ bool same_input(const oc::GeometryInput& a,const oc::GeometryInput& b) {
        a.filter.flip_winding!=b.filter.flip_winding||a.filter.subpixel!=b.filter.subpixel||
        a.packed_vertices!=b.packed_vertices||a.packed_indices!=b.packed_indices||
        a.subpixel_padding_indices!=b.subpixel_padding_indices||
-       a.influences.size()!=b.influences.size()||a.palette.size()!=b.palette.size())return false;
+       a.influences.size()!=b.influences.size()||a.palette.size()!=b.palette.size()||
+       a.palette_bindings.size()!=b.palette_bindings.size())return false;
     for(unsigned i=0;i<a.influences.size();++i)
         if(a.influences[i].weights!=b.influences[i].weights||a.influences[i].joints!=b.influences[i].joints)return false;
     for(unsigned i=0;i<a.palette.size();++i)if(a.palette[i].rows!=b.palette[i].rows)return false;
+    for(unsigned i=0;i<a.palette_bindings.size();++i)for(unsigned row=0;row<3;++row) {
+        const auto& x=a.palette_bindings[i][row];const auto& y=b.palette_bindings[i][row];
+        if(x.source!=y.source||x.vertex!=y.vertex||x.literal!=y.literal)return false;
+    }
     return true;
 }
 bool same_payload(const oc::PayloadLayout& a,const oc::PayloadLayout& b) {
@@ -141,6 +146,7 @@ bool same_output(const oc::GeometryOutput& a,const oc::GeometryOutput& b) {
     if(a.positions!=b.positions||a.directions!=b.directions||a.prepared_palette!=b.prepared_palette||
        a.projected.size()!=b.projected.size()||a.decoded_indices!=b.decoded_indices||
        a.filtered_indices!=b.filtered_indices||a.packed_vertices!=b.packed_vertices||!same_payload(a.payload,b.payload))return false;
+    if(a.triangle_decisions!=b.triangle_decisions||a.index_payload!=b.index_payload)return false;
     for(unsigned i=0;i<a.projected.size();++i) {
         const auto& x=a.projected[i];const auto& y=b.projected[i];
         if(std::bit_cast<std::uint32_t>(x.x)!=std::bit_cast<std::uint32_t>(y.x)||
@@ -202,12 +208,15 @@ void check_result(const oc::GeometryInput& input,const oc::GeometryOutput& outpu
     }
     const unsigned stride=streams==2||input.export_format==VertexPackFormat::position_normal_tangent?24:16;
     assert(output.payload.logical_index_bytes==6&&output.payload.index_dma_bytes==16);
-    assert(output.payload.unresolved_index_tail_bytes()==10);
+    assert(output.payload.index_padding_bytes()==10);
     assert(output.payload.logical_vertex_bytes==vertices*stride);
     assert(output.payload.vertex_dma_bytes==((vertices*stride+15)&~15u));
     assert(output.payload.reservation_bytes==((16+vertices*stride+127)&~127u));
-    assert(output.payload.unresolved_vertex_tail_bytes()==output.payload.vertex_dma_bytes-vertices*stride);
+    assert(output.payload.vertex_padding_bytes()==output.payload.vertex_dma_bytes-vertices*stride);
     assert(output.packed_vertices.size()==vertices*stride);
+    assert(output.index_payload.size()==output.payload.index_dma_bytes);
+    for(unsigned i=0;i<output.filtered_indices.size();++i)
+        assert(be16(output.index_payload.data()+2*i)==output.filtered_indices[i]);
     for(unsigned vertex=0;vertex<vertices;++vertex) {
         const auto* bytes=output.packed_vertices.data()+vertex*stride;
         for(unsigned axis=0;axis<3;++axis)
@@ -254,7 +263,7 @@ int wkc2_test_native_geometry_pipeline() {
         auto output=sentinel_output();FiniteHostPolicies policies;
         assert(oc::run(input,output,policies)==oc::PipelineStatus::logical_buffers_ready);
         assert(same_input(input,saved));check_result(input,output,false);
-        assert(output.payload.unresolved_vertex_tail_bytes()==(streams==2?8u:0u));++successful;
+        assert(output.payload.vertex_padding_bytes()==(streams==2?8u:0u));++successful;
     }
     for(bool no_indices:{false,true}) {
         auto input=input_example(4,2,false,true,true);
@@ -279,6 +288,34 @@ int wkc2_test_native_geometry_pipeline() {
         const auto saved=input;auto output=sentinel_output();FiniteHostPolicies policies;
         assert(oc::run(input,output,policies)==oc::PipelineStatus::logical_buffers_ready);
         assert(same_input(input,saved));check_result(input,output,false);++successful;
+    }
+    {
+        auto input=input_example(8,1,true,true,false);
+        input.palette_bindings.resize(2);
+        for(unsigned row=0;row<3;++row)
+            input.palette_bindings[1][row]={oc::PaletteRowSource::literal,0,cyclic_skin_matrix(input.palette[0])[row]};
+        for(unsigned vertex=4;vertex<8;++vertex)input.influences[vertex].joints[0]=1;
+        const auto saved=input;auto output=sentinel_output();FiniteHostPolicies policies;
+        assert(oc::run(input,output,policies)==oc::PipelineStatus::logical_buffers_ready);
+        assert(same_input(input,saved));check_result(input,output,false);++successful;
+        // The second group reads the already transformed position rows rather
+        // than a snapshot of the initially decoded positions.
+        for(unsigned row=0;row<3;++row)
+            input.palette_bindings[1][row]={oc::PaletteRowSource::position,row,{}};
+        auto reference_input=input;reference_input.skinning=oc::SkinningMode::disabled;
+        oc::GeometryOutput decoded;FiniteHostPolicies reference_policy;
+        assert(oc::run(reference_input,decoded,reference_policy)==oc::PipelineStatus::logical_buffers_ready);
+        assert(oc::run(input,output,policies)==oc::PipelineStatus::logical_buffers_ready);
+        const auto weight=255.f*std::bit_cast<float>(std::uint32_t{0x3b808080u});
+        for(unsigned vertex=4;vertex<8;++vertex) {
+            const CyclicAffine live{output.positions[0],output.positions[1],output.positions[2]};
+            const auto blended=blend_skin_matrix<OrderedHostPositionStreamMath<>>(
+                Float4{weight,0,0,0},{live,cyclic_skin_matrix(input.palette[0]),
+                    cyclic_skin_matrix(input.palette[0]),cyclic_skin_matrix(input.palette[0])});
+            assert(output.positions[vertex]==transform_skin_position<OrderedHostPositionStreamMath<>>(
+                blended,decoded.positions[vertex]).position);
+        }
+        ++successful;
     }
     const auto rejected=[&](const oc::GeometryInput& input,oc::PipelineStatus expected) {
         const auto saved_input=input;auto output=sentinel_output();const auto saved_output=output;
@@ -321,6 +358,13 @@ int wkc2_test_native_geometry_pipeline() {
         auto input=input_example(4,1,false,true,false);
         input.filter.subpixel=subpixel;input.projection.precision_state=subpixel?0:5;
         rejected(input,oc::PipelineStatus::invalid_projection_filter_state);
+    }
+    for(auto source:{oc::PaletteRowSource::unavailable,oc::PaletteRowSource::direction1,
+                      oc::PaletteRowSource::position,oc::PaletteRowSource(255)}) {
+        auto input=input_example(4,1,false,true,false);input.palette_bindings.resize(2);
+        for(auto& row:input.palette_bindings[1])row={oc::PaletteRowSource::literal,0,{}};
+        input.palette_bindings[1][0]={source,4,{}};input.influences[0].joints[3]=1;
+        rejected(input,oc::PipelineStatus::unsupported_palette_backing);
     }
     {
         const auto input=input_example(4,1,false,true,false),saved_input=input;

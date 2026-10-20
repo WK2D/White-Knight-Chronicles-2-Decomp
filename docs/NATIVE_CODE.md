@@ -805,69 +805,105 @@ gain is measured, and the desktop executable, preferences and save are unchanged
 
 ## Owned logical geometry pipeline
 
-[`native_geometry_pipeline.h`](../native_geometry_pipeline.h) now connects packed
+[`native_geometry_pipeline.h`](../native_geometry_pipeline.h) connects packed
 vertex decoding, palette preparation/skinning, index decoding, projection,
 triangle filtering and vertex packing through owned C++ vectors. The algorithms
 receive no guest registers, local-store snapshot or generated game routine.
-Input buffers remain unchanged; output is committed only after all stages
-succeed. Arithmetic and estimate/conversion policies remain explicit.
+Inputs remain unchanged; output commits only after every stage succeeds.
+Arithmetic, estimate and conversion policies remain explicit.
 
-The private entry adapter validates the recorded descriptor layout and copies
-the original staged input blocks into typed inputs. It destroys the entry
-snapshot before executing the pipeline, then loads stage/end snapshots only
-as comparison oracles. It invokes no compiled game function to produce backing
-data. This is a connected logical pipeline, **not yet a live whole-job hook**.
-
-Eight of the 32 recorded jobs have fully backed inputs under the current owned
-interface: three position-only jobs and five with normals/tangents. All eight
-match every checked intermediate and logical export:
+The private entry adapter validates the descriptor layout and builds typed
+inputs from the original staged input blocks. It destroys the entry snapshot
+before computation and loads stage/end snapshots only afterward as comparison
+oracles. It invokes no compiled game function to obtain computed backing.
+**All 32 recorded jobs now match the connected pipeline**, including 24 that
+the earlier eight-job implementation could not admit:
 
 | Compared output | Count | Mismatches |
 | --- | ---: | ---: |
-| Positions | 5,576 | 0 |
-| Direction vectors | 10,928 | 0 |
-| Prepared palette matrices | 120 | 0 |
-| Decoded indices | 8,598 | 0 |
-| Projected records, all four words | 5,576 | 0 |
-| Surviving indices | 3,327 | 0 |
-| Packed vertex bytes | 132,928 | 0 |
+| Positions | 11,584 | 0 |
+| Direction vectors | 16,352 | 0 |
+| Prepared palette matrices | 292 | 0 |
+| Decoded indices | 20,220 | 0 |
+| Projected records, all four words | 11,584 | 0 |
+| Surviving indices | 9,618 | 0 |
+| Packed vertex bytes | 241,728 | 0 |
+| Complete aligned index payload bytes | 19,456 | 0 |
 
-The same packed bytes also match the final job snapshot; this checks the same
-bytes twice, not another 132,928 unique output bytes. Eight second executions
-with altered initial normal-reciprocal values produce identical final buffers.
-This supports removing that bootstrap dependency for these disjoint owned
-views, not arbitrary aliased storage. Nine corruption controls damage the
-intended output class and fail the comparison. The composed capture comparison
-is host-mode only; exact/audit composition requires new matching oracles.
+The same packed vertex bytes also match the final job snapshot; this checks the
+same bytes twice, not another set of unique outputs. All 32 alternate executions
+with changed initial normal-reciprocal values produce identical final buffers.
+Eleven corruption controls damage their intended output class and fail. The
+composed capture comparison remains host-mode only; exact/audit composition
+needs matching new oracles. One empty job still needs final command publication
+but correctly skips vertex/index export.
 
-The other 24 jobs remain unsupported by the entry adapter because their declared
-logical vertices can read beyond individual packed-input/influence blocks and
-the declared palette. Those reads cannot be replaced with zeros, clamped joints
-or reference-produced spill bytes. Recovering their bounded input/backing
-semantics remains part of the whole-job work. A decline is not native coverage.
+### Bounded input backing and live palette rows
 
-Public regressions add 38 synthetic success cases and 20 unchanged declines,
-known position/index/export results, input immutability and exception-before-
-commit checks. Subpixel mode accepts explicitly owned padding indices and
-projects their vertices itself; inconsistent precision/filter state and missing
-or invalid padding decline. The original captures use basic filtering. The
-standalone regression also links and runs without the SDK or generated game
-code. Both full Windows suites pass all 113 checks with the state consistency
-guards: Debug in 29.56 seconds and optimized Release in 25.66 seconds.
+The formerly short streams consume bounded neighboring input prefixes:
+792 aggregate vertex bytes from owned viewport blocks and 720 influence bytes
+from owned packed-vertex blocks. They are reconstructed from those original
+inputs, rather than supplied by an old routine or zero-filled.
+
+All 301 out-of-declared-palette influence reads, including ten with zero weight,
+resolve to three aligned rows each. Of these 903 row reads, 438 use owned raw
+input rows, 72 read current native positions, 24 read current native directions,
+357 use justified cleared workspace and 12 use six verified preserved-zero
+save cells. No row straddles sources. The 96 dynamic reads see prior completed
+native output; no bootstrap-direction alias occurs in this corpus.
+
+The public interface names literal/position/direction row bindings explicitly.
+Unavailable, invalid or unbounded rows decline; undeclared joints never silently
+become zero matrices. Raw neighboring rows retain their bit layout rather than
+being reordered like the declared palette. Cleared/save-row literals rely on
+the inspected initialization and selected setup path; other layouts or nonzero
+preserved state require separate recovery. Although the 90 affected vertices
+are not indexed in these captures, their exported bytes are still compared.
+
+Public composition regressions cover 40 synthetic successes and 24 unchanged
+declines, known position/index/export results, live/literal palette bindings,
+input immutability and exception-before-commit behavior. Subpixel mode consumes
+owned padding indices and projects their vertices itself; inconsistent state,
+missing padding and invalid rows decline. The original captures use basic
+filtering. A standalone regression links without the SDK or generated game code.
+Both Windows configurations pass all 113 checks; ARM execution remains untested.
 
 [`native_estimate_interpolation.h`](../native_estimate_interpolation.h) makes the
-current compiled reference's final estimate interpolation FMA explicit while
-preserving separately rounded step/fraction calculations. Disabling implicit
-contraction initially exposed 27 failing matrix configurations when the adapter
-used the inline SDK expression. The explicit policy restores all 138 filter
-validation processes, and the eight composed jobs match with kernel contraction
-disabled. This is a recovered Windows reference policy, not new proof of every
-hardware estimate or ARM execution.
+current compiled Windows reference's final interpolation FMA explicit while
+preserving separately rounded step/fraction calculations. Keeping implicit
+kernel contraction disabled first exposed an adapter mismatch; the explicit
+policy restores the complete filter matrix and composed outputs. This is a
+recovered reference policy, not new hardware-wide estimate or ARM proof.
 
-The output also describes logical and aligned transfer sizes. It does not invent
-the bytes between them or publish them. A whole replacement still needs the
-remaining input layouts, index/export padding, shared allocator transactions,
-RSX command construction/fixups, payload-before-command visibility and lifetime/
-scheduling validation on real routes. No complete SPU job or image is replaced,
-no CPU/FPS gain is measured, and the desktop executable, preferences and save
-remain unchanged.
+### Filtered index payload, including exported tails
+
+[`native_index_payload.h`](../native_index_payload.h) reconstructs aligned index
+export bytes from original logical indices and explicit native keep decisions.
+Filtering exposes those decisions directly; matching final index values would
+be ambiguous for repeated triangles. Each four-triangle group packs surviving
+indices into a defined 32-byte block, then applies the recovered aligned stores.
+The third store circularly rotates the final block half. This can repeat real
+indices after defined zero bytes, so appending zero padding is insufficient.
+
+All 19,456 index payload bytes match, including 220 bytes beyond the 19,236-byte
+logical prefix. Independent derived reconstruction also matches all 31 external
+PUT destination receipts. The connected C++ pipeline compares its full payload
+against stage output, not just surviving indices.
+
+The actual public helper passes 140 validation processes: 32 captured calls,
+18,432 randomized/matrix calls, 12 runs of 4,370 directed cases, and six expected
+corruption failures. Directed coverage includes every keep mask, counts 1–20,
+duplicate triangles, poisoned prior arena bytes, partial groups and basic/state-5
+filtering. Seeds repeat across modes/settings; these are not unique or exhaustive
+inputs. All complete-payload comparisons pass. Public regressions add 644
+logical-prefix/alignment/circular-tail/alias cases, two stable decision-output
+cases and 13 unchanged structural/alias rejects.
+
+The filtering bypass still needs separately recovered physical decoder padding;
+it is not silently handled by this compaction algorithm. Vertex alignment tails
+outside the observed aligned counts also remain to be recovered. The pipeline
+has no live whole-job hook yet: shared allocation, command construction/fixups,
+payload-before-command visibility, lifetime and concurrent scheduling still need
+native ownership and real-route validation. No complete SPU job or image is
+replaced, no CPU/FPS gain is measured, and the desktop executable, preferences
+and save remain unchanged.

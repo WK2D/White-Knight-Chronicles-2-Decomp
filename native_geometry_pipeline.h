@@ -1,6 +1,6 @@
 // Compose project-written geometry algorithms through owned native buffers.
-// The result contains logical buffers and an export-size plan. Allocation,
-// padded transfers, command publication and scheduling belong to the job adapter.
+// The result contains logical buffers, filtered index payload and export sizes.
+// Allocation, vertex tails, publication and scheduling belong to the job adapter.
 #ifndef WKC_NATIVE_GEOMETRY_PIPELINE_H
 #define WKC_NATIVE_GEOMETRY_PIPELINE_H
 
@@ -9,6 +9,7 @@
 #include "native_skinning_stream.h"
 #include "native_geometry_filter.h"
 #include "native_vertex_pack.h"
+#include "native_index_payload.h"
 #include <functional>
 #include <utility>
 #include <vector>
@@ -21,11 +22,19 @@ enum class SkinningMode : std::uint8_t {
     // directions use the recovered variant-3 normal/tangent core (C968).
     linear_blend_variant3
 };
+enum class PaletteRowSource : std::uint8_t {
+    unavailable,literal,position,direction0,direction1
+};
+struct PaletteRowBinding {
+    PaletteRowSource source=PaletteRowSource::unavailable;
+    std::uint32_t vertex=0;
+    Float4 literal{};
+};
 
 // The producer owns these inputs and validates the original descriptor/staging
 // layout before construction. The pipeline does not accept guest pointers,
 // local-store snapshots, ABI spill cells or reference-derived output backing.
-// In particular, influences/palette must cover every declared vertex/joint,
+// Influences and palette/explicit bindings cover every declared vertex/joint,
 // including zero weights. Input vector storage remains stable during execution.
 struct GeometryInput {
     VertexDecodeSpec decode{};
@@ -42,20 +51,24 @@ struct GeometryInput {
     std::vector<std::uint16_t> subpixel_padding_indices;
     std::vector<PackedSkinInfluences> influences;
     std::vector<RowMajorAffine> palette;
+    // Explicit backing for joints beyond the declared, reordered palette.
+    // Literal rows retain raw input bits; view rows observe prior native writes.
+    // Default/unavailable rows never silently become zero palette entries.
+    std::vector<std::array<PaletteRowBinding,3>> palette_bindings;
 };
 
-// Byte counts are a plan, not completed transfer buffers. Padding is deliberately
-// NOT manufactured from zeros or a private reference. Any index/vertex tail
-// bytes must be independently recovered before an actual export transaction.
+// Byte counts describe planned transfers. Filtered index bytes are reconstructed
+// separately; a vertex tail still requires independently recovered bytes before
+// an actual export transaction.
 struct PayloadLayout {
     std::uint32_t logical_index_bytes=0,index_dma_bytes=0;
     std::uint32_t logical_vertex_bytes=0,vertex_dma_bytes=0;
     std::uint32_t reservation_bytes=0;
     bool empty_geometry=true;
-    constexpr std::uint32_t unresolved_index_tail_bytes() const {
+    constexpr std::uint32_t index_padding_bytes() const {
         return index_dma_bytes-logical_index_bytes;
     }
-    constexpr std::uint32_t unresolved_vertex_tail_bytes() const {
+    constexpr std::uint32_t vertex_padding_bytes() const {
         return vertex_dma_bytes-logical_vertex_bytes;
     }
 };
@@ -66,6 +79,7 @@ struct GeometryOutput {
     std::vector<CyclicAffine> prepared_palette;
     std::vector<ProjectedVertex> projected;
     std::vector<std::uint16_t> decoded_indices,filtered_indices;
+    std::vector<std::uint8_t> triangle_decisions,index_payload;
     std::vector<std::uint8_t> packed_vertices;
     PayloadLayout payload;
 };
@@ -88,6 +102,7 @@ enum class PipelineStatus : std::uint8_t {
     skinning_declined,
     projection_declined,
     filter_declined,
+    index_payload_declined,
     packing_declined
 };
 
@@ -97,6 +112,7 @@ struct SkinViews {
     std::array<std::vector<Float4>,2>& directions;
     const std::vector<PackedSkinInfluences>& influences;
     const std::vector<CyclicAffine>& palette;
+    const std::vector<std::array<PaletteRowBinding,3>>& palette_bindings;
 
     PackedSkinInfluences read_influences(unsigned vertex) const {
         return influences[vertex];
@@ -105,7 +121,21 @@ struct SkinViews {
     Float4 read_direction(unsigned stream,unsigned vertex) const {
         return directions[stream][vertex];
     }
-    CyclicAffine read_palette(unsigned joint) const {return palette[joint];}
+    CyclicAffine read_palette(unsigned joint) const {
+        if(joint<palette.size())return palette[joint];
+        CyclicAffine result;
+        for(unsigned row=0;row<3;++row) {
+            const auto& binding=palette_bindings[joint][row];
+            switch(binding.source) {
+            case PaletteRowSource::literal:result[row]=binding.literal;break;
+            case PaletteRowSource::position:result[row]=positions[binding.vertex];break;
+            case PaletteRowSource::direction0:result[row]=directions[0][binding.vertex];break;
+            case PaletteRowSource::direction1:result[row]=directions[1][binding.vertex];break;
+            default:break; // Rejected before execution.
+            }
+        }
+        return result;
+    }
     void write_position(unsigned vertex,const Float4& value) {
         positions[vertex]=value;
     }
@@ -181,9 +211,19 @@ PipelineStatus run(const GeometryInput& input,GeometryOutput& output,Policies& p
         if(input.influences.size()<count)return PipelineStatus::short_influences;
         if(input.palette.empty())return PipelineStatus::missing_palette;
         for(std::size_t vertex=0;vertex<count;++vertex)
-            for(const auto joint:input.influences[vertex].joints)
-                if(joint>=input.palette.size())
+            for(const auto joint:input.influences[vertex].joints) {
+                if(joint<input.palette.size())continue;
+                if(joint>=input.palette_bindings.size())
                     return PipelineStatus::unsupported_palette_backing;
+                for(const auto& row:input.palette_bindings[joint]) {
+                    const bool literal=row.source==PaletteRowSource::literal;
+                    const bool position=row.source==PaletteRowSource::position;
+                    const bool direction0=row.source==PaletteRowSource::direction0&&direction_streams>=1;
+                    const bool direction1=row.source==PaletteRowSource::direction1&&direction_streams>=2;
+                    if(!(literal||position||direction0||direction1)||(!literal&&row.vertex>=count))
+                        return PipelineStatus::unsupported_palette_backing;
+                }
+            }
     }
 
     GeometryOutput next;
@@ -202,7 +242,7 @@ PipelineStatus run(const GeometryInput& input,GeometryOutput& output,Policies& p
         for(const auto& matrix:input.palette)
             next.prepared_palette.push_back(cyclic_skin_matrix(matrix));
         detail::SkinViews views{next.positions,next.directions,input.influences,
-            next.prepared_palette};
+            next.prepared_palette,input.palette_bindings};
         bool skinned;
         if(!direction_streams)
             skinned=skin_positions_stream<typename Policies::PositionSkinMath>(
@@ -226,15 +266,21 @@ PipelineStatus run(const GeometryInput& input,GeometryOutput& output,Policies& p
             std::ref(policy.screen_conversion)))
         return PipelineStatus::projection_declined;
     next.filtered_indices.resize(input.index_count);
+    next.triangle_decisions.resize(input.index_count/3);
     std::size_t filtered_count=0;
     std::array<ProjectedVertex,9> padding;
     for(std::size_t i=0;i<padding_count;++i)
         padding[i]=next.projected[input.subpixel_padding_indices[i]];
     if(!filter_triangles<typename Policies::ProjectionMath>(next.projected,
             next.decoded_indices,input.filter,next.filtered_indices,filtered_count,
-            std::ref(policy.subpixel_conversion),std::span(padding).first(padding_count)))
+            std::ref(policy.subpixel_conversion),std::span(padding).first(padding_count),
+            next.triangle_decisions))
         return PipelineStatus::filter_declined;
     next.filtered_indices.resize(filtered_count);
+    std::uint32_t payload_count=0;
+    if(!index_payload::reconstruct(next.decoded_indices,next.triangle_decisions,
+            next.index_payload,payload_count)||payload_count!=filtered_count)
+        return PipelineStatus::index_payload_declined;
 
     const auto stride=packed_vertex_stride(input.export_format);
     next.payload=detail::payload_layout(std::uint32_t(filtered_count),count,stride);

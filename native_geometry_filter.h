@@ -128,7 +128,8 @@ template<class Math=HostProjectionMath,class Conversion=HostSubpixelConversion>
 bool filter_triangles(std::span<const ProjectedVertex> vertices,
                       std::span<const std::uint16_t> input,TriangleFilterSpec spec,
                       std::span<std::uint16_t> output,std::size_t& written,
-                      Conversion convert={},std::span<const ProjectedVertex> padded_triangles={}) {
+                      Conversion convert={},std::span<const ProjectedVertex> padded_triangles={},
+                      std::span<std::uint8_t> decisions={}) {
     using namespace geometry_filter_detail;
     if(unsigned(spec.winding)<1||unsigned(spec.winding)>3||input.size()%3||
        output.size()<input.size()||input.size()>(std::numeric_limits<std::size_t>::max)()/2||
@@ -136,6 +137,12 @@ bool filter_triangles(std::span<const ProjectedVertex> vertices,
     const std::size_t padding=spec.subpixel?3*((4-input.size()/3%4)%4):0;
     if(padded_triangles.size()<padding||
        overlaps(padded_triangles.data(),padding*sizeof(ProjectedVertex),output.data(),input.size()*2))return false;
+    const std::size_t decision_bytes=decisions.empty()?0:input.size()/3;
+    if(!decisions.empty()&&(decisions.size()<decision_bytes||
+       overlaps(decisions.data(),decision_bytes,vertices.data(),vertices.size()*sizeof(ProjectedVertex))||
+       overlaps(decisions.data(),decision_bytes,padded_triangles.data(),padding*sizeof(ProjectedVertex))||
+       overlaps(decisions.data(),decision_bytes,input.data(),input.size()*2)||
+       overlaps(decisions.data(),decision_bytes,output.data(),input.size()*2)))return false;
     if(overlaps(vertices.data(),vertices.size()*sizeof(ProjectedVertex),output.data(),input.size()*2)||
        (input.data()!=output.data()&&overlaps(input.data(),input.size()*2,output.data(),input.size()*2)))return false;
     for(const auto index:input)if(index>=vertices.size())return false;
@@ -185,8 +192,10 @@ bool filter_triangles(std::span<const ProjectedVertex> vertices,
             const auto height=std::bit_cast<std::int32_t>(std::uint32_t(b[3])-std::uint32_t(b[1]));
             subpixel_reject=threshold_x[selector]>width&&threshold_y[selector]>height;
         }
-        if(subpixel_reject||Math::magnitude_equal(area,0)||(wrong&&all_positive&&!any_near)||equal_x||equal_y||
-           (a.clip_code&b.clip_code&c.clip_code))continue;
+        const bool keep=!(subpixel_reject||Math::magnitude_equal(area,0)||
+            (wrong&&all_positive&&!any_near)||equal_x||equal_y||(a.clip_code&b.clip_code&c.clip_code));
+        if(!decisions.empty())decisions[i/3]=std::uint8_t(keep);
+        if(!keep)continue;
         output[count++]=ia;output[count++]=ib;output[count++]=ic;
       }
     }

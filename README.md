@@ -99,7 +99,7 @@ readable replacements, and no complete SPU image has been replaced yet. See the
 [native C++ evidence](docs/NATIVE_CODE.md#readable-whole-skinning-stream).
 The recovered decoding, skinning, filtering and packing algorithms are also
 connected through [owned C++ buffers](docs/NATIVE_CODE.md#owned-logical-geometry-pipeline),
-verified offline on eight recorded jobs.
+verified offline on all 32 recorded jobs, including their aligned index payloads.
 Full-game static coverage and a readable reconstruction of the original source
 remain unverified.
 

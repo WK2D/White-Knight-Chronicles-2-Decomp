@@ -3602,3 +3602,24 @@ This is offline host-mode composition, not a live complete job or full image
 replacement. Aligned export padding, allocation, command construction and
 DMA/scheduling remain open, with no measured performance gain or desktop change.
 See [interfaces, evidence and remaining work](NATIVE_CODE.md#owned-logical-geometry-pipeline).
+
+
+## Complete recorded input coverage and index export bytes
+
+The connected C++ pipeline now matches all 32 recorded jobs, including the 24
+previously rejected input layouts. Bounded neighboring input prefixes and typed
+literal/live palette-row bindings replace their scratch-memory dependencies.
+All 11,584 positions, 16,352 directions, 20,220 decoded indices, 9,618 survivors,
+241,728 packed vertex bytes and 19,456 aligned index bytes match. Comparison
+oracles load after native execution; no old game routine supplies backing data.
+
+The index payload helper recovers all 220 exported tail bytes using explicit
+filter decisions and aligned compaction stores. Appending zeros would miss a
+circular-store repetition. All 140 payload validation processes pass, including
+six expected corruption failures, and all 11 composed-output controls fail as
+intended. Both full Windows suites pass 113 checks.
+
+These are offline host-mode composition and output results. Unobserved layouts,
+physical bypass padding, allocation, command packets, DMA visibility and real
+scheduling remain open. There is no new desktop build or measured speed gain.
+See [current owned pipeline evidence](NATIVE_CODE.md#owned-logical-geometry-pipeline).
