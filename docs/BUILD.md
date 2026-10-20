@@ -9,44 +9,12 @@ coverage. See [architecture and modding scope](ARCHITECTURE.md).
 complete stack changes no SDK files. Strict DirectX and Vulkan routes on patch
 0121 confirm Continue, the plains transition, walking, camera rotation and the
 leaf-cutout shadow correction. Menu FXAA toggling was checked separately on 0110.
-[Host-layout SPU shuffle](FINDINGS.md#host-layout-spu-byte-shuffle-and-unlocked-headroom-patch-0104)
-reduces synthetic helper cost with tested byte equivalence; capped native views
-show no consistent FPS gain.
-[Vulkan constant upload reuse](FINDINGS.md#vulkan-constant-upload-reuse-patch-0103)
-reduces redundant uniform-buffer traffic and improves one alternating town-view
-comparison; sustained smooth 30 FPS remains unverified. The
-[batch lifetime fixes](FINDINGS.md#vulkan-batch-resource-lifetimes-patch-0102)
-cover pending-spare texture release and skipped window presentation. The
-[grouped vertex conversion](FINDINGS.md#grouped-vertex-conversion-patch-0101)
-reduces fixed-work conversion cost without an established game FPS gain. The
-[shader-cache comparison](FINDINGS.md#shader-translation-stalls-and-cache-patch-0100)
-reduces compilation hitches; the [latest town images](GALLERY.md#2026-10-19---window-depth-clip-range-check)
-retain their earlier build provenance.
-
-Triangle -> System -> Graphics Settings is available in the native game, including
-Off/FXAA, frame-rate limits and an experimental DirectX 12 selector. See the
-[menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
-and [settings and timing details](PATCHES.md#native-graphics-settings-patches-0081-0082).
+What each patch changes, how it was checked and its measured
+results are in the [patch notes](PATCHES.md).
 
 Suite timings are not game performance. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain
 their original build and diagnostic conditions.
-
-The port sets frame-pacing defaults at startup, each overridable by setting it
-first: `GCM_FLIPCB_ONTICK=1` delivers flip callbacks at vblank after a real flip
-request, and `RSX_VK_PRESENT_MODE=mailbox` prefers mailbox presentation when the
-device supports it, with FIFO fallback. Flips wait for the next vblank
-(`WKC2_FLIP_ON_VBLANK=0` turns that off). Vblanks are timed on the high-resolution
-counter at 59.94 Hz for the default 30 FPS option; higher caps select twice
-the requested rate, and Unlocked services ticks without the fixed interval.
-The optional in-game FPS overlay counts presentations; repeated animation states
-still count, so this can exceed the game's own update rate. The startup defaults also
-set `GCM_SEMA_ACQUIRE=1` to honor the game's two-vblank semaphore gate and
-`RSX_ENGINE_ZTEX_GPU=1` for supported GPU depth re-encoding. Patch
-0068 allows flip completion only after an actual FIFO or immediate flip request;
-`ResetFlipStatus` by itself does not create a completion. This uses the guest
-pacing mechanism. The graphics menu also applies a host cap; raising that cap
-alone was insufficient, which the current guest-timing hooks correct.
 
 ## Contents
 
@@ -54,12 +22,8 @@ alone was insufficient, which the current guest-timing hooks correct.
 - [Building and regression checks](#building-and-regression-checks)
 - [Playing and performance options](#playing-and-performance-options)
 - [Diagnostic probes](#diagnostic-probes)
-- [Runtime patch notes](PATCHES.md) (moved from this page, newest first)
+- [Runtime patch notes](PATCHES.md): what each SDK patch changes, newest first
 - [Runtime subsystem notes](SUBSYSTEMS.md): renderer, movie decoding, frame presentation and text entry
-
-The Vulkan translator retains up to 1,024 exact source/stage entries and 16 MiB
-of allocated source/SPIR-V payload in memory. `RSX_SPIRV_CACHE=0` disables reuse
-for comparison. It writes no shader cache to disk.
 
 ## Requirements and workspace
 
@@ -162,6 +126,27 @@ regressions now pass on Windows. Native census results are recorded in the
 findings log.
 
 ## Playing and performance options
+
+Triangle -> System -> Graphics Settings is available in the native game, including
+Off/FXAA, frame-rate limits and an experimental DirectX 12 selector. See the
+[menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
+and [settings and timing details](PATCHES.md#native-graphics-settings-patches-0081-0082).
+
+The port sets frame-pacing defaults at startup, each overridable by setting it
+first: `GCM_FLIPCB_ONTICK=1` delivers flip callbacks at vblank after a real flip
+request, and `RSX_VK_PRESENT_MODE=mailbox` prefers mailbox presentation when the
+device supports it, with FIFO fallback. Flips wait for the next vblank
+(`WKC2_FLIP_ON_VBLANK=0` turns that off). Vblanks are timed on the high-resolution
+counter at 59.94 Hz for the default 30 FPS option; higher caps select twice
+the requested rate, and Unlocked services ticks without the fixed interval.
+The optional in-game FPS overlay counts presentations; repeated animation states
+still count, so this can exceed the game's own update rate. The startup defaults also
+set `GCM_SEMA_ACQUIRE=1` to honor the game's two-vblank semaphore gate and
+`RSX_ENGINE_ZTEX_GPU=1` for supported GPU depth re-encoding. Patch
+0068 allows flip completion only after an actual FIFO or immediate flip request;
+`ResetFlipStatus` by itself does not create a completion. This uses the guest
+pacing mechanism. The graphics menu also applies a host cap; raising that cap
+alone was insufficient, which the current guest-timing hooks correct.
 
 For the installed player copy, run:
 
@@ -324,64 +309,7 @@ that ends during loading as a town performance result.
 tracing to selected generated functions. Those diagnostics are disabled unless
 `WKC2_TRACE_CALLS=1` is set.
 
-### DirectX FXAA (patch 0110)
-
-The native Off/FXAA option now reaches the live DirectX renderer. Both renderers
-share the project-written shader math; API bindings remain separate. DirectX
-filters RGBA8 scanout into a separate image before copying it to the swap chain
-and adding the sharp FPS overlay. Output and descriptor reuse follow the
-existing completed presentation fence. Off has no AA allocation or dispatch.
-
-The new wkc2_d3d12_fxaa_gpu check exercises eight WARP cases against independent
-CPU math, with a tolerance of two UNORM8 RGB values and exact alpha/source preservation,
-odd dimensions, Off, resize and fenced reuse. The existing Vulkan descriptor
-check still compiles the production shader. All 99 Windows checks pass in Debug
-and Release. A hidden, muted isolated saved-scene run verifies the menu toggle,
-real pipeline/output allocation and return to world rendering with short motion.
-Native movie/fullscreen/area-transition parity remain separate checks.
-
-### DirectX guest-surface readback (patch 0111)
-
-The avatar-copy bridge now selects the active renderer. Live DirectX can copy
-an exact linear ARGB8 render target into guest RAM after GPU completion. Pitch
-padding and bytes outside the request remain untouched. The path rejects
-unknown or ambiguous targets and unsupported layouts; it is not a general
-surface-coherence implementation. A fresh isolated DirectX creator run verifies
-the real generated image and ready flag. Same-session menu display and saving
-that generated image remain unverified; cutscene-transition rendering faults
-were observed afterward. The user's original save was unchanged.
-
-wkc2_graphics_readback now checks both backend routes and failure propagation;
-the previous host code fails that regression. The new wkc2_d3d12_surface_readback
-uses WARP to verify eight exact ARGB/RGBA cases, including 256x144 portrait data,
-padding, partial pixels/rows and invalid ranges. All 100 Windows checks pass
-in Debug and Release. Normal launch still sends no automatic controller input.
-
-### DirectX clears, comparison sampling and polygon bias (patches 0112–0114)
-
-`wkc2_d3d12_masked_clear` checks 128 WARP cases for individual RGBA masks,
-RGBA8/FP16, clipping and depth/stencil preservation. `wkc2_d3d12_shadow` checks
-144 comparison/PCF/border results using the production sampler decoder.
-`wkc2_d3d12_depth_bias` checks sixteen D32 depth cases using the production
-bias decoder. `wkc2_shadow_compare` additionally checks the literal-constant
-comparison entry and zero-mask compatibility. The complete stack has 103
-passing Windows checks in Debug and Release at patch 0115.
-
-Native Continue/movement/camera runs execute the comparison path and polygon
-bias. The character shadow still needs visual validation; there is no complete
-shadow, darker-grass or flicker fix claim. The [parity audit](DIRECTX_PARITY.md)
-tracks other Vulkan features that the live DirectX caller does not yet forward.
-
-### Kernel mutex deadline (patch 0115)
-
-An existing optional-kernel-lock test returned before its 15 ms timeout.
-The kernel path now retries early timeout results until a monotonic deadline;
-other errors, successful acquires and infinite/zero waits retain their behavior.
-The regression forces three early results and still requires the full deadline.
-Both complete suites and ten repeated Release kernel tests pass. The default
-user-token backend is unchanged.
-
-### Static SPU entries and strict diagnostics (patches 0116-0117)
+### Strict SPU fallback guard
 
 `tools/build.ps1 -Regenerate` uses `tools/build_spu.py` to add five validated
 indirect entries to the pinned baseline images. Hash mismatches, missing inputs
@@ -394,49 +322,12 @@ logs `[spu-fallback-forbidden]` with image/address and terminates with code 86,
 before execution. This is an opt-in diagnostic, not a normal-play default.
 Set `SPU_INTERP_PROFILE` to a private TSV path as well to retain an explicit
 zero-row table on a route with no fallback. Unset strict mode after testing.
+Do not infer complete game coverage or an FPS improvement from a zero-row
+census; see [native execution work](NATIVE_CODE.md) and
+[patches 0116-0117](PATCHES.md#spu-running-status-and-fallback-entry-guards-patches-0116-0117).
 
-The new entry-manifest check and two forbidden-entry negative controls pass
-alongside the existing profile on/off tests. Both complete Windows suites pass
-106 checks. The scoped saved-town run and replay limits are in
-[native execution work](NATIVE_CODE.md); do not infer complete game coverage or
-an FPS improvement from a zero-row census.
+### Presentation measurement
 
-### DirectX near/far clipping (patch 0118)
-
-Live DirectX explicitly enables near/far rasterizer clipping. The eight-case
-`wkc2_d3d12_raster_clip` WARP regression checks rejection, clip boundaries,
-homogeneous W and old disabled-state controls. Both Windows suites pass 107
-checks. The final native candidate reaches Balastor Plain after Continue and
-preserves Leonard's lower body through movement/camera inspection with zero
-strict SPU fallback entries. Non-default depth-clamp modes remain unimplemented.
-See [screenshots and scope](GALLERY.md#2026-10-19--directx-plains-clipping-fixed).
-
-## Clean-play diagnostics (patch 0119)
-
-The live DirectX recorder previously collected QPC samples on every successful
-presentation and dumped a CSV at its benchmark frame or shutdown even without a
-diagnostic switch. It now runs only with `RSX_PRESENT_MEASURE=1`, and never in
-player mode. `wkc2_present_measure` compiles the actual SDK recorder functions
-into a GPU-free fixture and checks eight default, opt-in, scheduling, player-mode
-and file-output cases. The normal FPS overlay metrics still update.
-`wkc2_play_environment` poisons a child environment and verifies both CRT and
-Windows API variable removal, preserved media/PATH settings, no diagnostic output
-and an unaffected explicit research-mode control.
-
-## DirectX fragment coordinates (patch 0120)
-
-The live path now forwards TC0–7 2D input override masks in both fragment constant
-modes, with the mask included in PSO identity. Vulkan uses the same decoder.
-`wkc2_fragment_inputs` verifies 64 DirectX shader compilations across eight
-coordinates, perspective modes and request masks, plus old zero-mask compatibility
-and invalid-bit rejection. The native [foliage/cloud/grass audit](DIRECTX_PARITY.md#foliage-cloud-shade-and-grass-comparison)
-keeps observed state requests separate from unverified visual causes.
-
-## Alpha-reference surface formats (patch 0121)
-
-The shared decoder now uses floating surface IDs 11–13 and integer XBGR/ABGR
-IDs 14–16. `wkc2_alpha_reference` checks 68,372 integer/half/float encodings and
-the actual foliage-pass threshold; it fails on the old implementation. The
-inspected DirectX and Vulkan plains views restore leaf-shaped shadow gaps.
-See [the patch record](PATCHES.md#alpha-reference-surface-formats-patch-0121)
-and [before/after captures](GALLERY.md#2026-10-20--leaf-shadow-cutouts).
+`RSX_PRESENT_MEASURE=1` enables the live DirectX presentation recorder and its
+CSV output. Player mode always disables it; the normal FPS overlay still updates.
+See [patch 0119](PATCHES.md#opt-in-directx-presentation-diagnostics-patch-0119).

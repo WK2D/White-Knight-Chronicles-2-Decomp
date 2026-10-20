@@ -28,11 +28,10 @@ with readable project-written C++; current coverage is partial.
   Continue after restarting.
 - A dedicated **Triangle → System → Graphics Settings** panel with persistent
   preferences, the game's menu frame and a scrollbar.
-- **113 Windows regression checks** pass in both Debug and optimized Release. The
-  latest native check loads Continue, enters Balastor Plain and checks short
-  movement/camera response. DirectX foreground clipping is fixed in that route;
-  leaf-shaped foliage shadow cutouts are restored in inspected DirectX and Vulkan
-  plains views.
+- The town-to-Balastor Plain transition after Continue, with short movement and
+  camera control. DirectX foreground clipping is fixed on that route, and
+  leaf-shaped foliage shadow cutouts are restored on both renderers.
+- **113 Windows regression checks** pass in both Debug and optimized Release.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
 resolutions; VSync; anisotropic filtering from Off to 16×; Off/FXAA anti-aliasing;
@@ -55,10 +54,10 @@ the optional in-game FPS overlay remains your choice.
 - **Performance and game timing:** movement still stutters, and loading and cutscene
   timing need further comparison with RPCS3. Consistent frame pacing is a priority.
 - **Rendering:** black flicker at Leonard's feet and the rotating Logic Stone effect
-  remain open. Earlier stretched hair/clothing strips and inverted shadows were
-  fixed in inspected Vulkan views. Remaining DirectX shadow fidelity and darker grass
-  remain under investigation. Leaf cutouts are restored on both renderers; moving cloud shade and apparent
-  grass density also need matched comparisons with RPCS3.
+  remain open. DirectX shadow fidelity and darker grass are under investigation,
+  and moving cloud shade and apparent grass density need matched comparisons with
+  RPCS3. Earlier stretched hair/clothing strips and inverted shadows are fixed in
+  inspected Vulkan views.
 - **Controls:** analogue walk/run conversion has improved, but physical-controller
   consistency, especially at angles, still needs comparison.
 - **Gameplay coverage:** sustained traversal, combat, a complete playthrough and
@@ -88,16 +87,18 @@ verified yet. GeoNet compatibility is separate later research.
 ## How it works
 
 The game code is translated to C/C++ ahead of time and compiled with a runtime that
-implements the PS3 services it uses. Five missing SPU entries now compile
-statically, and tested town-to-plains routes run with interpreter fallback forbidden.
-Readable C++ now handles the supported complete skinning routine, including
-matrix blending, positions, normals and ordered output/read-ahead. Recorded,
-randomized and sampled live comparisons match its compiled reference. Outer
-SPURS jobs and DMA/scheduling still need readable replacements; no complete SPU
-image has been replaced. See the [native C++ evidence](docs/NATIVE_CODE.md#readable-whole-skinning-stream).
-Fallback remains available for untested paths; full-game static coverage and a
-readable reconstruction of the original source remain unverified. The architecture page explains the execution model and the
-remaining work.
+implements the PS3 services it uses. Tested town-to-plains routes run with the SPU
+interpreter fallback forbidden, after five missing SPU entries were added to the
+static build. The fallback remains available for untested paths.
+
+The SPU code is being replaced with readable, project-written C++. The supported
+skinning routine already runs that way: matrix blending, positions, normals and
+ordered output. Recorded, randomized and sampled live comparisons match the
+compiled reference. Whole SPURS jobs and their DMA and scheduling still need
+readable replacements, and no complete SPU image has been replaced yet. See the
+[native C++ evidence](docs/NATIVE_CODE.md#readable-whole-skinning-stream).
+Full-game static coverage and a readable reconstruction of the original source
+remain unverified.
 
 ## Building and documentation
 
@@ -117,7 +118,7 @@ repository.
 | [Architecture](docs/ARCHITECTURE.md) | Execution model, remaining SPU fallback and modding scope |
 | [Progress gallery](docs/GALLERY.md) | Dated screenshots, newest first |
 | [Runtime audit](docs/KILLZONE_FIX_AUDIT.md) | Runtime-fix comparison and remaining implementation gaps |
-| [Native C/C++ execution work](docs/NATIVE_CODE.md) | Remaining SPU fallback, hot-job replacements and validation requirements |
+| [Native C++ execution work](docs/NATIVE_CODE.md) | Replacing SPU code with readable C++: evidence, work order and acceptance rules |
 | [DirectX parity audit](docs/DIRECTX_PARITY.md) | Vulkan fixes still missing from live DirectX, with evidence and next checks |
 | [Code review history](docs/CODE_REVIEW.md) | Review findings, fixes and the checks that were run |
 | [Contributing](docs/CONTRIBUTING.md) | Contribution workflow and where new notes belong |

@@ -15,6 +15,10 @@ of the build guide.
 | Patch 0118 | [DirectX near/far clipping](#directx-nearfar-clipping-patch-0118) |
 | Patches 0116-0117 | [SPU running status and fallback entry guards](#spu-running-status-and-fallback-entry-guards-patches-0116-0117) |
 | Patches 0112–0115 | [DirectX clear/comparison/bias and kernel deadline](#directx-clearcomparisonbias-and-kernel-deadline-patches-01120115) |
+| Patch 0111 | [DirectX guest-surface readback](#directx-guest-surface-readback-patch-0111) |
+| Patch 0110 | [Shared FXAA and live DirectX filtering](#shared-fxaa-and-live-directx-filtering-patch-0110) |
+| Patch 0109 | [DirectX in-game FPS overlay](#directx-in-game-fps-overlay-patch-0109) |
+| Patch 0108 | [Static window captions](#static-window-captions-patch-0108) |
 | Patch 0107 | [DirectX display and sampler preferences](#directx-display-and-sampler-preferences-patch-0107) |
 | Patch 0106 | [DirectX live clear rectangles](#directx-live-clear-rectangles-patch-0106) |
 | Patch 0105 | [Guest lightweight mutex tokens](#guest-lightweight-mutex-tokens-patch-0105) |
@@ -84,6 +88,8 @@ reference values, all 65,536 half encodings, 20 raw FP32 cases and the captured
 foliage threshold. Native validation is recorded in the DirectX audit and gallery;
 this correction does not establish full shadow, cloud or vegetation fidelity.
 
+See the [before/after captures](GALLERY.md#2026-10-20--leaf-shadow-cutouts).
+
 ## DirectX fragment input requests (patch 0120)
 
 Live DirectX ignored TC0–7 2D input override requests even though the shared
@@ -103,14 +109,21 @@ or full rendering-parity claim. The native `20261020-003932` route verifies
 44 shader variants consuming requested overrides; broad solid foliage shadows
 still appear in the inspected final view.
 
+The native [foliage/cloud/grass audit](DIRECTX_PARITY.md#foliage-cloud-shade-and-grass-comparison)
+keeps observed state requests separate from unverified visual causes.
+
 ## Opt-in DirectX presentation diagnostics (patch 0119)
 
 The benchmark ring and CSV were previously active without a switch. They now
 require `RSX_PRESENT_MEASURE=1`; player mode always disables them. Successful
 presentations still update the optional FPS overlay. Eight production-recorder
 fixture cases cover default/disabled/enabled settings, scheduling details,
-player-mode precedence and CSV output. See [clean-play checks](BUILD.md#clean-play-diagnostics-patch-0119).
+player-mode precedence and CSV output.
 
+`wkc2_present_measure` compiles the actual SDK recorder functions into a
+GPU-free fixture. `wkc2_play_environment` poisons a child environment and
+verifies both CRT and Windows API variable removal, preserved media/PATH
+settings, no diagnostic output and an unaffected explicit research-mode control.
 
 ## DirectX near/far clipping (patch 0118)
 
@@ -125,6 +138,10 @@ boundary/interior and non-unit-W depths, including two old disabled-state
 controls. All 107 Windows checks pass in Debug and Release. Non-default RSX
 depth-clamp modes, other parity gaps and performance remain separate work.
 See the [capture and limits](GALLERY.md#2026-10-19--directx-plains-clipping-fixed).
+
+The regression is `wkc2_d3d12_raster_clip`. The final native candidate keeps
+Leonard's lower body through Continue, the plains transition, movement and
+camera inspection with zero strict SPU fallback entries.
 
 ## SPU running status and fallback entry guards (patches 0116-0117)
 
@@ -144,6 +161,10 @@ all five compiled entries execute in a separate instrumented run. Full-game
 coverage and readable geometry replacements remain unverified. All 106 Windows
 checks pass in Debug and Release. See [native execution work](NATIVE_CODE.md).
 
+The new entry-manifest check and two forbidden-entry negative controls pass
+alongside the existing profile on/off tests. Usage is in the
+[build guide](BUILD.md#strict-spu-fallback-guard).
+
 ## DirectX clear/comparison/bias and kernel deadline (patches 0112–0115)
 
 0112 preserves unselected color channels during partial clears. 0113 supplies
@@ -155,8 +176,115 @@ monotonic deadline. All 103 Windows tests pass in Debug and Release.
 The GPU tests cover 128 clear cases, 144 comparison results and sixteen constant
 bias cases. Native tests execute the new rendering paths, but character-shadow
 appearance remains unresolved. See [findings](FINDINGS.md#directx-shadow-follow-up-and-parity-review-patches-01120115),
-[build checks](BUILD.md#directx-clears-comparison-sampling-and-polygon-bias-patches-01120114),
 and the [remaining parity gaps](DIRECTX_PARITY.md).
+
+`wkc2_d3d12_masked_clear` checks 128 WARP cases for individual RGBA masks,
+RGBA8/FP16, clipping and depth/stencil preservation. `wkc2_d3d12_shadow` checks
+144 comparison/PCF/border results using the production sampler decoder.
+`wkc2_d3d12_depth_bias` checks sixteen D32 depth cases using the production
+bias decoder. `wkc2_shadow_compare` additionally checks the literal-constant
+comparison entry and zero-mask compatibility. Native Continue/movement/camera
+runs execute the comparison path and polygon bias; there is no complete shadow,
+darker-grass or flicker fix claim.
+
+The 0115 regression addresses an optional-kernel-lock test that returned before
+its 15 ms timeout. It forces three early results and still requires the full
+deadline. Other errors, successful acquires and infinite/zero waits retain their
+behavior. Both complete suites and ten repeated Release kernel tests pass; the
+default user-token backend is unchanged.
+
+## DirectX guest-surface readback (patch 0111)
+
+Add a render-owner-only readback entry point for exact-base linear ARGB8 targets.
+Record a GPU copy, restore the source's render-target state, wait at the existing
+fence and convert RGBA8 to the guest byte order. Honor the declared guest pitch;
+leave padding and bytes outside the requested span unchanged. Unknown/aliased,
+unsupported and failed reads return failure. The live target now remembers its
+declared layout; the incorrect rsx_dispatch.h comment is corrected to format 8.
+
+The separate host avatar bridge now chooses live DirectX when active rather than
+calling the inactive shared engine, whose no-op previously returned success.
+Loading CPU-resident portraits still bypasses readback. The extended routing
+test fails on the previous bridge. Eight WARP production-helper cases verify
+ARGB/RGBA, portrait dimensions, padded pitch, partial pixels/rows, guards and
+invalid spans. All 100 Windows checks pass in Debug and Release.
+
+Private native run 20261019-191430 uses ordinary New Game/creator controls,
+isolated saves and verified muting. The 256x144 rendered face is copied with
+pitch 1024 and 147,456 nonzero bytes; the ready flag is 1 and the image was
+visually inspected. This verifies capture only: same-session menu display and
+generated-image save/reload remain pending. Cutscene skips later showed stale
+portrait/empty geometry frames; cause and baseline comparison remain open.
+Normal startup input is unchanged, and no game data or private paths are added.
+
+`wkc2_graphics_readback` checks both backend routes and failure propagation.
+The user's original save was unchanged, and normal launch still sends no
+automatic controller input.
+
+## Shared FXAA and live DirectX filtering (patch 0110)
+
+Extract the original Vulkan FXAA shader math into rsx_fxaa_hlsl.h without changing
+its expressions. Vulkan retains its bindings and the production shader fixture;
+DirectX uses t0/s0/u0 and a separate compute pipeline. The native Anti-Aliasing
+control is now available on DirectX. Source RGBA8 pixels and alpha are preserved;
+the filtered image is a separate UAV. Transition it to COPY_SOURCE after dispatch,
+restore the source state, copy the result, then add sharp counter glyphs. Off
+returns the original source without allocating or dispatching. Previous GPU
+references retire at the existing presentation fence before resize, descriptor
+updates or destruction. Movie presentation uses the same filter helper but has
+not been revalidated in a native movie run.
+
+wkc2_d3d12_fxaa_gpu verifies eight real WARP dispatch/copy cases against an
+independent CPU implementation, including every source and alpha byte, flat and
+diagonal/checker images, odd dimensions, a one-pixel image, resizing, reuse and
+Off. The RGB tolerance is two UNORM8 values. The native menu regression and
+Vulkan production shader-binding check also pass. All 99 Windows checks pass
+in Debug and Release. Isolated native menu/world captures and read-only applied
+settings verify Off/FXAA switching and a separate 1920x1080 output allocation;
+there are no FXAA-unavailable or D3D-failure messages in that run. This does
+not establish full visual fidelity, smooth traversal or movie/transition parity.
+
+A hidden, muted isolated saved-scene run verifies the menu toggle, real
+pipeline/output allocation and return to world rendering with short motion.
+Fullscreen and area-transition parity remain separate checks.
+
+## DirectX in-game FPS overlay (patch 0109)
+
+The live DirectX renderer honors the native FPS Counter option. A small mapped
+upload buffer holds original bitmap glyphs; foreground-only copy spans preserve
+all background pixels. The existing presentation fence retires those reads
+before the next CPU update or destruction. Off records no overlay work and
+allocates no overlay storage. The movie and ordinary presentation paths use
+the same composition helper; movie playback itself has not been rechecked.
+
+Count S_OK presentations, excluding positive occlusion statuses and failures.
+Publish an estimate after a one-second window and return zero after a two-second
+presentation stall. This measures accepted presentations, not guest animation
+updates or display scanout. Window captions remain static. LD_FRAME_DUMP now
+reads the final backbuffer after composition; guest render targets are untouched.
+LD_RECORD and individual surface diagnostics retain their original-surface scope.
+
+The new wkc2_present_metrics check covers clock origin/reset, errors, occlusion,
+stalls and bounded glyph generation. wkc2_d3d12_counter_gpu checks seven WARP
+cases through the production helper, including every RGBA background pixel,
+clipping, Off and fenced buffer reuse. The native menu regression checks that
+DirectX can toggle this setting independently. FXAA was unavailable at this
+checkpoint and is added by patch 0110.
+All 98 Windows checks pass in both Debug and Release. An isolated saved-town run
+verifies the menu Off/On selections against renderer state and real backbuffer
+captures. No frame-rate improvement or broad rendering-parity claim follows.
+
+## Static window captions (patch 0108)
+
+Keep the original game-name caption on Vulkan, the live DirectX null-window
+host, and the standalone DirectX backend. Remove the caption refresh loops
+and their private timing fields. Diagnostic measurements and the separately
+controlled in-game FPS overlay are unchanged. This is a UI-only change and
+does not alter frame pacing or rendering.
+
+All 96 Windows checks pass in Debug and Release. Hidden, muted startup runs
+confirmed static captions on Vulkan and live DirectX after 12 seconds without
+controller input. Standalone DirectX was compiled, but was not launched.
 
 ## DirectX display and sampler preferences (patch 0107)
 
@@ -1322,88 +1450,3 @@ Method layout and transfer semantics were checked against the
 [envytools NV_M2MF register description](https://github.com/envytools/envytools/blob/master/rnndb/graph/nv_m2mf.xml)
 and [RPCS3's NV0039 handler](https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/RSX/NV47/HW/nv0039.cpp).
 The C handler and synthetic tests were written independently.
-
-## Static window captions (patch 0108)
-
-Keep the original game-name caption on Vulkan, the live DirectX null-window
-host, and the standalone DirectX backend. Remove the caption refresh loops
-and their private timing fields. Diagnostic measurements and the separately
-controlled in-game FPS overlay are unchanged. This is a UI-only change and
-does not alter frame pacing or rendering.
-
-All 96 Windows checks pass in Debug and Release. Hidden, muted startup runs
-confirmed static captions on Vulkan and live DirectX after 12 seconds without
-controller input. Standalone DirectX was compiled, but was not launched.
-
-## DirectX in-game FPS overlay (patch 0109)
-
-The live DirectX renderer honors the native FPS Counter option. A small mapped
-upload buffer holds original bitmap glyphs; foreground-only copy spans preserve
-all background pixels. The existing presentation fence retires those reads
-before the next CPU update or destruction. Off records no overlay work and
-allocates no overlay storage. The movie and ordinary presentation paths use
-the same composition helper; movie playback itself has not been rechecked.
-
-Count S_OK presentations, excluding positive occlusion statuses and failures.
-Publish an estimate after a one-second window and return zero after a two-second
-presentation stall. This measures accepted presentations, not guest animation
-updates or display scanout. Window captions remain static. LD_FRAME_DUMP now
-reads the final backbuffer after composition; guest render targets are untouched.
-LD_RECORD and individual surface diagnostics retain their original-surface scope.
-
-The new wkc2_present_metrics check covers clock origin/reset, errors, occlusion,
-stalls and bounded glyph generation. wkc2_d3d12_counter_gpu checks seven WARP
-cases through the production helper, including every RGBA background pixel,
-clipping, Off and fenced buffer reuse. The native menu regression checks that
-DirectX can toggle this setting independently. FXAA was unavailable at this
-checkpoint and is added by patch 0110.
-All 98 Windows checks pass in both Debug and Release. An isolated saved-town run
-verifies the menu Off/On selections against renderer state and real backbuffer
-captures. No frame-rate improvement or broad rendering-parity claim follows.
-
-## Shared FXAA and live DirectX filtering (patch 0110)
-
-Extract the original Vulkan FXAA shader math into rsx_fxaa_hlsl.h without changing
-its expressions. Vulkan retains its bindings and the production shader fixture;
-DirectX uses t0/s0/u0 and a separate compute pipeline. The native Anti-Aliasing
-control is now available on DirectX. Source RGBA8 pixels and alpha are preserved;
-the filtered image is a separate UAV. Transition it to COPY_SOURCE after dispatch,
-restore the source state, copy the result, then add sharp counter glyphs. Off
-returns the original source without allocating or dispatching. Previous GPU
-references retire at the existing presentation fence before resize, descriptor
-updates or destruction. Movie presentation uses the same filter helper but has
-not been revalidated in a native movie run.
-
-wkc2_d3d12_fxaa_gpu verifies eight real WARP dispatch/copy cases against an
-independent CPU implementation, including every source and alpha byte, flat and
-diagonal/checker images, odd dimensions, a one-pixel image, resizing, reuse and
-Off. The RGB tolerance is two UNORM8 values. The native menu regression and
-Vulkan production shader-binding check also pass. All 99 Windows checks pass
-in Debug and Release. Isolated native menu/world captures and read-only applied
-settings verify Off/FXAA switching and a separate 1920x1080 output allocation;
-there are no FXAA-unavailable or D3D-failure messages in that run. This does
-not establish full visual fidelity, smooth traversal or movie/transition parity.
-
-## DirectX guest-surface readback (patch 0111)
-
-Add a render-owner-only readback entry point for exact-base linear ARGB8 targets.
-Record a GPU copy, restore the source's render-target state, wait at the existing
-fence and convert RGBA8 to the guest byte order. Honor the declared guest pitch;
-leave padding and bytes outside the requested span unchanged. Unknown/aliased,
-unsupported and failed reads return failure. The live target now remembers its
-declared layout; the incorrect rsx_dispatch.h comment is corrected to format 8.
-
-The separate host avatar bridge now chooses live DirectX when active rather than
-calling the inactive shared engine, whose no-op previously returned success.
-Loading CPU-resident portraits still bypasses readback. The extended routing
-test fails on the previous bridge. Eight WARP production-helper cases verify
-ARGB/RGBA, portrait dimensions, padded pitch, partial pixels/rows, guards and
-invalid spans. All 100 Windows checks pass in Debug and Release.
-
-Private native run 20261019-191430 uses ordinary New Game/creator controls,
-isolated saves and verified muting. The 256x144 rendered face is copied with
-pitch 1024 and 147,456 nonzero bytes; the ready flag is 1 and the image was
-visually inspected. This verifies capture only: same-session menu display and
-generated-image save/reload remain pending. Cutscene skips later showed stale
-portrait/empty geometry frames; cause and baseline comparison remain open.
-Normal startup input is unchanged, and no game data or private paths are added.

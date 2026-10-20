@@ -49,7 +49,7 @@ gives the play defaults. Keep any files these write private.
 | Variable | Effect | Details |
 | --- | --- | --- |
 | `WKC2_PLAYER_MODE=1` | Native clean-play guard; clears inherited research/input switches and forces quiet logs | [Build guide](BUILD.md#playing-and-performance-options) |
-| `RSX_PRESENT_MEASURE=1` | Opt-in DirectX benchmark ring/CSV, always blocked in player mode | [Build guide](BUILD.md#clean-play-diagnostics-patch-0119) |
+| `RSX_PRESENT_MEASURE=1` | Opt-in DirectX benchmark ring/CSV, always blocked in player mode | [Build guide](BUILD.md#presentation-measurement) |
 | `WKC_NATIVE_SKINNING_TRACE=1` | Count native blend calls for coverage | [Native kernel](NATIVE_CODE.md#readable-c-geometry-prefix) |
 | `WKC_NATIVE_SKINNING=0` | Use retained compiled geometry prefix for research comparison | [Native kernel](NATIVE_CODE.md#readable-c-geometry-prefix) |
 
@@ -98,6 +98,7 @@ See [route coverage and limits](NATIVE_CODE.md).
 | `RSX_ENGINE_RED_TRIGGER=<dir>` | Saves the draw log and image when a sampled patch is strongly red | [Build guide](BUILD.md#playing-and-performance-options) |
 | `RSX_ENGINE_WATCH_TARGET=<hex>` | Prints draws into one colour target | [Build guide](BUILD.md#playing-and-performance-options) |
 | `RSX_ENGINE_AUDIT` | RSX request audit (enabled by `tools/probe.ps1` by default) | [Patches 0095-0096](PATCHES.md#rsx-request-audit-and-fragment-inputs-patches-0095-0096) |
+| `RSX_SPIRV_CACHE=0` | Disables reuse of translated Vulkan shaders, for comparison | [Patch 0100](PATCHES.md#spir-v-translation-cache-patch-0100) |
 | `RSX_ENGINE_SHADER_DUMP=<dir>` | Saves vertex-program binaries and HLSL for each new pipeline | [Earlier fixes](PATCHES.md#earlier-runtime-fixes-and-validation-history) |
 | `RSX_ENGINE_ALL_SUBCHANNELS=1` | Restores the old behaviour of applying all subchannels to the 3D engine | [Earlier fixes](PATCHES.md#earlier-runtime-fixes-and-validation-history) |
 | `RSX_DRAW_AUDIT=1` | Draw observation in private frame captures | [Movie decoding](SUBSYSTEMS.md#movie-decoding) |
