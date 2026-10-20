@@ -15,6 +15,8 @@ def git(*args):
 
 root_files = {
     'native_geometry_filter.h',
+    'native_geometry_pipeline.h',
+    'native_estimate_interpolation.h',
     'native_vertex_pack.h',
     'native_index_decode.h',
     'native_vertex_decode.h',

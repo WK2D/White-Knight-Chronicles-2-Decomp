@@ -802,3 +802,72 @@ job still needs assembly, resolution of padded/ambient storage dependencies,
 shared allocation, DMA payload and command publication, and scheduling/lifetime
 validation on broader real routes. No complete SPU image is replaced, no CPU/FPS
 gain is measured, and the desktop executable, preferences and save are unchanged.
+
+## Owned logical geometry pipeline
+
+[`native_geometry_pipeline.h`](../native_geometry_pipeline.h) now connects packed
+vertex decoding, palette preparation/skinning, index decoding, projection,
+triangle filtering and vertex packing through owned C++ vectors. The algorithms
+receive no guest registers, local-store snapshot or generated game routine.
+Input buffers remain unchanged; output is committed only after all stages
+succeed. Arithmetic and estimate/conversion policies remain explicit.
+
+The private entry adapter validates the recorded descriptor layout and copies
+the original staged input blocks into typed inputs. It destroys the entry
+snapshot before executing the pipeline, then loads stage/end snapshots only
+as comparison oracles. It invokes no compiled game function to produce backing
+data. This is a connected logical pipeline, **not yet a live whole-job hook**.
+
+Eight of the 32 recorded jobs have fully backed inputs under the current owned
+interface: three position-only jobs and five with normals/tangents. All eight
+match every checked intermediate and logical export:
+
+| Compared output | Count | Mismatches |
+| --- | ---: | ---: |
+| Positions | 5,576 | 0 |
+| Direction vectors | 10,928 | 0 |
+| Prepared palette matrices | 120 | 0 |
+| Decoded indices | 8,598 | 0 |
+| Projected records, all four words | 5,576 | 0 |
+| Surviving indices | 3,327 | 0 |
+| Packed vertex bytes | 132,928 | 0 |
+
+The same packed bytes also match the final job snapshot; this checks the same
+bytes twice, not another 132,928 unique output bytes. Eight second executions
+with altered initial normal-reciprocal values produce identical final buffers.
+This supports removing that bootstrap dependency for these disjoint owned
+views, not arbitrary aliased storage. Nine corruption controls damage the
+intended output class and fail the comparison. The composed capture comparison
+is host-mode only; exact/audit composition requires new matching oracles.
+
+The other 24 jobs remain unsupported by the entry adapter because their declared
+logical vertices can read beyond individual packed-input/influence blocks and
+the declared palette. Those reads cannot be replaced with zeros, clamped joints
+or reference-produced spill bytes. Recovering their bounded input/backing
+semantics remains part of the whole-job work. A decline is not native coverage.
+
+Public regressions add 38 synthetic success cases and 20 unchanged declines,
+known position/index/export results, input immutability and exception-before-
+commit checks. Subpixel mode accepts explicitly owned padding indices and
+projects their vertices itself; inconsistent precision/filter state and missing
+or invalid padding decline. The original captures use basic filtering. The
+standalone regression also links and runs without the SDK or generated game
+code. Both full Windows suites pass all 113 checks with the state consistency
+guards: Debug in 29.56 seconds and optimized Release in 25.66 seconds.
+
+[`native_estimate_interpolation.h`](../native_estimate_interpolation.h) makes the
+current compiled reference's final estimate interpolation FMA explicit while
+preserving separately rounded step/fraction calculations. Disabling implicit
+contraction initially exposed 27 failing matrix configurations when the adapter
+used the inline SDK expression. The explicit policy restores all 138 filter
+validation processes, and the eight composed jobs match with kernel contraction
+disabled. This is a recovered Windows reference policy, not new proof of every
+hardware estimate or ARM execution.
+
+The output also describes logical and aligned transfer sizes. It does not invent
+the bytes between them or publish them. A whole replacement still needs the
+remaining input layouts, index/export padding, shared allocator transactions,
+RSX command construction/fixups, payload-before-command visibility and lifetime/
+scheduling validation on real routes. No complete SPU job or image is replaced,
+no CPU/FPS gain is measured, and the desktop executable, preferences and save
+remain unchanged.

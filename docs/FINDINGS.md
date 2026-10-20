@@ -3581,3 +3581,24 @@ These are offline logical algorithms, with no new live hook, complete job/image
 replacement, measured speed gain or desktop change. Complete state, ambient and
 padded storage, shared allocation, DMA/publication and scheduling remain open.
 See [projection/filter interfaces and evidence](NATIVE_CODE.md#projection-and-triangle-filtering).
+
+## Connected owned C++ geometry pipeline
+
+The recovered algorithms now run together through owned C++ buffers: packed
+vertex decoding, palette/skinning, index decoding, projection/filtering and
+vertex packing. Eight fully backed recorded inputs match all intermediate
+buffers and 132,928 packed vertex bytes; the same bytes also match the job-end
+snapshot. The entry snapshot is destroyed before computation, and comparison
+oracles are loaded afterward. No compiled game routine prepares the inputs.
+
+Twenty-four other recorded jobs still need their padded input and out-of-range
+palette backing recovered. Nine output-corruption controls fail as expected.
+Public regressions cover 38 synthetic successes, 20 unchanged declines, input
+immutability and exception-before-commit behavior. An explicit fused estimate
+interpolation policy preserves the current Windows reference while keeping
+implicit contraction disabled in the kernels.
+
+This is offline host-mode composition, not a live complete job or full image
+replacement. Aligned export padding, allocation, command construction and
+DMA/scheduling remain open, with no measured performance gain or desktop change.
+See [interfaces, evidence and remaining work](NATIVE_CODE.md#owned-logical-geometry-pipeline).

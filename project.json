@@ -2711,7 +2711,7 @@
       "invalid_short_missing_padding_and_alias_declines_unchanged": true,
       "implicit_fp_contraction_disabled": true,
       "debug_windows_checks_passed": 113,
-      "debug_seconds": 29.60,
+      "debug_seconds": 29.6,
       "release_windows_checks_passed": 113,
       "release_seconds": 24.94,
       "sdk_patches": 122
@@ -2730,6 +2730,99 @@
       "Recover shared allocation, payload DMA, command fixups/publication and their visibility/lifetimes.",
       "Validate whole-job scheduling and broader real NPC-heavy, transition and cutscene routes before live replacement.",
       "Measure CPU and speed separately with capture/verification disabled."
+    ]
+  },
+  "native_owned_geometry_pipeline": {
+    "date": "2026-10-20",
+    "image_id": 19,
+    "public_core": "native_geometry_pipeline.h",
+    "estimate_policy": "native_estimate_interpolation.h",
+    "status": "Connected offline logical geometry algorithms through owned host buffers; no live whole-job hook",
+    "stages": [
+      "packed vertex decode",
+      "palette preparation",
+      "position/normal/tangent skinning",
+      "compressed index decode",
+      "projection",
+      "stable triangle filtering",
+      "vertex export packing"
+    ],
+    "interface": "Owned packed input vectors, typed influences/palette/transforms/flags and explicit arithmetic policies in; owned intermediate vectors, filtered logical indices, packed logical vertices and transfer-size plan out. Input remains unchanged; output commits only on complete logical success.",
+    "captured_host_composition": {
+      "examined": 32,
+      "admitted": 8,
+      "position_only_jobs": 3,
+      "normal_tangent_jobs": 5,
+      "unsupported_input_backing_jobs": 24,
+      "passed": 8,
+      "pipeline_declines_after_admission": 0,
+      "positions": 5576,
+      "directions": 10928,
+      "prepared_palette_matrices": 120,
+      "projected_records": 5576,
+      "decoded_indices": 8598,
+      "filtered_indices": 3327,
+      "packed_vertex_bytes": 132928,
+      "mismatches": 0,
+      "same_packed_bytes_also_match_final_job_snapshot": true,
+      "bootstrap_independence_repeats": 8,
+      "bootstrap_independence_failures": 0,
+      "original_entry_owned_inputs_only": true,
+      "entry_snapshot_destroyed_before_execution": true,
+      "comparison_oracles_loaded_after_execution": true,
+      "compiled_game_routine_invoked_to_supply_inputs": false,
+      "exact_audit_composed_oracles_verified": false
+    },
+    "negative_controls": {
+      "processes": 9,
+      "expected_failures": 9,
+      "intended_output_class_mismatch_checked": true,
+      "classes": [
+        "position",
+        "direction",
+        "projected record",
+        "filtered index",
+        "packed vertex"
+      ]
+    },
+    "public_regression": {
+      "existing_check_extended": "wkc2_native_skinning",
+      "synthetic_successes": 38,
+      "unchanged_declines": 20,
+      "input_immutability_checked": true,
+      "exception_before_commit_checked": true,
+      "explicit_owned_subpixel_padding_indices_checked": true,
+      "precision_filter_state_consistency_checked": true,
+      "standalone_without_sdk_or_generated_game_code_passed": true,
+      "debug_windows_checks_passed": 113,
+      "debug_seconds": 29.56,
+      "release_windows_checks_passed": 113,
+      "release_seconds": 25.66,
+      "sdk_patches": 122
+    },
+    "estimate_interpolation": {
+      "explicit_final_fma": true,
+      "separate_step_fraction_rounding_preserved": true,
+      "implicit_kernel_fp_contraction_disabled": true,
+      "filter_validation_processes_passed": 138,
+      "scope": "Current compiled Windows reference interpolation policy, including rounding/FTZ/DAZ comparisons; not new hardware-wide or ARM equivalence."
+    },
+    "supported_input_precondition": "Every declared vertex input and all four palette joints, including zero weights, need owned backing; otherwise unchanged decline. Declines are not native player coverage.",
+    "subpixel_scope": "Pure composition accepts bounded owned padding indices and derives their projected records itself; current captured entry adapter covers basic filtering only.",
+    "transfer_size_plan_is_complete_payload": false,
+    "live_game_integration_verified": false,
+    "whole_job_replaced": false,
+    "full_spu_image_replaced": false,
+    "scheduling_equivalence_proven": false,
+    "arm_execution_verified": false,
+    "fps_gain_measured": false,
+    "desktop_executable_changed": false,
+    "remaining": [
+      "Recover missing packed-input/influence/palette backing for the other24 recorded layouts.",
+      "Reconstruct externally visible index/export padding without reference-produced bytes.",
+      "Implement shared allocation transactions, command packets/fixups and ordered payload/publication.",
+      "Verify scheduling and lifetimes on real NPC-heavy, transition and cutscene routes.",
+      "Extend all remaining SPU images and measure CPU/FPS separately from diagnostics."
     ]
   }
 }
