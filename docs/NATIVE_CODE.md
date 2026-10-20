@@ -546,3 +546,52 @@ comparison, including shared allocation, DMA ordering and publication. No whole
 job/image replacement, live decoder integration, scheduling proof or performance
 gain is claimed by these tests. The player executable, saves and preferences are
 unchanged, and generated reference code and raw fixtures remain private.
+
+## Compressed triangle-index decoding
+
+The geometry stage at `0x78F0`, previously provisionally labeled as packing,
+actually decompresses triangle indices. The new project-written
+[`native_index_decode.h`](../native_index_decode.h) accepts stable packed bytes
+and writes logical host `uint16_t` indices. It uses no guest registers, local
+store, DMA or allocation. **It is tested offline, with no live game hook.**
+
+The recovered header supplies an explicit-value count, delta bias, selector-byte
+count and delta bit width. One-bit selectors choose sequential new indices or
+explicit values. Explicit deltas use an eight-value prediction stride with
+wrapping 16-bit arithmetic. Two-bit triangle commands either introduce three
+tokens or reuse two corners of the previous triangle and consume one token.
+The implementation streams these operations with an eight-element predictor.
+
+All 32 captured calls match all **20,220 logical indices**. Those captures have
+no explicit values and zero delta width, so they alone do not verify the other
+branches. Private synthetic comparisons invoke the actual unhooked compiled
+stage with randomized packed deltas, biases, selectors and all four commands:
+
+| Dataset | Attempts | Accepted output matches | Unchanged declines | Checked indices | Mismatches |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Widths 1–15, 24–402 indices | 7,680 | 7,679 | 1 | 1,629,786 | 0 |
+| Widths 0–16, including unsupported boundaries | 4,352 | 3,840 | 512 | 813,735 | 0 |
+
+These sets reuse one deterministic seed and overlap in input classes; they are
+not an exhaustive format proof. Deliberately changing one output bit is rejected
+for both captured sets. The public regression adds 1,841 randomized logical
+streams (116,535 indices), 79 unchanged scratch-alias declines, an independently
+specified four-command stream, unaligned input, tails, truncation and unchanged
+reject controls. Both Windows suites pass all 113 checks with 122 SDK patches.
+
+There are explicit limits. Width 16 gives a different extraction result in the
+reference, and zero-width explicit values depend on its scratch contents; both
+currently decline. Layouts where the old token buffer can overwrite unread
+explicit values also decline. This dependency was observed in tiny synthetic
+jobs and a 24-index case; it must be reconstructed or its legal input domain
+established before a complete replacement. Short streams, insufficient tokens
+or explicit values, non-triangle counts and overlapping input/output ranges
+decline before writes.
+
+Only logical indices are covered. The reference also writes rounded tail
+triangles containing previous arena data: the captured allocations contain 696
+bytes beyond logical indices. This kernel does not recreate those writes,
+register/stack effects or metadata publication. The whole-job comparison must
+prove their external liveness or reproduce them, then validate shared allocation,
+DMA visibility and scheduling. No whole-job/image replacement or performance
+gain is claimed; the desktop executable, save and preferences are unchanged.

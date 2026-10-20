@@ -41,6 +41,7 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 - [Readable whole skinning stream](NATIVE_CODE.md#readable-whole-skinning-stream)
 - [Whole geometry job boundary](NATIVE_CODE.md#whole-geometry-job-boundary)
 - [Owned-buffer packed vertex decoder](NATIVE_CODE.md#packed-vertex-decoding-in-owned-buffers)
+- [Compressed triangle-index decoder](NATIVE_CODE.md#compressed-triangle-index-decoding)
 - [NPC cadence and rejected host FMA](#npc-cadence-and-rejected-host-fma)
 - [Remaining fork candidates and mutex measurement](#remaining-fork-candidates-and-mutex-measurement)
 - [PPU register-local validation follow-up](#ppu-register-local-validation-follow-up)
@@ -3500,3 +3501,19 @@ This is an offline decoded-stream implementation, not a live replacement of the
 input stage or the whole job. The captured parameter layouts are retained, ARM
 execution is untested, and no game speed gain has been measured. The desktop
 executable is unchanged. See [formats, policies and limits](NATIVE_CODE.md#packed-vertex-decoding-in-owned-buffers).
+
+## Compressed triangle-index recovery
+
+Stage `0x78F0` decompresses triangle indices; its earlier provisional packing
+label was incorrect. A new allocation-free public C++ kernel matches all 20,220
+logical indices from 32 captured calls. Another 12,032 synthetic attempts give
+11,519 accepted output matches and 513 unchanged declines, with no accepted
+mismatches. The sets overlap in classes and reuse a deterministic seed. They
+exercise explicit deltas, eight-value prediction, selectors and all four
+triangle commands; the captures alone cover no explicit values. Output-bit
+corruption controls fail as expected, and both 113-check Windows suites pass.
+
+Width 16, zero-width explicit values and old scratch-alias layouts remain
+unsupported. Rounded tail writes and metadata/register effects are not replaced.
+This is offline whole-job reconstruction work, with no desktop change or FPS
+claim. See [interfaces, counts and unresolved behavior](NATIVE_CODE.md#compressed-triangle-index-decoding).

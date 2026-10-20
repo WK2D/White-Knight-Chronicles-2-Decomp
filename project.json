@@ -2364,5 +2364,66 @@
       "Integrate only after comparison with the whole-job reference; broaden real scene and cutscene coverage.",
       "Measure CPU and speed separately with verification/capture disabled."
     ]
+  },
+  "native_triangle_index_decoder": {
+    "date": "2026-10-20",
+    "image_id": 19,
+    "entry": "0x78F0",
+    "corrected_stage_role": "Compressed triangle-index decoding, not the previously provisional packing label",
+    "public_core": "native_index_decode.h",
+    "algorithm": "decode_triangle_indices",
+    "status": "Offline logical owned-buffer decoder; no live game integration",
+    "interface": "Stable packed bytes and a u16-range triangle index count in; host u16 logical indices out. Allocation-free, with an eight-value predictor and no register/LS/DMA ABI.",
+    "recorded_calls": 32,
+    "recorded_logical_indices": 20220,
+    "recorded_scope": "Zero delta width, zero explicit values, no command2. The synthetic references below cover other branches.",
+    "synthetic_widths_1_to_15": {
+      "accepted_calls": 7679,
+      "indices": 1629786,
+      "mismatches": 0,
+      "unchanged_declines": 1,
+      "synthetic_attempts": 7680
+    },
+    "synthetic_widths_0_to_16": {
+      "accepted_calls": 3840,
+      "indices": 813735,
+      "mismatches": 0,
+      "unchanged_declines": 512,
+      "synthetic_attempts": 4352
+    },
+    "synthetic_scope": "Randomized deltas, bias, selector bits and all four triangle commands; 24..402 logical indices. Deterministic seed reused and input classes overlap. Unsupported declines assert unchanged output.",
+    "public_regression": {
+      "existing_check_extended": "wkc2_native_skinning",
+      "accepted_random_streams": 1841,
+      "indices": 116535,
+      "unchanged_scratch_alias_declines": 79,
+      "independent_four_command_example": true,
+      "unaligned_tail_short_and_alias_controls": true,
+      "debug_windows_checks_passed": 113,
+      "release_windows_checks_passed": 113,
+      "sdk_patches": 122
+    },
+    "output_bit_corruption_rejected_in_both_capture_sets": true,
+    "unsupported": [
+      "Width16 reference extraction behavior",
+      "Width0 with explicit values and ambient scratch dependence",
+      "Layouts where old token writes can overwrite unread explicit values"
+    ],
+    "recorded_allocated_tail_bytes_outside_logical_indices": 696,
+    "original_padded_tail_writes_reproduced": false,
+    "stage_metadata_register_stack_abi_replaced": false,
+    "live_game_integration_verified": false,
+    "whole_job_replaced": false,
+    "full_spu_image_replaced": false,
+    "asynchronous_scheduling_equivalence_proven": false,
+    "arm_execution_verified": false,
+    "fps_gain_measured": false,
+    "desktop_executable_changed": false,
+    "remaining": [
+      "Resolve unsupported extraction and scratch-order cases or establish the exact supported game input domain.",
+      "Prove external liveness of rounded tail writes, or reproduce them and their ordering.",
+      "Complete remaining geometry stages and compare complete job/DMA outputs before live integration.",
+      "Validate shared allocation, output lifetimes, publication and scheduling on broader routes."
+    ]
   }
 }

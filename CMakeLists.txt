@@ -340,7 +340,7 @@ if(WKC2_BUILD_TESTS)
     enable_testing()
     # Exercise the linked channel implementation without loading game files.
     target_sources(${PROJECT_NAME} PRIVATE tests/play_environment_test.cpp tests/native_skinning_test.cpp tests/spu_title_test.cpp tests/spu_dma_poll_test.c tests/pad_file_test.c tests/spu_microstep_profile_test.c)
-    target_sources(${PROJECT_NAME} PRIVATE tests/native_skinning_stream_test.cpp tests/native_vertex_decode_test.cpp)
+    target_sources(${PROJECT_NAME} PRIVATE tests/native_skinning_stream_test.cpp tests/native_vertex_decode_test.cpp tests/native_index_decode_test.cpp)
     # The packed decoder distinguishes rounded operations from explicit FMA.
     # Keep those boundaries when optimizing its host-policy regression, including ARM.
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
