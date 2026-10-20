@@ -26,16 +26,16 @@ with readable project-written C++; current coverage is partial.
 - Town rendering, short character movement, camera control and pause/resume.
 - Logic Stone targeting, saving one starting-town slot and loading it through
   Continue after restarting.
-- A dedicated **Triangle → System → Graphics Settings** panel with persistent
+- A dedicated **Triangle â†’ System â†’ Graphics Settings** panel with persistent
   preferences, the game's menu frame and a scrollbar.
 - The town-to-Balastor Plain transition after Continue, with short movement and
   camera control. DirectX foreground clipping is fixed on that route, and
   leaf-shaped foliage shadow cutouts are restored on both renderers.
-- **117 Windows regression checks** pass in normal Debug (33.35 seconds) and
-  optimized Release (27.63 seconds).
+- **117 Windows regression checks** pass in normal Debug (11.93 seconds) and
+  optimized Release (11.77 seconds).
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
-resolutions; VSync; anisotropic filtering from Off to 16×; Off/FXAA anti-aliasing;
+resolutions; VSync; anisotropic filtering from Off to 16Ã—; Off/FXAA anti-aliasing;
 30/40/60/120/144/Unlocked frame limits; and an optional transparent FPS overlay.
 Vulkan is the primary renderer. DirectX 12 is an experimental, restart-selected
 renderer. Window mode, output size, VSync, filtering, FXAA and the FPS overlay are
@@ -102,11 +102,12 @@ Unsupported layouts retain compiled execution after declining before native
 external effects. Separate diagnostics use `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1`.
 All 32 recorded jobs match byte for byte through the real SDK native atomics,
 guest VM and transfer callbacks, and live execution reaches the starting town.
-The route still uses SDK arithmetic helpers and covers a limited constructor and
-layout domain. A quiet same-executable comparison is near the compiled path in
-two stationary town views, with no FPS gain established. Walking and NPC-heavy
-traversal comparisons remain open. No new desktop installation is claimed, and
-no complete SPU image has been replaced.
+Seven host arithmetic/comparison operations now use project-written C++;
+special negative multiply, reciprocal estimates and conversions retain SDK
+adapters. Integer NaN checks improved two stationary crowded-town tests; smooth
+30 FPS traversal remains open. Constructor/layout coverage is limited and no
+complete SPU image has been replaced. The local desktop build now enables the
+supported native job, with manual startup, the 30 FPS baseline and diagnostics off.
 Full-game static coverage and a readable reconstruction of the original source
 remain unverified.
 

@@ -5,8 +5,8 @@ observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
 **Current validation (2026-10-20):** the stack contains 126 SDK patches. All
-117 Windows checks pass in normal Debug (33.35 seconds) and optimized Release
-(27.63 seconds). Reapplying the complete stack changes no SDK files.
+117 Windows checks pass in normal Debug (11.93 seconds) and optimized Release
+(11.77 seconds). Reapplying the complete stack changes no SDK files.
 Strict DirectX and Vulkan routes on patch
 0121 confirm Continue, the plains transition, walking, camera rotation and the
 leaf-cutout shadow correction. Menu FXAA toggling was checked separately on 0110.
@@ -18,8 +18,9 @@ image-19 geometry jobs to main. It acquires original descriptors and inputs, the
 executes the typed pipeline and allocation/export/publication coordinator through
 actual SDK memory, native CAS and PUT operations. All 32 recorded jobs replay with
 byte-exact external outputs and zero mismatches. C++ owns the job inputs and
-outputs; numeric policies still use SDK arithmetic and reciprocal helpers rather
-than an independent host-math implementation. See the
+outputs. Seven host arithmetic/comparison operations now use the
+[authored C++ policy](../native_geometry_host_math.h); special negative multiply,
+reciprocal estimates and conversions still use SDK adapters. See the
 [native output transaction evidence](NATIVE_CODE.md#native-allocation-export-and-command-construction)
 and [public runtime](../native_geometry_runtime.cpp).
 The live route is explicitly opt-in; unsupported constructor/layout domains retain
@@ -35,11 +36,18 @@ the FPS overlay enabled and compared two stationary town views:
 | Logic Stone | 29.914 | 29.996 | 127.13 | 139.71 |
 | Facing the entrance | 19.746 | 20.581 | 182.36 | 188.20 |
 
-These bounded samples show near parity and no FPS gain. Movement segments ended
+Those initial samples show near parity and no FPS gain. A later
+[classifier-only A/B](NATIVE_CODE.md#native-classification-and-packet-construction)
+improves stationary crowded views from 7.583/7.750 to 9.915/9.999 FPS inside the
+street. The subsequent connected host-arithmetic run measures 13.164 FPS in one
+unpaired sample, with a 393.468 ms maximum interval; lag remains. These samples
+do not prove smooth walking, animation speed or 30 FPS. Earlier movement segments ended
 at the Leave area exit prompt and were excluded, so there is no benchmark for
 walking among NPCs on the main road or for area transitions. Broader layouts and
-NPC-heavy routes remain unverified. No complete image has been replaced and no
-new desktop-player installation is established.
+NPC-heavy traversal remains unverified. No complete image has been replaced.
+The local desktop player has now been updated at the user's request: supported
+native jobs enabled, manual startup, 30 FPS baseline, diagnostics disabled and
+saves preserved. Other graphics preferences are unchanged.
 Patch 0123 corrects the SPU machine-status interrupt bit; this source change has
 passed regression tests but has no new live game route or desktop installation.
 
@@ -55,6 +63,12 @@ their original build and diagnostic conditions.
 - [Diagnostic probes](#diagnostic-probes)
 - [Runtime patch notes](PATCHES.md): what each SDK patch changes, newest first
 - [Runtime subsystem notes](SUBSYSTEMS.md): renderer, movie decoding, frame presentation and text entry
+
+The public player launcher supports `-NativeGeometryJob` to enable this
+supported native route without enabling diagnostics. It explicitly writes `0`
+when the switch is omitted, preventing an inherited experimental selection.
+The clean-player guard preserves that functional selection while stripping
+native-job diagnostics, capture, profiling and input-injection switches.
 
 ## Requirements and workspace
 

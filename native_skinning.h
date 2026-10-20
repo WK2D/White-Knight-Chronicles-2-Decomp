@@ -79,6 +79,14 @@ struct HostScalarMath {
     }
 };
 
+// Inspect the IEEE binary32 encoding without a floating-point comparison or
+// CRT classifier call. Infinity has a zero fraction; every larger magnitude
+// encoding is a NaN, including either sign and signaling encodings. This
+// classification itself neither quiets a NaN nor raises an FP exception.
+constexpr bool host_binary32_is_nan(float value) noexcept {
+    return (std::bit_cast<std::uint32_t>(value)&0x7fffffffu)>0x7f800000u;
+}
+
 // Observed host-mode policy for the recovered position-only stream. Fused
 // arithmetic selects a NaN from a, then b, then the accumulator, and quiets it
 // without changing its sign/payload. Make this explicit rather than depend on
@@ -89,7 +97,7 @@ struct OrderedHostPositionStreamMath:Base {
     static Float4 multiply_add(const Float4& a,const Float4& b,const Float4& c) {
         auto out=Base::multiply_add(a,b,c);
         for(unsigned lane=0;lane<4;++lane) {
-            const float* selected=std::isnan(a[lane])?&a[lane]:std::isnan(b[lane])?&b[lane]:std::isnan(c[lane])?&c[lane]:nullptr;
+            const float* selected=host_binary32_is_nan(a[lane])?&a[lane]:host_binary32_is_nan(b[lane])?&b[lane]:host_binary32_is_nan(c[lane])?&c[lane]:nullptr;
             if(selected)out[lane]=std::bit_cast<float>(std::bit_cast<std::uint32_t>(*selected)|0x00400000u);
         }
         return out;
@@ -110,15 +118,15 @@ struct OrderedHostCofactorMath:Base {
     }
     static Float4 multiply(const Float4& a,const Float4& b) {
         auto out=Base::multiply(a,b);
-        for(unsigned i=0;i<4;++i)if(std::isnan(a[i])&&std::isnan(b[i]))out[i]=quiet(a[i]);
+        for(unsigned i=0;i<4;++i)if(host_binary32_is_nan(a[i])&&host_binary32_is_nan(b[i]))out[i]=quiet(a[i]);
         return out;
     }
     static Float4 multiply_subtract(const Float4& a,const Float4& b,const Float4& c) {
         auto out=Base::multiply_subtract(a,b,c);
         for(unsigned i=0;i<4;++i) {
-            if(std::isnan(a[i]))out[i]=quiet(a[i]);
-            else if(std::isnan(b[i]))out[i]=quiet(b[i]);
-            else if(std::isnan(c[i]))out[i]=quiet(c[i]);
+            if(host_binary32_is_nan(a[i]))out[i]=quiet(a[i]);
+            else if(host_binary32_is_nan(b[i]))out[i]=quiet(b[i]);
+            else if(host_binary32_is_nan(c[i]))out[i]=quiet(c[i]);
         }
         return out;
     }

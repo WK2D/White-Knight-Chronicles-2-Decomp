@@ -4,6 +4,37 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_cpp_host_math_town",
+      "date": "2026-10-20",
+      "image": "screenshots/2026-10-20-native-cpp-host-math-town.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "DirectX 12 live draw renderer",
+      "source_format": "Unmodified final swap-chain GPU readback with in-game counter",
+      "source_sha256": "544ab23cc0535808da7649c7ce0fb9646aa76192f0ff3ce34d1b2ab715b70617",
+      "png_sha256": "44c537df6801cd10de991dbce5c9661674132a4e3721c5db8daa02e9060e01bb",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IHDR",
+        "IDAT",
+        "IEND"
+      ],
+      "native_probe": "20261020-162847",
+      "native_readback": "frame_001410.ppm",
+      "native_executable_sha256": "752d49935ac2d787c1613ed61c2a59dde598eb33baf222e1913c4417c512f1e6",
+      "sdk_patch_count_in_captured_run": 126,
+      "spu_image_inputs": 24,
+      "frame_limit": 30,
+      "fps_counter": true,
+      "vsync": false,
+      "capture_only_backend_instrumentation": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false,
+      "performance_proven_by_still_image": false,
+      "capture_scope": "Supported whole C++ job and authored host arithmetic in the crowded town after Continue and a short walk. Hidden, muted, isolated save, normal log suppression, strict fallback guard. Readback armed outside timing; overlay 12.0 is instantaneous. Other layouts/images and remaining numeric adapters still use SDK/generated code."
+    },
+    {
       "milestone": "native_cpp_whole_job_town",
       "date": "2026-10-20",
       "image": "screenshots/2026-10-20-native-cpp-whole-job-town.png",

@@ -4,6 +4,7 @@
 #include "native_geometry_input.h"
 #include "native_geometry_job.h"
 #include "native_estimate_interpolation.h"
+#include "native_geometry_host_math.h"
 #include "spu_helpers.h"
 #include "spu_coherency.h"
 #include "spu_workload.h"
@@ -150,30 +151,25 @@ struct OwnedSources {
 
 u128 pack(const Float4& value) {u128 result;std::memcpy(&result,value.data(),16);return result;}
 Float4 unpack(u128 value) {Float4 result;std::memcpy(result.data(),&value,16);return result;}
-Float4 splat(float value) {return {value,value,value,value};}
-struct RuntimeMath {
-    static Float4 multiply(const Float4& a,const Float4& b){return unpack(spu_fm(pack(a),pack(b)));}
-    static Float4 multiply_add(const Float4& a,const Float4& b,const Float4& c){return unpack(spu_fma(pack(a),pack(b),pack(c)));}
-    static Float4 multiply_subtract(const Float4& a,const Float4& b,const Float4& c){return unpack(spu_fms(pack(a),pack(b),pack(c)));}
-    static Float4 add(const Float4& a,const Float4& b){return unpack(spu_fa(pack(a),pack(b)));}
-    static Float4 subtract(const Float4& a,const Float4& b){return unpack(spu_fs(pack(a),pack(b)));}
+// Admission checks host mode once for the whole job. These ordinary arithmetic
+// and comparison operations use our typed C++ policy without SDK mode dispatch.
+// FNMS retains its distinct extended-range contract until separately replaced.
+struct RuntimeMath:HostGeometryMath {
     static Float4 negative_multiply_add(const Float4& a,const Float4& b,const Float4& c){return unpack(spu_fnms(pack(a),pack(b),pack(c)));}
-    static bool greater(float a,float b){return spu_fcgt(pack(splat(a)),pack(splat(b)))._u32[0]!=0;}
-    static bool magnitude_equal(float a,float b){return spu_fcmeq(pack(splat(a)),pack(splat(b)))._u32[0]!=0;}
 };
 struct PositionMath:RuntimeMath {
     static Float4 multiply_add(const Float4& a,const Float4& b,const Float4& c) {
-        return OrderedHostPositionStreamMath<RuntimeMath>::multiply_add(a,b,c);
+        return OrderedHostPositionStreamMath<HostScalarMath>::multiply_add(a,b,c);
     }
 };
 struct NormalMath:RuntimeMath {
     static Float4 multiply(const Float4& a,const Float4& b) {
-        return OrderedHostCofactorMath<RuntimeMath>::multiply(a,b);
+        return OrderedHostCofactorMath<HostScalarMath>::multiply(a,b);
     }
 };
 struct CofactorMath:NormalMath {
     static Float4 multiply_subtract(const Float4& a,const Float4& b,const Float4& c) {
-        return OrderedHostCofactorMath<RuntimeMath>::multiply_subtract(a,b,c);
+        return OrderedHostCofactorMath<HostScalarMath>::multiply_subtract(a,b,c);
     }
 };
 struct ReciprocalSquareRoot {

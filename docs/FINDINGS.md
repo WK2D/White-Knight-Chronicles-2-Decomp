@@ -3673,3 +3673,49 @@ No new desktop installation is claimed. Full image
 replacement, broader constructor/layout coverage, NPC-heavy routes, transitions,
 cutscenes and remaining SPU jobs remain open. See the
 [runtime evidence and limits](NATIVE_CODE.md#opt-in-live-geometry-job).
+
+## Connected geometry hot-loop cleanup
+
+The live native job now uses integer binary32 NaN classification in its ordered
+host skinning policies, preserving finite arithmetic and NaN precedence,
+quieting, sign and payload. Its packet builder also writes into one final
+allocation; a capacity decline leaves caller output unchanged. All 32 actual
+VM/CAS/PUT replays still match byte for byte. At this checkpoint, before later
+arithmetic-policy experiments, both full 117-check suites pass: Release in
+11.56 seconds and Debug in 11.00 seconds.
+
+Quiet same-process run `20261020-160347` compares only old/new classification
+with the native job enabled in both modes. Two twelve-second trials per mode
+measure 8.915/8.249 versus 11.416/8.999 FPS facing the crowded street, and
+7.583/7.750 versus 9.915/9.999 FPS inside it. The camera stays fixed within each
+view; order is reversed between views. The hidden, muted DirectX comparison
+uses an isolated save, 30 FPS cap and FPS overlay, without profiling, game logs
+or armed captures during timing. This is a bounded stationary-view improvement,
+not a 30 FPS, walking, animation or transition result. Packet construction's
+isolated speed effect is unmeasured. The shared image-19 gate remains serial
+pending external read/write dependency proof. See the
+[comparison and limits](NATIVE_CODE.md#native-classification-and-packet-construction).
+
+## Authored host arithmetic connected
+
+Seven arithmetic/comparison operations now use `native_geometry_host_math.h`
+in the supported whole job, without SDK register packing or per-operation mode
+dispatch. Explicit NaN policies preserve the observed Windows Debug and Release
+contracts. Each configuration passes 389,120 raw-bit vector cases over five FP
+environments. Both 117-check suites pass (Debug 11.93 s; Release 11.77 s), and
+all 32 Release actual-VM replays still have zero mismatches.
+
+Quiet run `20261020-162847` reaches the NPC street after Continue and a short
+walk. One stationary twelve-second sample averages 13.164 presentations/s, with
+a 393.468 ms maximum interval. It has no paired baseline and does not establish
+an arithmetic-policy speed gain or smooth traversal. The new gallery frame has
+the FPS overlay on and was captured outside timing. Special negative multiply,
+reciprocal estimates and conversions still use SDK adapters; broader layouts,
+images, platforms and scheduling remain open.
+
+The user-requested desktop update installs the public Release executable with
+supported native jobs enabled. Startup remains manual and clean: profilers,
+traces, GPU captures, diagnostic logs and automated controller input are disabled.
+The frame limit is restored to the 30 FPS baseline because higher-rate faults
+remain open. Saves and other graphics preferences are preserved. Targeted
+clean-environment, native-math and hook checks pass again in Debug and Release.

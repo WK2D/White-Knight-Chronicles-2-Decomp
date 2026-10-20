@@ -154,8 +154,12 @@ The first instrumented performance comparison regressed with debug logging
 enabled; profiling found `WriteFile` hot. A later quiet comparison used the same
 executable with the FPS overlay enabled and found near parity in two stationary
 town views: native versus compiled measured 29.914 versus 29.996 fps at the Logic
-Stone and 19.746 versus 20.581 fps facing the entrance. No FPS gain or new desktop
-installation is established. Movement segments ended at the Leave area exit
+Stone and 19.746 versus 20.581 fps facing the entrance. That comparison did not
+establish an FPS gain. Later integer NaN classification improves two crowded
+stationary views in a separate A/B. Seven arithmetic/comparison operations now
+use authored C++ in the supported whole job; remaining special numeric adapters
+still use SDK helpers. The requested local desktop update now enables this
+supported job with a clean, manual launch at the 30 FPS baseline. Movement segments ended at the Leave area exit
 prompt and were excluded, so there is no benchmark for walking among NPCs on the
 main road or for area transitions. Broader layouts and NPC-heavy routes remain
 unverified. See the [comparison conditions](BUILD.md).

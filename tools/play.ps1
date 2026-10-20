@@ -1,4 +1,4 @@
-param([string]$Workspace = (Resolve-Path "$PSScriptRoot/../../.."))
+param([string]$Workspace = (Resolve-Path "$PSScriptRoot/../../.."),[switch]$NativeGeometryJob)
 # Player launch only. Research runs use probe.ps1 and separate private helpers.
 $ErrorActionPreference = 'Stop'
 if (@(Get-Process -Name WKC2Native -ErrorAction SilentlyContinue).Count) {
@@ -6,6 +6,7 @@ if (@(Get-Process -Name WKC2Native -ErrorAction SilentlyContinue).Count) {
 }
 . "$PSScriptRoot/media-env.ps1" -Workspace $Workspace
 $env:WKC2_PLAYER_MODE = '1' # executable clears inherited research variables
+$env:WKC_NATIVE_GEOMETRY_JOB = ([int][bool]$NativeGeometryJob).ToString()
 $env:WKC2_DISCARD_LOGS = '1'
 $env:PS3_VERBOSE = '0'
 $env:PS3_VFS_ROOT = Join-Path $Workspace 'work/wkc2-disc'

@@ -10,9 +10,10 @@ zero entries. Neither establishes full-game interpreter-free execution; see
 [architecture](ARCHITECTURE.md).
 
 Current source: 126 SDK patches / 117 Windows checks in normal Debug and optimized
-Release. The newest capture shows the opt-in supported whole C++ geometry job
-running in town. A separate quiet two-view comparison is near the compiled path,
-with no FPS gain established. The previous capture follows the complete supported
+Release. The newest capture shows authored host arithmetic connected to the
+opt-in supported whole C++ job in the crowded town, with the FPS counter on.
+A classifier-only A/B improves stationary views; the later arithmetic run has
+an unpaired 13.164 FPS sample and still stutters. Earlier captures follow the complete supported
 C++ skinning routine on a strict DirectX town-to-plains route. Earlier captures
 show leaf-shaped shadow cutouts after correcting
 alpha-reference formats. These verify inspected frames, not performance gains.
@@ -49,6 +50,7 @@ Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-20 | [Native C++ host arithmetic](#2026-10-20--native-c-host-arithmetic) | <a href="#2026-10-20--native-c-host-arithmetic"><img src="../verification/screenshots/2026-10-20-native-cpp-host-math-town.png" width="200" alt="Authored C++ host arithmetic in the crowded town"></a> |
 | 2026-10-20 | [Native C++ whole-job town](#2026-10-20--native-c-whole-job-town) | <a href="#2026-10-20--native-c-whole-job-town"><img src="../verification/screenshots/2026-10-20-native-cpp-whole-job-town.png" width="200" alt="Native C++ whole geometry job in town"></a> |
 | 2026-10-20 | [Native C++ skinning routine](#2026-10-20--native-c-skinning-routine) | <a href="#2026-10-20--native-c-skinning-routine"><img src="../verification/screenshots/2026-10-20-native-cpp-skinning-stream.png" width="200" alt="Native C++ skinning routine in Balastor Plain"></a> |
 | 2026-10-20 | [Native C++ normal output](#2026-10-20--native-c-normal-output) | <a href="#2026-10-20--native-c-normal-output"><img src="../verification/screenshots/2026-10-20-native-cpp-normal-output.png" width="200" alt="Native C++ final-normal output route"></a> |
@@ -80,6 +82,24 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
+
+## 2026-10-20 — Native C++ host arithmetic
+
+![Authored C++ arithmetic connected in the crowded town, FPS counter on](../verification/screenshots/2026-10-20-native-cpp-host-math-town.png)
+
+Seven arithmetic/comparison operations now use authored C++ in the supported
+whole geometry job. Integer NaN checks and direct final-packet construction are
+also connected. Both Windows suites pass 117 checks; 389,120 arithmetic vectors
+per configuration and all 32 actual Release VM replays match.
+
+This frame follows Continue and a short walk toward the NPC street in DirectX
+run `20261020-162847`. It uses a copied save, hidden/muted window, 30 FPS cap,
+normal log suppression and strict fallback guard. The lossless GPU readback is
+outside timing and has no optional PNG metadata. Its **12.0 FPS** overlay is an
+instant; the separate twelve-second sample averages **13.164 presentations/s**
+with a **393.468 ms** maximum interval. The sample has no paired baseline, and
+lag remains. Other layouts/images and special numeric helpers remain outside
+this replacement. See [arithmetic evidence and limits](NATIVE_CODE.md#authored-host-arithmetic-connected).
 
 ## 2026-10-20 — Native C++ whole-job town
 

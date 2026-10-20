@@ -117,6 +117,21 @@ int wkc2_test_native_geometry_commands() {
         0x41714,0,0x8181c,0x120000,16,0x41808,5,0x40041824,0x2000000,0x41808,0,0};
     for(unsigned i=0;i<expected.size();++i)assert(word(packet.bytes,i*4)==expected[i]);
     decode_and_check(spec,allocation,packet);++cases;
+    // The incrementing two-word index binding either splits at phase 120 or
+    // moves past a lone header slot at phase 124. Its second method is 0x1820.
+    for(unsigned phase:{96u,100u}) {
+        auto phased=spec;phased.destination+=phase;
+        gc::CommandPublication boundary;
+        assert(gc::build(phased,allocation,boundary)==gc::BuildStatus::packet_ready);
+        if(phase==96) {
+            assert(word(boundary.bytes,24)==0x4181c&&word(boundary.bytes,32)==0x41820);
+            assert(boundary.method_splits==1&&boundary.inserted_nops==0);
+        } else {
+            assert(word(boundary.bytes,24)==0&&word(boundary.bytes,28)==0x8181c);
+            assert(boundary.method_splits==0&&boundary.inserted_nops==1);
+        }
+        decode_and_check(phased,allocation,boundary);++cases;
+    }
     for(bool enabled:{false,true}) {
         Backend backend{packet,enabled};assert(gc::submit(packet,backend));
         assert(backend.enabled==enabled&&backend.fences==1&&backend.reads==1&&backend.disables==1&&
@@ -139,8 +154,11 @@ int wkc2_test_native_geometry_commands() {
     assert(!gc::submit(packet,quiet));assert(!quiet.fences&&!quiet.reads&&!quiet.puts);++declines;
     const auto reject=[&](gc::BuildStatus expected_status) {
         gc::CommandPublication out;out.destination=0xdead;out.bytes={0x12,0x34};out.publish=true;
+        out.dma_tag=30;out.method_splits=97;out.inserted_nops=83;
         assert(gc::build(spec,allocation,out)==expected_status);
-        assert(out.destination==0xdead&&out.publish&&(out.bytes==std::vector<std::uint8_t>{0x12,0x34}));++declines;
+        assert(out.destination==0xdead&&out.publish&&out.dma_tag==30&&
+               out.method_splits==97&&out.inserted_nops==83&&
+               (out.bytes==std::vector<std::uint8_t>{0x12,0x34}));++declines;
     };
     spec.destination=0x8001;reject(gc::BuildStatus::invalid_input);
     spec.destination=0x8000;spec.dma_tag=32;reject(gc::BuildStatus::invalid_input);
@@ -150,6 +168,30 @@ int wkc2_test_native_geometry_commands() {
     spec.filtered_index_count=65538;reject(gc::BuildStatus::invalid_input);
     spec.filtered_index_count=3;allocation.location=2;reject(gc::BuildStatus::invalid_input);
     allocation.location=0;spec.format=static_cast<VertexPackFormat>(35);reject(gc::BuildStatus::unsupported_format);
+    // Format validation retains precedence over other export errors; a missing
+    // destination still bypasses all export validation after alignment/tag.
+    spec.filtered_index_count=0;spec.packet_quadwords=0;reject(gc::BuildStatus::unsupported_format);
+    spec.destination=0;
+    assert(gc::build(spec,allocation,packet)==gc::BuildStatus::no_publication);
+    assert(packet.bytes.empty()&&!packet.publish&&!packet.method_splits&&!packet.inserted_nops);++cases;
+    // Find the minimum quadword capacity from a complete maximum-draw packet.
+    // A nonzero final consumer-release value makes trailing padding unambiguous.
+    spec={VertexPackFormat::position_normal_tangent,0x4004,65535,0x807c,255,20,true};
+    allocation={0x120002,0x240000,1,0x303c,0x12345678,true};
+    gc::CommandPublication full;
+    assert(gc::build(spec,allocation,full)==gc::BuildStatus::packet_ready);
+    auto used=full.bytes.size();
+    while(used&&!word(full.bytes,used-4))used-=4;
+    assert(used>=4&&word(full.bytes,used-4)==allocation.reserved_end);
+    const auto minimum_quadwords=(used+15)/16;
+    assert(minimum_quadwords>1&&minimum_quadwords<=255);
+    spec.packet_quadwords=std::uint8_t(minimum_quadwords);
+    gc::CommandPublication fitted;
+    assert(gc::build(spec,allocation,fitted)==gc::BuildStatus::packet_ready);
+    assert(std::equal(fitted.bytes.begin(),fitted.bytes.end(),full.bytes.begin()));
+    assert(fitted.method_splits==full.method_splits&&fitted.inserted_nops==full.inserted_nops);
+    decode_and_check(spec,allocation,fitted);++cases;
+    --spec.packet_quadwords;reject(gc::BuildStatus::insufficient_packet_capacity);
     std::printf("Native geometry commands: %u decoded draw/binding/page/zero cases, %u unchanged declines; %u splits, %u NOPs.\n",cases,declines,splits,nops);
     return 0;
 }

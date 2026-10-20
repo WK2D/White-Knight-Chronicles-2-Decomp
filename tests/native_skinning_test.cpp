@@ -24,13 +24,44 @@ int wkc2_test_native_geometry_export();
 int wkc2_test_native_geometry_commands();
 int wkc2_test_native_geometry_job();
 int wkc2_test_native_geometry_input();
+int wkc2_test_native_geometry_host_math();
 static CyclicAffine cyclic(const float matrix[3][4]) {
     return {Float4{matrix[0][0],matrix[1][1],matrix[2][2],matrix[0][3]},
             Float4{matrix[0][1],matrix[1][2],matrix[2][0],matrix[1][3]},
             Float4{matrix[0][2],matrix[1][0],matrix[2][1],matrix[2][3]}};
 }
 
+static void test_host_binary32_nan_classification() {
+    static_assert(!host_binary32_is_nan(std::bit_cast<float>(0x7f800000u)));
+    static_assert(host_binary32_is_nan(std::bit_cast<float>(0xff800001u)));
+    struct Case {std::uint32_t bits;bool nan;};
+    constexpr Case cases[]={
+        {0,false},{0x80000000u,false},             // signed zero
+        {1,false},{0x807fffffu,false},            // subnormals
+        {0x00800000u,false},{0x80800000u,false},   // smallest normals
+        {0x7f7fffffu,false},{0xff7fffffu,false},   // largest finite values
+        {0x7f800000u,false},{0xff800000u,false},   // infinities
+        {0x7f800001u,true},{0xff800001u,true},     // smallest signaling payload
+        {0x7fbfffffu,true},{0xffbfffffu,true},     // largest signaling payload
+        {0x7fc00000u,true},{0xffc00000u,true},     // quiet with no other payload
+        {0x7fffffffu,true},{0xffffffffu,true}};
+    for(const auto sample:cases) {
+        const float value=std::bit_cast<float>(sample.bits);
+        assert(host_binary32_is_nan(value)==sample.nan);
+        assert(std::bit_cast<std::uint32_t>(value)==sample.bits);
+    }
+    std::mt19937 random(0x4e414e);
+    for(unsigned trial=0;trial<200000;++trial) {
+        const auto bits=std::uint32_t(random());
+        const float value=std::bit_cast<float>(bits);
+        assert(host_binary32_is_nan(value)==std::isnan(value));
+        assert(std::bit_cast<std::uint32_t>(value)==bits);
+    }
+}
+
 int wkc2_test_native_skinning() {
+    test_host_binary32_nan_classification();
+    assert(wkc2_test_native_geometry_host_math()==0);
     assert(wkc2_test_native_skinning_stream()==0);
     assert(wkc2_test_native_vertex_decode()==0);
     assert(wkc2_test_native_index_decode()==0);
@@ -77,6 +108,22 @@ int wkc2_test_native_skinning() {
     const std::uint32_t operands[]={0,0x80000000,0x3f800000,0xbf800000,
         0x7f800000,0xff800000,0x7fc00001,0xffc00002,0x7fa12345,0xff812345};
     const auto is_nan=[](std::uint32_t bits){return (bits&0x7f800000u)==0x7f800000u && (bits&0x7fffffu);};
+    // Exercise each position lane and all operand priorities. Non-NaN lanes
+    // retain Base's exact fused result, including invalid finite/inf cases.
+    for(auto a_bits:operands)for(auto b_bits:operands)for(auto c_bits:operands)for(unsigned lane=0;lane<4;++lane) {
+        Float4 a{2,3,4,5},b{6,7,8,9},c{10,11,12,13};
+        a[lane]=std::bit_cast<float>(a_bits);
+        b[lane]=std::bit_cast<float>(b_bits);
+        c[lane]=std::bit_cast<float>(c_bits);
+        const auto expected=HostScalarMath::multiply_add(a,b,c);
+        const auto actual=OrderedHostPositionStreamMath<>::multiply_add(a,b,c);
+        const auto chosen=is_nan(a_bits)?a_bits:is_nan(b_bits)?b_bits:is_nan(c_bits)?c_bits:0;
+        for(unsigned i=0;i<4;++i) {
+            if(i==lane&&chosen)assert(std::bit_cast<std::uint32_t>(actual[i])==(chosen|0x400000u));
+            else if(std::isnan(expected[i]))assert(std::isnan(actual[i]));
+            else assert(std::bit_cast<std::uint32_t>(actual[i])==std::bit_cast<std::uint32_t>(expected[i]));
+        }
+    }
     for(auto a_bits:operands)for(auto b_bits:operands)for(auto c_bits:operands) {
         const Float4 a{std::bit_cast<float>(a_bits),2,3,4};
         const Float4 b{std::bit_cast<float>(b_bits),5,6,7};

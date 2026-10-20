@@ -47,7 +47,7 @@ transition. A separate instrumented run confirms execution of all five new entri
 
 A separate strict DirectX route `20261019-215032` confirms the actual town-to-
 Balastor Plain transition with zero fallback. The ground incorrectly occludes
-Leonard’s lower body there. That fault reproduces on the older 115-patch DirectX
+Leonardâ€™s lower body there. That fault reproduces on the older 115-patch DirectX
 build; Vulkan 117 shows the lower body on the corresponding route. This remains
 a DirectX rendering issue fixed in the inspected route by patch 0118; it was
 not caused by the static SPU entries. Production probe `20261019-222607` also
@@ -225,7 +225,7 @@ help check ABI, channel and DMA boundaries while recovering kernels. The
 [undocumented channel table](https://www.psdevwiki.com/ps3/Undocumented_SPU_Channels)
 mostly covers isolation, loader, persistence, RNG and performance-monitor
 facilities. A static scan of all 24 generated images finds no channel calls in
-its 64–74 range. Two `rchcnt 113` sites occur beside undecoded words in images
+its 64â€“74 range. Two `rchcnt 113` sites occur beside undecoded words in images
 1 and 2; their reachability and meaning are unverified, so they are not treated
 as confirmed runtime requests. It does not establish that WKC uses a missing channel. Add behavior
 only after an actual decoded instruction or runtime request establishes the need;
@@ -401,7 +401,7 @@ unhooked compiled reference:
 | --- | ---: | ---: | ---: | ---: |
 | Recorded-LS and bounded finite palettes, three arithmetic modes | 30,000 | 27,609 | 2,391 | 0 |
 | Additional arbitrary float-bit palettes, three modes | 30,000 | 27,552 | 2,448 | 0 |
-| Four rounding modes × four FTZ/DAZ combinations × three arithmetic modes | 48,000 | 44,256 | 3,744 | 0 |
+| Four rounding modes Ã— four FTZ/DAZ combinations Ã— three arithmetic modes | 48,000 | 44,256 | 3,744 | 0 |
 | Total | 108,000 | 99,417 | 8,583 | 0 |
 
 The same random sequence is reused across arithmetic modes; these totals do not
@@ -533,7 +533,7 @@ host/exact/audit arithmetic helpers as policies for this comparison.
 | --- | ---: | ---: | ---: | ---: |
 | Original 32 recorded stage calls | 32 | 11,584 | 16,352 | 0 |
 | Random packed bytes and full-width biases, three arithmetic modes | 3,072 | 1,703,424 | 3,139,584 | 0 |
-| Four rounding modes × four FTZ/DAZ settings × three arithmetic modes | 3,072 | 1,703,424 | 3,139,584 | 0 |
+| Four rounding modes Ã— four FTZ/DAZ settings Ã— three arithmetic modes | 3,072 | 1,703,424 | 3,139,584 | 0 |
 
 Random sequences repeat across arithmetic modes/settings. These are bounded
 comparisons over the captured counts/layouts and selected output streams, not
@@ -576,8 +576,8 @@ stage with randomized packed deltas, biases, selectors and all four commands:
 
 | Dataset | Attempts | Accepted output matches | Unchanged declines | Checked indices | Mismatches |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Widths 1–15, 24–402 indices | 7,680 | 7,679 | 1 | 1,629,786 | 0 |
-| Widths 0–16, including unsupported boundaries | 4,352 | 3,840 | 512 | 813,735 | 0 |
+| Widths 1â€“15, 24â€“402 indices | 7,680 | 7,679 | 1 | 1,629,786 | 0 |
+| Widths 0â€“16, including unsupported boundaries | 4,352 | 3,840 | 512 | 813,735 | 0 |
 
 These sets reuse one deterministic seed and overlap in input classes; they are
 not an exhaustive format proof. Deliberately changing one output bit is rejected
@@ -631,7 +631,7 @@ that stage's registers, stack or local-store scratch.
 | --- | ---: | ---: | ---: |
 | Random bounded finite declared palettes/positions and arbitrary influence bytes, three arithmetic modes | 3,072 | 520,704 | 0 |
 | Arbitrary float-bit declared palettes/positions and influence bytes, three modes | 3,072 | 520,704 | 0 |
-| Four rounding modes × four FTZ/DAZ settings × three arithmetic modes | 6,144 | 1,041,408 | 0 |
+| Four rounding modes Ã— four FTZ/DAZ settings Ã— three arithmetic modes | 6,144 | 1,041,408 | 0 |
 
 Counts/layouts and other backing bytes come from the captures. Random sequences
 repeat across modes/settings, and an out-of-count palette read can still see
@@ -675,7 +675,7 @@ payload export. These captures provide no contention, wrap, atomic retry,
 global fallback, blocking wait or other-slot scheduling coverage.
 
 All 32 jobs publish a final fenced PUT after earlier same-tag payload PUTs, where
-present. The final packet size matches metadata header byte 1 × 16. Native
+present. The final packet size matches metadata header byte 1 Ã— 16. Native
 replacement must retain payload-before-command visibility, shared state
 ownership and retry behavior; an owned buffer per job is insufficient by itself.
 These decoded contracts underlie the C++ allocation/export transactions and
@@ -716,13 +716,13 @@ backed input/output storage, then compare only the logical packed prefix:
 | --- | ---: | ---: | ---: |
 | Bounded finite inputs, three arithmetic modes | 9,216 | 20,370,840 | 0 |
 | Arbitrary float bits, three arithmetic modes | 9,216 | 20,370,840 | 0 |
-| Four rounding modes × four FTZ/DAZ settings × three arithmetic modes | 12,288 | 27,123,840 | 0 |
+| Four rounding modes Ã— four FTZ/DAZ settings Ã— three arithmetic modes | 12,288 | 27,123,840 | 0 |
 | Default portable host policy, arbitrary bits | 3,072 | 6,790,280 | 0 |
 | Default host policy, rounding/FTZ/DAZ matrix | 4,096 | 9,041,280 | 0 |
 
 The sets reuse deterministic sequences and overlap; they are not distinct
 exhaustive inputs. Cases cover all three formats, both suppression settings and
-counts 0–256. Zero-count cases model the outer wrapper's empty path and do not
+counts 0â€“256. Zero-count cases model the outer wrapper's empty path and do not
 call the nonempty custom loop. The reference rounds nonempty counts up to pairs;
 the fixture supplies the extra vertex for odd counts. Only logical records are
 claimed, not those extra writes or the outer arena cursor. An output-bit
@@ -779,7 +779,7 @@ exercise state 5 and additional branches.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Bounded finite positions, basic/subpixel filtering, three arithmetic modes | 6,144 | 2,224,128 | 3,882,240 | 2,312,103 | 0 |
 | Arbitrary float-bit positions and matrices, both filter variants, three modes | 6,144 | 2,224,128 | 3,882,240 | 729,324 | 0 |
-| Four rounding modes × four FTZ/DAZ settings × three modes, selected basic/subpixel variant per configuration | 6,144 | 2,224,128 | 3,882,240 | 680,892 | 0 |
+| Four rounding modes Ã— four FTZ/DAZ settings Ã— three modes, selected basic/subpixel variant per configuration | 6,144 | 2,224,128 | 3,882,240 | 680,892 | 0 |
 
 The synthetic cases retain captured counts/layouts while changing positions,
 indices, precision and winding; the arbitrary-bit datasets also vary matrices.
@@ -901,7 +901,7 @@ against stage output, not just surviving indices.
 
 The actual public helper passes 140 validation processes: 32 captured calls,
 18,432 randomized/matrix calls, 12 runs of 4,370 directed cases, and six expected
-corruption failures. Directed coverage includes every keep mask, counts 1–20,
+corruption failures. Directed coverage includes every keep mask, counts 1â€“20,
 duplicate triangles, poisoned prior arena bytes, partial groups and basic/state-5
 filtering. Seeds repeat across modes/settings; these are not unique or exhaustive
 inputs. All complete-payload comparisons pass. Public regressions add 644
@@ -968,8 +968,8 @@ Independent actual-reference comparisons cover more allocator/export branches:
   cover formats 32/33/34, index zero, index and vertex chunk boundaries, tags
   0/20/31, mapped-cursor wrapping and both initial interrupt states. The maximum
   tested index count is 65,535. Zero vertex count remains unsupported.
-- Six deliberate corruptions of the connected path—packet bytes, count,
-  destination, allocator cursor, payload bytes and the final fence command—are
+- Six deliberate corruptions of the connected pathâ€”packet bytes, count,
+  destination, allocator cursor, payload bytes and the final fence commandâ€”are
   required to fail. Separate allocator result/order and exporter result/order
   controls also fail.
 
@@ -1076,9 +1076,9 @@ completion/decline counters are separately enabled by
 
 The bridge copies original descriptors and source spans into owned C++ storage,
 constructs typed inputs, and runs the public pipeline and job coordinator. It
-uses SDK arithmetic, reciprocal-estimate and conversion helpers as explicit
-policies; readable job control and owned buffers do not yet make the arithmetic
-independent of the SDK. Unknown constructor/cache layouts, unsupported backing
+uses project-written C++ for seven host arithmetic/comparison operations.
+Special extended-range negative multiply, reciprocal estimates and conversions
+retain SDK adapters; the numeric path is not yet wholly independent of the SDK. Unknown constructor/cache layouts, unsupported backing
 or padding, and arithmetic modes outside the admitted host mode decline before
 native allocation/publication and retain compiled execution.
 
@@ -1136,7 +1136,8 @@ intervals.
 The result is near parity in these two views, with **no FPS gain established**.
 This is one run per mode, without a confidence interval; NPC timing and camera
 endpoints can differ. The turned view is at the entrance/bridge, not the requested
-NPC-heavy main road. Timed stick segments reach the **Leave area** prompt and mix
+NPC-heavy main road; a later crowded-view comparison follows below. Timed stick
+segments reach the **Leave area** prompt and mix
 movement with menu time, so they are excluded from walking-performance claims.
 No area transition is established by this route. The earlier instrumented timing
 regression had debug logging enabled and `WriteFile` hot; those results are not
@@ -1144,7 +1145,70 @@ normal-player FPS measurements. The reviewed aggregates are in the
 [performance record](../verification/performance.json), and the
 [town capture](GALLERY.md#2026-10-20--native-c-whole-job-town) is outside timing.
 
-No new desktop installation is claimed.
+### Native classification and packet construction
+
+The connected host-mode skinning policies now classify binary32 NaNs with
+integer bit checks, removing CRT classifier calls from the hot loops. Finite
+arithmetic is unchanged, as are the explicit operand precedence, quieting,
+sign and payload rules. The command builder writes directly into one final
+zero-filled packet allocation instead of allocating method/argument and word
+staging vectors. Capacity rejection leaves the caller's output unchanged.
+
+After these changes, all 32 original-input replays still match through the
+actual VM/CAS/PUT backend with zero mismatches. Both complete 117-check suites
+pass at this checkpoint: Release in 11.56 seconds and Debug in 11.00 seconds.
+These results precede subsequent arithmetic-policy experiments.
+
+Run `20261020-160347` switches only the old/new NaN classifier within the same
+executable and process, holding the camera stationary in each crowded view.
+The native whole job and new packet builder are enabled in both modes. Each
+entry below is a separate twelve-second interval.
+
+| View | Old classifier FPS, two trials | Bit classifier FPS, two trials |
+| --- | ---: | ---: |
+| Facing the street | 8.915, 8.249 | 11.416, 8.999 |
+| Inside the street | 7.583, 7.750 | 9.915, 9.999 |
+
+Order is new/old/old/new facing the street, then old/new/new/old inside it.
+These hidden, muted DirectX runs use a copied save, 30 FPS cap, FPS overlay and
+normal log suppression. No CPU profiler or armed GPU captures run during the
+intervals. The private comparison switch is polled every 100 ms into an atomic
+flag, with no per-job file queries. The results show a bounded improvement in
+these stationary crowded views, with substantial variation and no established
+30 FPS, walking, animation or full-route result. They do not isolate any FPS
+benefit from the packet builder. Image-19 preparation and publication remain
+serial; overlapping preparation needs proof of external read/write dependencies.
+
+### Authored host arithmetic connected
+
+[`native_geometry_host_math.h`](../native_geometry_host_math.h) now supplies
+multiply, fused multiply-add/subtract, add/subtract, greater-than and magnitude
+equality to the live whole job. These typed operations have no SDK register
+packing or per-operation mode dispatch. Ordered position/cofactor policies use
+our scalar arithmetic directly, avoiding duplicate NaN selection. The admission
+check still limits the whole job to host-float mode.
+
+NaN sign/payload choices differ between the current Windows Debug and Release
+SDK references. Explicit policies preserve each observed contract. Raw-bit and
+boolean comparison covers **389,120 vectors per configuration** over five FP
+environments, including all FTZ/DAZ combinations, special encodings and random
+inputs. Both full suites pass **117/117**: Debug **11.93 s**, Release **11.77 s**.
+All **32 Release actual-VM job replays** still have zero mismatched bytes.
+These results do not establish other compilers, ARM or full FP exception-state
+equivalence. FNMS, encoded reciprocal estimates and integer conversions retain
+SDK adapters.
+
+Fresh quiet run `20261020-162847` loads the save, walks briefly toward the NPC
+street and measures **13.164 presentations/s** in one twelve-second stationary
+window. The maximum interval is **393.468 ms**, so stutter remains. Its camera
+and NPC timing differ from earlier runs; there is **no paired arithmetic-policy
+speed comparison**. Captures are outside timing, with the FPS overlay on.
+
+The requested local desktop update now enables this supported native job,
+with manual startup, the 30 FPS baseline and diagnostics disabled. Saves and
+other graphics preferences are preserved. Public `tools/play.ps1` exposes the
+functional `-NativeGeometryJob` switch; its clean-environment checks pass with
+the selection both off and on while diagnostics and input injection are stripped.
 NPC-heavy traversal, transitions, cutscenes, broader constructor/layout domains,
 asynchronous backends, remaining images and complete scheduling equivalence
 still need validation. No complete SPU image has been replaced.
