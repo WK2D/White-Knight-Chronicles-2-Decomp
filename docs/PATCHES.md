@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0121 | [Alpha-reference surface formats](#alpha-reference-surface-formats-patch-0121) |
 | Patch 0120 | [DirectX fragment input requests](#directx-fragment-input-requests-patch-0120) |
 | Patch 0119 | [Opt-in DirectX presentation diagnostics](#opt-in-directx-presentation-diagnostics-patch-0119) |
 | Patch 0118 | [DirectX near/far clipping](#directx-nearfar-clipping-patch-0118) |
@@ -47,6 +48,25 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Alpha-reference surface formats (patch 0121)
+
+Correct the shared alpha-reference decoder's surface-format IDs. Float formats
+are 11 (FP16 RGBA), 12 (FP32 RGBA) and 13 (FP32 R); formats 14–16 are integer
+XBGR/ABGR. They previously took the float path, turning an 8-bit threshold into
+a tiny denormal value. The captured foliage depth pass uses format 16 and GEQUAL
+reference `0x59`, which must decode to `89/255`, not float bits `0x00000059`.
+
+The IDs agree with the SDK's existing `cellGcmSys.h` and RPCS3's pinned
+[surface constants](https://github.com/RPCS3/rpcs3/blob/17543d27371d0c4fb20b14ef671bd31c213d406b/rpcs3/Emu/RSX/gcm_enums.h#L936)
+and [reference selection](https://github.com/RPCS3/rpcs3/blob/17543d27371d0c4fb20b14ef671bd31c213d406b/rpcs3/Emu/RSX/rsx_methods.h#L749).
+No emulator code is imported. The common helper feeds both renderers and the
+literal/buffered shader paths.
+
+`wkc2_alpha_reference` fails before the correction. It checks 2,816 integer
+reference values, all 65,536 half encodings, 20 raw FP32 cases and the captured
+foliage threshold. Native validation is recorded in the DirectX audit and gallery;
+this correction does not establish full shadow, cloud or vegetation fidelity.
 
 ## DirectX fragment input requests (patch 0120)
 

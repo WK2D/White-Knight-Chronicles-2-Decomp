@@ -2,7 +2,7 @@
 
 Updated 2026-10-20. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 120 SDK patches / 112 Windows checks in Debug and
+**Current source checkpoint:** 121 SDK patches / 113 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -32,6 +32,7 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 - [Verified](#verified)
 - [Still unverified](#still-unverified)
 - [Implemented fixes](#implemented-fixes)
+- [Alpha-reference formats and foliage cutouts](#alpha-reference-formats-and-foliage-cutouts-patch-0121)
 
 **Performance, timing and presentation**
 
@@ -113,6 +114,26 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 
 - [Update 1.01 and DLC integration](#update-101-and-dlc-integration)
 - [Investigation history](#investigation-history)
+
+## Alpha-reference formats and foliage cutouts (patch 0121)
+
+The foliage shadow pass uses integer ABGR8 surface format 16 and GEQUAL alpha
+reference `0x59`. The common decoder incorrectly used format IDs 14–16 for
+floating targets; the correct floating IDs are 11–13. It read the reference as
+denormal float bits instead of `89/255`, allowing fully transparent samples
+when the GPU flushes the denormal to zero. Correcting the IDs restores leaf
+cutouts in inspected DirectX plains route `20261020-015412`.
+Vulkan route `20261020-015927` independently reaches the plains and shows the
+same cutout improvement after walking and camera rotation; both strict tables
+remain empty.
+
+The regression fails on the old decoder and passes all 68,372 integer/half/float
+cases after the fix; all 113 Windows checks pass in Debug and Release. The new
+gallery comparison uses actual before/after GPU readbacks with different camera
+and animation timing. The FPS overlay is instrumented, not a performance result.
+Moving cloud shade, grass density and foot/Logic Stone flicker remain open.
+See [the renderer evidence](DIRECTX_PARITY.md#foliage-cloud-shade-and-grass-comparison)
+and [patch notes](PATCHES.md#alpha-reference-surface-formats-patch-0121).
 
 ## Goal and reporting
 

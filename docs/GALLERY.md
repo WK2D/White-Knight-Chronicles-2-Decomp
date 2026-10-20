@@ -5,12 +5,14 @@ using USA BLUS30784 v01.00. These are game-frame GPU readbacks, losslessly encod
 as PNG. All optional metadata has been removed. Images contain the game frame only.
 
 These captures come from a host-compiled recompilation build with a PS3 runtime
-layer and observed SPU interpreter fallback. They do not establish
-interpreter-free execution; see [architecture](ARCHITECTURE.md).
+layer. Earlier runs observed SPU interpreter fallback; newer strict routes have
+zero entries. Neither establishes full-game interpreter-free execution; see
+[architecture](ARCHITECTURE.md).
 
-Current source: 120 SDK patches / 112 Windows checks. The newest capture shows
-native C++ matrix blending and position transforms on a strict DirectX
-town-to-plains route. It verifies an inspected frame, not a performance gain.
+Current source: 121 SDK patches / 113 Windows checks. The newest capture shows
+leaf-shaped shadow cutouts after correcting alpha-reference surface formats.
+It uses a strict DirectX town-to-plains route with the complete supported native
+C++ geometry batch. It verifies an inspected frame, not a performance gain.
 The earlier captures show
 the DirectX near/far clipping fix in Balastor Plain after a town transition,
 walking and camera rotation, plus the earlier broken view. The foreground no
@@ -24,7 +26,7 @@ readbacks after the overlay. The earlier depth-range captures use
 99 patches and the menu captures use 83 patches, with their original settings.
 The earlier LOD comparison is captured before window scaling. Saving and Continue
 reload work; normal shadow polarity was restored in inspected Vulkan views.
-DirectX character shadows remain unresolved. Foot/Logic Stone flicker,
+Full DirectX character-shadow fidelity remains unresolved. Foot/Logic Stone flicker,
 incomplete rendering state and town lag remain open. Still images do not prove
 smooth animation, performance, full gameplay or interpreter-free execution.
 Historical entries retain their original test conditions and patch counts.
@@ -40,6 +42,7 @@ Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-20 | [Leaf shadow cutouts](#2026-10-20--leaf-shadow-cutouts) | <a href="#2026-10-20--leaf-shadow-cutouts"><img src="../verification/screenshots/2026-10-20-native-foliage-alpha-shadows.png" width="200" alt="Leaf-shaped foliage shadows"></a> |
 | 2026-10-19 | [Native C++ geometry positions](#2026-10-19--native-c-geometry-positions) | <a href="#2026-10-19--native-c-geometry-positions"><img src="../verification/screenshots/2026-10-19-native-cpp-geometry-positions.png" width="200" alt="Native C++ geometry positions"></a> |
 | 2026-10-19 | [DirectX plains clipping fixed](#2026-10-19--directx-plains-clipping-fixed) | <a href="#2026-10-19--directx-plains-clipping-fixed"><img src="../verification/screenshots/2026-10-19-native-directx-plains-clipping-fixed-front.png" width="200" alt="DirectX plains clipping fixed"></a> |
 | 2026-10-19 | [DirectX Off/FXAA](#2026-10-19--directx-fxaa) | <a href="#2026-10-19--directx-fxaa"><img src="../verification/screenshots/2026-10-19-native-directx-fxaa-on.png" width="200" alt="DirectX native FXAA enabled"></a> |
@@ -67,6 +70,27 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
+
+## 2026-10-20 — Leaf shadow cutouts
+
+The shared alpha-reference decoder mistook integer ABGR/XBGR surface formats
+for floating point. The foliage depth pass's `0x59` reference now decodes to
+`89/255`. Leaf-shaped gaps replace the broad solid polygons in this inspected
+DirectX plains view. See [the diagnosis and limits](DIRECTX_PARITY.md#foliage-cloud-shade-and-grass-comparison).
+
+![DirectX plains with leaf-shaped shadow cutouts](../verification/screenshots/2026-10-20-native-foliage-alpha-shadows.png)
+
+| Before, 120 patches | After, 121 patches |
+| --- | --- |
+| ![Solid foliage shadows before correction](../verification/screenshots/2026-10-20-native-foliage-before-alpha.png) | ![Leaf cutouts after correction](../verification/screenshots/2026-10-20-native-foliage-alpha-shadows.png) |
+
+Both captures are unmodified GPU frames from hidden, muted tests using isolated
+save copies. Cameras and scene/animation timing differ. The after image has the
+native FPS counter enabled; 17.4 is an instrumented instant with tracing and
+automatic GPU snapshots, not a speed comparison. The before image has the
+counter off. All 113 Windows checks pass in Debug and Release. Moving cloud
+shade, matched grass density, remaining flicker and full rendering fidelity are
+not established by these images. No desktop or optional image metadata is included.
 
 ## 2026-10-19 — Native C++ geometry positions
 

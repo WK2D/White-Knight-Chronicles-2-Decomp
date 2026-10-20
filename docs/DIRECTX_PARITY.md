@@ -9,7 +9,7 @@ visual or performance difference.
 | Feature | Vulkan | Live DirectX | Next validation |
 | --- | --- | --- | --- |
 | Shadow comparison and operand order | Patches 0073–0074 | Comparison shader/sampler path added in 0113; 144 synthetic WARP results pass. Native shadow appearance remains unresolved. | Compare the depth producer, sampled snapshot and final character shadow. |
-| Leaf-cutout shadows, moving cloud shadows and vegetation density | Not yet compared on matched views | User comparison shows broad foliage-shadow shapes and reports missing moving cloud shade plus less grass | Match camera/FOV, resolution, save, graphics settings and elapsed scene time; inspect alpha-tested depth producers, ground shader samples and vegetation visibility separately. |
+| Leaf-cutout shadows, moving cloud shadows and vegetation density | Shared alpha-reference correction; native verification below | 0121 restores leaf-shaped gaps in the inspected plains shadow; cloud shade and grass density remain open | Match camera/FOV, resolution, save, graphics settings and elapsed scene time; verify cloud motion and vegetation separately. |
 | Partial color clears | Honors individual RGBA channels | 0112 adds per-channel clears; 128 WARP cases cover RGBA8/FP16, rectangles and depth/stencil preservation. | The sampled town trace contains full-color and depth clears; no visual fix is attributed to partial clears. |
 | Fill polygon offset | 0094 forwards scale/bias and applies host depth bias | 0114 decodes fill state, keys applied values and sets D32 rasterizer bias; sixteen WARP depth cases pass | Native town invokes the implementation, but a visible character-shadow fix is not established. Fractional constants round to D3D's integer field; other depth precision remains unverified. |
 | TC0–7 coordinate override | 0096 forwards the mask; 0120 shares its decoder | 0120 forwards the same request mask in buffered/literal modes and keys PSOs on it | 64 DirectX shader compilations cover all eight inputs, perspective modes and mask controls; native verification and visual effect recorded below. |
@@ -100,3 +100,26 @@ units. Missing texture alpha-kill is therefore not supported as the cause in
 this frame. This does not exclude other alpha, texture, mip or depth errors, nor
 establish behavior outside the sample. The leaf-shadow, cloud and grass checks
 remain open.
+
+Patch 0121 corrects the concrete alpha-threshold fault. The shared decoder used
+14/15/16 as FP16/FP32/R32 surface formats; the SDK constants and pinned RPCS3
+source identify floating formats as 11/12/13 and integer XBGR/ABGR as 14/15/16.
+The captured depth-only pass declares integer format 16 with GEQUAL reference
+`0x59`. It was decoded as float bits `0x00000059`, a denormal value that GPU math
+can flush to zero, admitting fully transparent texels. It now decodes to `89/255`.
+This corrects both renderers' shared helper and actual FP16/FP32 reference formats.
+
+The 68,372-case decoder test fails on the old implementation and passes after
+the correction, alongside all 113 Windows checks in Debug and Release. Native
+DirectX route `20261020-015412` completes the plains transition, movement and
+camera rotation with zero strict fallback entries. Its final frame visibly
+restores leaf cutouts instead of broad solid shadow polygons. The gallery
+compares it with the earlier 120-patch route `20261020-014206`; cameras and scene
+timing differ, so this is not a pixel-identical or performance comparison.
+Moving cloud shade, grass density and remaining shadow flicker stay open.
+
+Vulkan route `20261020-015927` separately confirms the exit prompt, plains
+transition, walking and camera rotation. Its inspected plains frames also show
+leaf cutouts, with zero strict interpreter/microstep entries. This route used
+adaptive input steps rather than treating elapsed input time as proof of a
+transition. Both 121 runs are instrumented correctness checks, not FPS benchmarks.

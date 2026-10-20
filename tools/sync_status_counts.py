@@ -24,6 +24,7 @@ SITES = [
     ('docs/CONTRIBUTING.md', r'passes (?P<checks>\d+) checks with (?P<patches>\d+) SDK patches'),
     ('docs/GALLERY.md', r'Current source: (?P<patches>\d+) SDK patches / (?P<checks>\d+) Windows checks'),
     ('docs/FINDINGS.md', r'\*\*Current source checkpoint:\*\* (?P<patches>\d+) SDK patches / (?P<checks>\d+) Windows checks'),
+    ('docs/NATIVE_CODE.md', r'Both Windows suites now pass (?P<checks>\d+) checks with (?P<patches>\d+) SDK patches'),
     ('verification/rendering.json', r'Current source has (?P<patches>\d+) SDK patches / (?P<checks>\d+) passing Windows checks'),
 ]
 

@@ -753,6 +753,15 @@ if(WKC2_BUILD_TESTS)
     endif()
     add_test(NAME wkc2_fp_identity COMMAND wkc2_fp_identity_test)
     set_tests_properties(wkc2_fp_identity PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_alpha_reference_test tests/alpha_reference_test.c
+        "${PS3RECOMP_DIR}/libs/video/rsx_fp_decompiler.c")
+    target_include_directories(wkc2_alpha_reference_test PRIVATE
+        "${PS3RECOMP_DIR}/include" "${PS3RECOMP_DIR}/libs/video")
+    if(NOT WIN32)
+        target_link_libraries(wkc2_alpha_reference_test PRIVATE m)
+    endif()
+    add_test(NAME wkc2_alpha_reference COMMAND wkc2_alpha_reference_test)
+    set_tests_properties(wkc2_alpha_reference PROPERTIES TIMEOUT 10)
     add_executable(wkc2_rsx_request_audit_test tests/rsx_request_audit_test.c
         "${PS3RECOMP_DIR}/libs/video/rsx_dispatch.c")
     target_include_directories(wkc2_rsx_request_audit_test PRIVATE

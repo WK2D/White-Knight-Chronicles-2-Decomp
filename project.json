@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Readable C++ now replaces the supported complete post-blend boundary of one image-19 geometry block, including positions, cofactors, first normal products, ordered local-store output and next-batch preparation. 72 full-state replays and two 20,000-case differential runs pass with compiled compatibility paths reported; strict DirectX plains and Vulkan town routes pass. 120 SDK patches / 112 Windows checks pass. Whole jobs, broader CPU coverage, rendering parity and performance remain open; no FPS gain measured.",
+    "current_milestone": "Leaf-shaped foliage shadow cutouts are restored in inspected DirectX and Vulkan plains views by correcting shared alpha-reference surface-format IDs. 121 SDK patches / 113 Windows checks pass in Debug and Release. Readable C++ now handles a complete supported geometry batch boundary with full-state differential evidence; whole jobs, broader static coverage, cloud shade, grass density, remaining flicker and performance parity remain open. No FPS gain measured.",
     "updated": "2026-10-20"
   },
   "native_data_installation_verified": true,
@@ -155,7 +155,7 @@
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
     "remaining_requirement": "Validate wider NPC/transition/cutscene routes and readable hot-job replacements; keep strict entry checks in diagnostic runs. Full-game CPU coverage is unverified.",
-    "latest_census_probe": "20261020-014512"
+    "latest_census_probe": "20261020-015927"
   },
   "native_character_creation_completed_scope": "Default male avatar named and accepted through Quick Start; opening cutscenes advance to the town. Full visual fidelity and all customization options are not verified.",
   "native_wkc1_town_world_view_verified": true,
@@ -164,8 +164,8 @@
   "native_movement_and_camera_control_verified": true,
   "native_combat_verified": false,
   "current_build": {
-    "sdk_patch_count": 120,
-    "runtime_checks_passed": 112,
+    "sdk_patch_count": 121,
+    "runtime_checks_passed": 113,
     "town_native_run_sdk_patch_count": 105,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
@@ -237,7 +237,7 @@
     "patch_0070_presentation_label_implemented": true,
     "patches_0067_0070_town_performance_comparison_verified": true,
     "creator_speed_scope": "Earlier presentation rates did not establish unique animation updates or full game-speed equivalence; candidate uses the game two-vblank semaphore gate",
-    "runtime_checks_verified_sdk_patch_count": 120,
+    "runtime_checks_verified_sdk_patch_count": 121,
     "patches_0067_0070_sustained_town_frame_rate_gain_verified": false,
     "patch_0071_depth_snapshot_generation_regression_verified": true,
     "patch_0071_native_game_run_verified": true,
@@ -247,8 +247,8 @@
       "GCM_SEMA_ACQUIRE": "1",
       "RSX_ENGINE_ZTEX_GPU": "1"
     },
-    "normal_debug_checks_elapsed_seconds": 26.7,
-    "optimized_release_checks_elapsed_seconds": 22.75,
+    "normal_debug_checks_elapsed_seconds": 29.85,
+    "optimized_release_checks_elapsed_seconds": 26.35,
     "repeat_patch_application_files_changed": 0,
     "patch_0071_windows_regression_verified": true,
     "patch_0072_windows_regression_verified": true,
@@ -385,7 +385,10 @@
     "patch_0118_native_transition_verified": true,
     "patch_0119_windows_regression_verified": true,
     "patch_0120_windows_regression_verified": true,
-    "patch_0120_native_game_run_verified": true
+    "patch_0120_native_game_run_verified": true,
+    "patch_0121_windows_regression_verified": true,
+    "patch_0121_native_directx_leaf_cutouts_verified": true,
+    "patch_0121_native_vulkan_leaf_cutouts_verified": true
   },
   "spu_fallback_census": {
     "purpose": "Prioritize validated static C/C++ implementations for remaining fallback paths",
@@ -529,7 +532,7 @@
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified. The same starting-town slot was rechecked in the 105-patch Vulkan Release build.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 120 SDK patches / 112 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 121 SDK patches / 113 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",
@@ -1369,6 +1372,26 @@
           "performance_benchmark": false,
           "scope": "Continue, town movement and camera rotation; attempted plains transition was not reached, final frame remains in town"
         }
+      ],
+      "renderer_followup_routes": [
+        {
+          "id": "20261020-015412",
+          "renderer": "DirectX 12",
+          "sdk_patch_count": 121,
+          "strict_fallback_entries": 0,
+          "plains_transition_verified": true,
+          "walking_camera_verified": true,
+          "performance_benchmark": false
+        },
+        {
+          "id": "20261020-015927",
+          "renderer": "Vulkan",
+          "sdk_patch_count": 121,
+          "strict_fallback_entries": 0,
+          "plains_transition_verified": true,
+          "walking_camera_verified": true,
+          "performance_benchmark": false
+        }
       ]
     }
   },
@@ -1418,7 +1441,7 @@
   },
   "foliage_cloud_vegetation_parity": {
     "date": "2026-10-20",
-    "status": "open",
+    "status": "partial_leaf_cutout_fix_verified",
     "reference": "User-supplied RPCS3/native plains comparison and observations",
     "leaf_shadow_cutouts_match": false,
     "moving_cloud_ground_shadows_verified": false,
@@ -1442,7 +1465,7 @@
       "limit": "Heavy diagnostic trace exceeded automatic capture timeout before final route step; shader dump legacy keys do not map all cached pipelines uniquely",
       "performance_measurement": false
     },
-    "causes_established": false,
+    "causes_established": true,
     "supplied_desktop_comparison_published": false,
     "bounded_native_trace": {
       "probe": "20261020-002430",
@@ -1477,7 +1500,10 @@
       "all_enabled_texture_units_checked": true,
       "scope": "Single instrumented DirectX frame; absence does not establish behavior outside this sample or exclude other alpha, texture, mip or depth faults.",
       "performance_benchmark": false
-    }
+    },
+    "leaf_shadow_cutouts_restored_in_native_views": true,
+    "leaf_shadow_fix_sdk_patch": 121,
+    "cause_scope": "Alpha-reference format decoding explains the inspected solid foliage shadow; cloud shade and grass density remain separate unverified comparisons."
   },
   "directx_fragment_inputs": {
     "sdk_patch": 120,
@@ -1510,6 +1536,45 @@
       "performance_benchmark": false,
       "leaf_cloud_grass_visual_fix_verified": false
     },
-    "broad_foliage_shadow_still_visible_after_fix": true
+    "broad_foliage_shadow_still_visible_after_fix": true,
+    "visual_observation_scope": "Patch 0120 run before the separate 0121 alpha-reference fix; the solid foliage observation is historical."
+  },
+  "foliage_alpha_reference": {
+    "sdk_patch": 121,
+    "shared_helper": "rsx_fp_alpha_ref",
+    "integer_xbgr_abgr_formats": [
+      14,
+      15,
+      16
+    ],
+    "floating_formats": [
+      11,
+      12,
+      13
+    ],
+    "captured_surface_format": 16,
+    "captured_reference_raw": "0x59",
+    "correct_reference": "89/255",
+    "previous_reference_float_bits": "0x00000059",
+    "regression": "wkc2_alpha_reference",
+    "old_decoder_regression_fails": true,
+    "integer_cases": 2816,
+    "half_cases": 65536,
+    "float_cases": 20,
+    "directx_native_probe": "20261020-015412",
+    "vulkan_native_probe": "20261020-015927",
+    "directx_leaf_cutouts_visually_verified": true,
+    "vulkan_leaf_cutouts_visually_verified": true,
+    "strict_fallback_entries": 0,
+    "exact_pixel_reference_match_verified": false,
+    "gpu_denormal_flush_mechanism_directly_measured": false,
+    "fps_gain_measured": false,
+    "cloud_shade_verified": false,
+    "grass_density_match_verified": false,
+    "before_capture": "screenshots/2026-10-20-native-foliage-before-alpha.png",
+    "after_capture": "screenshots/2026-10-20-native-foliage-alpha-shadows.png",
+    "screenshot_pixels_modified": false,
+    "optional_screenshot_metadata": false,
+    "scope": "Hidden, muted, isolated save copies. Actual plains transitions, walking and camera rotation inspected on each renderer. Trace and automatic GPU snapshots enabled; no performance comparison."
   }
 }

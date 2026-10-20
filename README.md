@@ -27,9 +27,11 @@ can resume from a local save.
   Continue after restarting.
 - A dedicated **Triangle → System → Graphics Settings** panel with persistent
   preferences, the game's menu frame and a scrollbar.
-- **112 Windows regression checks** pass in both Debug and optimized Release. The
+- **113 Windows regression checks** pass in both Debug and optimized Release. The
   latest native check loads Continue, enters Balastor Plain and checks short
-  movement/camera response. DirectX foreground clipping is fixed in that route.
+  movement/camera response. DirectX foreground clipping is fixed in that route;
+  leaf-shaped foliage shadow cutouts are restored in inspected DirectX and Vulkan
+  plains views.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
 resolutions; VSync; anisotropic filtering from Off to 16×; Off/FXAA anti-aliasing;
@@ -53,8 +55,8 @@ the optional in-game FPS overlay remains your choice.
   timing need further comparison with RPCS3. Consistent frame pacing is a priority.
 - **Rendering:** black flicker at Leonard's feet and the rotating Logic Stone effect
   remain open. Earlier stretched hair/clothing strips and inverted shadows were
-  fixed in inspected Vulkan views. DirectX character shadows and darker grass
-  remain under investigation. Leaf-shadow detail, moving cloud shade and apparent
+  fixed in inspected Vulkan views. Remaining DirectX shadow fidelity and darker grass
+  remain under investigation. Leaf cutouts are restored on both renderers; moving cloud shade and apparent
   grass density also need matched comparisons with RPCS3.
 - **Controls:** analogue walk/run conversion has improved, but physical-controller
   consistency, especially at angles, still needs comparison.

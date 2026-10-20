@@ -116,7 +116,7 @@ zero fallback and at least 16,777,216 transformed blocks in each run. Both final
 frames were inspected. The Vulkan run additionally samples CPU time; profiling,
 tracing and GPU captures make it unsuitable as an FPS benchmark.
 
-Both Windows suites now pass 112 checks with 120 SDK patches. No FPS gain,
+Both Windows suites now pass 113 checks with 121 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
 is claimed.
 
@@ -137,6 +137,13 @@ plains transition was not reached. Both record zero fallback entries and at leas
 isolated and instrumented limits apply. All 112 checks pass in Debug (26.70
 seconds) and Release (22.75 seconds). This is still one geometry block; the
 DirectX foliage shadow remains solid in its pre-alpha-reference-fix view.
+
+After the independent renderer correction in patch 0121, DirectX route
+`20261020-015412` and adaptive Vulkan route `20261020-015927` both confirm the
+plains transition, walking and camera rotation with zero strict fallback entries.
+The geometry implementation is unchanged. These routes also show the separate
+leaf-cutout shadow improvement; cloud shade, grass density, whole-job coverage
+and performance remain open.
 
 ## Work order
 
