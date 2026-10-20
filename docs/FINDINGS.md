@@ -25,6 +25,8 @@ that feature with manual startup and diagnostics disabled. All 32 earlier
 original-input jobs match through the SDK native CAS, VM and PUT callbacks.
 Expanded position layouts add 84 fresh complete-job comparisons with zero
 mismatches, plus 7,757 observed new-format completions in a diagnostic town run.
+Three additional palette rows now derive from explicit constructor/descriptor
+facts and pass 60 fresh complete-job pairs; their live check is pending.
 Direct/global command invalidation is corrected. Seven host arithmetic/comparison
 operations are authored C++; remaining numeric adapters, palette/layout domains,
 broader gameplay and scheduling remain unfinished. Classifier-only stationary
@@ -47,6 +49,7 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 
 **Performance, timing and presentation**
 
+- [Owned palette row sources](NATIVE_CODE.md#owned-palette-row-sources)
 - [Expanded owned geometry inputs](NATIVE_CODE.md#expanded-quantized-position-inputs)
 - [Readable whole skinning stream](NATIVE_CODE.md#readable-whole-skinning-stream)
 - [Whole geometry job boundary](NATIVE_CODE.md#whole-geometry-job-boundary)

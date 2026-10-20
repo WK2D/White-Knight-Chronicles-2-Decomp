@@ -6,7 +6,7 @@
     "date": "2026-10-20",
     "native_probe": "20261020-212949",
     "sdk_patch_count": 126,
-    "summary": "Expanded owned C++ geometry input formats and corrected direct/global invalidation; full-job outputs match and actual town completions are observed. Palette aliases and other SPU jobs remain.",
+    "summary": "Current source adds three explicitly derived native palette rows with 60 fresh complete-job matches. Existing screenshot and desktop installation precede this change; live palette route pending.",
     "gallery_image": "screenshots/2026-10-20-native-cpp-expanded-geometry-town.png",
     "gallery_image_sdk_patch_count": 126,
     "gallery_image_scope": "Public native geometry code after Continue, camera turn and two short town moves. Hidden and muted with copied save, strict fallback guard and normal log suppression; no geometry census or CPU profiler. GPU readback is armed for the screenshot. Counter is instantaneous; no FPS improvement claim.",
@@ -498,9 +498,9 @@
     "current_sdk_patch_count": 126,
     "last_verified_sdk_patch_count": 126,
     "current_passed_count": 117,
-    "record_scope": "126 SDK patches /117 checks pass in both configurations. Quantized-position extension:54 fresh decoder configurations,84 Release original/native whole-job pairs,zero mismatches;7,757 new-format town completions. No FPS gain or complete image replacement.",
-    "normal_debug_elapsed_seconds": 29.68,
-    "optimized_release_elapsed_seconds": 25.98,
+    "record_scope": "126 SDK patches / 117 Windows checks in Debug 31.12 s and Release 27.80 s. Palette source expansion passes 60 original/native complete-job pairs and prior 32 VM / 84 quantized job replays. New live palette route not yet checked; desktop stays on previous build.",
+    "normal_debug_elapsed_seconds": 31.12,
+    "optimized_release_elapsed_seconds": 27.8,
     "repeat_patch_application_files_changed": 0,
     "repeat_patch_application_verified_sdk_patch_count": 126,
     "current_debug_validation_pending": false
@@ -5182,7 +5182,7 @@
     "public_source": "native_geometry_runtime.cpp",
     "public_header": "native_geometry_runtime.h",
     "mapping_cache": "native_geometry_mapping_cache.h",
-    "status": "Supported whole image-19 job connected with authored host math, expanded quantized-position input layouts and corrected direct/global command invalidation.",
+    "status": "Supported image19 geometry job now derives three additional palette rows as owned C++ values; verified whole-job outputs, broader palette domains remain.",
     "enable_environment": "WKC_NATIVE_GEOMETRY_JOB=1",
     "diagnostics_environment": "WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1",
     "default_hooks_registered": false,
@@ -5220,10 +5220,10 @@
     "windows_regression": {
       "sdk_patches": 126,
       "release_checks_passed": 117,
-      "release_seconds": 25.98,
+      "release_seconds": 27.8,
       "debug_checks_passed": 117,
       "debug_status": "passed",
-      "debug_seconds": 29.68
+      "debug_seconds": 31.12
     },
     "live_starting_town_reached": true,
     "broader_gameplay_routes_verified": false,
@@ -5668,6 +5668,93 @@
       "measured_fps_gain": false,
       "complete_spu_image_replaced": false,
       "next_target": "Recover missing palette rows as explicit descriptor/layout or live-buffer bindings, then select the next whole job/image using profile cost"
+    },
+    "palette_rows": {
+      "date": "2026-10-20",
+      "status": "Connected in public supported image19 whole-job runtime",
+      "public_sources": [
+        "native_geometry_input.h",
+        "native_geometry_runtime.cpp"
+      ],
+      "constructor_contract": "Explicit selected_root_palette_rows proof; unavailable by default outside the verified runtime constructor",
+      "algorithm_inputs": "Owned typed literal rows derived from original descriptor and staging identities; no register or save-frame payload supplier",
+      "recovered_rows": [
+        {
+          "distance_quadwords": 89,
+          "source": "Initialized zero preserved by the selected constructor/root"
+        },
+        {
+          "distance_quadwords": 88,
+          "source": "Raw-bit tuple of staged palette, slot0, index and slot2 coordinates"
+        },
+        {
+          "distance_quadwords": 87,
+          "source": "Raw-bit original descriptor words at offsets 80/84/88/92"
+        }
+      ],
+      "unsupported_rows": "Other frame rows remain strict declines; no broad zero-frame assumption",
+      "fresh_original_row_observation": {
+        "source_sets": 5,
+        "new_palette_sets": 4,
+        "original_runs": 60,
+        "observation_points": [
+          "Wrapper before skinning",
+          "Selected inner position-only or direction-bearing routine"
+        ],
+        "comparisons_per_row": 120,
+        "typed_binding_comparisons_per_row": 48,
+        "original_row_mismatches": 0,
+        "typed_row_mismatches": 0
+      },
+      "complete_job_comparison": {
+        "pairs": 60,
+        "ordered_put_and_atomic_commits": 230,
+        "compared_write_bytes": 160576,
+        "mismatched_bytes": 0,
+        "allocation_cases": [
+          "direct",
+          "ring-contiguous",
+          "ring-exact-end",
+          "ring-wrap",
+          "global-only",
+          "ring-blocked-global"
+        ],
+        "locations": [
+          0,
+          1
+        ],
+        "source_bytes_immutable": true,
+        "final_output_packet_and_allocator_bytes_match": true,
+        "output_canaries_match": true,
+        "configuration": "Windows optimized Release",
+        "scope": "Fresh original constructor/root versus actual native hook in controlled synchronous VM state; not concurrent scheduling proof"
+      },
+      "effective_negative_controls": [
+        "initialized zero",
+        "staging lane order",
+        "descriptor word order",
+        "missing provenance",
+        "payload",
+        "packet",
+        "write order"
+      ],
+      "previous_replays_rechecked": {
+        "recorded_vm_jobs": 32,
+        "quantized_input_whole_job_pairs": 84,
+        "mismatched_bytes": 0
+      },
+      "windows_regression": {
+        "debug_passed": 117,
+        "release_passed": 117,
+        "debug_seconds": 31.12,
+        "release_seconds": 27.8,
+        "run_concurrently": true
+      },
+      "new_live_route_verified": false,
+      "new_fps_gain_measured": false,
+      "desktop_installed": false,
+      "live_check_status": "Pending; installed desktop build precedes this source change",
+      "whole_spu_image_replaced": false
     }
   },
   "native_geometry_quantized_inputs": {
@@ -5761,5 +5848,92 @@
     "measured_fps_gain": false,
     "complete_spu_image_replaced": false,
     "next_target": "Recover missing palette rows as explicit descriptor/layout or live-buffer bindings, then select the next whole job/image using profile cost"
+  },
+  "native_geometry_palette_rows": {
+    "date": "2026-10-20",
+    "status": "Connected in public supported image19 whole-job runtime",
+    "public_sources": [
+      "native_geometry_input.h",
+      "native_geometry_runtime.cpp"
+    ],
+    "constructor_contract": "Explicit selected_root_palette_rows proof; unavailable by default outside the verified runtime constructor",
+    "algorithm_inputs": "Owned typed literal rows derived from original descriptor and staging identities; no register or save-frame payload supplier",
+    "recovered_rows": [
+      {
+        "distance_quadwords": 89,
+        "source": "Initialized zero preserved by the selected constructor/root"
+      },
+      {
+        "distance_quadwords": 88,
+        "source": "Raw-bit tuple of staged palette, slot0, index and slot2 coordinates"
+      },
+      {
+        "distance_quadwords": 87,
+        "source": "Raw-bit original descriptor words at offsets 80/84/88/92"
+      }
+    ],
+    "unsupported_rows": "Other frame rows remain strict declines; no broad zero-frame assumption",
+    "fresh_original_row_observation": {
+      "source_sets": 5,
+      "new_palette_sets": 4,
+      "original_runs": 60,
+      "observation_points": [
+        "Wrapper before skinning",
+        "Selected inner position-only or direction-bearing routine"
+      ],
+      "comparisons_per_row": 120,
+      "typed_binding_comparisons_per_row": 48,
+      "original_row_mismatches": 0,
+      "typed_row_mismatches": 0
+    },
+    "complete_job_comparison": {
+      "pairs": 60,
+      "ordered_put_and_atomic_commits": 230,
+      "compared_write_bytes": 160576,
+      "mismatched_bytes": 0,
+      "allocation_cases": [
+        "direct",
+        "ring-contiguous",
+        "ring-exact-end",
+        "ring-wrap",
+        "global-only",
+        "ring-blocked-global"
+      ],
+      "locations": [
+        0,
+        1
+      ],
+      "source_bytes_immutable": true,
+      "final_output_packet_and_allocator_bytes_match": true,
+      "output_canaries_match": true,
+      "configuration": "Windows optimized Release",
+      "scope": "Fresh original constructor/root versus actual native hook in controlled synchronous VM state; not concurrent scheduling proof"
+    },
+    "effective_negative_controls": [
+      "initialized zero",
+      "staging lane order",
+      "descriptor word order",
+      "missing provenance",
+      "payload",
+      "packet",
+      "write order"
+    ],
+    "previous_replays_rechecked": {
+      "recorded_vm_jobs": 32,
+      "quantized_input_whole_job_pairs": 84,
+      "mismatched_bytes": 0
+    },
+    "windows_regression": {
+      "debug_passed": 117,
+      "release_passed": 117,
+      "debug_seconds": 31.12,
+      "release_seconds": 27.8,
+      "run_concurrently": true
+    },
+    "new_live_route_verified": false,
+    "new_fps_gain_measured": false,
+    "desktop_installed": false,
+    "live_check_status": "Pending; installed desktop build precedes this source change",
+    "whole_spu_image_replaced": false
   }
 }

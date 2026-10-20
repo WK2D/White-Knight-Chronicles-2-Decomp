@@ -38,6 +38,13 @@ enum class PreservedZeroContract : Byte {
     // zero save cells. This is a semantic initialization contract, no payload.
     image19_selected_root_three_zero_cells
 };
+enum class RootPaletteRowsProvenance : Byte {
+    unavailable,
+    // The selected constructor/root preserves an initialized zero and two
+    // descriptor/staging identities at the three recovered frame distances.
+    // This proof supplies no register or frame payload and no other row.
+    image19_selected_root_descriptor_staging
+};
 struct CompatibilityLayout {
     // Integer layout coordinates classify bounded aliases, not addresses that
     // the native pipeline can dereference. They are discarded after adaptation.
@@ -50,6 +57,7 @@ struct CompatibilityLayout {
     // Bits0..2 prove the selected three save cells initially zero. No opaque
     // register words or later save-frame contents cross this interface.
     std::uint8_t preserved_zero_mask=0;
+    RootPaletteRowsProvenance root_palette_rows=RootPaletteRowsProvenance::unavailable;
 };
 struct PlatformFacts {
     RootLayout root=RootLayout::unavailable;
@@ -96,7 +104,7 @@ enum class Status : Byte {
     logical_group_or_count,unowned_vertex_prefix,position_conversion_layout,
     partial_palette,unowned_influence_prefix,scratch_or_frame_layout,
     invalid_zero_contract,unbounded_palette_row,unrecovered_palette_row,
-    bootstrap_direction_alias,unsupported_subpixel_padding
+    bootstrap_direction_alias,unsupported_subpixel_padding,invalid_palette_contract
 };
 
 namespace detail {
@@ -130,6 +138,9 @@ Status make_input(const StagedInputs& staged,const PlatformFacts& platform,
     if(platform.root!=RootLayout::image19_custom_geometry_v1||
        platform.scheduler!=SchedulerMode::spurs||platform.image_id!=19)
         return Status::unsupported_platform;
+    if(platform.compatibility.root_palette_rows!=RootPaletteRowsProvenance::unavailable&&
+       platform.compatibility.root_palette_rows!=RootPaletteRowsProvenance::image19_selected_root_descriptor_staging)
+        return Status::invalid_palette_contract;
     if(staged.descriptor.size()<220)return Status::short_descriptor;
     const auto descriptor=staged.descriptor.data();
     if(detail::be16(descriptor+10)!=dma_slot_count*8||
@@ -289,9 +300,28 @@ Status make_input(const StagedInputs& staged,const PlatformFacts& platform,
                     }
                 }
                 if(found)continue;
-                if(directions&&detail::contains(layout.save_frame_begin,frame_bytes,coordinate)) {
+                if(detail::contains(layout.save_frame_begin,frame_bytes,coordinate)) {
                     const auto distance=std::uint64_t(layout.save_frame_end)-coordinate;
-                    found=layout.preserved_zero==PreservedZeroContract::image19_selected_root_three_zero_cells&&
+                    if(layout.root_palette_rows==RootPaletteRowsProvenance::image19_selected_root_descriptor_staging) {
+                        if(distance==89*16u) {
+                            binding.source=pipeline::PaletteRowSource::literal;
+                            binding.literal={};continue;
+                        }
+                        if(distance==88*16u) {
+                            const std::array<std::uint32_t,4> identity{
+                                metadata.slots[3].staged_begin,metadata.slots[0].staged_begin,
+                                metadata.slots[1].staged_begin,metadata.slots[2].staged_begin};
+                            binding.source=pipeline::PaletteRowSource::literal;
+                            for(unsigned lane=0;lane<4;++lane)
+                                binding.literal[lane]=std::bit_cast<float>(identity[lane]);
+                            continue;
+                        }
+                        if(distance==87*16u) {
+                            binding.source=pipeline::PaletteRowSource::literal;
+                            binding.literal=detail::float4(descriptor+80);continue;
+                        }
+                    }
+                    found=directions&&layout.preserved_zero==PreservedZeroContract::image19_selected_root_three_zero_cells&&
                           distance>=99*16u&&distance<=101*16u&&distance%16u==0&&
                           (layout.preserved_zero_mask&(1u<<unsigned(distance/16u-99u)));
                 } else {
@@ -349,6 +379,9 @@ struct ConstructorContract {
     // regions. This flag is proof supplied by the platform, not inferred data.
     bool initialized_untouched_workspace=false;
     std::uint8_t preserved_zero_cell_mask=0;
+    // Independently prove the selected root's one initialized-zero row and
+    // descriptor/staging row identities. No other frame row is authorized.
+    bool selected_root_palette_rows=false;
 };
 struct ConstructorPlan {
     PlatformFacts platform;
@@ -404,6 +437,8 @@ inline ConstructorStatus plan_spurs_constructor(
     layout.save_frame_begin=std::uint32_t(save_begin);layout.save_frame_end=std::uint32_t(save_end);
     layout.preserved_zero=PreservedZeroContract::image19_selected_root_three_zero_cells;
     layout.preserved_zero_mask=contract.preserved_zero_cell_mask;
+    if(contract.selected_root_palette_rows)
+        layout.root_palette_rows=RootPaletteRowsProvenance::image19_selected_root_descriptor_staging;
     next.region_end=std::uint32_t(stack_top);
     auto zero_cursor=io_begin;
     auto cursor=io_begin;

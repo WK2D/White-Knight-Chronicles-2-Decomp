@@ -65,7 +65,7 @@ std::vector<std::uint32_t> image(const gi::ConstructorPlan& plan) {
     const auto& p=plan.platform;const auto& c=p.compatibility;
     std::vector<std::uint32_t> out{unsigned(p.root),unsigned(p.scheduler),p.image_id,p.staged_slot_count,
         p.dma_tag,p.allocator_slot,c.io_begin,c.scratch_begin,c.save_frame_begin,c.save_frame_end,
-        unsigned(c.preserved_zero),c.preserved_zero_mask,plan.region_end};
+        unsigned(c.preserved_zero),c.preserved_zero_mask,unsigned(c.root_palette_rows),plan.region_end};
     out.insert(out.end(),plan.slot_begins.begin(),plan.slot_begins.end());
     out.push_back(unsigned(c.zero_ranges.size()));
     for(const auto& zero:c.zero_ranges)out.insert(out.end(),{zero.begin,zero.bytes,unsigned(zero.provenance)});
@@ -197,6 +197,8 @@ int wkc2_test_native_geometry_input() {
         assert(c.zero_ranges[1].begin==0x9a0&&c.zero_ranges[1].bytes==0x660);
         assert(c.zero_ranges[2].begin==0x1080&&c.zero_ranges[2].bytes==0x750);
         assert(c.preserved_zero_mask==7&&base.plan.platform.allocator_slot==5&&base.plan.platform.dma_tag==31);
+        assert(!base.contract.selected_root_palette_rows&&
+            c.root_palette_rows==gi::RootPaletteRowsProvenance::unavailable);
         const auto& m=accepted.metadata;const auto& g=accepted.geometry;
         assert(m.allocator_control==0x12340000&&m.publication_destination_high==0&&m.publication_destination==0x9084);
         assert(m.request_flags==0x3000c&&m.allocator_slot==5&&m.packet_quadwords==7&&m.dma_tag==31);
@@ -322,6 +324,69 @@ int wkc2_test_native_geometry_input() {
         fixture.plan.platform.compatibility.preserved_zero_mask=7;
         fixture.plan.platform.compatibility.preserved_zero=gi::PreservedZeroContract::unavailable;
         rejected_fixture(fixture,gi::Status::unrecovered_palette_row);++successes;
+    }
+    {
+        // Joint100 selects exactly distances89/88/87 from the skinning call's
+        // incoming frame end. Those rows require their separate root proof in
+        // both direction-bearing and position-only modes.
+        for(unsigned format:{32u,33u})for(bool suppress:{false,true}) {
+            Fixture fixture(format,4,suppress);fixture.slots[1].resize(48);
+            fixture.joint(0,0,100);fixture.describe();fixture.replan();
+            assert(fixture.plan.slot_begins[3]==0x830&&
+                fixture.plan.platform.compatibility.save_frame_end==0x2080);
+            rejected_fixture(fixture,gi::Status::unrecovered_palette_row);
+            fixture.contract.selected_root_palette_rows=true;fixture.replan();
+            const auto& layout=fixture.plan.platform.compatibility;
+            assert(layout.root_palette_rows==
+                gi::RootPaletteRowsProvenance::image19_selected_root_descriptor_staging);
+            assert(layout.preserved_zero_mask==7&&
+                layout.preserved_zero==gi::PreservedZeroContract::image19_selected_root_three_zero_cells);
+            // These original descriptor words deliberately include NaN,
+            // negative zero and infinity bits; no floating arithmetic or
+            // payload read should be used to reconstruct their literal row.
+            constexpr std::array<std::uint32_t,4> descriptor_words{
+                0x7fc10040,0x80000000,0xffc20020,0x7f800000};
+            for(unsigned lane=0;lane<4;++lane)put32(fixture.descriptor,80+lane*4,descriptor_words[lane]);
+            const auto descriptor=fixture.descriptor;const auto slots=fixture.slots;const auto plan=image(fixture.plan);
+            gi::AdaptedJob output;assert(adapt(fixture,output)==gi::Status::ready);
+            const auto& rows=output.geometry.palette_bindings[100];
+            for(const auto& row:rows)assert(row.source==gp::PaletteRowSource::literal);
+            assert((bits(rows[0].literal)==std::array<std::uint32_t,4>{}));
+            // Inactive slots0/2 share their neighbors' staging coordinates;
+            // the tuple still places palette and index starts in exact lanes.
+            assert((bits(rows[1].literal)==std::array<std::uint32_t,4>{0x830,0x800,0x800,0x830}));
+            assert(bits(rows[2].literal)==descriptor_words);
+            check_immutable(fixture,descriptor,slots,plan);++successes;
+            // The new proof is independent of the old three-zero-cell mask
+            // and of broad cleared-workspace intervals.
+            fixture.plan.platform.compatibility.zero_ranges.clear();
+            fixture.plan.platform.compatibility.preserved_zero_mask=0;
+            fixture.plan.platform.compatibility.preserved_zero=gi::PreservedZeroContract::unavailable;
+            assert(adapt(fixture,output)==gi::Status::ready);++successes;
+            for(const auto neighboring_joint:{99u,101u}) {
+                fixture.joint(0,0,Byte(neighboring_joint));
+                rejected_fixture(fixture,gi::Status::unrecovered_palette_row);
+            }
+            fixture.joint(0,0,100);
+            fixture.plan.platform.compatibility.root_palette_rows=gi::RootPaletteRowsProvenance::unavailable;
+            rejected_fixture(fixture,gi::Status::unrecovered_palette_row);
+            fixture.plan.platform.compatibility.root_palette_rows=
+                static_cast<gi::RootPaletteRowsProvenance>(255);
+            rejected_fixture(fixture,gi::Status::invalid_palette_contract);
+            fixture.contract.selected_root_palette_rows=false;fixture.replan();
+            assert(fixture.plan.platform.compatibility.root_palette_rows==gi::RootPaletteRowsProvenance::unavailable);
+            rejected_fixture(fixture,gi::Status::unrecovered_palette_row);
+        }
+        // An invalid proof rejects independently of whether any palette alias
+        // is used, before even invoking the caller's floating comparison.
+        for(unsigned invalid:{2u,255u}) {
+            auto platform=base.plan.platform;
+            platform.compatibility.root_palette_rows=static_cast<gi::RootPaletteRowsProvenance>(invalid);
+            auto output=accepted;const auto before=image(output);unsigned calls=0;
+            assert(gi::make_input(base.staged(),platform,[&](float,float) {++calls;return false;},output)==
+                gi::Status::invalid_palette_contract);
+            assert(!calls&&image(output)==before);++declines;
+        }
     }
     {
         Fixture fixture;fixture.joint(0,0,43);gi::AdaptedJob output;

@@ -6,7 +6,7 @@ coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
 **Current validation (2026-10-20):** the stack contains 126 SDK patches. All
 117 Windows checks pass in normal Debug and optimized Release. The latest
-concurrent runs take 29.68 and 25.98 seconds respectively. Reapplying the complete stack changes no SDK files.
+concurrent runs take 31.12 and 27.80 seconds respectively. Reapplying the complete stack changes no SDK files.
 Strict DirectX and Vulkan routes on patch
 0121 confirm Continue, the plains transition, walking, camera rotation and the
 leaf-cutout shadow correction. Menu FXAA toggling was checked separately on 0110.
@@ -20,7 +20,9 @@ actual SDK memory, native CAS and PUT operations. All 32 recorded jobs replay wi
 byte-exact external outputs and zero mismatches. Expanded position layouts
 add 84 fresh original/native complete-job comparisons and 7,757 observed town
 completions; [precision and command-publication details](NATIVE_CODE.md#expanded-quantized-position-inputs)
-record the scope. C++ owns the job inputs and outputs. Seven host arithmetic/comparison operations now use the
+record the scope. A further [palette-source expansion](NATIVE_CODE.md#owned-palette-row-sources)
+passes 60 fresh complete-job comparisons; its live check is pending. C++ owns
+the job inputs and outputs. Seven host arithmetic/comparison operations now use the
 [authored C++ policy](../native_geometry_host_math.h); special negative multiply,
 reciprocal estimates and conversions still use SDK adapters. See the
 [native output transaction evidence](NATIVE_CODE.md#native-allocation-export-and-command-construction)

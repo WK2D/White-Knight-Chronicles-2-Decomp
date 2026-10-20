@@ -138,6 +138,10 @@ struct OwnedSources {
         // zeros. The selected image19 root preserves save cells 101..103 before
         // skinning; no LS/register payload is read to manufacture this proof.
         contract.initialized_untouched_workspace=true;contract.preserved_zero_cell_mask=7;
+        // The constructor resets preserved inputs; this selected root retains
+        // the bounded initialized-zero, descriptor and staging palette rows.
+        // The adapter derives their owned values, without reading a save frame.
+        contract.selected_root_palette_rows=true;
         const auto status=gi::plan_spurs_constructor(descriptor,payloads[16],contract,plan);
         reason=100u+unsigned(status);return status==gi::ConstructorStatus::ready;
     }

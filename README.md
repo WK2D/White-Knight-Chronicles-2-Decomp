@@ -104,6 +104,8 @@ All 32 earlier recorded jobs match through the real SDK native atomics, VM and
 transfer callbacks. Expanded packed-position layouts also pass 84 fresh complete-job
 comparisons, and the town probe records 7,757 completions of newly supported formats.
 See [coverage and limits](docs/NATIVE_CODE.md#expanded-quantized-position-inputs).
+Three additional palette rows are now reconstructed as owned C++ values and pass
+60 fresh complete-job comparisons; their new live check is pending.
 Seven host arithmetic/comparison operations now use project-written C++;
 special negative multiply, reciprocal estimates and conversions retain SDK
 adapters. Integer NaN checks improved two stationary crowded-town tests; smooth

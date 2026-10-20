@@ -1255,9 +1255,49 @@ profiler, for the [FPS-overlay gallery frame](GALLERY.md#2026-10-20--expanded-na
 Neither run establishes a speed gain or full traversal parity. Both full
 Windows suites pass 117/117; concurrent run times are Debug 29.68 s / Release 25.98 s.
 
-The next ownership target is missing palette rows: replace their dependence on
-the old job's saved working state with explicit descriptor/layout values and
-typed live-buffer bindings. Some observed unused/padded vertices still consume
+The next ownership target was missing palette rows; the first explicit
+descriptor/layout sources are now connected below. Other sources still need
+recovery as typed live-buffer bindings. Some observed unused/padded vertices still consume
 those rows, so they cannot be discarded under the current full-output contract.
 Other jobs/images, remaining numeric adapters, scheduling, cutscenes and future
 platforms remain open. No complete SPU image has been replaced.
+
+### Owned palette row sources
+
+The public geometry adapter now constructs three more palette rows as owned
+C++ values: one initialized zero, a four-lane staging-identity tuple, and four
+original descriptor words. It derives them only under an explicit proof for
+the selected constructor/root. Other frame rows still decline. No arbitrary
+register or save-frame contents cross into the algorithm.
+
+These rows matter even for some padded vertices that input indices do not
+reference: their packed records are exported, so the current full-output
+contract must preserve them. Dropping their work requires a separate liveness
+proof before a simpler native path can replace it.
+
+Fresh original execution observes the rows before both the skinning wrapper
+and the selected inner routine. Across five captured source sets and six
+allocation cases at both locations, every row matches **120 original
+observations**; actual native literal bindings match **48 comparisons per row**.
+The **60 complete-job pairs** match all **230 ordered PUT/atomic commits and
+160,576 written bytes**, output/packet canaries, allocator state and immutable
+source bytes. Deliberately corrupting the zero, staging lane order, descriptor
+word order, proof selection, payload, packet or write order fails as required.
+The original and candidate do not share reconstructed palette output values.
+
+After connecting the proof in the public runtime, those pairs pass again.
+All 32 earlier real-VM job replays and all 84 quantized-input whole-job pairs
+also still match. Both Windows suites pass **117/117**: Debug **31.12 s** and
+Release **27.80 s**, run concurrently. These are controlled synchronous Windows
+Release comparisons, not concurrent scheduling or ARM proof.
+
+The new live town check and desktop installation are pending. The installed
+executable and existing gallery capture precede this addition. No new
+screenshot, FPS gain or gameplay verification is claimed for it.
+Remaining palette sources and other images still use compiled execution.
+
+The next independent target is **image23's culling request**. Quiet NPC-view
+profiles and observed SPURS job-chain stacks identify it as a substantial
+compute path. Its original request/DMA/output interface still needs capture
+and recovery before native integration. This is a target selection, not a
+completed replacement or a predicted frame-rate gain.
