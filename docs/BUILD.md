@@ -4,9 +4,9 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-20):** the stack contains 126 SDK patches. All
-117 Windows checks pass in normal Debug and optimized Release. The latest
-concurrent runs take 31.12 and 27.80 seconds respectively. Reapplying the complete stack changes no SDK files.
+**Current validation (2026-10-21):** the stack contains 126 SDK patches. All
+118 Windows checks pass in normal Debug and optimized Release. The latest
+concurrent runs take 30.10 and 25.85 seconds respectively. Reapplying the complete stack changes no SDK files.
 Strict DirectX and Vulkan routes on patch
 0121 confirm Continue, the plains transition, walking, camera rotation and the
 leaf-cutout shadow correction. Menu FXAA toggling was checked separately on 0110.
@@ -21,8 +21,13 @@ byte-exact external outputs and zero mismatches. Expanded position layouts
 add 84 fresh original/native complete-job comparisons and 7,757 observed town
 completions; [precision and command-publication details](NATIVE_CODE.md#expanded-quantized-position-inputs)
 record the scope. A further [palette-source expansion](NATIVE_CODE.md#owned-palette-row-sources)
-passes 60 fresh complete-job comparisons; its live check is pending. C++ owns
-the job inputs and outputs. Seven host arithmetic/comparison operations now use the
+passes 60 fresh complete-job comparisons and records 2,114 completed jobs in a
+bounded diagnostic town census. The same switch now connects image23 visibility
+modes 2/3: box occlusion and integer mask selection. Fourteen complete real
+captured requests, 200 synthetic original/SDK-dispatch cases and 128 two-worker
+dispatches match their ordered external outputs. Both supported modes execute in
+the diagnostic town route. See [visibility interfaces and limits](NATIVE_CODE.md#owned-visibility-jobs).
+C++ owns the job inputs and outputs. Seven host arithmetic/comparison operations now use the
 [authored C++ policy](../native_geometry_host_math.h); special negative multiply,
 reciprocal estimates and conversions still use SDK adapters. See the
 [native output transaction evidence](NATIVE_CODE.md#native-allocation-export-and-command-construction)
@@ -52,8 +57,8 @@ NPC-heavy traversal remains unverified. No complete image has been replaced.
 The local desktop player has now been updated at the user's request: supported
 native jobs enabled, manual startup, 30 FPS baseline, diagnostics disabled and
 saves preserved. Other graphics preferences are unchanged.
-Patch 0123 corrects the SPU machine-status interrupt bit; this source change has
-passed regression tests but has no new live game route or desktop installation.
+Patch 0123 corrects the SPU machine-status interrupt bit and retains regression
+coverage. The later live route does not isolate that patch's gameplay effect.
 
 Suite timings are not game performance. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain
@@ -68,8 +73,8 @@ their original build and diagnostic conditions.
 - [Runtime patch notes](PATCHES.md): what each SDK patch changes, newest first
 - [Runtime subsystem notes](SUBSYSTEMS.md): renderer, movie decoding, frame presentation and text entry
 
-The public player launcher supports `-NativeGeometryJob` to enable this
-supported native route without enabling diagnostics. It explicitly writes `0`
+The public player launcher supports `-NativeGeometryJob` to enable supported
+geometry and visibility routes without enabling diagnostics. It explicitly writes `0`
 when the switch is omitted, preventing an inherited experimental selection.
 The clean-player guard preserves that functional selection while stripping
 native-job diagnostics, capture, profiling and input-injection switches.
@@ -160,7 +165,11 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 126 numbered SDK patches, and all 117 checks
+`wkc2_native_visibility` adds mask compaction, ordered header publication,
+admission rejection and finite box/quad examples. Its small finite geometry
+policy is separate from the whole-original arithmetic comparisons recorded in
+the [native execution evidence](NATIVE_CODE.md#owned-visibility-jobs).
+The current source stack contains 126 numbered SDK patches, and all 118 checks
 pass in normal Debug and optimized Release. Graphics panel
 captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
@@ -275,13 +284,15 @@ Window titles show only the game name on Vulkan and DirectX. Patch 0108
 removes the former title-bar statistics. The optional in-game FPS overlay is
 controlled separately in Graphics Settings and now works on live DirectX too.
 
-Research switches below are cleared by the player launcher. Use a separate
-probe environment to enable them:
+The player launcher preserves its explicit `-NativeGeometryJob` selection.
+Diagnostic switches below are cleared by clean player mode; use a separate
+probe environment for measurements and captures:
 
 - `RSX_PRESENT_MEASURE=1` enables the DirectX benchmark sample ring and CSV.
   `RSX_SCHEDULE_DIAG=1` adds process/thread times only when that recorder is enabled.
-- `WKC_NATIVE_GEOMETRY_JOB=1` enables the public runtime for complete supported
-  image-19 geometry jobs in Windows host-float mode. Unset or `0` leaves this
+- `WKC_NATIVE_GEOMETRY_JOB=1` enables admitted image-19 geometry jobs and image23
+  visibility modes 2/3. Image19 and visibility mode 2 require Windows host-float
+  mode; mode 3 is an integer filter. Unset or `0` leaves this
   route's dispatch, scope gates and PUT observers unregistered and silent.
   Unsupported constructor/layout domains decline before native external effects
   and run the retained compiled job. A failure after effects is fatal after local

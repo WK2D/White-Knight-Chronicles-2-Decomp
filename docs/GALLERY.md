@@ -9,10 +9,11 @@ layer. Earlier runs observed SPU interpreter fallback; newer strict routes have
 zero entries. Neither establishes full-game interpreter-free execution; see
 [architecture](ARCHITECTURE.md).
 
-Current source: 126 SDK patches / 117 Windows checks in normal Debug and optimized
-Release. The newest capture follows expanded C++ geometry input coverage
-in the town, with the FPS counter on. Its separate diagnostic run records
-7,757 new-format native completions; this image comes from a quiet run.
+Current source: 126 SDK patches / 118 Windows checks in normal Debug and optimized
+Release. The newest capture shows the connected geometry and visibility C++
+runtime in an NPC-heavy town view, with the FPS counter on. A separate
+diagnostic route verifies both visibility modes and the new palette rows.
+This quiet frame still shows town lag; no new FPS gain is claimed.
 A classifier-only A/B improves stationary views; the later arithmetic run has
 an unpaired 13.164 FPS sample and still stutters. Earlier captures follow the complete supported
 C++ skinning routine on a strict DirectX town-to-plains route. Earlier captures
@@ -46,11 +47,12 @@ supersede earlier limitations when further testing establishes progress.
 
 ## Milestones at a glance
 
-Newest first: from the first native screen to a saved town in five days.
+Newest first: from the first native screen to a saved town and subsequent runtime work.
 Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-21 | [Native C++ visibility jobs](#2026-10-21--native-c-visibility-jobs) | <a href="#2026-10-21--native-c-visibility-jobs"><img src="../verification/screenshots/2026-10-21-native-cpp-visibility-town.png" width="200" alt="Authored C++ geometry and visibility in the crowded town"></a> |
 | 2026-10-20 | [Expanded native geometry inputs](#2026-10-20--expanded-native-geometry-inputs) | <a href="#2026-10-20--expanded-native-geometry-inputs"><img src="../verification/screenshots/2026-10-20-native-cpp-expanded-geometry-town.png" width="200" alt="Expanded native geometry inputs in the town"></a> |
 | 2026-10-20 | [Native C++ host arithmetic](#2026-10-20--native-c-host-arithmetic) | <a href="#2026-10-20--native-c-host-arithmetic"><img src="../verification/screenshots/2026-10-20-native-cpp-host-math-town.png" width="200" alt="Authored C++ host arithmetic in the crowded town"></a> |
 | 2026-10-20 | [Native C++ whole-job town](#2026-10-20--native-c-whole-job-town) | <a href="#2026-10-20--native-c-whole-job-town"><img src="../verification/screenshots/2026-10-20-native-cpp-whole-job-town.png" width="200" alt="Native C++ whole geometry job in town"></a> |
@@ -84,6 +86,24 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
+
+## 2026-10-21 — Native C++ visibility jobs
+
+![Native C++ geometry and visibility jobs in town, FPS counter on](../verification/screenshots/2026-10-21-native-cpp-visibility-town.png)
+
+The opt-in runtime now executes two whole visibility-request modes through
+authored C++: box occlusion and mask filtering. Fourteen complete real
+requests and 200 synthetic whole-original dispatches match their outputs;
+128 independent two-worker dispatches also pass. A separate diagnostic
+town route observes both modes completing, alongside the new palette rows.
+
+This frame comes from a quiet DirectX12 run after Continue, a camera turn
+and two short walks, with a copied save, 30 FPS limit and strict fallback
+guard. Diagnostics and CPU profiling are disabled; GPU readback is armed
+for the screenshot. The instantaneous counter reads 8.6 FPS in this
+NPC-heavy view: town lag remains. No paired speed gain, smooth animation
+or complete SPU-image replacement is claimed. Modes 1/4 and unsupported
+interfaces retain compiled execution. See [coverage and limits](NATIVE_CODE.md#owned-visibility-jobs).
 
 ## 2026-10-20 — Expanded native geometry inputs
 

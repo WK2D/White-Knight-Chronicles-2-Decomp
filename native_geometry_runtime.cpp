@@ -1,10 +1,12 @@
-// Opt-in synchronous image19 integration, using original descriptor/source
+// Opt-in synchronous geometry/visibility integration, using descriptor/source
 // bytes before SPURS staging. The public algorithms receive owned typed data.
 #include "native_geometry_runtime.h"
 #include "native_geometry_input.h"
 #include "native_geometry_job.h"
 #include "native_estimate_interpolation.h"
 #include "native_geometry_host_math.h"
+#include "native_visibility.h"
+#include "native_occlusion.h"
 #include "spu_helpers.h"
 #include "spu_coherency.h"
 #include "spu_workload.h"
@@ -37,6 +39,13 @@ extern "C" {
 extern std::uint8_t* vm_base;
 extern void (*g_spu_put_hook)(std::uint32_t,std::uint32_t);
 extern void (*g_spu_put_trace_hook)(std::uint32_t,std::uint32_t,int,std::uint32_t,const std::uint8_t*);
+#if defined(_WIN32)
+extern __declspec(thread) std::uint32_t g_spurs_job_mbox,g_spurs_job_mbox_intr,g_spurs_job_cmd;
+extern __declspec(thread) int g_spurs_job_mbox_valid,g_spurs_job_user_events,g_spurs_job_running;
+#else
+extern __thread std::uint32_t g_spurs_job_mbox,g_spurs_job_mbox_intr,g_spurs_job_cmd;
+extern __thread int g_spurs_job_mbox_valid,g_spurs_job_user_events,g_spurs_job_running;
+#endif
 }
 
 namespace {
@@ -412,7 +421,7 @@ void refresh_put_hooks() {
     if(g_spu_put_trace_hook!=trace_hook){previous_trace=g_spu_put_trace_hook;g_spu_put_trace_hook=trace_hook;rebound=true;}
     if(rebound&&diagnostics)std::fprintf(stderr,"[native-geometry-job] rebound chained PUT observers at dispatch\n");
 }
-struct ScopeLease {void* previous=nullptr;bool active=false;};
+struct ScopeLease {void* previous=nullptr;bool active=false;int image=0;};
 thread_local ScopeLease current_scope;
 [[noreturn]] void scope_abort()noexcept {
     std::fputs("[native-geometry-job] fatal scope callback failure; refusing C-boundary unwind\n",stderr);
@@ -421,11 +430,13 @@ thread_local ScopeLease current_scope;
 void* scope_begin(int image,std::uint32_t ea,std::uint32_t bytes)noexcept {
     try {
         refresh_put_hooks();
-        if(image!=19)return previous_begin?previous_begin(image,ea,bytes):nullptr;
+        if(image!=19&&image!=23)return previous_begin?previous_begin(image,ea,bytes):nullptr;
         // The SDK dispatches one synchronous job at a time on each worker.
         // Reuse its thread-local scope record without allocation or C unwind.
         if(current_scope.active||image19_scope_depth)scope_abort();
-        image19_gate.lock();current_scope.active=true;++image19_scope_depth;
+        // Only image19 owns a shared slot0 allocator. Visibility requests own
+        // their inputs/output and require no process-wide compute lock.
+        if(image==19)image19_gate.lock();current_scope.active=true;current_scope.image=image;++image19_scope_depth;
         // The producer pins submitted mappings until this job returns. Retain
         // positive checks across jobs only within the runtime mapping epoch;
         // protection changes and VM teardown/recreation invalidate this cache.
@@ -436,13 +447,137 @@ void* scope_begin(int image,std::uint32_t ea,std::uint32_t bytes)noexcept {
 }
 void scope_end(int image,std::uint32_t ea,std::uint32_t bytes,void* token)noexcept {
     try {
-        if(image!=19){if(previous_end)previous_end(image,ea,bytes,token);return;}
-        if(token!=&current_scope||!current_scope.active||image19_scope_depth!=1)scope_abort();
+        if(image!=19&&image!=23){if(previous_end)previous_end(image,ea,bytes,token);return;}
+        if(token!=&current_scope||!current_scope.active||current_scope.image!=image||image19_scope_depth!=1)scope_abort();
         if(previous_end)previous_end(image,ea,bytes,current_scope.previous);
-        image19_mapping_cache.suspend();current_scope={};--image19_scope_depth;image19_gate.unlock();
+        image19_mapping_cache.suspend();current_scope={};--image19_scope_depth;if(image==19)image19_gate.unlock();
     } catch(...) {scope_abort();}
 }
+// Image23 modes2/3 own the entire finite query, including ordered record and
+// header publication. They do not construct a guest context or local store.
+struct VisibilityMath {
+    static Float4 scalar(float a){return {a,a,a,a};}
+    static float add(float a,float b){return HostGeometryMath::add(scalar(a),scalar(b))[0];}
+    static float subtract(float a,float b){return HostGeometryMath::subtract(scalar(a),scalar(b))[0];}
+    static float multiply(float a,float b){return HostGeometryMath::multiply(scalar(a),scalar(b))[0];}
+    static float fused_multiply_add(float a,float b,float c){return HostGeometryMath::multiply_add(scalar(a),scalar(b),scalar(c))[0];}
+    static float negative_multiply_subtract(float a,float b,float c){return unpack(spu_fnms(pack(scalar(a)),pack(scalar(b)),pack(scalar(c))))[0];}
+    static float interpolated_reciprocal_sqrt(float a){const auto value=pack(scalar(a));return unpack(spu_fi(value,spu_frsqest(value)))[0];}
+    static bool greater(float a,float b){return a>b;}
+};
+struct VisibilityRange {std::uint32_t ea;std::size_t bytes;};
+bool overlaps(VisibilityRange a,VisibilityRange b) {
+    return a.bytes&&b.bytes&&std::uint64_t(a.ea)<std::uint64_t(b.ea)+b.bytes&&
+        std::uint64_t(b.ea)<std::uint64_t(a.ea)+a.bytes;
+}
+void visibility_log(unsigned mode,int result,std::size_t records=0)noexcept {
+    if(!diagnostics)return;
+    static std::atomic<std::uint64_t> complete{0},decline{0};
+    const auto count=result==completed?++complete:++decline;
+    if(sample(count))std::fprintf(stderr,"[native-visibility-job] mode=%u result=%d records=%zu completed=%llu declined=%llu\n",
+        mode,result,records,(unsigned long long)complete.load(),(unsigned long long)decline.load());
+}
+int execute_visibility(std::uint32_t ea,std::uint32_t descriptor_size) {
+    namespace v=wkc::visibility;namespace oc=v::occlusion;using Kernel=oc::Kernel<VisibilityMath>;
+    bool external=false;unsigned mode=0;
+    try {
+        if(!image19_scope_depth)return declined;
+        std::vector<Byte> descriptor,input,query,records;
+        const auto size=descriptor_size?descriptor_size:256u;
+        if(size!=256||!acquire_bytes(ea,size,descriptor))return declined;
+        const auto* d=descriptor.data();mode=gi::detail::be32(d+60);
+        if(mode!=2&&mode!=3){visibility_log(mode,declined);return declined;}
+        // One staged input, exact registered image23 binary, no cache/high-EA
+        // or unclassified descriptor lanes. Other constructors keep fallback.
+        if(gi::detail::be32(d)||gi::detail::be16(d+8)*16u!=11856u||gi::detail::be16(d+10)!=8||
+           gi::detail::be32(d+12)||gi::detail::be32(d+32)||gi::detail::be32(d+36)||
+           gi::detail::be32(d+56)||gi::detail::be32(d+64)||gi::detail::be32(d+72)||
+           gi::detail::be32(d+80)||gi::detail::be32(d+88)||gi::detail::be32(d+92))return declined;
+        const auto input_bytes=gi::detail::be32(d+48)&0x7fffu,input_ea=gi::detail::be32(d+52);
+        const auto query_ea=gi::detail::be32(d+76),output_ea=gi::detail::be32(d+84);
+        if(input_bytes<(mode==2?80u:16u)||!input_ea||(input_ea&15u)||(query_ea&15u)||
+           output_ea<0x10000u||(output_ea&15u)||
+           !acquire_bytes(input_ea,input_bytes,input)||!acquire_bytes(query_ea,16,query))return declined;
+        const auto align=[](std::uint64_t n){return(n+1023u)&~std::uint64_t(1023u);};
+        const auto stack=gi::detail::be16(d+28)?std::uint64_t(gi::detail::be16(d+28))*16u:8192u;
+        const auto scratch=align(11856)+align(gi::detail::be32(d+20))+align(gi::detail::be32(d+24));
+        const auto end=scratch+align(std::uint64_t(gi::detail::be16(d+30))*16u+stack);
+        const auto entry_sp=(end-32u)&~std::uint64_t(15u);
+        const auto frame=mode==2?0x33e0u:0x1350u;
+        // The SDK initializer/reuse dirty-clear contract establishes zero
+        // workspace. The selected roots touch only their count halfword before
+        // emitting this header; their other spills/DMAs do not overlap it.
+        if(gi::detail::be32(d+20)<((input_bytes+15u)&~15u)||end>0x3fbc0u||
+           end<32u+frame||entry_sp-frame<scratch)return declined;
+        const auto count=gi::detail::be16(query.data());
+        if(std::uint64_t(query_ea)+16u+std::size_t(count)*16u>0x100000000ull)return declined;
+        if(count&&!acquire_bytes(query_ea+16u,std::size_t(count)*16u,records))return declined;
+        const VisibilityRange query_range{query_ea,16u+std::size_t(count)*16u};
+        const VisibilityRange maximum_output{output_ea,16u+std::size_t(count)*16u};
+        // Snapshot semantics equal the original streamed reads only for
+        // disjoint output or backward/in-place compaction of query records.
+        if(std::uint64_t(query_ea)+query_range.bytes>0x100000000ull||
+           std::uint64_t(output_ea)+maximum_output.bytes>0xffffffffull||
+           (overlaps(maximum_output,query_range)&&output_ea>query_ea)||
+           overlaps(maximum_output,{ea,size})||overlaps(maximum_output,{input_ea,input_bytes}))return declined;
+        std::vector<v::Write> writes;
+        if(mode==3) {
+            v::Request request;request.input_mask=gi::detail::be16(input.data());request.query_count=count;
+            request.records=records.data();request.record_bytes=records.size();request.output_ea=output_ea;
+            request.raw_threshold_units=gi::detail::be32(d+68);
+            request.header_origin=v::HeaderOrigin::constructor_zeroed_untouched_workspace;
+            v::Plan plan;if(v::plan(request,plan)!=v::Status::complete)return declined;writes=std::move(plan.writes);
+        } else {
+            if(g_spu_float_mode!=SPU_FLOAT_HOST)return declined;
+            const auto value=[](const Byte* p){return std::bit_cast<float>(gi::detail::be32(p));};
+            oc::QueryColumns columns;
+            for(unsigned column=0;column<4;++column)for(unsigned lane=0;lane<3;++lane)columns[column][lane]=value(input.data()+column*16+lane*4);
+            const auto n=gi::detail::be32(input.data()+64),quad_ea=gi::detail::be32(input.data()+68);
+            // Zero submits a malformed zero-length GET in the compiled route;
+            // do not silently reinterpret that constructor as a native empty set.
+            if(!n||n>128||(quad_ea&15u)||overlaps(maximum_output,{quad_ea,std::size_t(n)*64u}))return declined;
+            std::vector<Byte> quad_bytes;if(!acquire_bytes(quad_ea,std::size_t(n)*64u,quad_bytes))return declined;
+            std::vector<oc::OccluderCorners> quads(n);
+            for(unsigned q=0;q<n;++q)for(unsigned corner=0;corner<4;++corner)for(unsigned lane=0;lane<3;++lane)
+                quads[q][corner][lane]=value(quad_bytes.data()+q*64+corner*16+lane*4);
+            oc::PreparedScene scene;if(!Kernel::prepare_scene(columns,quads,scene))return declined;
+            unsigned accepted=0;
+            for(unsigned i=0;i<count;++i) {
+                const auto* record=records.data()+i*16;const auto bound_ea=gi::detail::be32(record+8),matrix_ea=gi::detail::be32(record+12);
+                if((bound_ea&15u)||(matrix_ea&15u)||overlaps(maximum_output,{bound_ea,32})||overlaps(maximum_output,{matrix_ea,48}))return declined;
+                std::vector<Byte> bounds_bytes,matrix_bytes;
+                if(!acquire_bytes(bound_ea,32,bounds_bytes)||!acquire_bytes(matrix_ea,48,matrix_bytes))return declined;
+                oc::Bounds bounds;oc::AffineRows matrix;
+                for(unsigned lane=0;lane<3;++lane){bounds.center[lane]=value(bounds_bytes.data()+lane*4);bounds.half_size[lane]=value(bounds_bytes.data()+16+lane*4);}
+                for(unsigned row=0;row<3;++row)for(unsigned lane=0;lane<4;++lane)matrix[row][lane]=value(matrix_bytes.data()+row*16+lane*4);
+                if(Kernel::visible(scene,Kernel::prepare_box(columns,matrix,bounds))) {
+                    v::Write write;write.ea=output_ea+(++accepted)*16u;std::memcpy(write.bytes.data(),record,16);writes.push_back(write);
+                }
+            }
+            if(count&&output_ea+(accepted+1u)*16u<=std::uint32_t(gi::detail::be32(d+68)<<4))return declined;
+            v::Write header;header.ea=output_ea;header.bytes[0]=Byte(accepted>>8);header.bytes[1]=Byte(accepted);writes.push_back(header);
+        }
+        // Resolve all mappings before the first external effect. Admission may
+        // decline; publication never falls back after a partial write.
+        for(const auto& write:writes)if(!vm_range(write.ea,16,true))return declined;
+        for(const auto& write:writes) {
+            external=true;spu_lockline_lock();std::memcpy(vm_base+write.ea,write.bytes.data(),16);
+            const auto line=write.ea&~127u;if(spu_coh_is_reserved(line))spu_coh_notify_write(line);
+            spu_lockline_unlock();
+            if(g_spu_put_hook)g_spu_put_hook(write.ea,16);
+            if(g_spu_put_trace_hook)g_spu_put_trace_hook(write.ea,16,23,mode==3?0x16b8u:0x27f8u,write.bytes.data());
+        }
+        std::atomic_thread_fence(std::memory_order_seq_cst);
+        // Preserve the manager's per-thread completion state. These modes send
+        // no user event or mailbox; the chain resumes synchronous continuation.
+        g_spurs_job_mbox=g_spurs_job_mbox_intr=0;g_spurs_job_mbox_valid=0;
+        g_spurs_job_user_events=0;g_spurs_job_running=0;
+        g_spurs_job_cmd=gi::detail::be32(vm_base+query_ea)>>16;
+        visibility_log(mode,completed,writes.size()-1);return completed;
+    } catch(...) {visibility_log(mode,external?fatal:declined);return external?fatal:declined;}
+}
 int execute_native_hook(int image,std::uint32_t ea,std::uint32_t descriptor_size) {
+    if(image==23&&enabled)return execute_visibility(ea,descriptor_size);
     if(image!=19||!enabled||g_spu_float_mode!=SPU_FLOAT_HOST)
         return previous_native?previous_native(image,ea,descriptor_size):declined;
     if(diagnostics)++census.seen;
@@ -509,6 +644,6 @@ void wkc2_init_native_geometry_jobs() {
     previous_put=g_spu_put_hook;previous_trace=g_spu_put_trace_hook;
     g_spu_native_job_hook=native_hook;g_spu_job_scope_begin=scope_begin;g_spu_job_scope_end=scope_end;
     g_spu_put_hook=put_hook;g_spu_put_trace_hook=trace_hook;installed=true;
-    if(diagnostics)std::fprintf(stderr,"[native-geometry-job] installed host-mode image19 synchronous owned route; "
+    if(diagnostics)std::fprintf(stderr,"[native-geometry-job] installed image19 host geometry and image23 modes2/3 owned routes; "
         "native/fallback slot0 gate and chained PUT hooks active\n");
 }

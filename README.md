@@ -31,7 +31,7 @@ with readable project-written C++; current coverage is partial.
 - The town-to-Balastor Plain transition after Continue, with short movement and
   camera control. DirectX foreground clipping is fixed on that route, and
   leaf-shaped foliage shadow cutouts are restored on both renderers.
-- **117 Windows regression checks** pass in both normal Debug and optimized Release.
+- **118 Windows regression checks** pass in both normal Debug and optimized Release.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
 resolutions; VSync; anisotropic filtering from Off to 16×; Off/FXAA anti-aliasing;
@@ -91,29 +91,21 @@ implements the PS3 services it uses. Tested town-to-plains routes run with the S
 interpreter fallback forbidden, after five missing SPU entries were added to the
 static build. The fallback remains available for untested paths.
 
-The SPU code is being replaced with readable, project-written C++. The supported
-skinning routine already runs that way. An experimental
-[whole image-19 geometry job route](docs/NATIVE_CODE.md#opt-in-live-geometry-job)
-now connects owned C++ inputs, decoding, skinning, filtering, allocation,
-transfers and final rendering commands in the player source. Enable it with
-`WKC_NATIVE_GEOMETRY_JOB=1` or `tools/play.ps1 -NativeGeometryJob`; when disabled,
-its hooks remain unregistered.
-Unsupported layouts retain compiled execution after declining before native
-external effects. Separate diagnostics use `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1`.
-All 32 earlier recorded jobs match through the real SDK native atomics, VM and
-transfer callbacks. Expanded packed-position layouts also pass 84 fresh complete-job
-comparisons, and the town probe records 7,757 completions of newly supported formats.
-See [coverage and limits](docs/NATIVE_CODE.md#expanded-quantized-position-inputs).
-Three additional palette rows are now reconstructed as owned C++ values and pass
-60 fresh complete-job comparisons; their new live check is pending.
-Seven host arithmetic/comparison operations now use project-written C++;
-special negative multiply, reciprocal estimates and conversions retain SDK
-adapters. Integer NaN checks improved two stationary crowded-town tests; smooth
-30 FPS traversal remains open. Constructor/layout coverage is limited and no
-complete SPU image has been replaced. The local desktop build now enables the
-supported native job, with manual startup, the 30 FPS baseline and diagnostics off.
-Full-game static coverage and a readable reconstruction of the original source
-remain unverified.
+Readable, project-written C++ now handles supported whole geometry jobs and two
+visibility-request modes. The visibility code tests transformed boxes against
+quad occluders or filters records by a mask, then publishes retained records in
+their original order. Enable the experimental route with
+`tools/play.ps1 -NativeGeometryJob`; unsupported inputs retain compiled execution
+before any native output is published. See the [native execution work](docs/NATIVE_CODE.md#owned-visibility-jobs)
+for interfaces, original-job comparisons and live coverage.
+
+Seven ordinary host arithmetic/comparison operations use authored C++.
+Special numeric adapters and other job/image paths still use the SDK and
+generated code. No complete SPU image has been replaced, and the latest
+visibility work has no measured FPS gain. Smooth 30 FPS traversal, full-game
+static coverage and a readable reconstruction of the original source remain
+unverified. Normal startup stays manual, with diagnostics disabled and the
+30 FPS baseline recommended.
 
 ## Building and documentation
 

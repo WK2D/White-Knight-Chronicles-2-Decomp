@@ -13,8 +13,8 @@ not a recovered, readable version of the original source. The final SPU target
 is complete replacement with project-written readable public C++, with no
 generated SPU game code or interpreter linked into the player. No complete image
 has been replaced yet. The current source includes an opt-in readable C++ runtime
-for complete supported image-19 geometry jobs; original compiled SPU code remains
-linked for other jobs and unsupported inputs.
+for admitted image-19 geometry jobs and image23 visibility modes 2/3; original
+compiled SPU code remains linked for other jobs and unsupported inputs.
 
 ## What executes
 
@@ -40,14 +40,24 @@ linked for other jobs and unsupported inputs.
 - Main now connects a public C++ runtime for complete supported image-19 geometry
   jobs, from original descriptor/input acquisition through decoding, skinning,
   filtering, allocation, payload export and command publication. This Windows
-  route owns its inputs and outputs in C++ but still uses SDK arithmetic and
-  reciprocal helper policies; independent host math remains unfinished. The
+  route owns its inputs and outputs in C++. Seven ordinary host operations are
+  authored C++; special negative multiply, reciprocal estimates and conversions
+  retain SDK adapters. The
   host-float route is enabled only by `WKC_NATIVE_GEOMETRY_JOB=1`. Unset or `0`
   leaves its dispatch, scope gates and PUT observers unregistered and silent.
   `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1` separately enables sampled diagnostics.
   Other constructor/layout domains decline before native external effects and
   retain compiled fallback. A failure after effects stops the process after local
   cleanup; it cannot replay the compiled job over partially published output.
+- Image23 visibility modes 2/3 also use complete authored C++ requests. One
+  performs box occlusion against quadrilateral shadow volumes; the other applies
+  an integer mask filter. They copy retained records in source order and publish
+  the original-format header last through coherent native writes. Inputs and
+  results are owned values; no guest context or local store enters these
+  algorithms. Mode 2 uses the admitted Windows host-float policy. Modes 1/4 and
+  unsupported interfaces retain compiled execution. The existing
+  `WKC_NATIVE_GEOMETRY_JOB=1` switch enables these routes too. See
+  [visibility interfaces and evidence](NATIVE_CODE.md#owned-visibility-jobs).
 - Firmware SPURS job-queue/port calls now execute registered jobs and pass the
   control block required by the job's C runtime startup. The current implementation
   runs jobs synchronously in submission order within each queue. This restores
@@ -147,8 +157,12 @@ The opt-in public whole-job runtime now connects the supported constructor/layou
 domains to actual SDK memory, native CAS and PUT operations. All 32 recorded jobs
 replay with byte-exact external outputs and zero mismatches. The original
 [whole-job reference replay](NATIVE_CODE.md#whole-geometry-job-boundary) retains
-the captured-input provenance and comparison boundary. Broader job/image domains,
-asynchronous scheduling and complete image replacement remain open.
+the captured-input provenance and comparison boundary. Image23 adds 14 complete
+captured-request comparisons, 200 synthetic original/actual-dispatch cases and
+a bounded two-worker comparison. These cover the admitted modes and synchronous
+mapping contract, rather than arbitrary concurrent mutation or unmapping.
+Broader job/image domains, general asynchronous scheduling and complete image
+replacement remain open.
 
 The first instrumented performance comparison regressed with debug logging
 enabled; profiling found `WriteFile` hot. A later quiet comparison used the same

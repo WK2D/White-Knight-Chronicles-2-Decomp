@@ -8,14 +8,12 @@ Generated instruction-by-instruction C and its register/local-store ABI are
 temporary references, not the final implementation. Native compilation and
 interpreter-free sampled routes alone do not satisfy this target.
 
-No complete SPU image has yet been replaced. The supported whole image-19
-geometry job is now connected in the public player source as an
-[experimental opt-in route](#opt-in-live-geometry-job), including original-input
-acquisition, native allocation, transfers and command publication. Other
-constructor/layout domains still use compiled execution. Seven host operations now use authored C++; special numeric adapters remain.
-Expanded quantized-position layouts are connected and compared against fresh
-original jobs. Earlier classifier-only crowded-view comparisons show a bounded
-gain; no FPS gain is measured for the latest layout extension.
+No complete SPU image has yet been replaced. The public opt-in runtime handles
+admitted whole image-19 geometry jobs and [image23 visibility modes 2/3](#owned-visibility-jobs)
+with owned typed inputs and ordered external outputs. Other constructors, modes
+and images retain compiled execution. Seven ordinary host operations use authored
+C++; special numeric adapters remain. Earlier classifier-only crowded-view
+comparisons show a bounded gain; the latest visibility work has no measured FPS gain.
 Completion requires a player build that links
 no generated SPU game code, uses no SPU interpreter, and has validated native
 interfaces and behavior throughout the game. Build-only reference replays may
@@ -139,7 +137,7 @@ zero fallback and at least 16,777,216 transformed blocks in each run. Both final
 frames were inspected. The Vulkan run additionally samples CPU time; profiling,
 tracing and GPU captures make it unsuitable as an FPS benchmark.
 
-Both Windows suites now pass 117 checks with 126 SDK patches. No FPS gain,
+Both Windows suites now pass 118 checks with 126 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
 is claimed.
 
@@ -1070,7 +1068,8 @@ failure tests, without proving broader gameplay or asynchronous scheduling.
 [`native_geometry_runtime.cpp`](../native_geometry_runtime.cpp) and its header
 are built into the player and initialized from `main.cpp`. Setting
 `WKC_NATIVE_GEOMETRY_JOB=1` registers the supported host-mode image-19 whole-job
-route before original SPURS input staging. Unset or `0` leaves its dispatch,
+route and image23 visibility modes 2/3 before original SPURS input staging.
+Unset or `0` leaves its dispatch,
 scope and PUT hooks unregistered and produces no module diagnostics. Sampled
 completion/decline counters are separately enabled by
 `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1`.
@@ -1291,13 +1290,93 @@ also still match. Both Windows suites pass **117/117**: Debug **31.12 s** and
 Release **27.80 s**, run concurrently. These are controlled synchronous Windows
 Release comparisons, not concurrent scheduling or ARM proof.
 
-The new live town check and desktop installation are pending. The installed
-executable and existing gallery capture precede this addition. No new
-screenshot, FPS gain or gameplay verification is claimed for it.
+Hidden, muted DirectX town route `20261021-000051` loads an isolated save,
+turns the camera and walks twice with the 30 FPS cap and strict fallback guard.
+Its palette census records **2,114 completed jobs and 2,115 ready inputs**, with
+all three new row classes observed and no census overflow. The final snapshot
+can include an in-flight input; these are bounded diagnostic counts, not a
+performance comparison. The inspected town frame renders Leonard and nearby
+NPCs. This route does not establish full traversal or a new FPS gain.
 Remaining palette sources and other images still use compiled execution.
 
-The next independent target is **image23's culling request**. Quiet NPC-view
-profiles and observed SPURS job-chain stacks identify it as a substantial
-compute path. Its original request/DMA/output interface still needs capture
-and recovery before native integration. This is a target selection, not a
-completed replacement or a predicted frame-rate gain.
+The independently profiled image23 visibility request now has connected C++
+implementations for its admitted modes 2/3, described below. Other modes and
+image domains remain on compiled execution; complete-image removal is unproven.
+
+## Owned visibility jobs
+
+[`native_occlusion.h`](../native_occlusion.h) and
+[`native_visibility.h`](../native_visibility.h) implement two complete supported
+image23 request modes. The existing `-NativeGeometryJob` player switch enables
+them through [`native_geometry_runtime.cpp`](../native_geometry_runtime.cpp).
+The algorithms accept owned typed values, without an SPU context, register file
+or local store.
+
+**Mode 2** tests transformed object boxes against up to 128 quadrilateral
+occluders. It prepares each occluder's face and four side planes once per request,
+then applies the recovered early-depth and ordered plane tests to each box.
+Both winding branches retain their original arithmetic grouping. The connected
+policy is restricted to Windows SDK host-float mode: ordinary operations use
+authored C++, while special negative multiply and reciprocal-estimate/interpolation
+operations retain SDK adapters. A zero-occluder constructor declines because the
+original issues a malformed zero-length transfer; the typed kernel's empty-scene
+result alone does not authorize that runtime interface.
+
+**Mode 3** is an integer mask filter. It keeps a record when the intersection of
+the input mask and the record's mask is **zero**. Both modes copy retained
+16-byte records unchanged in source order, then publish the result header last.
+Header padding comes from a narrow proof that the selected constructor cleared
+the workspace and left it untouched; it is not a general SPURS assumption.
+The original unsigned shifted threshold comparison is preserved.
+
+The runtime copies the descriptor and all required input spans before publishing
+output. It validates mapping permissions, bounds and supported aliases first;
+in-place or backward compaction and disjoint outputs are admitted, while forward
+overlap and outputs overlapping other inputs decline. Native writes preserve
+reservation invalidation and installed renderer/trace notifications. Completion
+updates the original thread-local manager state. Unsupported interfaces retain
+compiled execution before effects; an unexpected failure after publication begins
+stops execution instead of replaying a partially written job.
+
+Fresh original execution and the actual SDK native-dispatch route agree for
+**14 complete captured requests**: eight mode-2 and six mode-3 jobs. Two truncated
+captures are excluded. All **1,613 ordered writes / 25,808 bytes**, output canaries
+and input bytes outside permitted output aliases match; **154 admission probes**
+decline without writes,
+and **14 reservation-invalidation checks** pass. Deliberate header, predicate and
+record-order corruptions fail the comparison.
+
+Three additional admission checks reject a committed null-input address, a
+nonempty query at the top of the VM and an unclassified descriptor lane,
+without writes or changes to seven complete pages. Actual SDK dispatch of
+the last case invokes compiled execution exactly once and matches all
+three ordered writes and page canaries.
+
+A separate **200-case synthetic whole-original/SDK-dispatch matrix** matches
+**9,948 ordered writes / 159,168 bytes**, including 3,435 visible and 1,212 occluded
+mode-2 decisions. It covers in-place and disjoint outputs, count boundaries,
+transforms, winding, and exceptional floating-point encodings. These are selected
+Windows Release output comparisons, not full floating-point exception-state or
+ARM equivalence. The public `wkc2_native_visibility` regression independently
+checks mask compaction, header ordering, rejection and finite box/quad examples.
+
+Two workers also complete **128 actual SDK dispatches** with **4,937 ordered
+writes / 78,992 bytes**, no generated-original entries and no comparison failures.
+A barrier inside scope acquisition records all 128 arrivals, exercising parallel
+requests without an image23 compute-wide lock. This proves the tested independent
+request pairs; concurrent mutation of shared inputs, shared outputs or mapping
+lifetimes remains unproven. The separate image-19 allocator gate remains in place.
+
+Live route `20261021-000051` records both supported visibility modes and at least
+**16,384 combined native completions** while loading, turning and walking in town.
+Sampled counters are lower bounds. The hidden, muted DirectX route uses an isolated
+save, 30 FPS cap, FPS overlay and diagnostics, so it is execution evidence rather
+than a speed benchmark. No FPS improvement or complete-image replacement is claimed.
+Modes 1/4, unknown constructors and aliases, broader gameplay, remaining SDK
+arithmetic, general asynchronous scheduling and future platforms remain open.
+
+The tested public Release build is installed for the existing desktop shortcut.
+Startup stays manual, with diagnostics and auto-input disabled and the
+30 FPS baseline retained. Savedata and graphics preferences are unchanged.
+The [quiet town capture](GALLERY.md#2026-10-21--native-c-visibility-jobs)
+keeps the FPS overlay visible and still shows the crowded-street lag.

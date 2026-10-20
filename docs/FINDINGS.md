@@ -1,8 +1,8 @@
 # Findings
 
-Updated 2026-10-20. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
+Updated 2026-10-21. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 126 SDK patches / 117 Windows checks in normal Debug
+**Current source checkpoint:** 126 SDK patches / 118 Windows checks in normal Debug
 and optimized Release. The native System menu now has
 Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
@@ -26,7 +26,8 @@ original-input jobs match through the SDK native CAS, VM and PUT callbacks.
 Expanded position layouts add 84 fresh complete-job comparisons with zero
 mismatches, plus 7,757 observed new-format completions in a diagnostic town run.
 Three additional palette rows now derive from explicit constructor/descriptor
-facts and pass 60 fresh complete-job pairs; their live check is pending.
+facts and pass 60 fresh complete-job pairs; a diagnostic town census records
+2,114 completions with those row classes observed.
 Direct/global command invalidation is corrected. Seven host arithmetic/comparison
 operations are authored C++; remaining numeric adapters, palette/layout domains,
 broader gameplay and scheduling remain unfinished. Classifier-only stationary
@@ -35,6 +36,14 @@ no measured FPS benefit. See [native work](NATIVE_CODE.md#expanded-quantized-pos
 No complete SPU image or smooth 30 FPS traversal is claimed. Desktop
 clean-play mode also removes inherited diagnostics, and patch 0119 disables the
 previously unconditional DirectX benchmark recorder unless explicitly requested.
+
+The same opt-in runtime now executes complete supported image23 visibility
+requests in authored C++: mode 2 tests boxes against quad occluders, and mode 3
+filters masks while preserving record order. Fourteen real captured requests,
+200 synthetic original/SDK-dispatch cases and 128 two-worker dispatches match;
+both modes also execute in the sampled town route. Modes 1/4 and unsupported
+interfaces retain compiled execution. This adds native coverage, with no measured
+FPS gain or complete-image replacement. See [owned visibility jobs](#owned-visibility-jobs).
 
 ## Contents
 
@@ -49,6 +58,7 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 
 **Performance, timing and presentation**
 
+- [Owned visibility jobs](#owned-visibility-jobs)
 - [Owned palette row sources](NATIVE_CODE.md#owned-palette-row-sources)
 - [Expanded owned geometry inputs](NATIVE_CODE.md#expanded-quantized-position-inputs)
 - [Readable whole skinning stream](NATIVE_CODE.md#readable-whole-skinning-stream)
@@ -3724,3 +3734,33 @@ traces, GPU captures, diagnostic logs and automated controller input are disable
 The frame limit is restored to the 30 FPS baseline because higher-rate faults
 remain open. Saves and other graphics preferences are preserved. Targeted
 clean-environment, native-math and hook checks pass again in Debug and Release.
+
+## Owned visibility jobs
+
+The profiled image23 worker now has authored C++ implementations for two whole
+request modes. Mode 2 transforms bounds and tests occlusion against quad shadow
+volumes; mode 3 keeps records with a zero mask intersection. Both publish unchanged
+retained records in source order and the result header last. The existing native-job
+switch connects them before original input staging, with validation before effects
+and coherent output notifications. Modes 1/4 and unsupported interfaces remain on
+compiled execution.
+
+Fourteen complete real captured requests match fresh originals through actual
+SDK native dispatch: **1,613 ordered writes / 25,808 bytes**, output canaries
+and input bytes outside permitted output aliases. Two incomplete captures are
+excluded. All 154 admission probes decline without writes and all 14
+reservation-invalidation checks pass.
+The separate 200-case synthetic matrix matches **9,948 writes / 159,168 bytes**,
+including exceptional numeric patterns. Two independent workers complete 128
+dispatches and **4,937 writes / 78,992 bytes**, with no generated-original entries
+or comparison failures. These are bounded synchronous interface comparisons,
+not general scheduling or concurrent shared-memory proof.
+
+Hidden, muted DirectX route `20261021-000051` loads the isolated save, turns and
+walks with the strict fallback guard, 30 FPS cap and FPS overlay. Its sampled
+diagnostics record both modes and at least 16,384 combined visibility completions.
+The same route confirms the expanded image-19 palette rows. Diagnostic IO makes
+this unsuitable for a performance claim. No full SPU image, NPC-spawn lag fix or
+new FPS gain is claimed. Special numeric SDK adapters and broader modes,
+constructors, gameplay and platform coverage remain open. See the
+[public interfaces and detailed evidence](NATIVE_CODE.md#owned-visibility-jobs).

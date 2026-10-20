@@ -4,6 +4,37 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_cpp_visibility_town",
+      "date": "2026-10-21",
+      "image": "screenshots/2026-10-21-native-cpp-visibility-town.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "DirectX12 live draw renderer",
+      "source_format": "Unmodified final swap-chain GPU readback with FPS counter",
+      "source_sha256": "f755bf11cdd67e7c9cf5a7ff1a414076f03df53c66d1fe7bf65f01c118936483",
+      "png_sha256": "f56b3bb832db366a72729f3e93cff2dab1f4d2c2bed2d37c85bb8913ec9457f3",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IHDR",
+        "IDAT",
+        "IEND"
+      ],
+      "native_probe": "20261021-002158",
+      "native_readback": "frame_001950.ppm",
+      "native_executable_sha256": "c3d2a119f1f04bd729125b6f408df9013469f8ddfb06787026dcd06db5f8538b",
+      "sdk_patch_count_in_captured_run": 126,
+      "spu_image_inputs": 24,
+      "frame_limit": 30,
+      "fps_counter": true,
+      "vsync": false,
+      "capture_only_backend_instrumentation": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false,
+      "performance_proven_by_still_image": false,
+      "capture_scope": "Public geometry and visibility runtime after Continue, camera turn and two short town moves. Hidden and muted with copied save, strict fallback guard and normal log suppression; no geometry/visibility census or CPU profiler. GPU readback is armed for the screenshot. The instantaneous counter reads 8.6 FPS in this NPC-heavy view; town lag remains. This is not a paired performance comparison."
+    },
+    {
       "milestone": "native_cpp_expanded_geometry_town",
       "date": "2026-10-20",
       "image": "screenshots/2026-10-20-native-cpp-expanded-geometry-town.png",

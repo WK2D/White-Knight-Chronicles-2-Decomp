@@ -14,8 +14,8 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Three additional palette rows now derive from explicit constructor/descriptor/staging facts in the public C++ geometry route. Fresh original observations and 60 complete-job pairs match; 32 earlier VM jobs and 84 quantized-input pairs still pass. 126 SDK patches / 117 Windows checks pass in both configurations. The new palette live check and desktop installation are pending; the previously installed build remains unchanged. Other palette sources, images, numeric adapters, gameplay routes and platforms remain unfinished. No new FPS gain or complete image replacement.",
-    "updated": "2026-10-20"
+    "current_milestone": "Supported image19 geometry and image23 visibility modes 2/3 execute through authored C++. Visibility outputs match 14 complete real requests and 200 synthetic whole-original dispatches; 128 independent two-worker requests pass. Live town completion is verified for both modes and the explicit palette rows. 126 SDK patches / 118 Windows checks pass in Debug and Release. Modes 1/4, other images, special numeric adapters, broader gameplay and future platforms remain unfinished. No FPS gain or complete SPU image replacement is claimed. The tested clean player build and FPS-overlay gallery are updated; startup remains manual.",
+    "updated": "2026-10-21"
   },
   "native_data_installation_verified": true,
   "native_decoded_movie_frame_verified": true,
@@ -158,7 +158,9 @@
     "latest_census_probe": "20261020-035339",
     "latest_census_scope": "Hidden/muted Continue-to-town loading and bounded complete skinning-function captures; zero strict interpreter/microstep entries. No new transition, cutscene or combat validation in this probe.",
     "native_geometry_job_opt_in_supported": true,
-    "native_geometry_job_scope": "Windows host-float image19 admitted constructor/layout domain; original SPU generated code and SDK arithmetic policies remain linked. Default unregistered; WKC_NATIVE_GEOMETRY_JOB=1 enables the supported whole-job path."
+    "native_geometry_job_scope": "WKC_NATIVE_GEOMETRY_JOB=1 enables admitted image19 geometry and image23 visibility modes 2/3. Geometry and visibility mode2 use the verified Windows host-float policy; special SDK numeric adapters and other generated paths remain. Default hooks unregistered.",
+    "native_visibility_job_opt_in_supported": true,
+    "native_visibility_job_scope": "Complete admitted mode2/3 requests; modes1/4 and unsupported constructors retain compiled execution before native effects."
   },
   "native_character_creation_completed_scope": "Default male avatar named and accepted through Quick Start; opening cutscenes advance to the town. Full visual fidelity and all customization options are not verified.",
   "native_wkc1_town_world_view_verified": true,
@@ -168,7 +170,7 @@
   "native_combat_verified": false,
   "current_build": {
     "sdk_patch_count": 126,
-    "runtime_checks_passed": 117,
+    "runtime_checks_passed": 118,
     "town_native_run_sdk_patch_count": 105,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
@@ -250,8 +252,8 @@
       "GCM_SEMA_ACQUIRE": "1",
       "RSX_ENGINE_ZTEX_GPU": "1"
     },
-    "normal_debug_checks_elapsed_seconds": 33.35,
-    "optimized_release_checks_elapsed_seconds": 27.63,
+    "normal_debug_checks_elapsed_seconds": 30.1,
+    "optimized_release_checks_elapsed_seconds": 25.85,
     "repeat_patch_application_files_changed": 0,
     "patch_0071_windows_regression_verified": true,
     "patch_0072_windows_regression_verified": true,
@@ -267,7 +269,7 @@
     "patch_0074_native_game_run_verified": true,
     "patch_0074_texture_compare_direction_gpu_verified": true,
     "patch_0074_foot_shadow_flicker_fixed_verified": false,
-    "repeat_patch_application_verified_sdk_patch_count": 118,
+    "repeat_patch_application_verified_sdk_patch_count": 126,
     "patch_0075_windows_regression_verified": true,
     "patch_0075_native_interaction_verified": true,
     "patch_0075_save_load_verified": true,
@@ -398,7 +400,7 @@
     "patch_0123_windows_regression_verified": true,
     "patch_0123_native_game_run_verified": false,
     "runtime_checks_configuration": "Normal Debug and optimized Release",
-    "current_debug_checks_passed": 117,
+    "current_debug_checks_passed": 118,
     "current_debug_checks_pending": false,
     "patch_0124_windows_release_regression_verified": true,
     "patch_0125_windows_release_regression_verified": true,
@@ -552,7 +554,7 @@
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified. The same starting-town slot was rechecked in the 105-patch Vulkan Release build.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 126 SDK patches / 117 passing Windows checks in normal Debug and optimized Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 126 SDK patches / 118 passing Windows checks in normal Debug and optimized Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",
@@ -2036,7 +2038,15 @@
         "name": "zz_raw_job_012A6B00",
         "source_image_sha256": "0555c9f490fa14359f6f1b9ec6f7345e0e75e39a87f05f62de33149a838097de",
         "fully_replaced": false,
-        "status": "generated_job_runtime"
+        "status": "partial_readable_cpp_modes_with_generated_job_runtime",
+        "native_modes": [
+          2,
+          3
+        ],
+        "remaining_generated_modes": [
+          1,
+          4
+        ]
       },
       {
         "image_id": 24,
@@ -3149,7 +3159,7 @@
     "public_source": "native_geometry_runtime.cpp",
     "public_header": "native_geometry_runtime.h",
     "mapping_cache": "native_geometry_mapping_cache.h",
-    "status": "Supported image19 geometry job now derives three additional palette rows as owned C++ values; verified whole-job outputs, broader palette domains remain.",
+    "status": "Admitted whole image19 geometry jobs use owned C++ inputs, explicit palette rows, algorithms and native transfers. The same opt-in integration also connects image23 visibility modes2/3; unsupported inputs retain compiled execution.",
     "enable_environment": "WKC_NATIVE_GEOMETRY_JOB=1",
     "diagnostics_environment": "WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1",
     "default_hooks_registered": false,
@@ -3186,11 +3196,11 @@
     },
     "windows_regression": {
       "sdk_patches": 126,
-      "release_checks_passed": 117,
-      "release_seconds": 27.8,
-      "debug_checks_passed": 117,
+      "release_checks_passed": 118,
+      "release_seconds": 25.85,
+      "debug_checks_passed": 118,
       "debug_status": "passed",
-      "debug_seconds": 31.12
+      "debug_seconds": 30.1
     },
     "live_starting_town_reached": true,
     "broader_gameplay_routes_verified": false,
@@ -3517,12 +3527,16 @@
       ]
     },
     "desktop_installation": {
-      "date": "2026-10-20",
+      "date": "2026-10-21",
       "sdk_patches": 126,
-      "checks_debug": 117,
-      "checks_release": 117,
-      "sha256": "3044C37888F320407000B824E44E15E1AC1C2EB7BD17AC01B9162EB51B165507",
+      "checks_debug": 118,
+      "checks_release": 118,
+      "sha256": "118279e46487fdac2d83b09496705fd62a39b66251462dff73c2f8288414ac6a",
       "native_complete_supported_geometry_job": true,
+      "native_visibility_modes": [
+        2,
+        3
+      ],
       "native_authored_host_operations": 7,
       "native_job_diagnostics": false,
       "manual_startup": true,
@@ -3533,16 +3547,16 @@
       "frame_limit": 30,
       "saves_preserved": true,
       "other_preferences_preserved": true,
-      "release_game_route": "20261020-212949",
-      "arithmetic_vector_cases_per_configuration": 389120,
-      "release_actual_vm_replay_jobs": 32,
-      "release_actual_vm_mismatched_bytes": 0,
+      "shortcut_target_unchanged": true,
+      "release_game_route": "20261021-002158",
       "fully_replaced_spu_images": 0,
-      "expanded_quantized_inputs": true,
-      "fresh_original_full_job_pairs": 84,
-      "fresh_original_full_job_mismatched_bytes": 0,
-      "scope": "Public Release player updated for expanded quantized-position inputs and corrected direct/global invalidation; unchanged shortcut, manual startup, no diagnostics or auto-input, saves/preferences preserved. No new FPS gain or complete SPU image replacement.",
-      "clean_play_poisoned_environment_verified": true
+      "actual_visibility_original_requests": 14,
+      "synthetic_original_visibility_cases": 200,
+      "independent_two_worker_requests": 128,
+      "actual_visibility_mismatched_bytes": 0,
+      "release_actual_vm_replay_jobs": 32,
+      "fresh_original_geometry_pairs": 84,
+      "scope": "Tested public Release geometry and visibility runtime; existing shortcut resolves the same executable path. Manual startup, diagnostics and auto-input disabled, 30 FPS baseline, savedata and preferences retained. No new FPS gain or complete image replacement."
     },
     "quantized_inputs": {
       "date": "2026-10-20",
@@ -3717,11 +3731,21 @@
         "release_seconds": 27.8,
         "run_concurrently": true
       },
-      "new_live_route_verified": false,
+      "new_live_route_verified": true,
       "new_fps_gain_measured": false,
-      "desktop_installed": false,
-      "live_check_status": "Pending; installed desktop build precedes this source change",
-      "whole_spu_image_replaced": false
+      "desktop_installed": true,
+      "live_check_status": "Verified in the bounded diagnostic town route and installed in the clean player build",
+      "whole_spu_image_replaced": false,
+      "live_route": {
+        "probe": "20261021-000051",
+        "ready_inputs": 2115,
+        "completed_jobs": 2114,
+        "row_classes_observed": 3,
+        "census_overflow": 0,
+        "counts_are_snapshot_lower_bounds": true,
+        "final_ready_may_be_in_flight": true,
+        "performance_sample": false
+      }
     }
   },
   "native_geometry_host_math": {
@@ -3965,10 +3989,170 @@
       "release_seconds": 27.8,
       "run_concurrently": true
     },
-    "new_live_route_verified": false,
+    "new_live_route_verified": true,
     "new_fps_gain_measured": false,
-    "desktop_installed": false,
-    "live_check_status": "Pending; installed desktop build precedes this source change",
-    "whole_spu_image_replaced": false
+    "desktop_installed": true,
+    "live_check_status": "Verified in the bounded diagnostic town route and installed in the clean player build",
+    "whole_spu_image_replaced": false,
+    "live_route": {
+      "probe": "20261021-000051",
+      "ready_inputs": 2115,
+      "completed_jobs": 2114,
+      "row_classes_observed": 3,
+      "census_overflow": 0,
+      "counts_are_snapshot_lower_bounds": true,
+      "final_ready_may_be_in_flight": true,
+      "performance_sample": false
+    }
+  },
+  "native_visibility_jobs": {
+    "date": "2026-10-21",
+    "status": "Connected for supported image23 modes 2 and 3",
+    "image_id": 23,
+    "public_sources": [
+      "native_occlusion.h",
+      "native_visibility.h",
+      "native_geometry_runtime.cpp"
+    ],
+    "public_regression": "wkc2_native_visibility",
+    "enable_environment": "WKC_NATIVE_GEOMETRY_JOB=1",
+    "diagnostics_environment": "WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1",
+    "default_hooks_registered": false,
+    "modes": {
+      "2": "Box occlusion against quadrilateral shadow volumes; Windows host-float numeric policy",
+      "3": "Integer mask selection with stable record compaction"
+    },
+    "generated_modes_retained": [
+      1,
+      4
+    ],
+    "typed_owned_inputs_and_outputs": true,
+    "algorithm_uses_spu_context_or_local_store": false,
+    "special_sdk_numeric_adapters_required": true,
+    "output_contract": "Retained records unchanged in source order; result header last; narrow constructor proof for header padding",
+    "unsupported_before_effects_retains_compiled_execution": true,
+    "failure_after_effects_is_terminal": true,
+    "actual_sdk_dispatch_replay": {
+      "real_complete_requests": 14,
+      "real_mode2_requests": 8,
+      "real_mode3_requests": 6,
+      "incomplete_captures_skipped": 2,
+      "ordered_writes": 1613,
+      "compared_write_bytes": 25808,
+      "declined_admission_probes": 154,
+      "coherent_reservation_invalidations": 14,
+      "mismatched_bytes": 0,
+      "source_inputs_outside_output_alias_immutable": true,
+      "output_canaries_match": true
+    },
+    "synthetic_original_dispatch_replay": {
+      "complete_cases": 200,
+      "ordered_writes": 9948,
+      "compared_write_bytes": 159168,
+      "mode2_visible_objects": 3435,
+      "mode2_occluded_objects": 1212,
+      "mismatched_bytes": 0,
+      "in_place_and_disjoint_cases": true,
+      "exceptional_float_patterns_tested": true,
+      "scope": "Controlled synchronous Windows Release whole-original output comparisons; no full FP exception-state or ARM proof"
+    },
+    "independent_two_worker_dispatch": {
+      "requests": 128,
+      "inside_scope_barrier_arrivals": 128,
+      "original_entries": 0,
+      "ordered_writes": 4937,
+      "compared_write_bytes": 78992,
+      "failures": 0,
+      "shared_compute_lock_required": false,
+      "scope": "Independent owned requests, thread-local completion and non-overlapping fixture pages; no shared-output or live mutation proof"
+    },
+    "effective_corruption_controls": [
+      "header padding",
+      "mask predicate",
+      "record write order"
+    ],
+    "windows_regression": {
+      "sdk_patches": 126,
+      "debug_passed": 118,
+      "release_passed": 118,
+      "debug_seconds": 30.1,
+      "release_seconds": 25.85
+    },
+    "live_route_verified": true,
+    "live_route": {
+      "probe": "20261021-000051",
+      "renderer": "DirectX12",
+      "frame_limit": 30,
+      "hidden": true,
+      "muted": true,
+      "isolated_save": true,
+      "strict_fallback_guard": true,
+      "fps_overlay": true,
+      "diagnostic_counts": true,
+      "modes_observed": [
+        2,
+        3
+      ],
+      "completed_combined_lower_bound": 16384,
+      "performance_sample": false,
+      "scope": "Continue, camera turn and two short town moves"
+    },
+    "quiet_gallery_probe": "20261021-002158",
+    "desktop_installed": true,
+    "new_fps_gain_measured": false,
+    "complete_spu_image_replaced": false,
+    "arm_execution_verified": false,
+    "general_concurrent_scheduling_proven": false,
+    "remaining": [
+      "Modes 1 and 4",
+      "Unknown constructors/layouts and aliases",
+      "Special SDK numeric adapters",
+      "Broader gameplay and scheduling",
+      "Other images",
+      "Future ARM/macOS validation"
+    ],
+    "desktop_installation": {
+      "date": "2026-10-21",
+      "sdk_patches": 126,
+      "checks_debug": 118,
+      "checks_release": 118,
+      "sha256": "118279e46487fdac2d83b09496705fd62a39b66251462dff73c2f8288414ac6a",
+      "native_complete_supported_geometry_job": true,
+      "native_visibility_modes": [
+        2,
+        3
+      ],
+      "native_authored_host_operations": 7,
+      "native_job_diagnostics": false,
+      "manual_startup": true,
+      "auto_input": false,
+      "player_mode": true,
+      "inherited_diagnostics_blocked": true,
+      "diagnostic_log_files": false,
+      "frame_limit": 30,
+      "saves_preserved": true,
+      "other_preferences_preserved": true,
+      "shortcut_target_unchanged": true,
+      "release_game_route": "20261021-002158",
+      "fully_replaced_spu_images": 0,
+      "actual_visibility_original_requests": 14,
+      "synthetic_original_visibility_cases": 200,
+      "independent_two_worker_requests": 128,
+      "actual_visibility_mismatched_bytes": 0,
+      "release_actual_vm_replay_jobs": 32,
+      "fresh_original_geometry_pairs": 84,
+      "scope": "Tested public Release geometry and visibility runtime; existing shortcut resolves the same executable path. Manual startup, diagnostics and auto-input disabled, 30 FPS baseline, savedata and preferences retained. No new FPS gain or complete image replacement."
+    },
+    "targeted_admission_and_fallback": {
+      "direct_hook_declines": 3,
+      "native_writes_on_decline": 0,
+      "unchanged_pages_per_case": 7,
+      "dispatcher_fallbacks": 1,
+      "original_entries": 1,
+      "ordered_writes": 3,
+      "compared_write_bytes": 48,
+      "failures": 0,
+      "scope": "Committed null input, top-of-VM nonempty query and unclassified descriptor lane; original fallback output compared"
+    }
   }
 }
