@@ -2425,5 +2425,102 @@
       "Complete remaining geometry stages and compare complete job/DMA outputs before live integration.",
       "Validate shared allocation, output lifetimes, publication and scheduling on broader routes."
     ]
+  },
+  "native_position_only_stream": {
+    "date": "2026-10-20",
+    "image_id": 19,
+    "reference_entry": "0xB1D0",
+    "outer_palette_preparation_entry": "0x4AF8",
+    "public_core": "skin_positions_stream in native_skinning_stream.h",
+    "public_palette_reorder": "cyclic_skin_matrix in native_skinning.h",
+    "status": "Offline typed position-only stream; no new live hook",
+    "interface": "Four-vertex groups with typed influence/position/palette IO; read all joints including zero-weight influences, commit positions in order3,0,1,2, preserve live palette visibility.",
+    "recorded": {
+      "mode": 0,
+      "calls": 16,
+      "positions": 2712,
+      "position_mismatches": 0,
+      "palette_entries": 64,
+      "palette_mismatches": 0,
+      "out_of_declared_count_reads": 143,
+      "nonfinite_positions": 19,
+      "captured_stage_reference_checks": 16
+    },
+    "bounded_finite_three_arithmetic_modes": {
+      "calls": 3072,
+      "positions": 520704,
+      "palette_entries": 12288,
+      "position_mismatches": 0,
+      "palette_mismatches": 0
+    },
+    "arbitrary_float_bits_three_arithmetic_modes": {
+      "calls": 3072,
+      "positions": 520704,
+      "palette_entries": 12288,
+      "position_mismatches": 0,
+      "palette_mismatches": 0
+    },
+    "rounding_flush_arithmetic_matrix": {
+      "calls": 6144,
+      "positions": 1041408,
+      "palette_entries": 24576,
+      "position_mismatches": 0,
+      "palette_mismatches": 0
+    },
+    "differential_scope": "Counts/layouts retained from captures; seeds repeat across modes/settings. Reference supplies loop-entry backing including ABI spill bytes accessible to arbitrary joints. No transformed positions or blended matrix results are supplied to native code. Palette reorder checked separately.",
+    "bounded_finite_scope": "Only declared palettes and positions are randomized to finite values; out-of-count palette storage can still contain nonfinite ambient values.",
+    "host_nan_policy": "OrderedHostPositionStreamMath: a then b then accumulator, quiet selected payload; used only for recovered host stream. Exact/audit retain existing helpers.",
+    "weight_zero_policy": "Use conversion-policy zero, including negative zero under host downward rounding.",
+    "public_regression": {
+      "existing_check_extended": "wkc2_native_skinning",
+      "independent_row_major_cases": 128,
+      "row_major_vertices": 4352,
+      "scalar_x86_fma_compared": true,
+      "live_palette_cases": 4,
+      "zero_weight_joint255_reads": true,
+      "commit_order_checked": true,
+      "invalid_count_no_callbacks": true,
+      "explicit_nan_policy_checked": true,
+      "debug_windows_checks_passed": 113,
+      "release_windows_checks_passed": 113,
+      "sdk_patches": 122
+    },
+    "output_bit_corruption_rejected": true,
+    "complete_stage_register_stack_scratch_abi_replaced": false,
+    "whole_job_replaced": false,
+    "full_spu_image_replaced": false,
+    "live_game_integration_verified": false,
+    "arm_execution_verified": false,
+    "asynchronous_scheduling_equivalence_proven": false,
+    "fps_gain_measured": false,
+    "desktop_executable_changed": false
+  },
+  "geometry_allocation_publication_contract": {
+    "date": "2026-10-20",
+    "scope": "Derived contracts from private reference inspection and existing32wholejobfixtures; no new runtime implementation",
+    "corrected_stage_roles": {
+      "0x6970": "Geometry transformation/filtering, not allocation or DMA",
+      "0x2DB8": "Allocation orchestration",
+      "0x2BB8": "Ring reservation",
+      "0x2A78": "Global conditional atomic allocator",
+      "0x4FC0": "Vertex packing",
+      "0x3040": "Final command publication"
+    },
+    "allocating_jobs": 31,
+    "empty_filtered_jobs_skipping_allocation_and_payload": 1,
+    "captured_allocation_path": "Successful nonwrapping per-slot ring, slot0, consumer receipt equal to oldproducer cursor; only published block word3 changes.",
+    "uncovered": [
+      "wrap",
+      "contention",
+      "atomic retry",
+      "global fallback",
+      "blocking wait",
+      "other slot",
+      "direct destination branch"
+    ],
+    "final_fenced_publications": 32,
+    "all_final_packet_sizes_match_header_byte1_times16": true,
+    "scheduling_equivalence_proven": false,
+    "native_ownership_complete": false
   }
 }

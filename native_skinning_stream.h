@@ -33,6 +33,32 @@ struct SkinningStreamPolicy {
     Float4 initial_reciprocal_lengths{};
 };
 
+// Position-only counterpart using read_influences, read_palette, read_position
+// and write_position from the typed IO contract below. All four
+// palette entries are read even for zero weights; live palette aliases must see
+// prior groups' writes. The outer job handles the palette-enable/skip flags.
+// Groups have four vertices, with output commit order 3,0,1,2. This is the
+// semantic position stream, not the original routine's register/stack ABI.
+template<class Math,class IO>
+bool skin_positions_stream(IO& io,std::uint32_t vertices,ByteWeightConversion convert={}) {
+    if(!vertices||vertices%4)return false;
+    const auto weight_scale=std::bit_cast<float>(std::uint32_t{0x3b808080u});
+    const Float4 scale{weight_scale,weight_scale,weight_scale,weight_scale};
+    for(std::uint32_t base=0;base<vertices;base+=4) {
+        std::array<Float4,4> positions;
+        for(unsigned lane=0;lane<4;++lane) {
+            const auto packed=io.read_influences(base+lane);
+            const auto weights=Math::multiply(convert(packed.weights),scale);
+            std::array<CyclicAffine,4> influences;
+            for(unsigned joint=0;joint<4;++joint)influences[joint]=io.read_palette(packed.joints[joint]);
+            const auto matrix=blend_skin_matrix<Math>(weights,influences);
+            positions[lane]=transform_skin_position<Math>(matrix,io.read_position(base+lane)).position;
+        }
+        for(unsigned lane:{3u,0u,1u,2u})io.write_position(base+lane,positions[lane]);
+    }
+    return true;
+}
+
 // IO owns the decoded stream views:
 //   read_influences(vertex) -> PackedSkinInfluences
 //   read_position(vertex), read_direction(stream,vertex) -> Float4

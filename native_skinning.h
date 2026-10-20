@@ -13,6 +13,16 @@ using Float4 = std::array<float,4>;
 //   [m00,m11,m22,tx], [m01,m12,m20,ty], [m02,m10,m21,tz].
 // A decoder must establish this layout; ordinary row-major matrices differ.
 using CyclicAffine = std::array<Float4,3>;
+struct RowMajorAffine {
+    std::array<Float4,3> rows;
+};
+// Palette preparation is a bit-preserving reorder, with no arithmetic.
+constexpr CyclicAffine cyclic_skin_matrix(const RowMajorAffine& source) {
+    const auto& m=source.rows;
+    return {Float4{m[0][0],m[1][1],m[2][2],m[0][3]},
+            Float4{m[0][1],m[1][2],m[2][0],m[1][3]},
+            Float4{m[0][2],m[1][0],m[2][1],m[2][3]}};
+}
 struct SkinVertex {
     Float4 position;
     Float4 weights;
@@ -65,6 +75,23 @@ struct HostScalarMath {
     static Float4 multiply_subtract(const Float4& a,const Float4& b,const Float4& c) {
         Float4 out{};
         for(unsigned i=0;i<4;++i)out[i]=std::fma(a[i],b[i],-c[i]);
+        return out;
+    }
+};
+
+// Observed host-mode policy for the recovered position-only stream. Fused
+// arithmetic selects a NaN from a, then b, then the accumulator, and quiets it
+// without changing its sign/payload. Make this explicit rather than depend on
+// the compiler's FMA operand allocation. Finite arithmetic delegates to Base.
+// This is not the SPU extended-float policy; exact/audit adapters keep theirs.
+template<class Base=HostScalarMath>
+struct OrderedHostPositionStreamMath:Base {
+    static Float4 multiply_add(const Float4& a,const Float4& b,const Float4& c) {
+        auto out=Base::multiply_add(a,b,c);
+        for(unsigned lane=0;lane<4;++lane) {
+            const float* selected=std::isnan(a[lane])?&a[lane]:std::isnan(b[lane])?&b[lane]:std::isnan(c[lane])?&c[lane]:nullptr;
+            if(selected)out[lane]=std::bit_cast<float>(std::bit_cast<std::uint32_t>(*selected)|0x00400000u);
+        }
         return out;
     }
 };

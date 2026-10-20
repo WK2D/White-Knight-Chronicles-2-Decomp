@@ -42,6 +42,8 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 - [Whole geometry job boundary](NATIVE_CODE.md#whole-geometry-job-boundary)
 - [Owned-buffer packed vertex decoder](NATIVE_CODE.md#packed-vertex-decoding-in-owned-buffers)
 - [Compressed triangle-index decoder](NATIVE_CODE.md#compressed-triangle-index-decoding)
+- [Position-only skinning stream](NATIVE_CODE.md#position-only-skinning-stream)
+- [Allocation and export contracts](NATIVE_CODE.md#recovered-allocation-and-export-contracts)
 - [NPC cadence and rejected host FMA](#npc-cadence-and-rejected-host-fma)
 - [Remaining fork candidates and mutex measurement](#remaining-fork-candidates-and-mutex-measurement)
 - [PPU register-local validation follow-up](#ppu-register-local-validation-follow-up)
@@ -3517,3 +3519,26 @@ Width 16, zero-width explicit values and old scratch-alias layouts remain
 unsupported. Rounded tail writes and metadata/register effects are not replaced.
 This is offline whole-job reconstruction work, with no desktop change or FPS
 claim. See [interfaces, counts and unresolved behavior](NATIVE_CODE.md#compressed-triangle-index-decoding).
+
+## Position-only geometry recovery
+
+The separate position-only skinning path now has an offline typed C++ stream
+and palette reorder. All 2,712 captured positions and 64 prepared palette
+entries match, including nonfinite results. Another 12,288 differential calls
+match 2,082,816 positions across bounded-finite/arbitrary-bit inputs, three
+arithmetic modes and the rounding/flush matrix. Seeds repeat across settings.
+Host NaN priority and signed-zero conversion are explicit policies. Public
+row-major, x86 FMA, live-palette and commit-order checks pass in both Windows
+configurations. An output-bit corruption control fails as expected.
+
+The comparison supplies the reference's loop-entry backing bytes for palette
+reads that can reach outside the declared count, including ABI spill storage;
+it supplies no transformed result. Those dependencies and full-stage scratch
+are still whole-job ownership work. The desktop is unchanged, and no FPS gain
+or complete image/job conversion is claimed. See [scope and evidence](NATIVE_CODE.md#position-only-skinning-stream).
+
+The allocation audit also corrects earlier provisional labels: `0x6970` filters
+geometry, while `0x2DB8` allocates and `0x4FC0` packs vertices. The 32-job corpus
+contains 31 nonwrapping slot-0 ring allocations and one empty filtered job;
+contention, wrap, retries, fallback and blocking paths remain untested. See
+[allocation/publication limits](NATIVE_CODE.md#recovered-allocation-and-export-contracts).

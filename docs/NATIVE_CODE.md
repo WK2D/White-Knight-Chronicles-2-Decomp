@@ -595,3 +595,81 @@ register/stack effects or metadata publication. The whole-job comparison must
 prove their external liveness or reproduce them, then validate shared allocation,
 DMA visibility and scheduling. No whole-job/image replacement or performance
 gain is claimed; the desktop executable, save and preferences are unchanged.
+
+## Position-only skinning stream
+
+The image-19 geometry job also has a position-only branch (`0xB1D0`), separate
+from the supported live direction-skinning routine. Its project-written
+`skin_positions_stream` in [`native_skinning_stream.h`](../native_skinning_stream.h)
+now uses typed position, influence and palette storage callbacks. Palette
+preparation uses a bit-preserving row-major-to-cyclic reorder in
+[`native_skinning.h`](../native_skinning.h). **This branch is verified offline;
+it is not installed as a new game hook.**
+
+The core processes four vertices per group, reads all four influences even for
+zero weights, preserves ordered blend/FMA operations, then commits positions in
+order 3, 0, 1, 2. A live palette provider must see earlier output writes. The
+declared palette count is not a joint-index bound in the original branch:
+the 16 recorded position-only jobs include 143 reads beyond it. The native
+interface requires defined backing storage for those reads rather than skipping
+them or indexing past an ordinary C++ vector.
+
+The recorded comparison matches all 2,712 positions, including 19 nonfinite
+outputs, and all 64 declared palette entries after preparation. The reference
+also reproduces all 16 captured complete stage states. The public C++ kernel
+itself is compared at its decoded-stream boundary, not as a replacement for
+that stage's registers, stack or local-store scratch.
+
+| Differential dataset | Calls | Positions | Mismatches |
+| --- | ---: | ---: | ---: |
+| Random bounded finite declared palettes/positions and arbitrary influence bytes, three arithmetic modes | 3,072 | 520,704 | 0 |
+| Arbitrary float-bit declared palettes/positions and influence bytes, three modes | 3,072 | 520,704 | 0 |
+| Four rounding modes × four FTZ/DAZ settings × three arithmetic modes | 6,144 | 1,041,408 | 0 |
+
+Counts/layouts and other backing bytes come from the captures. Random sequences
+repeat across modes/settings, and an out-of-count palette read can still see
+nonfinite ambient data in the bounded-finite dataset. This is not exhaustive
+input or interface coverage. For these comparisons, the reference supplies its
+loop-entry backing state, including ABI spill bytes accessible to arbitrary
+palette indices. No transformed position or blended matrix result is supplied
+to the native core. Palette preparation is checked separately before the core
+runs. Future whole-job ownership must resolve these ambient dependencies rather
+than relying on a reference invocation in the player.
+
+Host fused operations need an explicit NaN selection policy for this branch;
+compiler operand allocation alone changed six position payloads in an earlier
+512-call arbitrary-bit comparison. `OrderedHostPositionStreamMath` preserves
+the observed a/b/accumulator priority and quiets the selected payload. This
+policy is local to this recovered host stream; exact/audit arithmetic continues
+using its existing helpers. Weight conversion likewise supplies its policy's
+signed zero instead of assuming that every host conversion yields positive zero.
+Changing an output bit fails the recorded oracle as expected.
+
+Public regressions cover 128 independent row-major cases (4,352 vertices),
+scalar/x86 FMA comparison, four live-palette cases, zero-weight joint-255 reads,
+commit order, invalid counts declining without storage access, palette layout
+and explicit NaN selection. Both Windows suites pass 113 checks; ARM execution
+is untested. There is no measured CPU/FPS gain, new complete SPU image or whole
+job replacement, and the desktop executable remains unchanged.
+
+## Recovered allocation and export contracts
+
+The whole-job stage names were provisional. `0x6970` transforms/filters geometry;
+it does not allocate or issue DMA. Channel events still tagged with that stage
+number occur later in the root between its stage snapshots. Actual allocation
+uses `0x2DB8`, with ring and global helpers `0x2BB8`/`0x2A78`. Vertex packing is
+under `0x4FC0`, separately from payload transfer and final command publication.
+
+The existing 32-job corpus covers **31 successful nonwrapping ring allocations,
+all in slot 0**, with the consumer receipt equal to the old producer cursor.
+The only changed word in each published 128-byte ring block is its allocation
+cursor. The remaining job has zero surviving indices and skips allocation and
+payload export. These captures provide no contention, wrap, atomic retry,
+global fallback, blocking wait or other-slot scheduling coverage.
+
+All 32 jobs publish a final fenced PUT after earlier same-tag payload PUTs, where
+present. The final packet size matches metadata header byte 1 × 16. Native
+replacement must retain payload-before-command visibility, shared state
+ownership and retry behavior; an owned buffer per job is insufficient by itself.
+The decoded allocator/export notes are research contracts, not new live C++
+implementations. Broader synthetic branch and concurrency tests remain required.
