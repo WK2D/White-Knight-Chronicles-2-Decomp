@@ -17,6 +17,9 @@ command builders. Their connected offline comparison matches all 32 recorded
 geometry jobs, including final external bytes and allocator publication. They
 are not enabled as a complete live job replacement. See the
 [native output transaction evidence](NATIVE_CODE.md#native-allocation-export-and-command-construction).
+The typed input constructor and resumable C++ job coordinator also pass the
+recorded jobs and standalone regressions. Live acquisition, memory/coherency and
+scheduler binding are still incomplete; these tests do not install a new player build.
 Patch 0123 corrects the SPU machine-status interrupt bit; this source change has
 passed regression tests but has no new live game route or desktop installation.
 

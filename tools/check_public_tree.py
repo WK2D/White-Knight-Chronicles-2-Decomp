@@ -21,6 +21,8 @@ root_files = {
     'native_geometry_allocation.h',
     'native_geometry_export.h',
     'native_geometry_commands.h',
+    'native_geometry_input.h',
+    'native_geometry_job.h',
     'native_vertex_pack.h',
     'native_index_decode.h',
     'native_vertex_decode.h',

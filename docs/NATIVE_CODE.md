@@ -990,7 +990,77 @@ concurrent scheduling must still be connected and tested on real routes. A
 pending allocation transaction cannot be copied or moved; its backend and lease
 must remain alive until completion. Export/publication acceptance is not DMA or
 GPU completion, and their owned buffers must survive asynchronous consumption.
-Location 0's extra fenced read remains an explicit adapter obligation. Unknown
+Location 0's extra fenced read remains an explicit platform operation. Unknown
 constructor layouts, physical bypass-index padding, odd vertex tails and wider
 game coverage remain open. No new CPU/FPS gain or gameplay result is claimed;
 the desktop executable, preferences and save are unchanged.
+
+## Typed input and job coordinator
+
+[`native_geometry_input.h`](../native_geometry_input.h) now constructs owned
+geometry inputs from an original descriptor, nineteen completed source spans
+and explicit platform facts. Its constructor plan derives compatibility
+coordinates from the original descriptor/header, without reading a register
+object, local-store object or later stage output. These integer coordinates
+classify bounded aliases; they are never an arena that the native algorithms
+execute against. Initialization and preserved-zero facts are explicit contracts,
+not fabricated neighboring bytes. Unknown cache lists, higher addresses,
+unproved zero rows and bootstrap-direction dependencies decline.
+
+All 32 recorded entries match complete logical inputs and resulting geometry
+outputs. Descriptor-derived coordinates are compared with the old entry state
+only afterward as an oracle. The actual runtime initializer and reused-state
+clear implementation are checked separately before asserting the current zero
+contract. The resulting owned inputs also pass the existing external-write and
+original geometry-stage comparisons. Public regressions cover 16 authored
+success scenarios, 46 unchanged adapter declines, 21 unchanged constructor
+declines and a policy exception before output commit.
+
+[`native_geometry_job.h`](../native_geometry_job.h) connects preparation,
+allocation, index/vertex export, the optional location-0 fenced read and final
+command publication. It owns all output buffers and cannot be copied or moved.
+Preparation does no external work. Once allocation operations begin, a failure
+is an owned partial failure; it cannot fall through to generated execution.
+Allocation failure follows the original zero-command-packet branch.
+
+Pending operations retain the job, including allocator line storage and its slot
+lease. After enqueuing outputs, a backend completion receipt must prove source
+consumption before buffers can be released. This explicit asynchronous lifetime
+barrier is a native ownership requirement: the original job has no final tag
+wait and the current runtime's DMA copies are synchronous. Location-0 GETF is
+also a real platform callback, not a fabricated receipt.
+
+The public typed input adapter and coordinator together match all 32 recorded
+jobs: 261,184 geometry payload bytes, 8,896 command bytes and 3,968 published
+allocator bytes. All 32 repeat successfully with delayed allocation receipts;
+every run also defers source retirement. Four corruptions of destination,
+payload, packet and completion must fail. Three typed-input layout/zero/alignment
+corruptions also fail. These remain recorded, offline comparisons.
+
+Public coordinator tests cover 64 nonempty jobs, 16 empty jobs, two allocation
+failures, eight preparation declines/exceptions and seven terminal failure
+cases. Borrowed transfer spans are consumed later, verifying retained source
+bytes, rather than copied immediately by the test backend. Another 86,016 cases
+check the packet-capacity bound across destination/index phases, draw counts,
+formats and flags. Both new test units compile and run standalone without the
+SDK or generated game objects. Both Windows configurations pass the expanded
+`wkc2_native_skinning` check and the complete 113-check suites.
+
+The submission audit also found a missing architectural fence before final
+interrupt capture/disable and PUTF enqueue. The command helper now issues it.
+An actual-original-publication comparison passes 54 cases, checking 4/16/256-byte
+zero packets, destination phases, tags and both interrupt states: 4,968 bytes and
+243 operation observations match. Suppressing the fence, reordering operations,
+changing the DMA command or corrupting a byte each makes that comparison fail.
+
+**The live job remains unfinished.** Its actual whole-job root is `0x1FE0`;
+the earlier `0xCE08` target is transform arithmetic within the same image. The
+runtime bridge must acquire stable original input bytes, participate in real
+memory coherency, preserve renderer PUT notifications, and hold a slot lease
+shared by native and fallback execution. Different job chains can run
+concurrently while the current scheduler assigns virtual slot zero to each;
+serial execution within one chain does not prove exclusive slot ownership.
+The coordinator's test backend is not that production bridge. Native CAS,
+mixed fallback ownership, memory visibility, real routes and remaining jobs
+still need implementation and validation. No complete live job or SPU image,
+new gameplay result, FPS gain or desktop update is claimed.

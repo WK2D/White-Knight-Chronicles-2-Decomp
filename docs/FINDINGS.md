@@ -3624,3 +3624,14 @@ These are offline host-mode composition and output results. Unobserved layouts,
 physical bypass padding, allocation, command packets, DMA visibility and real
 scheduling remain open. There is no new desktop build or measured speed gain.
 See [current owned pipeline evidence](NATIVE_CODE.md#owned-logical-geometry-pipeline).
+
+## Typed native job ownership
+
+The public C++ input adapter and resumable job coordinator now reproduce all 32
+recorded jobs' geometry transfers, command packets and shared allocator outputs.
+Preparation consumes original descriptor/source bytes; delayed operations retain
+their owned sources. Standalone tests and both complete Windows suites pass.
+The final-publication architectural fence is now covered by 54 comparisons with
+the original routine. The live memory/scheduler bridge, including a lease shared
+with fallback jobs, remains incomplete; no complete live job/image or speed gain
+is claimed. See [interfaces and evidence](NATIVE_CODE.md#typed-input-and-job-coordinator).

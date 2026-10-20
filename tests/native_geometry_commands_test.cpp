@@ -19,8 +19,9 @@ unsigned word(const std::vector<std::uint8_t>& bytes,std::size_t offset) {
 struct Backend {
     const gc::CommandPublication& packet;
     bool enabled;
-    unsigned reads=0,disables=0,puts=0,restores=0;
-    bool interrupts_enabled()noexcept{++reads;return enabled;}
+    unsigned reads=0,disables=0,puts=0,restores=0,fences=0;
+    void architectural_fence()noexcept{assert(!reads&&!fences);++fences;}
+    bool interrupts_enabled()noexcept{assert(fences==1);++reads;return enabled;}
     void set_interrupts_enabled(bool value)noexcept {
         if(value){assert(disables==1&&puts==1);++restores;}
         else {assert(reads==1&&!puts);++disables;}
@@ -118,7 +119,7 @@ int wkc2_test_native_geometry_commands() {
     decode_and_check(spec,allocation,packet);++cases;
     for(bool enabled:{false,true}) {
         Backend backend{packet,enabled};assert(gc::submit(packet,backend));
-        assert(backend.enabled==enabled&&backend.reads==1&&backend.disables==1&&
+        assert(backend.enabled==enabled&&backend.fences==1&&backend.reads==1&&backend.disables==1&&
                backend.puts==1&&backend.restores==unsigned(enabled));++cases;
     }
     // Empty geometry retains the final zero packet, including zero-quadword
@@ -133,9 +134,9 @@ int wkc2_test_native_geometry_commands() {
     assert(gc::build(spec,allocation,packet)==gc::BuildStatus::no_publication);
     assert(!packet.publish&&packet.bytes.empty());++cases;
     Backend quiet{packet,true};assert(gc::submit(packet,quiet));
-    assert(!quiet.reads&&!quiet.disables&&!quiet.puts&&!quiet.restores&&quiet.enabled);++cases;
+    assert(!quiet.fences&&!quiet.reads&&!quiet.disables&&!quiet.puts&&!quiet.restores&&quiet.enabled);++cases;
     packet.publish=true;packet.destination=0x8001;
-    assert(!gc::submit(packet,quiet));assert(!quiet.reads&&!quiet.puts);++declines;
+    assert(!gc::submit(packet,quiet));assert(!quiet.fences&&!quiet.reads&&!quiet.puts);++declines;
     const auto reject=[&](gc::BuildStatus expected_status) {
         gc::CommandPublication out;out.destination=0xdead;out.bytes={0x12,0x34};out.publish=true;
         assert(gc::build(spec,allocation,out)==expected_status);

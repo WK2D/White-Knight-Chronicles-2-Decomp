@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Readable C++ allocation, export and command construction now connect to the owned geometry pipeline offline. All32 recorded jobs match270080 external payload/command bytes plus3968 shared-state bytes; delayed receipts and negative controls pass. 123 SDK patches / 113 Windows checks pass. No complete live SPU job/image replacement or FPS gain is claimed; the desktop build is unchanged.",
+    "current_milestone": "Typed C++ input construction and an owned job coordinator now connect the geometry stages offline. All 32 recorded jobs match their complete external payloads/commands and allocator publications, including delayed receipts/source retirement. 123 SDK patches / 113 Windows checks pass. Live memory, shared slot ownership and scheduler integration remain incomplete; no complete live SPU job/image or FPS gain is claimed.",
     "updated": "2026-10-20"
   },
   "native_data_installation_verified": true,
@@ -2998,5 +2998,122 @@
       "Run strict NPC-heavy, transition and cutscene routes; refresh CPU/fallback measurements.",
       "Continue remaining SPU images and incomplete DirectX parity."
     ]
+  },
+  "native_geometry_input_adapter": {
+    "date": "2026-10-20",
+    "public_core": "native_geometry_input.h",
+    "status": "Typed original-descriptor/source-span constructor verified offline; live acquisition remains separate",
+    "no_spu_context_register_or_local_store_object_input": true,
+    "descriptor_derived_constructor_coordinates": true,
+    "explicit_initialization_and_preserved_zero_contracts": true,
+    "higher_ea_and_cache_layouts_decline": true,
+    "actual_runtime_initialization_and_clear_contract_checked": true,
+    "recorded": {
+      "entries": 32,
+      "constructed": 32,
+      "complete_input_matches": 32,
+      "complete_output_matches": 32,
+      "constructor_coordinate_oracle_matches": 32,
+      "layout_guard_cases": 32,
+      "zero_guard_cases": 22,
+      "alignment_guard_cases": 32,
+      "failures": 0,
+      "external_write_and_original_stage_oracles_passed": true,
+      "corruption_controls": 3,
+      "expected_control_failures": 3
+    },
+    "public_regression": {
+      "successes": 16,
+      "unchanged_adapter_declines": 46,
+      "unchanged_constructor_declines": 21,
+      "exception_before_commit_passed": true,
+      "standalone_without_sdk_or_generated_code_passed": true
+    },
+    "live_input_acquisition_verified": false,
+    "full_game_layout_coverage": false
+  },
+  "native_geometry_job_coordinator": {
+    "date": "2026-10-20",
+    "public_core": "native_geometry_job.h",
+    "status": "Typed C++ job composition and source ownership verified offline; no live runtime bridge",
+    "actual_image_whole_job_root": "0x1FE0",
+    "earlier_transform_target": "0xCE08",
+    "recorded": {
+      "entries": 32,
+      "passed": 32,
+      "empty_jobs": 1,
+      "geometry_transfers": 67,
+      "geometry_payload_bytes": 261184,
+      "command_packets": 32,
+      "command_bytes": 8896,
+      "allocator_line_bytes": 3968,
+      "failures": 0,
+      "typed_public_input_adapter_supplied_all_job_inputs": true,
+      "original_entry_and_staging_released_before_preparation": true,
+      "owned_input_released_before_external_execution": true,
+      "delayed_allocator_repeat_jobs": 32,
+      "deferred_source_retirement_jobs": 32,
+      "corruption_controls": 4,
+      "expected_control_failures": 4
+    },
+    "public_regression": {
+      "nonempty_jobs": 64,
+      "empty_jobs": 16,
+      "allocation_failures": 2,
+      "pre_effect_declines_or_exceptions": 8,
+      "terminal_partial_failure_cases": 7,
+      "command_capacity_bound_cases": 86016,
+      "borrowed_sources_consumed_later": true,
+      "pending_atomic_lines_and_slot_lease_retained": true,
+      "partial_failure_forbids_generated_fallback": true,
+      "terminal_advances_quiet": true,
+      "standalone_without_sdk_or_generated_code_passed": true,
+      "debug_checks_passed": 113,
+      "release_checks_passed": 113,
+      "sdk_patches": 123,
+      "debug_seconds": 32.43,
+      "release_seconds": 25.93
+    },
+    "final_publication_actual_reference": {
+      "cases": 54,
+      "bytes": 4968,
+      "transfers": 54,
+      "events": 243,
+      "failures": 0,
+      "quadword_counts": [
+        0,
+        1,
+        16
+      ],
+      "destination_phases": [
+        0,
+        4,
+        124
+      ],
+      "tags": [
+        0,
+        20,
+        31
+      ],
+      "both_irq_states_checked": true,
+      "architectural_fence_before_irq_capture_verified": true,
+      "corruption_controls": 4,
+      "expected_control_failures": 4
+    },
+    "completion_receipt_scope": "New source-lifetime requirement for an asynchronous backend; original job has no final tag wait and current runtime transfers are synchronous.",
+    "remaining": [
+      "Live original-input acquisition and mapping lifetime.",
+      "Native memory/coherency bridge retaining renderer PUT notifications.",
+      "Native reservations/CAS and slot lease shared with fallback jobs.",
+      "Concurrent scheduling, real NPC-heavy/transition/cutscene routes and broader layouts.",
+      "Remaining SPU images, fresh CPU/fallback measurements and incomplete DirectX parity."
+    ],
+    "whole_live_job_replaced": false,
+    "whole_image_replaced": false,
+    "native_backend_concurrent_correctness_proven": false,
+    "new_gameplay_route_verified": false,
+    "arm_execution_verified": false,
+    "fps_gain_measured": false,
+    "desktop_executable_changed": false
   }
 }

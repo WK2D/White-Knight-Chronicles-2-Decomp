@@ -151,6 +151,7 @@ inline BuildStatus build(const PublicationSpec& spec,const GeometryAllocation& a
 // required, remains a job-adapter obligation before this publication step.
 template<class Backend>
 bool submit(const CommandPublication& packet,Backend& backend) {
+    static_assert(noexcept(backend.architectural_fence()));
     static_assert(noexcept(backend.interrupts_enabled()));
     static_assert(noexcept(backend.set_interrupts_enabled(false)));
     static_assert(noexcept(backend.put_fenced(std::span<const std::uint8_t>{},std::uint32_t{},std::uint32_t{})));
@@ -158,6 +159,7 @@ bool submit(const CommandPublication& packet,Backend& backend) {
     if(!packet.publish)return true;
     if(!packet.destination||(packet.destination&3u)||packet.dma_tag>=32||
        packet.bytes.empty()||(packet.bytes.size()&3u))return false;
+    backend.architectural_fence();
     const bool enabled=backend.interrupts_enabled();
     backend.set_interrupts_enabled(false);
     backend.put_fenced(packet.bytes,packet.destination,packet.dma_tag);

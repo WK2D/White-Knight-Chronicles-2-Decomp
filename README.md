@@ -104,6 +104,10 @@ Readable C++ [allocation, transfers and rendering commands](docs/NATIVE_CODE.md#
 now reproduce those jobs' external payloads, allocator state and final packets
 offline. A complete live job replacement and its scheduling remain to be enabled
 and validated.
+The [typed input adapter and job coordinator](docs/NATIVE_CODE.md#typed-input-and-job-coordinator)
+now connect those stages in C++, with owned output buffers retained through
+pending operations. Their recorded-job comparisons pass; the live runtime bridge
+is still being implemented.
 Full-game static coverage and a readable reconstruction of the original source
 remain unverified.
 
