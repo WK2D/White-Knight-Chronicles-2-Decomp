@@ -35,6 +35,7 @@
 !/native_vertex_decode.h
 !/native_index_decode.h
 !/native_vertex_pack.h
+!/native_geometry_filter.h
 !/native_skinning_stream_bridge.cpp
 !/native_skinning_bridge.h
 !/native_skinning_bridge.cpp

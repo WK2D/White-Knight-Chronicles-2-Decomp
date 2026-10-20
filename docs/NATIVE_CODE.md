@@ -726,7 +726,79 @@ bits, tangent threshold cases, exceptional host conversion, unaligned output,
 and unchanged short/overlapping-buffer rejects. Both Windows suites pass all
 113 checks with 122 SDK patches; ARM execution is still untested.
 
-The whole job still needs its remaining transform/filter stages, shared allocator,
-payload transfers, command fixups and fenced publication under owned C++ control.
+The whole job still needs these cores assembled with complete stage state, shared
+allocation, payload transfers, command fixups and fenced publication under owned
+C++ control.
 This kernel does not replace a whole stage ABI, job or image. It adds no measured
 CPU/FPS gain and leaves the desktop executable, preferences and save unchanged.
+
+## Projection and triangle filtering
+
+The geometry stage at `0x6970` now has readable portable C++ algorithms in
+[`native_geometry_filter.h`](../native_geometry_filter.h). `project_geometry`
+accepts typed model/projection matrices, viewport and clip bounds, decoded
+positions and explicit arithmetic policies. It writes screen XY, clip codes,
+quantized coordinates and the homogeneous-W marker. `filter_triangles` takes
+these projected records and logical indices, then preserves the surviving
+triangles in their original order. **These are verified offline cores, with no
+new live game hook or whole-job replacement.**
+
+Projection retains the ordered matrix arithmetic, reciprocal estimate and
+explicit FNMS/FMA refinement. Arithmetic, reciprocal, comparison and scaled
+integer conversion are policy interfaces. The differential harness supplies
+the existing host/exact/audit runtime policies, including their reciprocal
+estimate and extended FNMS behavior. Ordinary IEEE division or host FNMS alone
+is not a specification of SPU arithmetic. The public host policies have separate
+regression oracles but do not establish exact-SPU behavior on every platform.
+
+Filtering preserves winding and reflection, W/near-plane gates, zero-area and
+common-clip rejection, and quantized X/Y collapse. The additional state-5
+subpixel branch processes four triangles together. Its recovered selector reads
+bits from the following lane's quarter-grid Y minimum; it is not replaced with
+a per-triangle approximation. A final partial group therefore requires three
+explicit padding vertices per unused triangle lane. The caller owns those
+values, and the core neither invents them nor reads beyond the logical index
+span. This padding dependency remains part of whole-job ownership work.
+
+All **11,584 projected records and 9,618 surviving indices from 20,220 input
+indices in 32 captured stage calls** match the actual public implementation.
+Projected-record comparison checks all four words, including clip and quantized
+fields. These captures use the basic filtering path; synthetic cases below
+exercise state 5 and additional branches.
+
+| Differential dataset | Calls | Projected records | Input indices | Surviving indices | Mismatches |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Bounded finite positions, basic/subpixel filtering, three arithmetic modes | 6,144 | 2,224,128 | 3,882,240 | 2,312,103 | 0 |
+| Arbitrary float-bit positions and matrices, both filter variants, three modes | 6,144 | 2,224,128 | 3,882,240 | 729,324 | 0 |
+| Four rounding modes × four FTZ/DAZ settings × three modes, selected basic/subpixel variant per configuration | 6,144 | 2,224,128 | 3,882,240 | 680,892 | 0 |
+
+The synthetic cases retain captured counts/layouts while changing positions,
+indices, precision and winding; the arbitrary-bit datasets also vary matrices.
+Deterministic seeds repeat across arithmetic settings and datasets overlap.
+These totals are comparison work, not unique or exhaustive input coverage.
+
+A further **12 runs of 1,810 directed filter cases** check all 16 subpixel
+selectors, bounding extents, final groups of one through four triangles,
+winding/reflection, common/mixed clip and W gates, zero-area triangles and
+special float values. The three arithmetic modes and four rounding modes give
+21,720 comparisons and 116,100 surviving indices, with zero mismatches or
+declines. These checks feed the reference's projected records directly to the
+native filter, isolating filtering from native projection. They do not provide
+another independent projection oracle.
+
+All 138 validation processes pass, including four expected failures after
+deliberate projected-record or output-index corruption. Public regressions add
+independent identity/model/perspective and reciprocal-refinement examples,
+clip boundaries, precision bins, policy injection, subpixel cross-lane and
+padding checks, and stable same-start in-place index compaction. Short buffers,
+invalid indices/modes, missing padding and unsupported overlaps decline before
+changing output or the result count. Both Windows suites pass all 113 checks:
+Debug in 29.60 seconds and optimized Release in 24.94 seconds, with 122 SDK
+patches. ARM execution is untested.
+
+This recovers logical projected records and filtered indices, not the complete
+stage's registers, stack, scratch, metadata or arena-cursor effects. The whole
+job still needs assembly, resolution of padded/ambient storage dependencies,
+shared allocation, DMA payload and command publication, and scheduling/lifetime
+validation on broader real routes. No complete SPU image is replaced, no CPU/FPS
+gain is measured, and the desktop executable, preferences and save are unchanged.

@@ -3558,3 +3558,26 @@ Windows suites pass. The core writes logical records; pair padding, arena cursor
 DMA and final command publication remain outside its interface. It is not live,
 does not replace the whole job and has no measured speed gain. See
 [counts, conversion rules and limits](NATIVE_CODE.md#vertex-export-packing).
+
+## Native projection and triangle filtering
+
+The image-19 geometry projection/filter stage now has portable project-written
+C++ operating on typed matrices, positions, projected records and logical
+indices. All 32 captured calls match 11,584 projected records and 9,618 surviving
+indices from 20,220 input indices. Another 18,432 randomized/matrix calls match
+across finite/arbitrary float bits, basic/subpixel filtering, host/exact/audit
+policies and the rounding/FTZ/DAZ matrix. Seeds repeat across configurations;
+these are not unique or exhaustive inputs.
+
+Twelve runs of the same 1,810 directed cases isolate the filter from native
+projection, with zero mismatches or declines. They cover every subpixel selector,
+final partial groups and clipping/winding/W gates. The state-5 selector retains
+its next-lane dependency, so callers supply explicit padding vertices for partial
+groups. Arithmetic, reciprocal/FNMS, comparison and conversion remain policies.
+All 138 validation processes pass, including four expected corruption failures.
+Public regressions and both 113-check Windows suites also pass.
+
+These are offline logical algorithms, with no new live hook, complete job/image
+replacement, measured speed gain or desktop change. Complete state, ambient and
+padded storage, shared allocation, DMA/publication and scheduling remain open.
+See [projection/filter interfaces and evidence](NATIVE_CODE.md#projection-and-triangle-filtering).

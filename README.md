@@ -97,6 +97,8 @@ ordered output. Recorded, randomized and sampled live comparisons match the
 compiled reference. Whole SPURS jobs and their DMA and scheduling still need
 readable replacements, and no complete SPU image has been replaced yet. See the
 [native C++ evidence](docs/NATIVE_CODE.md#readable-whole-skinning-stream).
+Readable C++ for [projection and triangle filtering](docs/NATIVE_CODE.md#projection-and-triangle-filtering)
+is also verified offline.
 Full-game static coverage and a readable reconstruction of the original source
 remain unverified.
 

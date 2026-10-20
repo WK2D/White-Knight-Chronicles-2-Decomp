@@ -2636,5 +2636,100 @@
     "arm_execution_verified": false,
     "fps_gain_measured": false,
     "desktop_executable_changed": false
+  },
+  "native_geometry_filter": {
+    "date": "2026-10-20",
+    "image_id": 19,
+    "reference_entry": "0x6970",
+    "public_core": "native_geometry_filter.h",
+    "algorithms": [
+      "project_geometry",
+      "filter_triangles"
+    ],
+    "status": "Offline portable projection and stable logical triangle filtering; no new live game hook",
+    "interface": "Typed model/projection matrices, viewport/clip bounds, decoded positions and arithmetic policies produce projected records; projected records plus logical indices produce a stable surviving index prefix. Same-start in-place index compaction is supported. Structural declines occur before output/count changes.",
+    "arithmetic_scope": "Differential replay supplies existing host/exact/audit arithmetic, reciprocal estimate/interpolation, FNMS, comparison and scaled-conversion policies. Ordinary host division/FNMS is not an exact-SPU specification. Public host-policy regressions are separate.",
+    "subpixel_scope": "State5 processes four triangles together. Its selector reads next-lane quarter-grid Y bits. Final partial groups require three explicit projected padding vertices per unused lane; padding is caller-owned, not synthesized.",
+    "recorded": {
+      "calls": 32,
+      "projected_records": 11584,
+      "input_indices": 20220,
+      "output_indices": 9618,
+      "record_word_mismatches": 0,
+      "index_mismatches": 0,
+      "subpixel_observed": false
+    },
+    "finite_three_modes_basic_and_subpixel": {
+      "processes": 12,
+      "calls": 6144,
+      "projected_records": 2224128,
+      "input_indices": 3882240,
+      "output_indices": 2312103,
+      "record_word_mismatches": 0,
+      "index_mismatches": 0
+    },
+    "arbitrary_bits_three_modes_basic_and_subpixel": {
+      "processes": 12,
+      "calls": 6144,
+      "projected_records": 2224128,
+      "input_indices": 3882240,
+      "output_indices": 729324,
+      "record_word_mismatches": 0,
+      "index_mismatches": 0
+    },
+    "rounding_flush_arithmetic_matrix": {
+      "processes": 96,
+      "calls": 6144,
+      "projected_records": 2224128,
+      "input_indices": 3882240,
+      "output_indices": 680892,
+      "record_word_mismatches": 0,
+      "index_mismatches": 0,
+      "scope": "Four rounding modes, four FTZ/DAZ settings and three arithmetic modes; a selected basic/subpixel variant per configuration, not both at every setting."
+    },
+    "directed_filter_only": {
+      "processes": 12,
+      "cases_per_process": 1810,
+      "calls": 21720,
+      "output_indices": 116100,
+      "mismatches": 0,
+      "declines": 0,
+      "scope": "Repeat the same cases across three arithmetic modes and four rounding modes; all 16 subpixel selectors, extents, final groups of 1..4 triangles, winding/reflection, clip/W gates, zero area and special floats. Feed reference projected records to isolate filtering; not an additional projection oracle."
+    },
+    "validation_processes": 138,
+    "validation_processes_passed": 138,
+    "expected_corruption_failure_processes": 4,
+    "projected_record_and_index_corruption_rejected_in_both_capture_sets": true,
+    "synthetic_scope": "Captured counts/layouts retained while positions, logical indices, winding and precision vary; arbitrary-bit cases also vary matrices. Deterministic seeds repeat across modes/settings and classes overlap. Totals are not unique or exhaustive inputs.",
+    "public_regression": {
+      "existing_check_extended": "wkc2_native_skinning",
+      "independent_projection_oracles": true,
+      "clip_boundaries_precision_bins_and_policy_injection": true,
+      "winding_clip_w_zero_nan_gates": true,
+      "subpixel_next_lane_and_final_padding_checked": true,
+      "stable_in_place_compaction_checked": true,
+      "invalid_short_missing_padding_and_alias_declines_unchanged": true,
+      "implicit_fp_contraction_disabled": true,
+      "debug_windows_checks_passed": 113,
+      "debug_seconds": 29.60,
+      "release_windows_checks_passed": 113,
+      "release_seconds": 24.94,
+      "sdk_patches": 122
+    },
+    "complete_stage_register_stack_scratch_metadata_abi_replaced": false,
+    "live_game_integration_verified": false,
+    "whole_job_replaced": false,
+    "full_spu_image_replaced": false,
+    "asynchronous_scheduling_equivalence_proven": false,
+    "arm_execution_verified": false,
+    "fps_gain_measured": false,
+    "desktop_executable_changed": false,
+    "remaining": [
+      "Assemble complete geometry semantics and resolve padded/ambient storage dependencies in owned buffers.",
+      "Preserve externally visible metadata, scratch and rounded tail writes; omit writes only after proving they are private.",
+      "Recover shared allocation, payload DMA, command fixups/publication and their visibility/lifetimes.",
+      "Validate whole-job scheduling and broader real NPC-heavy, transition and cutscene routes before live replacement.",
+      "Measure CPU and speed separately with capture/verification disabled."
+    ]
   }
 }
