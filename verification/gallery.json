@@ -4,6 +4,37 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_cpp_skinning_stream",
+      "date": "2026-10-20",
+      "image": "screenshots/2026-10-20-native-cpp-skinning-stream.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "DirectX 12 live draw renderer",
+      "source_format": "Unmodified final swap-chain GPU readback with in-game counter",
+      "source_sha256": "d8543c995596e16d0d6fc76ba3ba2085b14ead898d768768a545d5f39eab93b5",
+      "png_sha256": "b3d615b632ad58e3f51022d66d43f16800f1881bdf6590713db7b2a76789d379",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IHDR",
+        "IDAT",
+        "IEND"
+      ],
+      "native_probe": "20261020-061618",
+      "native_readback": "frame_003300.ppm",
+      "native_executable_sha256": "b700db24339951b61a76f3660f7d0e729b1645b159b1b5a881eb278dc86a3f44",
+      "sdk_patch_count_in_captured_run": 122,
+      "spu_image_inputs": 24,
+      "frame_limit": 30,
+      "fps_counter": true,
+      "vsync": false,
+      "capture_only_backend_instrumentation": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false,
+      "performance_proven_by_still_image": false,
+      "capture_scope": "DirectX Continue-to-plains route with the readable complete supported skinning routine. Hidden, muted, isolated save, 30 FPS cap, strict fallback guard, sampled full-state verifier, tracing and automatic GPU captures. The FPS overlay is an instrumented instant, not a speed comparison. Native execution and bounded equivalence are established by traces and comparisons, not this still. Whole jobs, DMA/scheduling, full-image replacement and complete rendering parity remain unverified."
+    },
+    {
       "milestone": "native_cpp_final_normal_output",
       "date": "2026-10-20",
       "image": "screenshots/2026-10-20-native-cpp-normal-output.png",

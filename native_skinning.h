@@ -3,7 +3,9 @@
 #ifndef WKC_NATIVE_SKINNING_H
 #define WKC_NATIVE_SKINNING_H
 #include <array>
+#include <bit>
 #include <cmath>
+#include <cstdint>
 
 namespace wkc::geometry {
 using Float4 = std::array<float,4>;
@@ -63,6 +65,34 @@ struct HostScalarMath {
     static Float4 multiply_subtract(const Float4& a,const Float4& b,const Float4& c) {
         Float4 out{};
         for(unsigned i=0;i<4;++i)out[i]=std::fma(a[i],b[i],-c[i]);
+        return out;
+    }
+};
+
+// Explicit compatibility policy for the recovered host-mode cofactor stage.
+// Host compilers may commute NaN operands or fold -c into a fused instruction,
+// changing payload/sign selection. Preserve the observed order instead: a
+// two-NaN product selects a; fused subtraction selects a, then b, then c, with
+// the selected sign intact. Quiet signaling NaNs. Finite arithmetic delegates
+// to Base. This is host IEEE compatibility, not SPU extended-float semantics;
+// an exact/audit adapter must keep using its own policy.
+template<class Base=HostScalarMath>
+struct OrderedHostCofactorMath:Base {
+    static float quiet(float value) {
+        return std::bit_cast<float>(std::bit_cast<std::uint32_t>(value)|0x00400000u);
+    }
+    static Float4 multiply(const Float4& a,const Float4& b) {
+        auto out=Base::multiply(a,b);
+        for(unsigned i=0;i<4;++i)if(std::isnan(a[i])&&std::isnan(b[i]))out[i]=quiet(a[i]);
+        return out;
+    }
+    static Float4 multiply_subtract(const Float4& a,const Float4& b,const Float4& c) {
+        auto out=Base::multiply_subtract(a,b,c);
+        for(unsigned i=0;i<4;++i) {
+            if(std::isnan(a[i]))out[i]=quiet(a[i]);
+            else if(std::isnan(b[i]))out[i]=quiet(b[i]);
+            else if(std::isnan(c[i]))out[i]=quiet(c[i]);
+        }
         return out;
     }
 };

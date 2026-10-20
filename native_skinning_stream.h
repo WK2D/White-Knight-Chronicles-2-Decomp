@@ -18,6 +18,20 @@ struct SkinningStreamSpec {
 struct SkinningStreamSummary {
     std::array<NormalLengthStages,2> final_direction_lengths;
 };
+// All nonzero byte weights convert exactly. The caller supplies the conversion
+// policy's zero: a host unsigned-to-double lowering can produce -0 under
+// downward rounding, whereas exact SPU conversion produces +0.
+struct ByteWeightConversion {
+    float zero=0;
+    Float4 operator()(const std::array<std::uint8_t,4>& bytes) const {
+        Float4 out;for(unsigned i=0;i<4;++i)out[i]=bytes[i]?float(bytes[i]):zero;
+        return out;
+    }
+};
+struct SkinningStreamPolicy {
+    ByteWeightConversion convert_weights;
+    Float4 initial_reciprocal_lengths{};
+};
 
 // IO owns the decoded stream views:
 //   read_influences(vertex) -> PackedSkinInfluences
@@ -32,8 +46,8 @@ struct SkinningStreamSummary {
 // and a nonzero vertex count divisible by four. Other layouts are not recovered.
 // Reciprocal receives four squared lengths and returns four reciprocal lengths;
 // the ABI adapter is responsible for the required estimate/interpolation policy.
-template<class Math,class NormalMath=Math,class IO,class Reciprocal>
-bool skin_geometry_stream(IO& io,SkinningStreamSpec spec,Reciprocal reciprocal,SkinningStreamSummary* summary=nullptr) {
+template<class Math,class NormalMath=Math,class CofactorMath=Math,class IO,class Reciprocal>
+bool skin_geometry_stream(IO& io,SkinningStreamSpec spec,Reciprocal reciprocal,SkinningStreamSummary* summary=nullptr,SkinningStreamPolicy policy={}) {
     if(!spec.vertices || spec.vertices%4 || !spec.direction_streams || spec.direction_streams>2)return false;
     using DirectionBatches=std::array<NormalBatch,2>;
     std::array<DirectionBatches,2> pending{};
@@ -48,15 +62,14 @@ bool skin_geometry_stream(IO& io,SkinningStreamSpec spec,Reciprocal reciprocal,S
         // Read all palettes for a four-vertex group before committing positions.
         for(unsigned lane=0;lane<4;++lane) {
             const auto packed=io.read_influences(base+lane);
-            Float4 weights;std::array<CyclicAffine,4> influences;
+            Float4 weights=policy.convert_weights(packed.weights);std::array<CyclicAffine,4> influences;
             for(unsigned joint=0;joint<4;++joint) {
-                weights[joint]=float(packed.weights[joint]);
                 influences[joint]=io.read_palette(packed.joints[joint]);
             }
             weights=Math::multiply(weights,scale);
             const auto matrix=blend_skin_matrix<Math>(weights,influences);
             positions[lane]=transform_skin_position<Math>(matrix,io.read_position(base+lane)).position;
-            const auto cofactors=cofactor_skin_matrix<Math>(matrix);
+            const auto cofactors=cofactor_skin_matrix<CofactorMath>(matrix);
             for(unsigned stream=0;stream<spec.direction_streams;++stream) {
                 const auto n=io.read_direction(stream,base+lane);
                 const auto first=Math::multiply(n,cofactors[0]);
@@ -72,11 +85,14 @@ bool skin_geometry_stream(IO& io,SkinningStreamSpec spec,Reciprocal reciprocal,S
             normalized[stream]=scale_skin_normals<NormalMath>(transformed[stream],reciprocal(lengths.length_squared)).normals;
         }
         // One direction stream has a two-group output delay; two streams have
-        // a one-group delay. The first write is raw zero. In the two-group
+        // a one-group delay. The first write scales an empty batch using the
+        // supplied initial reciprocal state (normally zero). In the two-group
         // pipeline the second write normalizes that empty initial batch through
         // the same reciprocal policy. It can produce NaNs rather than zero;
         // aliased palette reads must observe those exact intermediate writes.
         NormalBatch initial{};
+        if(group==0)
+            initial=scale_skin_normals<NormalMath>(NormalBatch{},policy.initial_reciprocal_lengths).normals;
         if(group==1 && latency==2)
             initial=scale_skin_normals<NormalMath>(NormalBatch{},reciprocal(Float4{})).normals;
         const unsigned slot=group%latency;

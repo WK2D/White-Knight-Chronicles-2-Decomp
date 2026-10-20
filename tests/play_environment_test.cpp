@@ -14,7 +14,8 @@ int wkc2_test_play_environment() {
 #ifdef _WIN32
     // Check the Win32 environment too, not just the CRT's cached getenv table.
     for(auto name:{"WKC2_SAMPLE_PROFILE","SPU_INTERP_PROFILE","RSX_ENGINE_SNAP_DIR",
-                   "LD_FRAME_DUMP","PAD_FILE","WKC_NATIVE_SKINNING_TRACE"}) {
+                   "LD_FRAME_DUMP","PAD_FILE","WKC_NATIVE_SKINNING_TRACE",
+                   "WKC_NATIVE_SKIN_STREAM","WKC_NATIVE_SKIN_STREAM_VERIFY"}) {
         char value[2];if(GetEnvironmentVariableA(name,value,sizeof value))return 4;
     }
 #endif

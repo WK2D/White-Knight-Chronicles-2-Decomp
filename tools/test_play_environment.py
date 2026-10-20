@@ -12,12 +12,13 @@ names=['WKC2_SAMPLE_PROFILE','WKC2_PROGRESS','WKC2_THREADS','SPU_INTERP_PROFILE'
        'RSX_DRAW_CSV','RSX_PRESENT_MEASURE','RSX_SCHEDULE_DIAG',
        'LD_FRAME_DUMP','LD_HLSL_DUMP','D3D12_DBG','PERF',
        'PAD_FILE','WKC2_OSK_INPUT_FILE','WKC_NATIVE_SKINNING_TRACE',
-       'WKC_NATIVE17_CAPTURE','WKC_NATIVE_FUTURE_DIAGNOSTIC']
+       'WKC_NATIVE17_CAPTURE','WKC_NATIVE_SKIN_STREAM','WKC_NATIVE_SKIN_STREAM_VERIFY',
+       'WKC_NATIVE_FUTURE_DIAGNOSTIC']
 with tempfile.TemporaryDirectory(prefix='wkc2-clean-play-') as folder:
     env=dict(os.environ,WKC2_PLAYER_MODE='1',WKC2_DISCARD_LOGS='0',PS3_VERBOSE='1')
     for name in names:env[name]=str(Path(folder)/name)
     if os.name=='nt':
-        for name in ('wkc2_sample_profile','RsX_ENGINE_AUDIT','ld_frame_dump'):
+        for name in ('wkc2_sample_profile','RsX_ENGINE_AUDIT','ld_frame_dump','wkc_native_skin_stream_verify'):
             env[name]=str(Path(folder)/name)
     # Media-path value is preserved but never loaded by this standalone check.
     env['PS3RECOMP_FFMPEG_AVUTIL']='clean-play-media-sentinel'

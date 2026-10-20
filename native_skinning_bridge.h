@@ -26,6 +26,12 @@ int wkc_native_finish_geometry(struct spu_context* ctx);
 // Unsupported control/packing declines before writes. Arithmetic uses the SDK
 // float policy. The caller retains PC/continuation dispatch. No DMA/channel calls.
 int wkc_native_finish_normals(struct spu_context* ctx);
+// Complete recovered one/two-direction skinning routine. Unsupported controls
+// decline before writes. The temporary ABI includes the saved frame, scratch,
+// register return and trampoline step count; no channels or DMA are executed.
+int wkc_native_skin_stream(struct spu_context* ctx);
+// Optional research-only complete-state comparison with the private reference.
+int wkc_native_skin_stream_checked(struct spu_context* ctx,void (*reference)(struct spu_context*));
 #ifdef __cplusplus
 }
 #endif

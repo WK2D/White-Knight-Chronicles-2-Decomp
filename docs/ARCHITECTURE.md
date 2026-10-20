@@ -30,7 +30,9 @@ has been replaced yet; the current kernels are intermediate work.
   full-state replay/fuzz checks are described in [native execution work](NATIVE_CODE.md).
   A separate final-normal boundary now uses decoded C++ batches with full-state
   replay/fuzz checks, including host NaN-payload handling. Other normal-loop
-  variants and the rest of the job remain compiled guest code. The earlier
+  variants remain available on the compiled fallback path. The supported whole
+  skinning routine now replaces both loops and their setup/drain with readable
+  C++; the outer job still uses compiled guest code. The earlier
   geometry boundary retains its compiled C tail for host/audit nonfinite inputs;
   exact-SPU mode accepts all arithmetic bit patterns.
 - Firmware SPURS job-queue/port calls now execute registered jobs and pass the
@@ -115,9 +117,12 @@ that a supported WKC modding framework currently exists.
 
 ## Remaining CPU work
 
-A portable whole-stream skinning candidate now matches recorded routine outputs
-and private ABI snapshots, but fails exceptional host/audit stress cases and is
-not linked into gameplay dispatch. See the [candidate evidence](NATIVE_CODE.md#whole-skinning-stream-candidate).
+The supported complete image-19 skinning routine now runs through readable C++
+with a checked ABI bridge. All 32 recorded calls and 99,417 accepted stress
+comparisons match complete state. Strict DirectX and Vulkan transition routes
+also pass sampled live comparisons. Unsupported interfaces retain their compiled
+reference. See [routine evidence and limits](NATIVE_CODE.md#readable-whole-skinning-stream).
+Outer jobs, DMA/output ownership and scheduling remain to be recovered.
 
 The [native execution work plan](NATIVE_CODE.md) separates removal of interpreter
 fallback from readable replacements for already compiled hot jobs. Python tools

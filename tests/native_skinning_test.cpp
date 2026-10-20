@@ -21,6 +21,56 @@ static CyclicAffine cyclic(const float matrix[3][4]) {
 
 int wkc2_test_native_skinning() {
     assert(wkc2_test_native_skinning_stream()==0);
+    assert(!wkc_native_skin_stream(nullptr));
+    // Malformed ABI controls must not change a register, LS byte or sidecar.
+    // Begin with a structurally supported stream, then reject one condition.
+    for(unsigned bad=0;bad<11;++bad) {
+        auto state=std::make_unique<spu_context>(),saved=std::make_unique<spu_context>();
+        spu_context_init(state.get(),0);state->image_id=19;state->host_depth=1;
+        state->gpr[1]._u32[0]=0x3f000;
+        state->gpr[3]._u32[0]=0x1000;state->gpr[4]._u32[0]=0x1100;
+        state->gpr[5]._u32[0]=2;state->gpr[6]._u32[0]=0x1200;
+        state->gpr[7]._u32[0]=0x2000;state->gpr[8]._u32[0]=1;
+        state->ls[0x1009]=4;spu_ls_write32(state.get(),0x1100,0x3000);spu_ls_write32(state.get(),0x1104,0x4000);
+        switch(bad) {
+        case 0:state->image_id=18;break;
+        case 1:state->host_depth=0;break;
+        case 2:state->policy_mode=1;break;
+        case 3:state->int_enable=1;break;
+        case 4:state->gpr[3]._u32[0]=0x1001;break;
+        case 5:state->gpr[5]._u32[0]=4;break;
+        case 6:state->gpr[8]._u32[0]=0;break;
+        case 7:state->gpr[1]._u32[0]=16;break;
+        case 8:state->ls[0x1009]=6;break;
+        case 9:spu_ls_write32(state.get(),0x1104,0x3000);break;
+        case 10:state->gpr[6]._u32[0]=SPU_LS_SIZE-16;break;
+        }
+        std::memcpy(saved.get(),state.get(),sizeof *saved);
+        assert(!wkc_native_skin_stream(state.get()));
+        assert(!std::memcmp(saved.get(),state.get(),sizeof *saved));
+    }
+    // Distinct signs/payloads, quiet and signaling encodings, finite values,
+    // signed zero and infinities. Check the explicit cofactor policy without
+    // relying on this compiler's otherwise unspecified NaN operand selection.
+    const std::uint32_t operands[]={0,0x80000000,0x3f800000,0xbf800000,
+        0x7f800000,0xff800000,0x7fc00001,0xffc00002,0x7fa12345,0xff812345};
+    const auto is_nan=[](std::uint32_t bits){return (bits&0x7f800000u)==0x7f800000u && (bits&0x7fffffu);};
+    for(auto a_bits:operands)for(auto b_bits:operands)for(auto c_bits:operands) {
+        const Float4 a{std::bit_cast<float>(a_bits),2,3,4};
+        const Float4 b{std::bit_cast<float>(b_bits),5,6,7};
+        const Float4 c{std::bit_cast<float>(c_bits),8,9,10};
+        const auto product=OrderedHostCofactorMath<>::multiply(a,b);
+        if(is_nan(a_bits)&&is_nan(b_bits))assert(std::bit_cast<std::uint32_t>(product[0])==(a_bits|0x400000u));
+        const auto result=OrderedHostCofactorMath<>::multiply_subtract(a,b,c);
+        const auto chosen=is_nan(a_bits)?a_bits:is_nan(b_bits)?b_bits:is_nan(c_bits)?c_bits:0;
+        if(chosen)assert(std::bit_cast<std::uint32_t>(result[0])==(chosen|0x400000u));
+        else {
+            const auto expected=HostScalarMath::multiply_subtract(a,b,c);
+            if(std::isnan(expected[0]))assert(std::isnan(result[0]));
+            else assert(std::bit_cast<std::uint32_t>(result[0])==std::bit_cast<std::uint32_t>(expected[0]));
+        }
+        assert((Float4{result[1],result[2],result[3],0}==Float4{2,9,18,0}));
+    }
     const NormalBatch sample_normals={Float4{3,4,0,7},Float4{0,0,2,-3},Float4{1,2,2,0},Float4{0,0,0,1}};
     const auto lengths=normal_length_stages(sample_normals);
     assert((lengths.length_squared==Float4{25,4,9,0}));

@@ -59,3 +59,21 @@ with patch.object(normals,'replacement',lambda value:normal_replacement(value,di
         except ValueError:pass
         else:raise AssertionError('Edited or duplicate normal hook accepted')
 print('Native normal hook rejects unknown bodies and edited installations; reapplication is a no-op')
+
+spec=importlib.util.spec_from_file_location('stream_hook',Path(__file__).with_name('apply_native_stream.py'))
+stream=importlib.util.module_from_spec(spec);spec.loader.exec_module(stream)
+block='void '+stream.ENTRY+'(spu_context* ctx) {\n    /* Synthetic call only. */\n}\n'
+text=block+'\nvoid synthetic_next(spu_context* ctx) {}\n'
+try:stream.apply(text)
+except ValueError:pass
+else:raise AssertionError('Unrecognized stream entry accepted')
+stream_replacement=stream.replacement;digest=hashlib.sha256(block.encode()).hexdigest()
+with patch.object(stream,'replacement',lambda value:stream_replacement(value,digest)):
+    modified=stream.apply(text)
+    assert stream.apply(modified)==modified
+    assert 'wkc_native_skin_stream_checked(ctx,'+stream.REFERENCE+')' in modified
+    for corrupt in (modified.replace('if (!','if ( '),modified+stream.BEGIN,modified.replace(stream.END,''),stream.END+text):
+        try:stream.apply(corrupt)
+        except ValueError:pass
+        else:raise AssertionError('Edited or duplicate stream hook accepted')
+print('Native stream hook rejects unknown bodies and edited installations; reapplication is a no-op')

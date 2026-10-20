@@ -4,12 +4,12 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-20",
-    "native_probe": "20261020-032618",
-    "sdk_patch_count": 121,
-    "summary": "Readable C++ now also handles the final two four-normal output batches in image 19, with 32 real complete-state replays and 96,000 host/exact/audit differential cases. Strict DirectX and Vulkan town-to-plains routes pass. The target is replacement of every game SPU job with readable public C++; zero complete images are replaced so far. 121 SDK patches / 113 Windows checks pass. No FPS gain or whole-job equivalence claimed; DirectX fidelity and town lag remain open.",
-    "gallery_image": "screenshots/2026-10-20-native-cpp-normal-output.png",
-    "gallery_image_sdk_patch_count": 121,
-    "gallery_image_scope": "DirectX Continue-to-plains route after integrating the readable final-normal C++ boundary. Trace evidence, not the image, confirms the new kernel executes; complete-state replay/fuzz comparisons establish its bounded equivalence. Hidden, muted, isolated save, strict fallback guard, tracing and automatic GPU captures. The counter shows an instrumented instant, not a speed comparison. No whole-job, full-SPU or full rendering parity claim.",
+    "native_probe": "20261020-061618",
+    "sdk_patch_count": 122,
+    "summary": "Readable C++ now executes the complete supported image-19 skinning routine, including setup, loops and drain. All 32 recorded calls and 99,417 accepted differential comparisons match complete state; strict DirectX and Vulkan transition routes pass sampled live checks. 122 SDK patches / 113 Windows checks pass. No complete SPU image is replaced, whole-job DMA/scheduling remains open and no FPS gain is measured.",
+    "gallery_image": "screenshots/2026-10-20-native-cpp-skinning-stream.png",
+    "gallery_image_sdk_patch_count": 122,
+    "gallery_image_scope": "DirectX Continue-to-plains route with the readable complete supported skinning routine. Hidden, muted, isolated save, 30 FPS cap, strict fallback guard, sampled full-state verifier, tracing and automatic GPU captures. The FPS overlay is an instrumented instant, not a speed comparison. Native execution and bounded equivalence are established by traces and comparisons, not this still. Whole jobs, DMA/scheduling, full-image replacement and complete rendering parity remain unverified.",
     "remaining_limits": [
       "Smooth 30 FPS traversal and console-equivalent animation speed unverified",
       "First-use shader compilation and other CPU/graphics costs remain",
@@ -67,6 +67,15 @@
     "window_close_title_and_saved_town_settings": true
   },
   "captures": [
+    {
+      "file": "screenshots/2026-10-20-native-cpp-skinning-stream.png",
+      "sha256": "b3d615b632ad58e3f51022d66d43f16800f1881bdf6590713db7b2a76789d379",
+      "width": 1920,
+      "height": 1080,
+      "sdk_patch_count": 122,
+      "native_probe": "20261020-061618",
+      "scope": "DirectX Continue-to-plains route with the readable complete supported skinning routine. Hidden, muted, isolated save, 30 FPS cap, strict fallback guard, sampled full-state verifier, tracing and automatic GPU captures. The FPS overlay is an instrumented instant, not a speed comparison. Native execution and bounded equivalence are established by traces and comparisons, not this still. Whole jobs, DMA/scheduling, full-image replacement and complete rendering parity remain unverified."
+    },
     {
       "file": "screenshots/2026-10-20-native-cpp-normal-output.png",
       "sha256": "cb8e9b9c337e9585907498ed5ff8d1ab2f7c29a3139bc4df6d21be875794a3c8",
@@ -4281,7 +4290,7 @@
     "private_build_time_reference_code_allowed": true,
     "scope_includes_additional_images_if_discovered": true,
     "remaining": [
-      "Resolve the C968 stream candidate exceptional host/audit mismatches and remaining normal-loop variants before live integration; recover whole-job interfaces.",
+      "Recover remaining skinning interfaces and outer whole-job descriptors, output ownership, DMA visibility and scheduling.",
       "Replace every remaining identified SPU image with semantic C++ algorithms or equivalent native services.",
       "Prove DMA visibility, output ownership and scheduling through whole-job comparisons and real routes.",
       "Validate additional NPC-heavy, transition, cutscene and combat routes, not only these saved scenes.",
@@ -4293,10 +4302,10 @@
     "date": "2026-10-20",
     "image_id": 19,
     "entry": "0xC968",
-    "status": "Offline candidate; not used by gameplay dispatcher",
+    "status": "Live supported complete skinning routine; unsupported interfaces retain compiled reference",
     "public_core": "native_skinning_stream.h",
     "algorithm": "skin_geometry_stream",
-    "player_integration": false,
+    "player_integration": true,
     "interface": "Typed input influences, positions/directions and live palette callbacks; ordered typed output callbacks; supplied arithmetic and reciprocal policies.",
     "scope": "Nonzero vertex count divisible by four, one or two direction streams, stable input streams and disjoint output views. Live palette reads can observe earlier output writes; all encoded joints are read even at zero weight.",
     "decoded_weight_scale_bits": "0x3B808080",
@@ -4311,8 +4320,7 @@
     "total_output_vectors_compared": 35080,
     "restored_generated_reference_full_context_matches": 32,
     "public_cpp_output_matches": 32,
-    "private_native_abi_full_context_matches": 32,
-    "full_context_scope": "All 128 GPRs, all 256 KiB local store, normalized full context, return and runtime step count. Private ABI prototype only; not whole SPURS jobs or cross-job scheduling.",
+    "full_context_scope": "Actual public bridge: all 128 GPRs, all 256 KiB local store, normalized full context, return and runtime step count. Complete routine only; not whole SPURS jobs or cross-job scheduling.",
     "static_channel_operations_in_function": 0,
     "whole_job_dma_scheduling_proven": false,
     "naive_cached_palette_output_matches": 18,
@@ -4323,53 +4331,102 @@
     "invalid_structure_test_cases": 4,
     "x86_fma_matches_scalar_in_finite_public_tests": true,
     "arm_execution_tested": false,
-    "stress_test_passed": false,
-    "stress_modes": [
-      {
-        "mode": "host",
-        "attempted": 1000,
-        "accepted": 916,
-        "unchanged_declines": 84,
-        "complete_state_matches": 915,
-        "complete_state_mismatches": 1,
-        "bounded_palette_variant_accepted": 448,
-        "bounded_palette_variant_mismatches": 0
-      },
-      {
-        "mode": "exact",
-        "attempted": 1000,
-        "accepted": 916,
-        "unchanged_declines": 84,
-        "complete_state_matches": 916,
-        "complete_state_mismatches": 0,
-        "bounded_palette_variant_accepted": 448,
-        "bounded_palette_variant_mismatches": 0
-      },
-      {
-        "mode": "audit",
-        "attempted": 1000,
-        "accepted": 916,
-        "unchanged_declines": 84,
-        "complete_state_matches": 916,
-        "complete_state_mismatches": 0,
-        "bounded_palette_variant_accepted": 448,
-        "bounded_palette_variant_mismatches": 0
-      }
-    ],
-    "stress_scope": "Same random sequence per mode; recorded positions/directions retained. Bounded variant replaces declared palette coefficients with finite values and uses in-range joints. Other variant randomizes full byte joint indices, retaining recorded LS contents; exceptions may arise outside the declared palette. Vertex count and unsupported controls are also mutated.",
+    "stress_test_passed": true,
+    "stress_scope": "Actual public bridge against unhooked compiled reference; same input sequence reused across modes. Includes byte joint indices beyond declared palette, NaNs, signed zeros and unsupported layouts. Finite/float-bit palette variants supplement recorded LS. Not exhaustive coverage.",
     "failure_reproducers_saved_privately": true,
     "open": [
-      "Resolve remaining host cofactor NaN payload selection mismatch before live integration.",
-      "Validate remaining stream modes, pointer/alias layouts and interrupt/policy contexts.",
-      "Replace the private ABI prototype with a reviewed live adapter only after differential checks pass.",
-      "Recover whole-job descriptors, DMA ownership/output visibility and correct scheduling.",
-      "Validate further saved-scene, NPC-heavy, transition and cutscene routes and future ARM execution."
+      "Recover remaining stream/layout and interrupt/policy interfaces.",
+      "Recover whole-job descriptors, DMA/output visibility, ownership and scheduling.",
+      "Replace all remaining generated SPU game code with readable C++.",
+      "Validate additional NPC-heavy, transition, cutscene, combat and future ARM routes.",
+      "Measure normal-play CPU/performance effects separately from instrumented correctness tests."
     ],
-    "desktop_runtime_changed": false,
+    "desktop_runtime_changed": true,
     "fps_gain_measured": false,
     "normalized_empty_batch_alias_test_cases": 1,
     "bootstrap_empty_batch_normalization_preserved": true,
-    "remaining_failure": "One host-mode stress case differs in two LS bytes after cofactor NaN payload selection; exact/audit stress samples match. Blanket first-NaN-operand rule rejected after ten host mismatches."
+    "public_bridge": "native_skinning_stream_bridge.cpp",
+    "build_hook": "tools/apply_native_stream.py",
+    "entry_body_sha256": "98915a23b2309986a6963b5e921efccdc42199e802a444bb80413a3cf727a760",
+    "public_native_abi_full_context_matches": 32,
+    "stress_attempts": 108000,
+    "stress_complete_state_matches": 99417,
+    "stress_unchanged_declines": 8583,
+    "stress_complete_state_mismatches": 0,
+    "host_cofactor_nan_selection_preserved": true,
+    "zero_weight_conversion_sign_preserved": true,
+    "initial_reciprocal_sign_preserved": true,
+    "signed_zero_conversion_test_cases": 4,
+    "initial_negative_reciprocal_test_cases": 2,
+    "debug_checks_passed": 113,
+    "release_checks_passed": 113,
+    "stress_datasets": [
+      {
+        "attempts": 30000,
+        "accepted": 27609,
+        "unchanged_declines": 2391,
+        "mismatches": 0,
+        "scope": "Recorded LS plus bounded finite palettes; host/exact/audit"
+      },
+      {
+        "attempts": 30000,
+        "accepted": 27552,
+        "unchanged_declines": 2448,
+        "mismatches": 0,
+        "scope": "Additional arbitrary float-bit palettes; host/exact/audit"
+      },
+      {
+        "attempts": 48000,
+        "accepted": 44256,
+        "unchanged_declines": 3744,
+        "mismatches": 0,
+        "scope": "Four rounding modes x four FTZ/DAZ combinations x three arithmetic modes"
+      }
+    ],
+    "routes": [
+      {
+        "id": "20261020-061618",
+        "renderer": "DirectX 12",
+        "frame_limit": 30,
+        "hidden": true,
+        "muted": true,
+        "isolated_save": true,
+        "strict_fallback_guard": true,
+        "minimum_logged_native_calls": 262144,
+        "logged_declines": 0,
+        "minimum_full_state_comparisons": 1056,
+        "complete_state_mismatches": 0,
+        "interpreter_sessions": 0,
+        "microstep_sessions": 0,
+        "town_to_plains_transition": true,
+        "walking_and_camera": true,
+        "final_gpu_frame_inspected": true,
+        "performance_benchmark": false
+      },
+      {
+        "id": "20261020-061926",
+        "renderer": "Vulkan",
+        "frame_limit": 30,
+        "hidden": true,
+        "muted": true,
+        "isolated_save": true,
+        "strict_fallback_guard": true,
+        "minimum_logged_native_calls": 262144,
+        "logged_declines": 0,
+        "minimum_full_state_comparisons": 1056,
+        "complete_state_mismatches": 0,
+        "interpreter_sessions": 0,
+        "microstep_sessions": 0,
+        "town_to_plains_transition": true,
+        "walking_and_camera": true,
+        "final_gpu_frame_inspected": true,
+        "performance_benchmark": false
+      }
+    ],
+    "desktop_player_environment_guard_verified": true,
+    "desktop_preferences_and_saves_preserved": true,
+    "desktop_normal_startup_manual": true,
+    "desktop_runtime_sha256": "8ddcc4b4539f88853ec7ea1d20e890300790983aad49cb5a332777fbe8ef6e60"
   },
   "spurs_caller_frame_0122": {
     "date": "2026-10-20",

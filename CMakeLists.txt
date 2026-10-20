@@ -205,6 +205,7 @@ add_executable(${PROJECT_NAME}
     graphics_diagnostics.cpp
     spu_job_diagnostics.cpp
     native_skinning_bridge.cpp
+    native_skinning_stream_bridge.cpp
     play_environment.cpp
     ${PLAY_ENV_NAMES}
     ${PS3RECOMP_SCAFFOLD}

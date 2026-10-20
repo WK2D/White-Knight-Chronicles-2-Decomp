@@ -124,6 +124,10 @@ See [kernel evidence and limits](NATIVE_CODE.md#readable-c-geometry-prefix).
 final-normal output boundary. It retains a private compiled reference and
 rejects edited bodies or wrappers. The same hook regression checks both
 installations. See [normal-output evidence](NATIVE_CODE.md#readable-final-normal-output).
+`tools/apply_native_stream.py` then installs the supported complete skinning
+routine, retaining a private compiled reference for unsupported interfaces.
+The hook regression checks its hash, edited-wrapper rejection and idempotence.
+See [whole-routine evidence](NATIVE_CODE.md#readable-whole-skinning-stream).
 `tools/import_spu_misses.py` is available for discovering additional jobs.
 
 `tools/prepare_sdat.py <private-USRDIR>` authenticates and caches the supported
@@ -241,8 +245,14 @@ probe environment to enable them:
 
 - `RSX_PRESENT_MEASURE=1` enables the DirectX benchmark sample ring and CSV.
   `RSX_SCHEDULE_DIAG=1` adds process/thread times only when that recorder is enabled.
-- `WKC_NATIVE_SKINNING_TRACE=1` counts native blend calls for coverage; normal
-  play keeps it off. `WKC_NATIVE_SKINNING=0` retains the compiled reference path.
+- `WKC_NATIVE_SKINNING_TRACE=1` reports native calls, declines and verification
+  counts; normal play keeps it off. `WKC_NATIVE_SKINNING=0` retains the earlier
+  batch's compiled reference path.
+- `WKC_NATIVE_SKIN_STREAM=0` disables the whole-routine hook and selects its
+  compiled reference. `WKC_NATIVE_SKIN_STREAM_VERIFY=1` compares complete state
+  for the first 32 attempts and every 256th attempt thereafter, aborting on a
+  mismatch. This allocates/copies private state and changes performance; use it
+  only in research runs.
 - `WKC2_SKIP_INTRO=1` skips the copyright and save notices and the publisher
   and middleware logos. The boot sequencer's system-setup steps still run.
 - `WKC2_DISCARD_LOGS=1` sends stdout/stderr to NUL. Per-line diagnostic writes

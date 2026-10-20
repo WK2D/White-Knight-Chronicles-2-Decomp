@@ -15,6 +15,7 @@ def git(*args):
 
 root_files = {
     'native_skinning_stream.h',
+    'native_skinning_stream_bridge.cpp',
     '.gitignore', '.gitattributes', 'README.md', 'LICENSE', 'LICENSE.ps3recomp', 'CMakeLists.txt', 'app.rc',
     'project.json', 'decompression-verification.json', 'main.cpp', 'stubs.cpp',
     'osk.cpp', 'osk.hpp', 'osk_win32.cpp', 'l10n.cpp',

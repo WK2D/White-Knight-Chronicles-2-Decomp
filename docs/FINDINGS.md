@@ -39,7 +39,7 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 
 **Performance, timing and presentation**
 
-- [Whole skinning stream candidate](NATIVE_CODE.md#whole-skinning-stream-candidate)
+- [Readable whole skinning stream](NATIVE_CODE.md#readable-whole-skinning-stream)
 - [NPC cadence and rejected host FMA](#npc-cadence-and-rejected-host-fma)
 - [Remaining fork candidates and mutex measurement](#remaining-fork-candidates-and-mutex-measurement)
 - [PPU register-local validation follow-up](#ppu-register-local-validation-follow-up)
@@ -3449,15 +3449,22 @@ NV3089 and exact-float work must be preserved when adapting them. See
 
 ## Whole skinning routine recovery follow-up
 
-The new portable C++ stream candidate matches all 35,080 output vectors from
-32 complete recorded `0xC968` calls. A private ABI prototype also matches every
-register, local-store byte, return and runtime step count for those calls.
-Live palette reads and delayed direction writes are required; caching the palette
-once failed 14 calls. This is a larger routine than the earlier block replacements,
-but it remains outside gameplay dispatch. A traced normalized-empty-batch write
-removes 28 earlier stress mismatches. Wider randomized testing now finds one host
-mismatch among 916 accepted comparisons per mode; exact and audit samples have
-zero mismatches. The remaining difference is in cofactor NaN payload selection.
-No failing stress result is reported as a
-passing public regression. See [interface, evidence and remaining work](NATIVE_CODE.md#whole-skinning-stream-candidate).
-The desktop build is unchanged and complete SPU replacement remains the goal.
+The supported complete image-19 `0xC968` skinning routine now runs in readable
+public C++ with a narrow ABI adapter. The earlier offline host mismatch was
+cofactor NaN operand selection; expanded directed-rounding tests also found
+negative-zero differences in zero-weight conversion and initial output writes.
+The final implementation preserves these policies without a finite-only guard.
+
+All 32 captured complete calls match. Across 108,000 differential attempts in
+host/exact/audit modes, including four rounding modes and four FTZ/DAZ settings,
+99,417 accepted calls match complete context and local store; 8,583 unsupported
+cases decline unchanged. There are zero mismatches. The same input sequences are
+reused across modes. Both Windows suites pass 113 checks. Strict DirectX
+`20261020-061618` and Vulkan `20261020-061926` town-to-plains routes each log at
+least 262,144 native calls and 1,056 sampled full-state checks, with zero declines,
+mismatches or fallback sessions. Final GPU frames were inspected.
+
+This replaces the skinning routine's setup, loops and drain, not the whole SPURS
+job. No complete image is replaced. Outer descriptors, DMA visibility, output
+ownership and scheduling remain open, as do broader routes and ARM execution.
+No FPS gain was measured. See [interface and evidence](NATIVE_CODE.md#readable-whole-skinning-stream).

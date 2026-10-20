@@ -53,6 +53,21 @@ Float4 apply(const Matrix& m,const Float4& input,bool position) {
 }
 }
 int wkc2_test_native_skinning_stream() {
+    const auto negative_zero=std::bit_cast<float>(std::uint32_t{0x80000000});
+    for(unsigned zero_lane=0;zero_lane<4;++zero_lane) {
+        std::array<std::uint8_t,4> bytes{1,17,128,255};bytes[zero_lane]=0;
+        const auto converted=ByteWeightConversion{negative_zero}(bytes);
+        for(unsigned lane=0;lane<4;++lane)
+            assert(std::bit_cast<std::uint32_t>(converted[lane])==(lane==zero_lane?0x80000000u:std::bit_cast<std::uint32_t>(float(bytes[lane]))));
+    }
+    for(unsigned directions=1;directions<=2;++directions) {
+        Streams io(4);
+        assert(skin_geometry_stream<HostScalarMath>(io,{4,directions},no_normalization,nullptr,{{},{-1,-1,-1,-1}}));
+        assert(io.first_direction_writes.size()==2);
+        for(unsigned lane=0;lane<3;++lane)
+            assert(std::bit_cast<std::uint32_t>(io.first_direction_writes[0][lane])==0x80000000u);
+        assert(io.first_direction_writes[0][3]==0);
+    }
     // Invalid structure must be rejected without invoking storage callbacks.
     for(auto spec:{SkinningStreamSpec{0,1},SkinningStreamSpec{6,1},SkinningStreamSpec{4,0},SkinningStreamSpec{4,3}}) {
         Streams io(4);assert(!skin_geometry_stream<HostScalarMath>(io,spec,no_normalization));

@@ -32,6 +32,7 @@
 !/play_environment.h
 !/native_skinning.h
 !/native_skinning_stream.h
+!/native_skinning_stream_bridge.cpp
 !/native_skinning_bridge.h
 !/native_skinning_bridge.cpp
 !/spu_job_diagnostics.cpp

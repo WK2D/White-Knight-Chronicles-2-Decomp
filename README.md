@@ -90,9 +90,11 @@ verified yet. GeoNet compatibility is separate later research.
 The game code is translated to C/C++ ahead of time and compiled with a runtime that
 implements the PS3 services it uses. Five missing SPU entries now compile
 statically, and tested town-to-plains routes run with interpreter fallback forbidden.
-Readable C++ now handles matrix blending and a supported geometry batch boundary,
-including positions, normal-cofactor math and ordered memory output/read-ahead,
-with complete-state comparisons against its compiled reference.
+Readable C++ now handles the supported complete skinning routine, including
+matrix blending, positions, normals and ordered output/read-ahead. Recorded,
+randomized and sampled live comparisons match its compiled reference. Outer
+SPURS jobs and DMA/scheduling still need readable replacements; no complete SPU
+image has been replaced. See the [native C++ evidence](docs/NATIVE_CODE.md#readable-whole-skinning-stream).
 Fallback remains available for untested paths; full-game static coverage and a
 readable reconstruction of the original source remain unverified. The architecture page explains the execution model and the
 remaining work.

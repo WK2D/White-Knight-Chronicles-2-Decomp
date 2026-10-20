@@ -329,89 +329,106 @@ Release 23.04 seconds. A hash-checked generation hook retains a private referenc
 and rejects altered inputs/installations. Full SPU replacement remains incomplete:
 **zero of the 24 identified images have been completely replaced**.
 
-## Whole skinning stream candidate
+## Readable whole skinning stream
 
-`native_skinning_stream.h` contains a project-written C++ stream algorithm for
-the supported modes of image-19 routine `0xC968`, which surrounds the earlier
-`0xCE08` block. Its typed interface accepts packed influences, decoded positions,
-direction streams, live palette reads and output writes. Arithmetic and reciprocal
-policies are supplied by the caller. The core contains no SPU registers, local
-store, guest addresses or generated game code. It processes variable vertex
-counts in four-vertex groups with bounded pending-output storage.
+The supported one- and two-direction modes of image-19 routine `0xC968` now
+execute through project-written C++. `native_skinning_stream.h` supplies the
+typed algorithm; `native_skinning_stream_bridge.cpp` handles the current ABI.
+The core contains no SPU registers, local store, guest addresses or generated game
+code. It accepts packed influences, decoded positions, direction streams, live
+palette reads and ordered output callbacks, processing four vertices per group.
 
-**This is an offline candidate, not a replacement enabled in gameplay.**
-Its private ABI adapter still fails one randomized host comparison.
-No complete image is replaced, and this is not whole-job DMA/scheduling proof.
+This replaces the supported complete skinning routine, including setup, iteration
+and output drain. It does **not** replace the outer SPURS job, DMA/scheduling or
+an entire image. No complete image is replaced. Unsupported interfaces retain the
+private compiled reference; the earlier smaller hooks remain on that path.
 
-Saved-town probe `20261020-035339` captures 32 complete calls at the actual
-caller/return boundary. Twenty-five use one direction stream; seven use two.
-Together they cover 14,392 position vectors and 20,688 direction vectors. The
-restored generated reference matches every captured context, register, local-store
-byte and return. The public C++ core matches all 35,080 output vectors. A private
-native ABI prototype additionally reproduces all 32 complete contexts, including
-the saved-register frame, cyclic read-ahead scratch values and runtime trampoline
-step bookkeeping. These are complete routine calls, not complete SPURS jobs.
-
-The inferred baseline interface is:
+The current interface is:
 
 | Input | Observed role |
 | --- | --- |
 | r3 | Metadata; a big-endian 16-bit vertex count at byte 8 |
 | r4 | Table of position and direction-stream pointers |
-| r5 | Stream count including positions; observed values 2 and 3 |
+| r5 | Stream count including positions; supported values 2 and 3 |
 | r6 | Eight interleaved weight/joint bytes per vertex |
 | r7 | Cyclic matrix palette, 48 bytes per entry |
-| r8 | Declared palette count; agrees with the palette-to-weight byte distance in all 32 calls |
+| r8 | Declared palette count |
 
-These names describe observed behavior, not recovered original symbols. Counts
-are nonzero and divisible by four in this corpus. Other stream modes and layouts
-remain unverified.
+These describe observed behavior, not original symbols. The adapter checks
+alignment, bounds, nonzero counts divisible by four, disjoint output streams and
+the supported stack/control context before writing. Interrupt/policy contexts
+and other layouts remain compiled. It preserves the 2,224-byte saved-register
+frame, cyclic read-ahead values and continuation bookkeeping: `4*g+1` steps for
+one direction and `3*g+2` for two, with `g` the group count. These are runtime
+dispatch counts, not game time. The routine has no decoded channel operations.
 
-A naive loop with a palette decoded once matches only 18 of the 32 calls.
-Some end-of-stream indices exceed the declared palette count and read memory
-that earlier position/direction writes change. Liveness of those vertices against
-the final index buffer was not revalidated in this corpus. Zero-weight influences
-therefore remain reads. One direction stream delays output by two groups; two
-streams delay it by one. The first output write is raw zero; the second empty
-batch in the two-group pipeline goes through the reciprocal/normalization policy.
-It can write NaNs into memory that later palette reads alias. The final pending
-output drain also matters. Preserving live palette reads and these writes brings every recorded
-output into exact agreement. Public regression cases deliberately alias a palette
-with normal output and fail if reads are cached or the delay changes.
+Live palette reads are essential. Some encoded indices exceed the declared
+palette count and observe earlier output or frame writes. All four influences
+are read, including zero weights. Decoding the palette once failed 14 of the
+32 recorded calls. One direction stream delays output by two groups; two streams
+delay it by one. Initial empty writes and the final drain must also be preserved:
+the first batch multiplies zero by the initial reciprocal, and the second empty
+batch in the two-group pipeline goes through reciprocal normalization. Those
+writes can affect later aliased palette reads.
 
-The private ABI prototype preserves dispatch bookkeeping of `4*g+1` steps for
-one direction stream and `3*g+2` for two, where `g` is the four-vertex group count.
-Omitting this left every register and LS byte equal but failed all 32 complete
-context comparisons. This is a runtime dispatch count, not a game-clock or FPS
-measurement. Interrupt/policy contexts are excluded; their scheduling remains
-to be recovered. The routine itself has no decoded channel operations.
+The earlier offline candidate exposed host NaN-payload and signed-zero
+differences. Cofactor multiplication and multiply-subtract now explicitly preserve
+the compiled host path's NaN selection, sign and quieting. Exact/audit arithmetic
+continues to use the SDK policies. Under downward rounding, the SDK's unsigned
+conversion can produce negative zero and the initial reciprocal can also be
+negative zero. The adapter samples these two policies once per routine; all
+nonzero byte weights remain exactly representable. No blanket first-NaN rule or
+finite-only value guard is used by this whole-routine path.
 
-A 3,000-attempt stress comparison exposes the remaining integration blocker:
+### Complete-state evidence
 
-| Arithmetic mode | Accepted native comparisons | Unchanged declines | Complete-state mismatches |
-| --- | ---: | ---: | ---: |
-| Host | 916 | 84 | 1 |
-| Exact SPU | 916 | 84 | 0 |
-| Audit | 916 | 84 | 0 |
+Saved-town probe `20261020-035339` supplied 32 complete calls: 25 with one
+direction stream and seven with two, totaling 14,392 position vectors and
+20,688 direction vectors. The public bridge now matches all 32 restored compiled
+reference calls, including all 128 registers, all 256 KiB of local store,
+normalized complete context, return and runtime step count.
 
-Each mode uses the same random sequence. Of its accepted cases, 448 replace the
-declared palette with bounded finite coefficients and select in-range joints;
-all of those match. Other cases use random byte joint indices against recorded
-LS contents and can encounter exceptional values beyond the declared palette.
-Tracing the earlier 15 host and 14 audit failures identified a missing normalized
-empty-batch write. Correcting it removes 28 of those 29 failures. The remaining
-host case differs by two final LS bytes; matching blended matrices first diverge
-in cofactor products when multiple NaNs carry different payloads. A blanket
-first-operand NaN rule causes ten failures and was withdrawn. Private failing
-inputs, outputs and stage traces are retained for investigation.
-The mixed stress test is **failing**; the exact-mode sample is not a full-domain
-or whole-game proof.
+The final private differential runs call the actual public bridge against an
+unhooked compiled reference:
 
-Public tests add 128 independent row-major blend/cofactor/dot cases (4,352
-vertices), eight live-palette/delay cases, a normalized-empty-batch alias case,
-and four invalid-structure cases. Finite
-scalar/x86 FMA results and summaries match bit for bit in Debug and Release.
-All 113 Windows checks pass without media skips: Debug 27.22 seconds and Release
-23.56 seconds. The private failing stress suite is separate and is not counted
-as a passing public check. ARM execution, live integration and FPS effects are
-unverified. The desktop runtime remains the previous verified normal-output build.
+| Dataset | Attempts | Accepted complete-state matches | Unchanged declines | Mismatches |
+| --- | ---: | ---: | ---: | ---: |
+| Recorded-LS and bounded finite palettes, three arithmetic modes | 30,000 | 27,609 | 2,391 | 0 |
+| Additional arbitrary float-bit palettes, three modes | 30,000 | 27,552 | 2,448 | 0 |
+| Four rounding modes × four FTZ/DAZ combinations × three arithmetic modes | 48,000 | 44,256 | 3,744 | 0 |
+| Total | 108,000 | 99,417 | 8,583 | 0 |
+
+The same random sequence is reused across arithmetic modes; these totals do not
+claim 108,000 distinct inputs or exhaustive arithmetic coverage. Declined cases
+leave the complete context unchanged. Public regressions also cover 128
+independent row-major cases (4,352 vertices), eight live-palette/delay cases,
+normalized-empty-batch aliasing, signed-zero conversion/initial writes,
+unsupported ABI contexts and explicit NaN operand selection. Finite scalar/x86
+FMA results agree. Both Windows configurations pass all 113 checks without media
+skips; ARM execution remains untested.
+
+### Live execution and remaining work
+
+Strict DirectX route `20261020-061618` and Vulkan route `20261020-061926`
+load Continue, enter Balastor Plain, walk and rotate the camera. Both are hidden,
+muted, isolated-save correctness runs at a 30 FPS cap. Each logged at least
+262,144 accepted native calls, zero declines and 1,056 sampled full-state
+comparisons without mismatch. Both fallback censuses have zero sessions.
+The optional verifier checks the first 32 attempts and then every 256th attempt;
+it compares the native result with the private compiled reference and aborts on
+a mismatch. These are sampled route results, not full-game proof.
+
+`tools/apply_native_stream.py` installs the wrapper only after checking the
+original entry body's SHA-256:
+`98915a23b2309986a6963b5e921efccdc42199e802a444bb80413a3cf727a760`.
+It retains and validates the private reference, refuses altered bodies/wrappers
+and is idempotent. Generated bodies and raw comparisons remain private.
+
+Normal play enables the routine without tracing, verification copies or counters.
+The player environment guard clears the research switches before startup.
+The verified Release executable is installed for the desktop shortcut; saves and
+preferences are unchanged. A poisoned-environment test confirms diagnostic and
+automated-input switches are cleared, with a research-mode negative control.
+No FPS gain has been measured. Whole-job descriptors, DMA visibility, output
+ownership and scheduling, other layouts, additional NPC-heavy/cutscene/combat
+routes and replacement of all remaining generated SPU code are still required.
