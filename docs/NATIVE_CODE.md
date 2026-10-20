@@ -673,3 +673,60 @@ replacement must retain payload-before-command visibility, shared state
 ownership and retry behavior; an owned buffer per job is insufficient by itself.
 The decoded allocator/export notes are research contracts, not new live C++
 implementations. Broader synthetic branch and concurrency tests remain required.
+
+## Vertex export packing
+
+The custom geometry export callback now has a project-written portable C++ core
+in [`native_vertex_pack.h`](../native_vertex_pack.h). It reads stable host
+position/normal/tangent spans and writes big-endian vertex records without guest
+registers, local store, allocation or DMA. **It is verified offline and has no
+new live game hook.**
+
+The recovered formats are XYZ float bits plus a packed signed 11/11/10 normal
+(16 bytes), the same with four tangent components (24 bytes), and XYZ alone
+(12 bytes). Direction suppression writes zero direction bytes without reading
+normal/tangent views. Position bits retain signed zeros and NaN payloads. Normal
+encoding preserves the recovered FMA and scaled truncating/saturating conversion;
+exact/audit adapters supply their existing arithmetic policies. The default host
+policy is also checked separately against the compiled reference.
+
+Tangent conversion has an explicit bit rule: small inputs flush to positive
+zero, large values and infinities/NaNs saturate to signed maximum finite, and
+mantissa bits truncate. This includes a threshold band that differs from IEEE
+half conversion. A standard float-to-half or SNORM helper is not substituted.
+
+All **241,728 bytes across 11,368 vertices in 31 captured exports** match the
+actual public implementation. These are 16 position-only, seven normal and eight
+normal/tangent jobs. The remaining captured job filters out all triangles and
+skips export; it is counted as empty rather than compared against a stale output
+pointer.
+
+Private differential cases invoke the retained unhooked compiled callback with
+backed input/output storage, then compare only the logical packed prefix:
+
+| Dataset | Logical cases | Checked bytes | Mismatched bytes |
+| --- | ---: | ---: | ---: |
+| Bounded finite inputs, three arithmetic modes | 9,216 | 20,370,840 | 0 |
+| Arbitrary float bits, three arithmetic modes | 9,216 | 20,370,840 | 0 |
+| Four rounding modes × four FTZ/DAZ settings × three arithmetic modes | 12,288 | 27,123,840 | 0 |
+| Default portable host policy, arbitrary bits | 3,072 | 6,790,280 | 0 |
+| Default host policy, rounding/FTZ/DAZ matrix | 4,096 | 9,041,280 | 0 |
+
+The sets reuse deterministic sequences and overlap; they are not distinct
+exhaustive inputs. Cases cover all three formats, both suppression settings and
+counts 0–256. Zero-count cases model the outer wrapper's empty path and do not
+call the nonempty custom loop. The reference rounds nonempty counts up to pairs;
+the fixture supplies the extra vertex for odd counts. Only logical records are
+claimed, not those extra writes or the outer arena cursor. An output-bit
+corruption control fails in both captured sets.
+
+Public regressions cover 32,000 independent finite normal checks, 32,000 x86 FMA
+comparisons, 270 logical records across formats/suppression/counts, raw position
+bits, tangent threshold cases, exceptional host conversion, unaligned output,
+and unchanged short/overlapping-buffer rejects. Both Windows suites pass all
+113 checks with 122 SDK patches; ARM execution is still untested.
+
+The whole job still needs its remaining transform/filter stages, shared allocator,
+payload transfers, command fixups and fenced publication under owned C++ control.
+This kernel does not replace a whole stage ABI, job or image. It adds no measured
+CPU/FPS gain and leaves the desktop executable, preferences and save unchanged.

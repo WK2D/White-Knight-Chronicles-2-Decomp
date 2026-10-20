@@ -341,6 +341,7 @@ if(WKC2_BUILD_TESTS)
     # Exercise the linked channel implementation without loading game files.
     target_sources(${PROJECT_NAME} PRIVATE tests/play_environment_test.cpp tests/native_skinning_test.cpp tests/spu_title_test.cpp tests/spu_dma_poll_test.c tests/pad_file_test.c tests/spu_microstep_profile_test.c)
     target_sources(${PROJECT_NAME} PRIVATE tests/native_skinning_stream_test.cpp tests/native_vertex_decode_test.cpp tests/native_index_decode_test.cpp)
+    target_sources(${PROJECT_NAME} PRIVATE tests/native_vertex_pack_test.cpp)
     # The packed decoder distinguishes rounded operations from explicit FMA.
     # Keep those boundaries when optimizing its host-policy regression, including ARM.
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -392,9 +393,9 @@ if(WKC2_BUILD_TESTS)
     set_tests_properties(wkc2_native_geometry_hook PROPERTIES TIMEOUT 10)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64|amd64|x86_64|i.86")
         if(MSVC)
-            set_property(SOURCE tests/native_skinning_test.cpp tests/native_skinning_stream_test.cpp tests/native_vertex_decode_test.cpp APPEND PROPERTY COMPILE_OPTIONS /arch:AVX2)
+            set_property(SOURCE tests/native_skinning_test.cpp tests/native_skinning_stream_test.cpp tests/native_vertex_decode_test.cpp tests/native_vertex_pack_test.cpp APPEND PROPERTY COMPILE_OPTIONS /arch:AVX2)
         else()
-            set_property(SOURCE tests/native_skinning_test.cpp tests/native_skinning_stream_test.cpp tests/native_vertex_decode_test.cpp APPEND PROPERTY COMPILE_OPTIONS -mavx2 -mfma)
+            set_property(SOURCE tests/native_skinning_test.cpp tests/native_skinning_stream_test.cpp tests/native_vertex_decode_test.cpp tests/native_vertex_pack_test.cpp APPEND PROPERTY COMPILE_OPTIONS -mavx2 -mfma)
         endif()
     endif()
     add_test(NAME wkc2_spu_entry_manifest

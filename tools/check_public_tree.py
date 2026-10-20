@@ -14,6 +14,7 @@ def git(*args):
     return subprocess.check_output(['git', '-C', str(root), *args])
 
 root_files = {
+    'native_vertex_pack.h',
     'native_index_decode.h',
     'native_vertex_decode.h',
     'native_skinning_stream.h',

@@ -44,6 +44,7 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 - [Compressed triangle-index decoder](NATIVE_CODE.md#compressed-triangle-index-decoding)
 - [Position-only skinning stream](NATIVE_CODE.md#position-only-skinning-stream)
 - [Allocation and export contracts](NATIVE_CODE.md#recovered-allocation-and-export-contracts)
+- [Vertex export packing](NATIVE_CODE.md#vertex-export-packing)
 - [NPC cadence and rejected host FMA](#npc-cadence-and-rejected-host-fma)
 - [Remaining fork candidates and mutex measurement](#remaining-fork-candidates-and-mutex-measurement)
 - [PPU register-local validation follow-up](#ppu-register-local-validation-follow-up)
@@ -3542,3 +3543,18 @@ geometry, while `0x2DB8` allocates and `0x4FC0` packs vertices. The 32-job corpu
 contains 31 nonwrapping slot-0 ring allocations and one empty filtered job;
 contention, wrap, retries, fallback and blocking paths remain untested. See
 [allocation/publication limits](NATIVE_CODE.md#recovered-allocation-and-export-contracts).
+
+## Native vertex export recovery
+
+A new offline portable C++ vertex packer matches all 241,728 bytes in 31 captured
+exports. The 32nd job has no surviving triangles and correctly skips export.
+Randomized reference comparisons cover finite and arbitrary float bits, all
+three recovered formats, suppression, odd counts and arithmetic/rounding/flush
+settings. Both existing runtime policies and the default portable host policy
+pass. Deliberate output damage fails both captured-set comparisons.
+
+Public format/normal/half-threshold/exception/alias regressions and both 113-check
+Windows suites pass. The core writes logical records; pair padding, arena cursors,
+DMA and final command publication remain outside its interface. It is not live,
+does not replace the whole job and has no measured speed gain. See
+[counts, conversion rules and limits](NATIVE_CODE.md#vertex-export-packing).
