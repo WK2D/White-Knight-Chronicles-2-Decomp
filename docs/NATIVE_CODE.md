@@ -328,3 +328,84 @@ Both full Windows suites pass 113 checks without media skips: Debug 29.90 second
 Release 23.04 seconds. A hash-checked generation hook retains a private reference
 and rejects altered inputs/installations. Full SPU replacement remains incomplete:
 **zero of the 24 identified images have been completely replaced**.
+
+## Whole skinning stream candidate
+
+`native_skinning_stream.h` contains a project-written C++ stream algorithm for
+the supported modes of image-19 routine `0xC968`, which surrounds the earlier
+`0xCE08` block. Its typed interface accepts packed influences, decoded positions,
+direction streams, live palette reads and output writes. Arithmetic and reciprocal
+policies are supplied by the caller. The core contains no SPU registers, local
+store, guest addresses or generated game code. It processes variable vertex
+counts in four-vertex groups with bounded pending-output storage.
+
+**This is an offline candidate, not a replacement enabled in gameplay.**
+Its private ABI adapter still fails some randomized host/audit comparisons.
+No complete image is replaced, and this is not whole-job DMA/scheduling proof.
+
+Saved-town probe `20261020-035339` captures 32 complete calls at the actual
+caller/return boundary. Twenty-five use one direction stream; seven use two.
+Together they cover 14,392 position vectors and 20,688 direction vectors. The
+restored generated reference matches every captured context, register, local-store
+byte and return. The public C++ core matches all 35,080 output vectors. A private
+native ABI prototype additionally reproduces all 32 complete contexts, including
+the saved-register frame, cyclic read-ahead scratch values and runtime trampoline
+step bookkeeping. These are complete routine calls, not complete SPURS jobs.
+
+The inferred baseline interface is:
+
+| Input | Observed role |
+| --- | --- |
+| r3 | Metadata; a big-endian 16-bit vertex count at byte 8 |
+| r4 | Table of position and direction-stream pointers |
+| r5 | Stream count including positions; observed values 2 and 3 |
+| r6 | Eight interleaved weight/joint bytes per vertex |
+| r7 | Cyclic matrix palette, 48 bytes per entry |
+| r8 | Declared palette count; agrees with the palette-to-weight byte distance in all 32 calls |
+
+These names describe observed behavior, not recovered original symbols. Counts
+are nonzero and divisible by four in this corpus. Other stream modes and layouts
+remain unverified.
+
+A naive loop with a palette decoded once matches only 18 of the 32 calls.
+Some end-of-stream indices exceed the declared palette count and read memory
+that earlier position/direction writes change. Liveness of those vertices against
+the final index buffer was not revalidated in this corpus. Zero-weight influences
+therefore remain reads. One direction stream delays output by two groups; two
+streams delay it by one. Initial zero writes and the final pending-output drain
+also matter. Preserving live palette reads and these writes brings every recorded
+output into exact agreement. Public regression cases deliberately alias a palette
+with normal output and fail if reads are cached or the delay changes.
+
+The private ABI prototype preserves dispatch bookkeeping of `4*g+1` steps for
+one direction stream and `3*g+2` for two, where `g` is the four-vertex group count.
+Omitting this left every register and LS byte equal but failed all 32 complete
+context comparisons. This is a runtime dispatch count, not a game-clock or FPS
+measurement. Interrupt/policy contexts are excluded; their scheduling remains
+to be recovered. The routine itself has no decoded channel operations.
+
+A 3,000-attempt stress comparison exposes the remaining integration blocker:
+
+| Arithmetic mode | Accepted native comparisons | Unchanged declines | Complete-state mismatches |
+| --- | ---: | ---: | ---: |
+| Host | 916 | 84 | 15 |
+| Exact SPU | 916 | 84 | 0 |
+| Audit | 916 | 84 | 14 |
+
+Each mode uses the same random sequence. Of its accepted cases, 448 replace the
+declared palette with bounded finite coefficients and select in-range joints;
+all of those match. Other cases use random byte joint indices against recorded
+LS contents and can encounter exceptional values beyond the declared palette.
+The host/audit differences include finite-versus-NaN results, not only NaN payloads.
+Their first differing operation has not yet been isolated. Private failing input,
+native-output and reference-output snapshots are retained for investigation.
+The mixed stress test is **failing**; the exact-mode sample is not a full-domain
+or whole-game proof.
+
+Public tests add 128 independent row-major blend/cofactor/dot cases (4,352
+vertices), eight live-palette/delay cases and four invalid-structure cases. Finite
+scalar/x86 FMA results and summaries match bit for bit in Debug and Release.
+All 113 Windows checks pass without media skips: Debug 27.43 seconds and Release
+23.54 seconds. The private failing stress suite is separate and is not counted
+as a passing public check. ARM execution, live integration and FPS effects are
+unverified. The desktop runtime remains the previous verified normal-output build.

@@ -448,8 +448,8 @@
     "last_verified_sdk_patch_count": 121,
     "current_passed_count": 113,
     "record_scope": "121 SDK patches / 113 Windows checks pass in Debug and Release, including media without skips, native batch guards and 68,372 alpha-reference decoder cases.",
-    "normal_debug_elapsed_seconds": 29.9,
-    "optimized_release_elapsed_seconds": 23.04,
+    "normal_debug_elapsed_seconds": 27.43,
+    "optimized_release_elapsed_seconds": 23.54,
     "repeat_patch_application_files_changed": 0,
     "repeat_patch_application_verified_sdk_patch_count": 121
   },
@@ -1649,7 +1649,8 @@
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
     "remaining_requirement": "Validate wider NPC/transition/cutscene routes and readable hot-job replacements; keep strict entry checks in diagnostic runs. Full-game CPU coverage is unverified.",
-    "latest_census_probe": "20261020-033037"
+    "latest_census_probe": "20261020-035339",
+    "latest_census_scope": "Hidden/muted Continue-to-town loading and bounded complete skinning-function captures; zero strict interpreter/microstep entries. No new transition, cutscene or combat validation in this probe."
   },
   "wkc1_town_world_view": {
     "probe": "20261016-233313",
@@ -4280,12 +4281,91 @@
     "private_build_time_reference_code_allowed": true,
     "scope_includes_additional_images_if_discovered": true,
     "remaining": [
-      "Recover remaining image-19 normal-loop variants, dispatch and whole-job interface.",
+      "Resolve the C968 stream candidate exceptional host/audit mismatches and remaining normal-loop variants before live integration; recover whole-job interfaces.",
       "Replace every remaining identified SPU image with semantic C++ algorithms or equivalent native services.",
       "Prove DMA visibility, output ownership and scheduling through whole-job comparisons and real routes.",
       "Validate additional NPC-heavy, transition, cutscene and combat routes, not only these saved scenes.",
       "Build and verify a player with no generated SPU code or interpreter linked.",
       "Validate portable scalar and future ARM implementations; x86-only tests are insufficient."
     ]
+  },
+  "native_skinning_stream_candidate": {
+    "date": "2026-10-20",
+    "image_id": 19,
+    "entry": "0xC968",
+    "status": "Offline candidate; not used by gameplay dispatcher",
+    "public_core": "native_skinning_stream.h",
+    "algorithm": "skin_geometry_stream",
+    "player_integration": false,
+    "interface": "Typed input influences, positions/directions and live palette callbacks; ordered typed output callbacks; supplied arithmetic and reciprocal policies.",
+    "scope": "Nonzero vertex count divisible by four, one or two direction streams, stable input streams and disjoint output views. Live palette reads can observe earlier output writes; all encoded joints are read even at zero weight.",
+    "decoded_weight_scale_bits": "0x3B808080",
+    "one_direction_group_latency": 2,
+    "two_direction_group_latency": 1,
+    "captured_probe": "20261020-035339",
+    "complete_calls": 32,
+    "one_direction_calls": 25,
+    "two_direction_calls": 7,
+    "position_vectors_compared": 14392,
+    "direction_vectors_compared": 20688,
+    "total_output_vectors_compared": 35080,
+    "restored_generated_reference_full_context_matches": 32,
+    "public_cpp_output_matches": 32,
+    "private_native_abi_full_context_matches": 32,
+    "full_context_scope": "All 128 GPRs, all 256 KiB local store, normalized full context, return and runtime step count. Private ABI prototype only; not whole SPURS jobs or cross-job scheduling.",
+    "static_channel_operations_in_function": 0,
+    "whole_job_dma_scheduling_proven": false,
+    "naive_cached_palette_output_matches": 18,
+    "naive_cached_palette_output_mismatches": 14,
+    "independent_oracle_cases": 128,
+    "independent_oracle_vertices": 4352,
+    "live_palette_latency_test_cases": 8,
+    "invalid_structure_test_cases": 4,
+    "x86_fma_matches_scalar_in_finite_public_tests": true,
+    "arm_execution_tested": false,
+    "stress_test_passed": false,
+    "stress_modes": [
+      {
+        "mode": "host",
+        "attempted": 1000,
+        "accepted": 916,
+        "unchanged_declines": 84,
+        "complete_state_matches": 901,
+        "complete_state_mismatches": 15,
+        "bounded_palette_variant_accepted": 448,
+        "bounded_palette_variant_mismatches": 0
+      },
+      {
+        "mode": "exact",
+        "attempted": 1000,
+        "accepted": 916,
+        "unchanged_declines": 84,
+        "complete_state_matches": 916,
+        "complete_state_mismatches": 0,
+        "bounded_palette_variant_accepted": 448,
+        "bounded_palette_variant_mismatches": 0
+      },
+      {
+        "mode": "audit",
+        "attempted": 1000,
+        "accepted": 916,
+        "unchanged_declines": 84,
+        "complete_state_matches": 902,
+        "complete_state_mismatches": 14,
+        "bounded_palette_variant_accepted": 448,
+        "bounded_palette_variant_mismatches": 0
+      }
+    ],
+    "stress_scope": "Same random sequence per mode; recorded positions/directions retained. Bounded variant replaces declared palette coefficients with finite values and uses in-range joints. Other variant randomizes full byte joint indices, retaining recorded LS contents; exceptions may arise outside the declared palette. Vertex count and unsupported controls are also mutated.",
+    "failure_reproducers_saved_privately": true,
+    "open": [
+      "Resolve exceptional host/audit arithmetic mismatches; some result differences include finite versus NaN values.",
+      "Validate remaining stream modes, pointer/alias layouts and interrupt/policy contexts.",
+      "Replace the private ABI prototype with a reviewed live adapter only after differential checks pass.",
+      "Recover whole-job descriptors, DMA ownership/output visibility and correct scheduling.",
+      "Validate further saved-scene, NPC-heavy, transition and cutscene routes and future ARM execution."
+    ],
+    "desktop_runtime_changed": false,
+    "fps_gain_measured": false
   }
 }

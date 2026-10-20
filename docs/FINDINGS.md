@@ -39,6 +39,7 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 
 **Performance, timing and presentation**
 
+- [Whole skinning stream candidate](NATIVE_CODE.md#whole-skinning-stream-candidate)
 - [NPC cadence and rejected host FMA](#npc-cadence-and-rejected-host-fma)
 - [Remaining fork candidates and mutex measurement](#remaining-fork-candidates-and-mutex-measurement)
 - [PPU register-local validation follow-up](#ppu-register-local-validation-follow-up)
@@ -3422,3 +3423,16 @@ versus 7.42–8.08 with SIMD. It was withdrawn and never installed on the deskto
 Only the additional 50,000 wide finite bit-pattern regression cases are retained.
 See the [native-code measurement and limits](NATIVE_CODE.md#npc-facing-cadence-and-rejected-host-fma-trial)
 for all windows, mode order, validation and remaining work. No town FPS fix is claimed.
+
+## Whole skinning routine recovery follow-up
+
+The new portable C++ stream candidate matches all 35,080 output vectors from
+32 complete recorded `0xC968` calls. A private ABI prototype also matches every
+register, local-store byte, return and runtime step count for those calls.
+Live palette reads and delayed direction writes are required; caching the palette
+once failed 14 calls. This is a larger routine than the earlier block replacements,
+but it remains outside gameplay dispatch. Wider randomized testing finds 15 host
+and 14 audit mismatches among 916 accepted comparisons per mode; the corresponding
+exact-SPU sample has zero mismatches. No failing stress result is reported as a
+passing public regression. See [interface, evidence and remaining work](NATIVE_CODE.md#whole-skinning-stream-candidate).
+The desktop build is unchanged and complete SPU replacement remains the goal.

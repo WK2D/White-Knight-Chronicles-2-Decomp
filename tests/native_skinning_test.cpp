@@ -12,6 +12,7 @@
 #include <random>
 
 using namespace wkc::geometry;
+int wkc2_test_native_skinning_stream();
 static CyclicAffine cyclic(const float matrix[3][4]) {
     return {Float4{matrix[0][0],matrix[1][1],matrix[2][2],matrix[0][3]},
             Float4{matrix[0][1],matrix[1][2],matrix[2][0],matrix[1][3]},
@@ -19,6 +20,7 @@ static CyclicAffine cyclic(const float matrix[3][4]) {
 }
 
 int wkc2_test_native_skinning() {
+    assert(wkc2_test_native_skinning_stream()==0);
     const NormalBatch sample_normals={Float4{3,4,0,7},Float4{0,0,2,-3},Float4{1,2,2,0},Float4{0,0,0,1}};
     const auto lengths=normal_length_stages(sample_normals);
     assert((lengths.length_squared==Float4{25,4,9,0}));

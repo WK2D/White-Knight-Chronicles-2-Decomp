@@ -115,6 +115,10 @@ that a supported WKC modding framework currently exists.
 
 ## Remaining CPU work
 
+A portable whole-stream skinning candidate now matches recorded routine outputs
+and private ABI snapshots, but fails exceptional host/audit stress cases and is
+not linked into gameplay dispatch. See the [candidate evidence](NATIVE_CODE.md#whole-skinning-stream-candidate).
+
 The [native execution work plan](NATIVE_CODE.md) separates removal of interpreter
 fallback from readable replacements for already compiled hot jobs. Python tools
 perform build-time generation and diagnostics; they are not the gameplay CPU path.
