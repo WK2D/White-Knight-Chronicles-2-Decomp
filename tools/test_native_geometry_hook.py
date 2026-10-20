@@ -19,17 +19,22 @@ else:raise AssertionError('Unrecognized generated body accepted')
 replace=hook.replacement
 replace_v1=hook.replacement_v1
 replace_v2=hook.replacement_v2
+replace_v3=hook.replacement_v3
 digest=hashlib.sha256(block.encode()).hexdigest()
 with patch.object(hook,'replacement',lambda value:replace(value,digest)), \
      patch.object(hook,'replacement_v1',lambda value,expected=digest:replace_v1(value,digest)):
     modified=hook.apply(text)
     assert hook.apply(modified)==modified
-    assert hook.REFERENCE in modified and 'wkc_native_transform_geometry' in modified
+    assert hook.REFERENCE in modified and 'wkc_native_finish_geometry' in modified
     legacy=replace_v1(block,digest)+'\nvoid synthetic_next(spu_context* ctx) {}\n'
     assert hook.apply(legacy)==modified
     legacy=replace_v2(block,digest)+'\nvoid synthetic_next(spu_context* ctx) {}\n'
     assert hook.apply(legacy)==modified
-    assert modified.count('_wkc_cofactors[')==25
+    legacy=replace_v3(block,digest)+'\nvoid synthetic_next(spu_context* ctx) {}\n'
+    assert hook.apply(legacy)==modified
+    wrapper=modified[modified.index('extern int wkc_native_blend_geometry'):]
+    assert 'spu_fm' not in wrapper and '_wkc_cofactors[' not in wrapper
+    assert hook.TAIL_REFERENCE+'(ctx)' in wrapper and 'g_spu_trampoline_fn' in wrapper
     for corrupt in (modified.replace('return;}','return; }'),modified+hook.BEGIN,modified.replace(hook.END,'')):
         try:hook.apply(corrupt)
         except ValueError:pass

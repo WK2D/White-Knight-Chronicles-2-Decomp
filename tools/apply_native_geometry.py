@@ -51,7 +51,7 @@ def replacement_v2(block, expected=EXPECTED):
     return BEGIN + original + '\n' + tail_reference + '\n' + wrapper + END
 
 
-def replacement(block, expected=EXPECTED):
+def replacement_v3(block, expected=EXPECTED):
     installed = replacement_v2(block, expected)
     # Precompute into private locals. Materialize each result at its original
     # architectural write, after any intervening stack stores that use the GPR.
@@ -94,6 +94,22 @@ def replacement(block, expected=EXPECTED):
     return prefix + wrapper
 
 
+def replacement(block, expected=EXPECTED):
+    # Keep the previous validated implementations as upgrade identities, while
+    # the current supported path completes the boundary in project-written C++.
+    installed = replacement_v3(block, expected)
+    boundary = installed.index('extern int wkc_native_blend_geometry')
+    wrapper = ('extern int wkc_native_blend_geometry(spu_context* ctx);\n'
+               'extern int wkc_native_finish_geometry(spu_context* ctx);\n'
+               'void ' + ENTRY + '(spu_context* ctx) {\n'
+               '    if (!wkc_native_blend_geometry(ctx)) {' + REFERENCE + '(ctx);return;}\n'
+               '    if (!wkc_native_finish_geometry(ctx)) {' + TAIL_REFERENCE + '(ctx);return;}\n'
+               '    ctx->pc = ctx->gpr[15]._u32[0];\n'
+               '    g_spu_trampoline_fn = spu_indirect_branch;\n'
+               '}\n')
+    return installed[:boundary] + wrapper + END
+
+
 def apply(text):
     if BEGIN in text:
         if text.count(BEGIN) != 1 or text.count(END) != 1:
@@ -107,7 +123,7 @@ def apply(text):
         block = text[ref:ref + match.end()].replace('static void ' + REFERENCE, 'void ' + ENTRY, 1)
         installed = text[start:stop]
         updated = replacement(block)
-        if installed in (replacement_v1(block), replacement_v2(block)):
+        if installed in (replacement_v1(block), replacement_v2(block), replacement_v3(block)):
             return text[:start] + updated + text[stop:]
         if installed != updated:
             raise ValueError('Installed geometry hook has changed')

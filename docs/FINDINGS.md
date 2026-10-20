@@ -14,9 +14,10 @@ physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
-Readable C++ matrix blending, position transforms and normal-cofactor math now
-replace parts of one image-19 geometry block. Cofactor products and results are
-written at their original register boundaries. Complete-state replay and fuzz comparisons, plus strict
+Readable C++ now handles matrix blending and a complete supported post-blend
+boundary in one image-19 block: positions, cofactors, first normal products,
+ordered local-store output and next-batch preparation. Nonfinite host/audit inputs
+retain the compiled C tail; exact-SPU mode has no value guard. Complete-state replay and fuzz comparisons, plus strict
 DirectX/Vulkan town-to-plains routes, are recorded in [native work](NATIVE_CODE.md).
 This is partial semantic recovery; no FPS improvement is claimed. Desktop
 clean-play mode also removes inherited diagnostics, and patch 0119 disables the

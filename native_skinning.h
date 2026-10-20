@@ -29,6 +29,14 @@ struct CofactorStages {
     CyclicAffine products;
     CyclicAffine cofactors;
 };
+struct GeometryStages {
+    PositionStages positions;
+    CofactorStages normal_matrix;
+    CyclicAffine homogeneous;
+    CyclicAffine left;
+    CyclicAffine right;
+    Float4 first_normal_product;
+};
 
 // Arithmetic is explicit so a caller can preserve SPU extended-float behavior.
 // This default implements host IEEE math; it is not an exact-SPU specification.
@@ -100,6 +108,24 @@ PositionStages transform_skin_position(const CyclicAffine& blended,const Float4&
     out.first=Math::multiply_add(p,x,translation);
     out.second=Math::multiply_add(Float4{p[1],p[2],p[0],p[3]},y,out.first);
     out.position=Math::multiply_add(Float4{p[2],p[0],p[1],p[3]},z,out.second);
+    return out;
+}
+
+// One vertex's arithmetic at the geometry batch boundary. The first normal
+// product is carried to the next block, where the other two terms are added.
+// Keep the intermediate products and cyclic rows for the narrow ABI bridge.
+template<class Math=HostScalarMath>
+GeometryStages prepare_skin_geometry(const CyclicAffine& matrix,const Float4& position,const Float4& normal) {
+    GeometryStages out;
+    out.positions=transform_skin_position<Math>(matrix,position);
+    out.normal_matrix=cofactor_skin_stages<Math>(matrix);
+    for(unsigned phase=0;phase<3;++phase) {
+        const auto& row=matrix[phase];const float w=phase==0?1.f:0.f;
+        out.homogeneous[phase]={row[0],row[1],row[2],w};
+        out.left[phase]={row[1],row[2],row[0],w};
+        out.right[phase]={row[2],row[0],row[1],w};
+    }
+    out.first_normal_product=Math::multiply(normal,out.normal_matrix.cofactors[0]);
     return out;
 }
 template<class Math=HostScalarMath>

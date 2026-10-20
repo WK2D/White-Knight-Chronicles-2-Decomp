@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Readable native C++ now handles matrix blending, positions and normal-cofactor products/results in one image-19 geometry block. 72 complete-state capture replays, 12,000 host/exact full-state fuzz cases and strict DirectX/Vulkan town-to-plains routes pass. 120 SDK patches / 112 Windows checks pass in Debug and Release. Leaf-shadow detail, moving cloud shade, vegetation density, remaining scaled-normal/output work, whole jobs and rendering/performance parity remain open; no FPS gain measured.",
+    "current_milestone": "Readable C++ now replaces the supported complete post-blend boundary of one image-19 geometry block, including positions, cofactors, first normal products, ordered local-store output and next-batch preparation. 72 full-state replays and two 20,000-case differential runs pass with compiled compatibility paths reported; strict DirectX plains and Vulkan town routes pass. 120 SDK patches / 112 Windows checks pass. Whole jobs, broader CPU coverage, rendering parity and performance remain open; no FPS gain measured.",
     "updated": "2026-10-20"
   },
   "native_data_installation_verified": true,
@@ -155,7 +155,7 @@
     "supported_modding_framework_implemented": false,
     "generated_ppu_function_hook_demonstrated": true,
     "remaining_requirement": "Validate wider NPC/transition/cutscene routes and readable hot-job replacements; keep strict entry checks in diagnostic runs. Full-game CPU coverage is unverified.",
-    "latest_census_probe": "20261020-010805"
+    "latest_census_probe": "20261020-014512"
   },
   "native_character_creation_completed_scope": "Default male avatar named and accepted through Quick Start; opening cutscenes advance to the town. Full visual fidelity and all customization options are not verified.",
   "native_wkc1_town_world_view_verified": true,
@@ -247,8 +247,8 @@
       "GCM_SEMA_ACQUIRE": "1",
       "RSX_ENGINE_ZTEX_GPU": "1"
     },
-    "normal_debug_checks_elapsed_seconds": 26.73,
-    "optimized_release_checks_elapsed_seconds": 23.1,
+    "normal_debug_checks_elapsed_seconds": 26.7,
+    "optimized_release_checks_elapsed_seconds": 22.75,
     "repeat_patch_application_files_changed": 0,
     "patch_0071_windows_regression_verified": true,
     "patch_0072_windows_regression_verified": true,
@@ -1142,7 +1142,7 @@
       "strict_guard_enabled": true,
       "performance_benchmark": false
     },
-    "readable_geometry_kernel_scope": "Matrix blending, four position transforms and four normal-cofactor matrices in image19 0xCE08; scaled-normal work, local-store stores and job scheduling still compiled. SDK float helpers retain host/exact/audit behavior; unsupported layouts retain compiled reference paths."
+    "readable_geometry_kernel_scope": "Blend plus complete supported post-blend boundary in image19 0xCE08: positions, cofactors, first normal products, ordered LS output/read-ahead and scratch/live GPR export. Later normal accumulation/packing and whole jobs remain compiled. Host/audit nonfinite inputs retain compiled C; exact mode has no value guard."
   },
   "directx_plains_lower_body": {
     "status": "fixed_in_inspected_route",
@@ -1183,9 +1183,9 @@
     "complete_block_replay_matches": 72,
     "recovered_position_outputs_compared": 256,
     "position_tail_replacement_integrated": true,
-    "full_state_fuzz_cases": 12000,
-    "host_mode_fuzz_cases": 6000,
-    "exact_mode_fuzz_cases": 6000,
+    "full_state_fuzz_cases": 40000,
+    "host_mode_fuzz_cases": 20000,
+    "exact_mode_fuzz_cases": 20000,
     "arbitrary_float_bits_and_index_wrap_tested": true,
     "unsupported_mask_controls_tested": true,
     "finite_arithmetic_cases": 32000,
@@ -1253,18 +1253,19 @@
     ],
     "cofactor_core": {
       "portable_cpp_tested": true,
-      "captured_vectors_matched": 864,
+      "captured_vectors_matched": 768,
       "independent_minor_matrices": 64,
       "finite_x86_fma_cases": 32000,
       "live_dispatch_integrated": true,
-      "scope": "Cyclic 3x3 cofactor products and fused subtracts; scaled-normal work, local-store stores and complete job remain compiled.",
+      "scope": "Cofactor stages are part of the supported complete batch boundary; later normal accumulation/packing and whole job remain compiled.",
       "complete_block_replay_matches": 72,
       "rounded_product_vectors_replaced_per_block": 12,
       "cofactor_vectors_replaced_per_block": 12,
       "bridge_output_bytes": 384,
       "bridge_changes_context": false,
       "original_register_write_boundaries_preserved": true,
-      "unsupported_controls_retain_compiled_arithmetic": true
+      "unsupported_controls_retain_compiled_arithmetic": true,
+      "captured_vector_scope": "Independent finite cofactor comparison for all 64 mixed-weight captures; exceptional initial host NaN payload equivalence is not claimed."
     },
     "updated": "2026-10-20",
     "position_xyz_copy_mask_rejection_tested": true,
@@ -1300,7 +1301,76 @@
         "final_frame_inspected": true,
         "performance_benchmark": false
       }
-    ]
+    ],
+    "complete_batch_boundary": {
+      "integrated": true,
+      "core": "prepare_skin_geometry",
+      "bridge": "wkc_native_finish_geometry",
+      "complete_state_replays": 72,
+      "native_replay_accepts": 71,
+      "compiled_tail_replay_accepts": 1,
+      "compiled_tail_replay_reason": "Nonfinite host arithmetic inputs",
+      "ordered_local_store_outputs": true,
+      "read_ahead_after_outputs": true,
+      "ordered_stack_stores": true,
+      "scratch_and_live_registers_exported": true,
+      "first_normal_products_replaced": 4,
+      "host_audit_nonfinite_compiled_compatibility": true,
+      "exact_mode_value_guard": false,
+      "pc_dispatch_owned_by_wrapper": true,
+      "whole_job_proven": false,
+      "fps_gain_measured": false,
+      "fuzz_runs": [
+        {
+          "cases": 20000,
+          "inputs": "Arbitrary arithmetic bits and negative layout/alias controls",
+          "host_native_accepts": 623,
+          "host_tail_declines": 7948,
+          "exact_native_accepts": 6134,
+          "exact_tail_declines": 2437
+        },
+        {
+          "cases": 20000,
+          "inputs": "Finite weights/palettes/positions/normals and negative layout/alias controls",
+          "host_native_accepts": 6134,
+          "host_tail_declines": 2437,
+          "exact_native_accepts": 6134,
+          "exact_tail_declines": 2437
+        }
+      ],
+      "routes": [
+        {
+          "id": "20261020-014206",
+          "renderer": "DirectX 12",
+          "frame_limit": 30,
+          "native_complete_batch_lower_bound": 16777216,
+          "interpreter_sessions": 0,
+          "microstep_sessions": 0,
+          "strict_guard_enabled": true,
+          "hidden": true,
+          "muted": true,
+          "instrumented": true,
+          "final_frame_inspected": true,
+          "performance_benchmark": false,
+          "scope": "Continue, town gate, Balastor Plain transition, short walking and camera rotation"
+        },
+        {
+          "id": "20261020-014512",
+          "renderer": "Vulkan",
+          "frame_limit": 30,
+          "native_complete_batch_lower_bound": 16777216,
+          "interpreter_sessions": 0,
+          "microstep_sessions": 0,
+          "strict_guard_enabled": true,
+          "hidden": true,
+          "muted": true,
+          "instrumented": true,
+          "final_frame_inspected": true,
+          "performance_benchmark": false,
+          "scope": "Continue, town movement and camera rotation; attempted plains transition was not reached, final frame remains in town"
+        }
+      ]
+    }
   },
   "desktop_clean_play": {
     "native_guard": "play_environment.cpp",

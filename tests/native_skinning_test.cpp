@@ -72,6 +72,15 @@ int wkc2_test_native_skinning() {
             assert(std::memcmp(&value,&scalar.blended[phase][lane],4)==0);
         }
         const auto stages=transform_skin_position(scalar.blended,vertex.position);
+        const Float4 normal{finite(),finite(),finite(),finite()};
+        const auto geometry=prepare_skin_geometry(scalar.blended,vertex.position,normal);
+        assert(!std::memcmp(&stages,&geometry.positions,sizeof stages));
+        const auto cofactor_stages=cofactor_skin_stages(scalar.blended);
+        assert(!std::memcmp(&cofactor_stages,&geometry.normal_matrix,sizeof cofactor_stages));
+        for(unsigned lane=0;lane<4;++lane) {
+            volatile float product=normal[lane]*cofactor_stages.cofactors[0][lane];
+            assert(!std::memcmp((const void*)&product,&geometry.first_normal_product[lane],4));
+        }
         for(unsigned lane=0;lane<4;++lane) {
             float value=std::fma(vertex.position[lane],lane==3?1.f:scalar.blended[0][lane],
                                  lane==3?0.f:scalar.blended[lane][3]);
@@ -87,6 +96,8 @@ int wkc2_test_native_skinning() {
         auto cofactor=cofactor_skin_stages(scalar.blended);
         auto vector_cofactor=cofactor_skin_stages<HostFmaMath>(scalar.blended);
         assert(!std::memcmp(&cofactor,&vector_cofactor,sizeof cofactor));
+        const auto vector_geometry=prepare_skin_geometry<HostFmaMath>(scalar.blended,vertex.position,normal);
+        assert(!std::memcmp(&geometry,&vector_geometry,sizeof geometry));
 #endif
     }
 
@@ -171,6 +182,80 @@ int wkc2_test_native_skinning() {
         {1,1,1,1},{0,0,0,0},{0,0,0,0}};
     assert(!std::memcmp(cofactor_output,identity_cofactor,192));
     for(unsigned i=192;i<384;++i)assert(cofactor_output[i]==0);
+
+    // A complete post-blend batch uses synthetic identity matrices and distinct
+    // read-ahead records. Check LS output/stack order and continuation inputs.
+    spu_context_init(ctx.get(),0);ctx->image_id=19;ctx->pc=0xce08;
+    ctx->gpr[66]=spu_splat_u32(0x3f800000u);
+    std::memcpy(&ctx->gpr[73],xyz,16);std::memcpy(&ctx->gpr[122],translation,16);
+    std::memcpy(&ctx->gpr[123],transpose,16);std::memcpy(&ctx->gpr[71],left,16);
+    std::memcpy(&ctx->gpr[65],right,16);std::memcpy(&ctx->gpr[30],xyz_copy,16);
+    const unsigned normals[]={69,68,67,70};
+    const Float4 n{.25f,.5f,.75f,0};
+    for(unsigned v=0;v<4;++v) {
+        std::memcpy(&ctx->gpr[positions[v]],p.data(),16);
+        std::memcpy(&ctx->gpr[second[v]],q.data(),16);std::memcpy(&ctx->gpr[third[v]],r.data(),16);
+        std::memcpy(&ctx->gpr[matrix[v][0]],diagonal.data(),16);
+        ctx->gpr[matrix[v][1]]=u128();ctx->gpr[matrix[v][2]]=u128();
+        std::memcpy(&ctx->gpr[normals[v]],n.data(),16);
+    }
+    ctx->gpr[1]=spu_splat_u32(0x3000);ctx->gpr[55]=spu_splat_u32(0x2000);
+    ctx->gpr[64]=spu_splat_u32(0x2040);ctx->gpr[86]=spu_splat_u32(0x400);
+    ctx->gpr[109]=spu_splat_u32(5);ctx->gpr[90]=spu_splat_u32(0x3f800000u);
+    const Float4 scale{.25f,.25f,.25f,.25f};std::memcpy(&ctx->gpr[107],scale.data(),16);
+    const unsigned next_weights[]={54,53,52,34};
+    for(unsigned v=0;v<4;++v)ctx->gpr[next_weights[v]]=spu_splat_u32(v+1);
+    u128 next_input[4];
+    for(unsigned v=0;v<4;++v) {
+        for(unsigned lane=0;lane<4;++lane)next_input[v]._u32[lane]=0x1000+v*16+lane;
+        spu_ls_write128(ctx.get(),0x2040+v*16,next_input[v]);
+    }
+    const auto address=spu_splat_u32(0x1234);spu_ls_write128(ctx.get(),0x30a0,address);
+    ctx->gpr[65]._u32[3]^=1;std::memcpy(before.get(),ctx.get(),sizeof *ctx);
+    assert(!wkc_native_finish_geometry(nullptr));assert(!wkc_native_finish_geometry(ctx.get()));
+    assert(!std::memcmp(before.get(),ctx.get(),sizeof *ctx));
+    ctx->gpr[65]._u32[3]^=1;
+    ctx->gpr[61]._u32[0]^=1;std::memcpy(before.get(),ctx.get(),sizeof *ctx);
+    assert(!wkc_native_finish_geometry(ctx.get()));assert(!std::memcmp(before.get(),ctx.get(),sizeof *ctx));
+    ctx->gpr[61]._u32[0]^=1;
+    std::memcpy(before.get(),ctx.get(),sizeof *ctx);
+    assert(wkc_native_finish_geometry(ctx.get()));
+    for(unsigned v=0;v<4;++v) {
+        const auto stored=spu_ls_read128(ctx.get(),0x2000+v*16);
+        assert(!std::memcmp(&stored,p.data(),16));
+        assert(!std::memcmp(&ctx->gpr[positions[v]],&next_input[v],16));
+        const unsigned partial[]={17,4,11,12},scaled[]={74,54,53,52},converted_regs[]={48,47,62,61};
+        assert(!std::memcmp(&ctx->gpr[partial[v]],n.data(),16));
+        for(unsigned lane=0;lane<4;++lane) {
+            assert(ctx->gpr[scaled[v]]._f32[lane]==float(v+1)*.25f);
+            assert(ctx->gpr[converted_regs[v]]._f32[lane]==float(v+1));
+        }
+        const unsigned left_offsets[]={0x90,0x80,0x70,0x60},right_offsets[]={0x50,0x40,0x30,0x20};
+        const auto stored_left=spu_ls_read128(ctx.get(),0x3000+left_offsets[v]);
+        const auto stored_right=spu_ls_read128(ctx.get(),0x3000+right_offsets[v]);
+        for(unsigned lane=0;lane<4;++lane) {
+            assert(stored_left._u32[lane]==next_input[v]._u32[lane==3?3:(lane+1)%3]);
+            assert(stored_right._u32[lane]==next_input[v]._u32[lane==3?3:(lane+2)%3]);
+        }
+    }
+    assert(ctx->gpr[15]._u32[0]==0x1234 && ctx->gpr[13]._u32[0]==0x440 && ctx->gpr[34]._u32[0]==4);
+    assert(ctx->pc==0xce08); // caller owns continuation dispatch
+    std::memcpy(ctx.get(),before.get(),sizeof *ctx);
+    const Float4 off_diagonal{2,3,5,7},rotated_normal_row{3,5,2,0};
+    std::memcpy(&ctx->gpr[14],off_diagonal.data(),16);
+    assert(wkc_native_finish_geometry(ctx.get()));
+    assert(!std::memcmp(&ctx->gpr[14],rotated_normal_row.data(),16));
+    std::memcpy(ctx.get(),before.get(),sizeof *ctx);
+    ctx->gpr[69]._u32[0]=0x7fc12345;std::memcpy(before.get(),ctx.get(),sizeof *ctx);
+    const int saved_mode=g_spu_float_mode;g_spu_float_mode=0;
+    assert(!wkc_native_finish_geometry(ctx.get())); // host NaN payload compatibility
+    assert(!std::memcmp(before.get(),ctx.get(),sizeof *ctx));
+    g_spu_float_mode=2;
+    assert(!wkc_native_finish_geometry(ctx.get())); // audit returns host results
+    assert(!std::memcmp(before.get(),ctx.get(),sizeof *ctx));
+    g_spu_float_mode=1;
+    assert(wkc_native_finish_geometry(ctx.get())); // extended SPU floats accept the same bits
+    g_spu_float_mode=saved_mode;
     std::printf("Native skinning: independent affine oracle, 32000 finite arithmetic cases, %u x86 FMA cases, and bridge state guards pass.\n",simd_cases);
     return 0;
 }

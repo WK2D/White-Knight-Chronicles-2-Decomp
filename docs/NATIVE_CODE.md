@@ -37,26 +37,38 @@ completes transition, short movement and camera rotation with zero strict fallba
 ## Readable C++ geometry prefix
 
 The image-19 `0xCE08` block now calls a project-written C++ four-influence matrix
-blend, four position transforms and four normal-cofactor matrices in `native_skinning.h`, through
+blend and a complete supported post-blend batch operation in `native_skinning.h`, through
 `native_skinning_bridge.cpp`. The core uses
 named vertex, weight and cyclic affine-matrix types; it has no guest registers,
 addresses or DMA interface. The bridge decodes packed indices and local-store
 palettes, preserves the original multiply/FMA order and exports the required
-register boundary. The position bridge checks affine masks and cyclic input
-layout before writing five registers; unsupported layouts keep the compiled tail.
-The remaining compiled tail still handles scaled-normal processing and local-store
-stores. These are parts of one block, not a complete geometry job.
+register boundary. The batch operation transforms four positions, forms their
+normal-cofactor matrices and first normal products, writes positions to local
+store, reloads the next batch and return address, and prepares the next weights
+and stack records. It exports all live and scratch registers before the wrapper
+dispatches the continuation. Later blocks still accumulate/pack normals and
+complete the geometry job; this is one block, not a complete job replacement.
 
-The cofactor bridge computes 12 rounded products and 12 fused subtract results
+The earlier cofactor bridge computes 12 rounded products and 12 fused subtract results
 into private storage without changing the context. The hook materializes each
 value at the original register write, preserving intervening stack stores and
 register uses. Noncanonical controls keep the compiled arithmetic. Expanded fuzzing
 also exposed a missing xyz-copy mask guard in the position bridge; that guard now
 rejects unsupported layouts before changing state.
 
+The current batch bridge replaces that instruction-by-instruction tail on
+supported layouts. All inputs are validated before architectural writes.
+Position stores precede the next-input and return-address reads; stack stores
+retain their order. This matters when output overlaps the stack or read-ahead
+buffer, including wrapped and unaligned addresses. Host and audit modes retain
+the compiled C tail for nonfinite arithmetic inputs: host IEEE math leaves NaN
+payload selection sensitive to compiler operand exchanges. Exact-SPU mode has
+no value restriction. This preserves compatibility rather than asserting a
+portable host NaN-payload contract.
+
 `tools/apply_native_geometry.py` checks the complete original block hash, retains
 its compiled reference and installs the native calls idempotently. An existing
-blend-only or blend/position hook upgrades only after its exact retained reference and wrapper
+blend-only, blend/position or cofactor hook upgrades only after its exact retained reference and wrapper
 match. Unknown image or weight masks decline without changing state and use
 that compiled reference.
 `WKC_NATIVE_SKINNING=0` selects the reference for research comparisons. No game
@@ -71,19 +83,27 @@ Validation on Windows x86-64:
 - A separate recovered position operation matches all 256 positions from the
   64 mixed-weight captures. The position operation is now installed; all 72
   full-block capture replays still match the complete state and continuation.
-- 12,000 full-state fuzz cases pass against the retained compiled reference:
-  6,000 host-mode and 6,000 exact-SPU-mode cases, including arbitrary weight and
-  position float bits, 16-bit index wrap, overlapping output/stack addresses,
-  unsupported weight/position/normal masks and inconsistent late-vertex cyclic layouts.
+- Two 20,000-case full-state fuzz runs pass against the retained compiled
+  reference, each split equally between host and exact modes. One uses arbitrary
+  arithmetic bit patterns; one supplies finite weights, palettes, normals and
+  positions. Both cover wrapped 16-bit indices, output/stack aliasing, wrapped
+  and unaligned addresses, unsupported masks and inconsistent cyclic layouts.
+  The finite run accepts 6,134 native batches in each mode; its remaining cases
+  intentionally exercise compiled compatibility paths. The arbitrary-bit run
+  accepts 623 host and 6,134 exact batches; nonfinite host inputs retain the
+  compiled tail. These totals include compatibility cases, not 40,000 native accepts.
 - The portable arithmetic test checks 32,000 finite cases against a lane oracle.
   A further 32,000 finite cases match the optional x86 FMA policy bit for bit.
   Live execution keeps SDK float helpers to preserve host/exact/audit semantics;
   the finite host-FMA test does not establish exceptional-value SPU equivalence.
-- The portable cofactor operation matches all 864 matrix vectors from the
-  72 captures. It passes 64 independent signed-minor matrix tests and 32,000
+- The portable cofactor operation matches all 768 matrix vectors from the
+  64 mixed-weight captures. It passes 64 independent signed-minor matrix tests and 32,000
   finite scalar/x86 FMA comparisons of both products and results. It is now
   installed in live dispatch; all 72 complete block replays still match. The
-  compiled tail retains scaled normal work and local-store stores.
+  current complete batch operation also owns the stores and first normal products.
+  Of all 72 complete-state replays, 71 accept the new operation and one retains
+  the compiled tail for nonfinite host inputs. The separate finite cofactor
+  comparison does not assert NaN-payload equivalence for that exceptional capture.
 - Strict DirectX route `20261019-230123` and Vulkan route `20261019-231203` load
   Continue, enter Balastor Plain, walk and rotate the camera with zero fallback
   entries. Trace markers establish at least 16,777,216 native blend calls per
@@ -109,6 +129,15 @@ they are not performance benchmarks. The broad solid foliage-shadow edges
 remain visible. The full suites pass in 26.73 seconds (Debug) and 23.10 seconds
 (Release).
 
+The complete supported batch operation passes strict route `20261020-014206`
+(DirectX) through the plains transition, walking and camera rotation. Vulkan
+`20261020-014512` stays in town after movement and camera inputs; its attempted
+plains transition was not reached. Both record zero fallback entries and at least
+16,777,216 completed native batches. Both final frames were inspected. The same hidden, muted,
+isolated and instrumented limits apply. All 112 checks pass in Debug (26.70
+seconds) and Release (22.75 seconds). This is still one geometry block; the
+DirectX foliage shadow remains solid in its pre-alpha-reference-fix view.
+
 ## Work order
 
 1. **Refresh runtime evidence.** Capture fallback sessions and sampled CPU time
@@ -122,9 +151,9 @@ remain visible. The full suites pass in 26.73 seconds (Debug) and 23.10 seconds
    entry before promoting a wider interpreter-free claim.
 3. **Take semantic control of hot jobs.** An earlier profile identifies image-19
    geometry code, including entry `0xCE08`, as a useful candidate. Matrix blending
-   and position transforms plus normal cofactors are integrated beside compiled references. Recover
-   the remaining normal processing/output packing and establish job boundaries
-   before replacing more of the compiled tail. Preserve SPU float
+   and a supported complete post-blend batch boundary are integrated beside
+   compiled references. Recover later normal accumulation/output packing and
+   establish whole-job boundaries. Preserve SPU float
    behavior, byte order, alignment, aliasing, DMA visibility and job ordering.
    The older profile is a lead; a current NPC-heavy profile must confirm priority.
 4. **Optimize validated kernels.** Use portable scalar C++ as the specification,

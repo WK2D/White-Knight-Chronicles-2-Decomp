@@ -87,8 +87,9 @@ verified yet. GeoNet compatibility is separate later research.
 The game code is translated to C/C++ ahead of time and compiled with a runtime that
 implements the PS3 services it uses. Five missing SPU entries now compile
 statically, and tested town-to-plains routes run with interpreter fallback forbidden.
-Readable C++ matrix blending, position transforms and normal-cofactor math now replace parts of a hot
-geometry block, with complete-state comparisons against its compiled reference.
+Readable C++ now handles matrix blending and a supported geometry batch boundary,
+including positions, normal-cofactor math and ordered memory output/read-ahead,
+with complete-state comparisons against its compiled reference.
 Fallback remains available for untested paths; full-game static coverage and a
 readable reconstruction of the original source remain unverified. The architecture page explains the execution model and the
 remaining work.

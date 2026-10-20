@@ -20,11 +20,14 @@ not a recovered, readable version of the original source.
   C, and registers compiled entries by image fingerprint. These include the
   secondary-bone physics job added for the town stretching fix.
 - One image-19 geometry prefix now uses a readable C++ four-influence matrix
-  blend, position transform and normal-cofactor math with a narrow guest-state bridge. Its retained
+  blend and a complete supported batch boundary with a narrow guest-state bridge:
+  positions, cofactors, first normal products, local-store output and read-ahead.
+  Its retained
   compiled reference and
   full-state replay/fuzz checks are described in [native execution work](NATIVE_CODE.md).
-  Scaled-normal processing, local-store output and the rest of the job remain compiled
-  guest code.
+  Later normal accumulation/output packing and the rest of the job remain
+  compiled guest code. Host/audit nonfinite inputs retain the compiled C tail;
+  exact-SPU mode accepts all arithmetic bit patterns.
 - Firmware SPURS job-queue/port calls now execute registered jobs and pass the
   control block required by the job's C runtime startup. The current implementation
   runs jobs synchronously in submission order within each queue. This restores

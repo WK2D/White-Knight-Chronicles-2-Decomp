@@ -116,8 +116,8 @@ movement and camera response are observed there. Starting-town local saving
 and Continue reload are verified separately; sustained traversal, combat, wider
 save compatibility and full rendering fidelity remain unverified.
 `tools/apply_native_geometry.py` then installs the hash-checked native C++
-matrix-blend, position and cofactor hooks; rerunning it validates the retained
-references and wrapper. The earlier blend-only and blend/position versions upgrade
+matrix-blend and complete supported batch hooks; rerunning it validates the retained
+references and wrapper. The earlier blend-only, blend/position and cofactor versions upgrade
 after the same validation.
 See [kernel evidence and limits](NATIVE_CODE.md#readable-c-geometry-prefix).
 `tools/import_spu_misses.py` is available for discovering additional jobs.

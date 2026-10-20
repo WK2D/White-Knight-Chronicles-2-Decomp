@@ -15,6 +15,12 @@ int wkc_native_transform_geometry(struct spu_context* ctx);
 // phase. Requires at least 384 output bytes and no alias
 // with ctx. No architectural state is written, including on success.
 int wkc_native_cofactor_geometry(const struct spu_context* ctx, void* output, unsigned bytes);
+// Complete the supported post-blend batch boundary, including ordered LS
+// output/read-ahead/stack writes and all live/scratch GPR results. Rejects
+// unsupported layouts without writes. Host/audit nonfinite inputs retain the
+// compiled path for NaN-payload compatibility; exact mode has no value guard.
+// The caller owns PC/continuation dispatch.
+int wkc_native_finish_geometry(struct spu_context* ctx);
 #ifdef __cplusplus
 }
 #endif

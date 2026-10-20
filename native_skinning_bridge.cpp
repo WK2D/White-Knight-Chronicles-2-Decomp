@@ -162,3 +162,113 @@ extern "C" int wkc_native_cofactor_geometry(const spu_context* ctx,void* output,
     }
     return 1;
 }
+
+extern "C" int wkc_native_finish_geometry(spu_context* ctx) {
+    if(!ctx || !ctx->ls || ctx->image_id!=19)return 0;
+    if(g_spu_float_mode<0)spu_float_mode_init();
+    const unsigned xyz[]={0xffffffffu,0xffffffffu,0xffffffffu,0};
+    const unsigned translation[]={0x1c1d1e1fu,0x04050607u,0x08090a0bu,0x80808080u};
+    const unsigned transpose[]={0x80808080u,0x0c0d0e0fu,0x1c1d1e1fu,0x80808080u};
+    const unsigned left[]={0x04050607u,0x08090a0bu,0x00010203u,0x0c0d0e0fu};
+    const unsigned right[]={0x08090a0bu,0x00010203u,0x04050607u,0x0c0d0e0fu};
+    const unsigned copy[]={0x00010203u,0x04050607u,0x08090a0bu,0x80808080u};
+    const auto ones=spu_splat_u32(0x3f800000u);
+    if(std::memcmp(&ctx->gpr[66],&ones,16) || std::memcmp(&ctx->gpr[73],xyz,16) ||
+       std::memcmp(&ctx->gpr[122],translation,16) || std::memcmp(&ctx->gpr[123],transpose,16) ||
+       std::memcmp(&ctx->gpr[71],left,16) || std::memcmp(&ctx->gpr[65],right,16) ||
+       std::memcmp(&ctx->gpr[30],copy,16))return 0;
+    const unsigned matrix_regs[4][3]={{45,50,41},{23,49,32},{24,36,15},{42,13,14}};
+    const unsigned position_regs[]={82,81,80,83};
+    const unsigned second_regs[]={10,31,22,21},third_regs[]={6,46,48,61};
+    const unsigned normal_regs[]={69,68,67,70};
+    // Validate every vertex before any architectural write or LS output.
+    Float4 positions[4];
+    for(unsigned vertex=0;vertex<4;++vertex) {
+        positions[vertex]=unpack(ctx->gpr[position_regs[vertex]]);
+        const auto& p=positions[vertex];
+        const Float4 second{p[1],p[2],p[0],p[3]},third{p[2],p[0],p[1],p[3]};
+        if(std::memcmp(second.data(),&ctx->gpr[second_regs[vertex]],16) ||
+           std::memcmp(third.data(),&ctx->gpr[third_regs[vertex]],16))return 0;
+    }
+    CyclicAffine matrices[4];Float4 normals[4];
+    for(unsigned vertex=0;vertex<4;++vertex) {
+        for(unsigned phase=0;phase<3;++phase)matrices[vertex][phase]=unpack(ctx->gpr[matrix_regs[vertex][phase]]);
+        normals[vertex]=unpack(ctx->gpr[normal_regs[vertex]]);
+        // Host IEEE arithmetic does not define which NaN payload survives an
+        // operand exchange. The retained compiled C and this C++ may make
+        // different legal choices. Preserve the existing host-mode boundary
+        // for nonfinite inputs; exact SPU mode accepts all bit patterns.
+        if(g_spu_float_mode!=SPU_FLOAT_EXACT) {
+            for(const auto& phase:matrices[vertex])for(float value:phase)if(!std::isfinite(value))return 0;
+            for(float value:positions[vertex])if(!std::isfinite(value))return 0;
+            for(float value:normals[vertex])if(!std::isfinite(value))return 0;
+        }
+    }
+    GeometryStages stages[4];
+    for(unsigned vertex=0;vertex<4;++vertex)
+        stages[vertex]=prepare_skin_geometry<RuntimeMath>(matrices[vertex],positions[vertex],normals[vertex]);
+    const auto stack=ctx->gpr[1]._u32[0],output=ctx->gpr[55]._u32[0],next=ctx->gpr[64]._u32[0];
+    u128 converted[4],weights[4];
+    const unsigned weight_regs[]={54,53,52,34};
+    for(unsigned vertex=0;vertex<4;++vertex) {
+        converted[vertex]=spu_cuflt(ctx->gpr[weight_regs[vertex]],155);
+        weights[vertex]=spu_fm(converted[vertex],ctx->gpr[107]);
+    }
+    const auto estimate=spu_fi(ctx->gpr[84],ctx->gpr[90]);
+    const auto next_cursor=spu_ai(ctx->gpr[86],64),next_count=spu_ai(ctx->gpr[109],-1);
+    const auto packed_a=spu_selb(ctx->gpr[88],ctx->gpr[87],ctx->gpr[97]);
+    const auto packed_b=spu_selb(ctx->gpr[79],ctx->gpr[78],ctx->gpr[97]);
+
+    // All positions are written before reloading the return address and next
+    // input batch. Output may overlap either source or the saved stack frame.
+    for(unsigned vertex=0;vertex<4;++vertex)
+        spu_ls_write128(ctx,output+vertex*16,pack(stages[vertex].positions.position));
+    const auto return_address=spu_ls_read128(ctx,stack+0xa0);
+    u128 next_positions[4],next_left[4],next_right[4];
+    for(unsigned vertex=0;vertex<4;++vertex) {
+        next_positions[vertex]=spu_ls_read128(ctx,next+vertex*16);
+        next_left[vertex]=spu_shufb(next_positions[vertex],next_positions[vertex],ctx->gpr[71]);
+        next_right[vertex]=spu_shufb(next_positions[vertex],next_positions[vertex],ctx->gpr[65]);
+    }
+    // Preserve the original write sequence even for wrapped/overlapping LS.
+    const unsigned stack_offsets[]={0x90,0x70,0x20,0x60,0x80,0x50,0x40,0x30};
+    const u128 stack_values[]={next_left[0],next_left[2],next_right[3],next_left[3],
+        next_left[1],next_right[0],next_right[1],next_right[2]};
+    for(unsigned i=0;i<8;++i)spu_ls_write128(ctx,stack+stack_offsets[i],stack_values[i]);
+
+    // Export the verified block ABI, including scratch registers used by its
+    // compiled continuation. The arithmetic above has no register identities.
+    const unsigned cf_regs[4][3]={{39,27,41},{40,28,42},{44,30,45},{43,32,46}};
+    const unsigned product_regs[4][3]={{50,9,3},{25,8,4},{29,7,5},{31,74,2}};
+    for(unsigned vertex=0;vertex<4;++vertex)for(unsigned phase=0;phase<3;++phase) {
+        ctx->gpr[cf_regs[vertex][phase]]=pack(stages[vertex].normal_matrix.cofactors[phase]);
+        ctx->gpr[product_regs[vertex][phase]]=pack(stages[vertex].normal_matrix.products[phase]);
+    }
+    const unsigned partial_regs[]={17,4,11,12};
+    for(unsigned vertex=0;vertex<4;++vertex)ctx->gpr[partial_regs[vertex]]=pack(stages[vertex].first_normal_product);
+    ctx->gpr[3]=packed_b;ctx->gpr[29]=packed_a;ctx->gpr[31]=estimate;
+    ctx->gpr[13]=next_cursor;ctx->gpr[15]=return_address;ctx->gpr[34]=next_count;
+    ctx->gpr[6]=pack(stages[3].right[0]);ctx->gpr[10]=pack(stages[3].left[0]);
+    ctx->gpr[14]=pack(stages[3].left[2]);ctx->gpr[19]=pack(stages[1].right[1]);
+    ctx->gpr[20]=pack(stages[0].right[1]);ctx->gpr[21]=pack(stages[1].left[2]);
+    ctx->gpr[22]=pack(stages[0].left[2]);ctx->gpr[26]=pack(stages[3].right[2]);
+    ctx->gpr[36]=pack(stages[3].left[1]);ctx->gpr[37]=pack(stages[1].left[1]);
+    ctx->gpr[38]=pack(stages[0].left[1]);ctx->gpr[51]=pack(stages[0].left[0]);
+    ctx->gpr[58]=pack(stages[3].homogeneous[0]);ctx->gpr[59]=pack(stages[2].homogeneous[2]);
+    ctx->gpr[16]=next_left[3];ctx->gpr[18]=next_right[2];
+    ctx->gpr[23]=next_right[1];ctx->gpr[24]=next_right[0];ctx->gpr[49]=next_left[1];
+    ctx->gpr[56]=pack(stages[1].positions.position);ctx->gpr[57]=pack(stages[0].positions.position);
+    ctx->gpr[60]=pack(stages[3].positions.second);
+    const unsigned converted_regs[]={48,47,62,61},scaled_regs[]={74,54,53,52};
+    for(unsigned vertex=0;vertex<4;++vertex) {
+        ctx->gpr[converted_regs[vertex]]=converted[vertex];ctx->gpr[scaled_regs[vertex]]=weights[vertex];
+        ctx->gpr[position_regs[vertex]]=next_positions[vertex];
+    }
+    static const bool trace=std::getenv("WKC_NATIVE_SKINNING_TRACE")!=nullptr;
+    if(trace) {
+        static std::atomic<unsigned long long> calls{0};
+        const auto count=calls.fetch_add(1,std::memory_order_relaxed)+1;
+        if(count<=4 || !(count&(count-1)))std::fprintf(stderr,"[native-skinning] completed_blocks=%llu\n",count);
+    }
+    return 1;
+}
