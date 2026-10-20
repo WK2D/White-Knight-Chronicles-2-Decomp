@@ -22,6 +22,7 @@ struct Streams {
     std::vector<PackedSkinInfluences> influences;
     std::array<Matrix,4> matrices;
     unsigned palette_reads=0,writes=0;
+    std::vector<Float4> first_direction_writes;
     bool live_palette=false,saw_joint255=false;
     explicit Streams(unsigned n):positions(n),output_positions(n),influences(n) {
         for(unsigned i=0;i<2;++i){directions[i].resize(n);output_directions[i].resize(n);}
@@ -38,7 +39,7 @@ struct Streams {
         return cyclic(matrices[joint]);
     }
     void write_position(unsigned v,const Float4& value){++writes;output_positions[v]=value;}
-    void write_direction(unsigned stream,unsigned v,const Float4& value){++writes;output_directions[stream][v]=value;}
+    void write_direction(unsigned stream,unsigned v,const Float4& value){++writes;output_directions[stream][v]=value;if(!stream&&!v)first_direction_writes.push_back(value);}
 };
 const auto no_normalization=[](const Float4&){return Float4{1,1,1,1};};
 Float4 apply(const Matrix& m,const Float4& input,bool position) {
@@ -81,6 +82,29 @@ int wkc2_test_native_skinning_stream() {
             for(unsigned d=0;d<directions;++d)assert(io.output_directions[d][v][0]==normal);
         }
         assert(io.palette_reads==n*4 && io.saw_joint255); // zero weights still read
+    }
+    // The two-group pipeline writes a normalized empty batch before its first
+    // real result. A reciprocal policy that returns NaN for zero length makes
+    // this visible to a live palette: the third group's positions read NaN.
+    // Raw-zero initialization of both slots would hide it and fail this case.
+    {
+        Streams io(12);io.live_palette=true;
+        for(unsigned v=0;v<12;++v) {
+            io.positions[v]={0,0,0,1};io.influences[v]={{255,0,0,0},{0,0,0,0}};
+            io.directions[0][v]=io.output_directions[0][v]={1,0,0,1};
+        }
+        const auto reciprocal=[](const Float4& lengths){
+            Float4 result{};for(unsigned i=0;i<4;++i)
+                result[i]=lengths[i]==0?std::bit_cast<float>(std::uint32_t{0x7ff50000}):1.f;
+            return result;
+        };
+        assert(skin_geometry_stream<HostScalarMath>(io,{12,1},reciprocal));
+        assert(io.first_direction_writes.size()==3);
+        assert(io.first_direction_writes[0]==Float4{});
+        for(unsigned i=0;i<3;++i)assert(std::bit_cast<std::uint32_t>(io.first_direction_writes[1][i])==0x7ff50000);
+        assert(io.first_direction_writes[1][3]==0);
+        for(unsigned v=8;v<12;++v)assert(std::isnan(io.output_positions[v][0]));
+        assert(!std::isnan(io.first_direction_writes[2][0]));
     }
     // Independent row-major blend, signed-minor and cyclic-dot oracle.
     std::mt19937 random(0xC968);

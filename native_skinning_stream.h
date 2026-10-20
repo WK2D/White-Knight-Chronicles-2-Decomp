@@ -72,12 +72,17 @@ bool skin_geometry_stream(IO& io,SkinningStreamSpec spec,Reciprocal reciprocal,S
             normalized[stream]=scale_skin_normals<NormalMath>(transformed[stream],reciprocal(lengths.length_squared)).normals;
         }
         // One direction stream has a two-group output delay; two streams have
-        // a one-group delay. Initial writes zero the first group. These writes
-        // affect later live palette reads even in padded, unreferenced vertices.
+        // a one-group delay. The first write is raw zero. In the two-group
+        // pipeline the second write normalizes that empty initial batch through
+        // the same reciprocal policy. It can produce NaNs rather than zero;
+        // aliased palette reads must observe those exact intermediate writes.
+        NormalBatch initial{};
+        if(group==1 && latency==2)
+            initial=scale_skin_normals<NormalMath>(NormalBatch{},reciprocal(Float4{})).normals;
         const unsigned slot=group%latency;
         for(unsigned stream=0;stream<spec.direction_streams;++stream)for(unsigned lane=0;lane<4;++lane) {
             const auto vertex=group>=latency?(group-latency)*4+lane:lane;
-            io.write_direction(stream,vertex,group>=latency?pending[slot][stream][lane]:Float4{});
+            io.write_direction(stream,vertex,group>=latency?pending[slot][stream][lane]:initial[lane]);
         }
         pending[slot]=normalized;
     }

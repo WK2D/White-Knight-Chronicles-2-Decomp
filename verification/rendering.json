@@ -444,8 +444,8 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 121,
-    "last_verified_sdk_patch_count": 121,
+    "current_sdk_patch_count": 122,
+    "last_verified_sdk_patch_count": 122,
     "current_passed_count": 113,
     "record_scope": "121 SDK patches / 113 Windows checks pass in Debug and Release, including media without skips, native batch guards and 68,372 alpha-reference decoder cases.",
     "normal_debug_elapsed_seconds": 27.43,
@@ -2887,7 +2887,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 121 SDK patches / 113 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 122 SDK patches / 113 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",
@@ -4330,8 +4330,8 @@
         "attempted": 1000,
         "accepted": 916,
         "unchanged_declines": 84,
-        "complete_state_matches": 901,
-        "complete_state_mismatches": 15,
+        "complete_state_matches": 915,
+        "complete_state_mismatches": 1,
         "bounded_palette_variant_accepted": 448,
         "bounded_palette_variant_mismatches": 0
       },
@@ -4350,8 +4350,8 @@
         "attempted": 1000,
         "accepted": 916,
         "unchanged_declines": 84,
-        "complete_state_matches": 902,
-        "complete_state_mismatches": 14,
+        "complete_state_matches": 916,
+        "complete_state_mismatches": 0,
         "bounded_palette_variant_accepted": 448,
         "bounded_palette_variant_mismatches": 0
       }
@@ -4359,13 +4359,71 @@
     "stress_scope": "Same random sequence per mode; recorded positions/directions retained. Bounded variant replaces declared palette coefficients with finite values and uses in-range joints. Other variant randomizes full byte joint indices, retaining recorded LS contents; exceptions may arise outside the declared palette. Vertex count and unsupported controls are also mutated.",
     "failure_reproducers_saved_privately": true,
     "open": [
-      "Resolve exceptional host/audit arithmetic mismatches; some result differences include finite versus NaN values.",
+      "Resolve remaining host cofactor NaN payload selection mismatch before live integration.",
       "Validate remaining stream modes, pointer/alias layouts and interrupt/policy contexts.",
       "Replace the private ABI prototype with a reviewed live adapter only after differential checks pass.",
       "Recover whole-job descriptors, DMA ownership/output visibility and correct scheduling.",
       "Validate further saved-scene, NPC-heavy, transition and cutscene routes and future ARM execution."
     ],
     "desktop_runtime_changed": false,
-    "fps_gain_measured": false
+    "fps_gain_measured": false,
+    "normalized_empty_batch_alias_test_cases": 1,
+    "bootstrap_empty_batch_normalization_preserved": true,
+    "remaining_failure": "One host-mode stress case differs in two LS bytes after cofactor NaN payload selection; exact/audit stress samples match. Blanket first-NaN-operand rule rejected after ten host mismatches."
+  },
+  "spurs_caller_frame_0122": {
+    "date": "2026-10-20",
+    "sdk_patch": 122,
+    "upstream_commit": "627bba25c912461ed2afed98e6abaf60df5f2d02",
+    "stack_top_reserved_caller_bytes": 32,
+    "isolated_windows_before": {
+      "passed": 3,
+      "failed": 6
+    },
+    "isolated_windows_after": {
+      "passed": 9,
+      "failed": 0
+    },
+    "layouts": [
+      "default stack",
+      "explicit stack",
+      "scratch and stack"
+    ],
+    "project_regression": "wkc2_spurs_abi",
+    "debug_checks_passed": 113,
+    "release_checks_passed": 113,
+    "routes": [
+      {
+        "id": "20261020-050632",
+        "renderer": "DirectX 12",
+        "frame_limit": 30,
+        "hidden": true,
+        "muted": true,
+        "isolated_save": true,
+        "strict_fallback_guard": true,
+        "interpreter_sessions": 0,
+        "microstep_sessions": 0,
+        "town_to_plains_transition": true,
+        "final_gpu_frame_inspected": true,
+        "performance_benchmark": false
+      },
+      {
+        "id": "20261020-050940",
+        "renderer": "Vulkan",
+        "frame_limit": 30,
+        "hidden": true,
+        "muted": true,
+        "isolated_save": true,
+        "strict_fallback_guard": true,
+        "interpreter_sessions": 0,
+        "microstep_sessions": 0,
+        "town_to_plains_transition": true,
+        "final_gpu_frame_inspected": true,
+        "performance_benchmark": false
+      }
+    ],
+    "full_spu_image_replacement": false,
+    "fps_gain_measured": false,
+    "desktop_runtime_updated": false
   }
 }

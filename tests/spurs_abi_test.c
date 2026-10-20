@@ -23,6 +23,22 @@ static void put32(uint8_t* p,uint32_t value) {
  p[0]=(uint8_t)(value>>24);p[1]=(uint8_t)(value>>16);
  p[2]=(uint8_t)(value>>8);p[3]=(uint8_t)value;
 }
+static void put16(uint8_t* p,uint16_t value) {
+ p[0]=(uint8_t)(value>>8);p[1]=(uint8_t)value;
+}
+static void cache_frame_entry(spu_context* ctx) {
+ const uint32_t sp=ctx->gpr[1]._u32[0];
+ const uint32_t context=ctx->gpr[3]._u32[0];
+ const uint32_t cache=spu_ls_read32(ctx,context+4);
+ assert(cache && !(sp&15u) && sp>=64);
+ // Actual SPU ABI stores: LR in the caller's frame, then a pushed frame.
+ // Reserving only 16 bytes makes the LR save overwrite cacheBuffer[0].
+ spu_ls_write128(ctx,sp+16,ctx->gpr[0]);
+ spu_ls_write128(ctx,sp-64,ctx->gpr[1]);
+ assert(sp+32<=cache);
+ assert(memcmp(ctx->ls+cache,vm_base+0x3000,128)==0);
+ ctx->gpr[3]._u32[0]=0;
+}
 static void job_entry(spu_context* ctx) {
  assert(ctx->spurs_job_mode==1);
  assert(ctx->spurs_job_spu_num==0);
@@ -63,6 +79,17 @@ int main(void) {
  g_spu_job_trace_hook=NULL;
  assert(*(vm_base+0x21C8)==0xDE);
 
+ // Cache inputs immediately follow the scratch/stack allocation. Check the
+ // first prologue against default, explicit, and scratch-plus-stack layouts.
+ for(uint32_t i=0;i<128;++i)vm_base[0x3000+i]=(uint8_t)(0xA5u^i);
+ put32(vm_base+0x1024,8); // One cache DMA list entry, following the empty I/O list.
+ put32(vm_base+0x1030,128);put32(vm_base+0x1034,0x3000);
+ const uint16_t stack_sizes[]={0,0x100,0x80},scratch_sizes[]={0,0,0x40};
+ for(unsigned i=0;i<3;++i) {
+  put16(vm_base+0x101C,stack_sizes[i]);put16(vm_base+0x101E,scratch_sizes[i]);
+  assert(spu_run_spurs_job(cache_frame_entry,9,0x1000,256)==0);
+ }
+
  spu_context* ctx=malloc(sizeof *ctx);assert(ctx);
  spu_context_init(ctx,0);ctx->host_depth=1;
  put32(ctx->ls+0x1C0,0x11111111);put32(ctx->ls+0x1C4,0x22222222);
@@ -75,7 +102,7 @@ int main(void) {
  assert(spu_ls_read32(ctx,0x1C8)==2);
  // A similar routine rotating by four bytes is not misidentified as GetSpuId.
  abi_fixture_spu_func_00000040(ctx);assert(ctx->gpr[3]._u32[0]==0x22222222);
- free(ctx);free(vm_base);puts("SPURS job manager context, kernel-ID ABI and code preservation passed");
+ free(ctx);free(vm_base);puts("SPURS job manager context, kernel-ID ABI, cache frame and code preservation passed");
  return 0;
 }
 

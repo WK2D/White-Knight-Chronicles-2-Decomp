@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0122 | [SPURS job caller frame](#spurs-job-caller-frame-patch-0122) |
 | Patch 0121 | [Alpha-reference surface formats](#alpha-reference-surface-formats-patch-0121) |
 | Patch 0120 | [DirectX fragment input requests](#directx-fragment-input-requests-patch-0120) |
 | Patch 0119 | [Opt-in DirectX presentation diagnostics](#opt-in-directx-presentation-diagnostics-patch-0119) |
@@ -48,6 +49,21 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## SPURS job caller frame (patch 0122)
+
+Reserve the full 32-byte caller frame below a job's stack top. Cache-hinted
+inputs begin at that top; initializing SP only 16 bytes below it lets the entry's
+link-register save at `16(SP)` overwrite the first cache quadword. The correction
+adapts Kurtisone's [upstream fix](https://github.com/sp00nznet/ps3recomp/commit/627bba25c912461ed2afed98e6abaf60df5f2d02).
+
+`wkc2_spurs_abi` now stages a patterned cache buffer and simulates the entry's LR
+save and a pushed stack frame. Default stack, explicit stack, and combined
+scratch/stack layouts must retain the complete cache input. A separate Windows
+comparison against our patched staging code fails cache integrity and frame
+bounds in all three layouts before the change; all nine assertions pass after
+it. These tests exercise the staging ABI, not concurrent job scheduling or a
+complete native SPU replacement. No FPS gain is attributed to this fix.
 
 ## Alpha-reference surface formats (patch 0121)
 

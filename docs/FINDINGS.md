@@ -2,7 +2,7 @@
 
 Updated 2026-10-20. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 121 SDK patches / 113 Windows checks in Debug and
+**Current source checkpoint:** 122 SDK patches / 113 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -3424,6 +3424,29 @@ Only the additional 50,000 wide finite bit-pattern regression cases are retained
 See the [native-code measurement and limits](NATIVE_CODE.md#npc-facing-cadence-and-rejected-host-fma-trial)
 for all windows, mode order, validation and remaining work. No town FPS fix is claimed.
 
+## SPURS caller frame and upstream review (patch 0122)
+
+The v0.16.0 source audit found that the job staging path still reserved only
+16 bytes below the stack top. The entry saves its LR at `16(SP)`, overwriting
+the first quadword of the immediately following cache input. Patch 0122 reserves
+the ABI's full 32-byte caller frame. Three Windows layout cases give three passes
+and six failures before the fix, then nine passes and no failures after it.
+The project ABI regression now covers the same cache/prologue boundary.
+
+Both Windows suites pass all 113 checks with 122 patches. Hidden, muted strict
+DirectX `20261020-050632` and Vulkan `20261020-050940` runs load an isolated save,
+confirm the town exit, reach Balastor Plain, walk and rotate the camera. Their
+interpreter/microstep tables remain empty and final GPU frames were inspected.
+These instrumented routes do not measure FPS or prove complete job scheduling.
+The desktop executable remains the earlier verified build at this checkpoint.
+
+Other missing upstream candidates include atomic task-signalled-bit updates,
+thread-image identity, asynchronous file-position locking, thread event-port
+routing, extra fragment inputs and FP16 transfer sources. They remain review
+candidates, not applied fixes or proven causes of WKC symptoms. Existing cache,
+NV3089 and exact-float work must be preserved when adapting them. See
+[the caller-frame patch](PATCHES.md#spurs-job-caller-frame-patch-0122).
+
 ## Whole skinning routine recovery follow-up
 
 The new portable C++ stream candidate matches all 35,080 output vectors from
@@ -3431,8 +3454,10 @@ The new portable C++ stream candidate matches all 35,080 output vectors from
 register, local-store byte, return and runtime step count for those calls.
 Live palette reads and delayed direction writes are required; caching the palette
 once failed 14 calls. This is a larger routine than the earlier block replacements,
-but it remains outside gameplay dispatch. Wider randomized testing finds 15 host
-and 14 audit mismatches among 916 accepted comparisons per mode; the corresponding
-exact-SPU sample has zero mismatches. No failing stress result is reported as a
+but it remains outside gameplay dispatch. A traced normalized-empty-batch write
+removes 28 earlier stress mismatches. Wider randomized testing now finds one host
+mismatch among 916 accepted comparisons per mode; exact and audit samples have
+zero mismatches. The remaining difference is in cofactor NaN payload selection.
+No failing stress result is reported as a
 passing public regression. See [interface, evidence and remaining work](NATIVE_CODE.md#whole-skinning-stream-candidate).
 The desktop build is unchanged and complete SPU replacement remains the goal.

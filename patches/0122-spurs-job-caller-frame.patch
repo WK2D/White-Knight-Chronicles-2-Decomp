@@ -1,0 +1,14 @@
+diff --git a/runtime/spu/spurs_job.c b/runtime/spu/spurs_job.c
+--- a/runtime/spu/spurs_job.c
++++ b/runtime/spu/spurs_job.c
+@@ -452,7 +452,9 @@
+      * writing a kernel context at LS 0x1C0 would overwrite this job's code. */
+     ctx.spurs_job_mode = 1;
+     ctx.spurs_job_spu_num = 0;
+-    ctx.gpr[1]._u32[0] = (stack_top - 16u) & ~15u;   /* SPU stack grows down */
++    /* The entry saves LR at 16(SP), in its caller's frame. Cache buffers
++     * begin at stack_top, so reserve the full 32-byte caller frame below it. */
++    ctx.gpr[1]._u32[0] = (stack_top - 32u) & ~15u;
+     /* Link register: where the job returns when it is done. The job manager
+      * would pass an address inside itself; 0 makes the job re-enter its own
+      * entry at LS 0 and run a bogus second lap. */

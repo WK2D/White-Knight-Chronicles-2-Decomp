@@ -132,7 +132,7 @@ zero fallback and at least 16,777,216 transformed blocks in each run. Both final
 frames were inspected. The Vulkan run additionally samples CPU time; profiling,
 tracing and GPU captures make it unsuitable as an FPS benchmark.
 
-Both Windows suites now pass 113 checks with 121 SDK patches. No FPS gain,
+Both Windows suites now pass 113 checks with 122 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
 is claimed.
 
@@ -340,7 +340,7 @@ store, guest addresses or generated game code. It processes variable vertex
 counts in four-vertex groups with bounded pending-output storage.
 
 **This is an offline candidate, not a replacement enabled in gameplay.**
-Its private ABI adapter still fails some randomized host/audit comparisons.
+Its private ABI adapter still fails one randomized host comparison.
 No complete image is replaced, and this is not whole-job DMA/scheduling proof.
 
 Saved-town probe `20261020-035339` captures 32 complete calls at the actual
@@ -372,8 +372,10 @@ Some end-of-stream indices exceed the declared palette count and read memory
 that earlier position/direction writes change. Liveness of those vertices against
 the final index buffer was not revalidated in this corpus. Zero-weight influences
 therefore remain reads. One direction stream delays output by two groups; two
-streams delay it by one. Initial zero writes and the final pending-output drain
-also matter. Preserving live palette reads and these writes brings every recorded
+streams delay it by one. The first output write is raw zero; the second empty
+batch in the two-group pipeline goes through the reciprocal/normalization policy.
+It can write NaNs into memory that later palette reads alias. The final pending
+output drain also matters. Preserving live palette reads and these writes brings every recorded
 output into exact agreement. Public regression cases deliberately alias a palette
 with normal output and fail if reads are cached or the delay changes.
 
@@ -388,24 +390,28 @@ A 3,000-attempt stress comparison exposes the remaining integration blocker:
 
 | Arithmetic mode | Accepted native comparisons | Unchanged declines | Complete-state mismatches |
 | --- | ---: | ---: | ---: |
-| Host | 916 | 84 | 15 |
+| Host | 916 | 84 | 1 |
 | Exact SPU | 916 | 84 | 0 |
-| Audit | 916 | 84 | 14 |
+| Audit | 916 | 84 | 0 |
 
 Each mode uses the same random sequence. Of its accepted cases, 448 replace the
 declared palette with bounded finite coefficients and select in-range joints;
 all of those match. Other cases use random byte joint indices against recorded
 LS contents and can encounter exceptional values beyond the declared palette.
-The host/audit differences include finite-versus-NaN results, not only NaN payloads.
-Their first differing operation has not yet been isolated. Private failing input,
-native-output and reference-output snapshots are retained for investigation.
+Tracing the earlier 15 host and 14 audit failures identified a missing normalized
+empty-batch write. Correcting it removes 28 of those 29 failures. The remaining
+host case differs by two final LS bytes; matching blended matrices first diverge
+in cofactor products when multiple NaNs carry different payloads. A blanket
+first-operand NaN rule causes ten failures and was withdrawn. Private failing
+inputs, outputs and stage traces are retained for investigation.
 The mixed stress test is **failing**; the exact-mode sample is not a full-domain
 or whole-game proof.
 
 Public tests add 128 independent row-major blend/cofactor/dot cases (4,352
-vertices), eight live-palette/delay cases and four invalid-structure cases. Finite
+vertices), eight live-palette/delay cases, a normalized-empty-batch alias case,
+and four invalid-structure cases. Finite
 scalar/x86 FMA results and summaries match bit for bit in Debug and Release.
-All 113 Windows checks pass without media skips: Debug 27.43 seconds and Release
-23.54 seconds. The private failing stress suite is separate and is not counted
+All 113 Windows checks pass without media skips: Debug 27.22 seconds and Release
+23.56 seconds. The private failing stress suite is separate and is not counted
 as a passing public check. ARM execution, live integration and FPS effects are
 unverified. The desktop runtime remains the previous verified normal-output build.
