@@ -1,8 +1,8 @@
 # White Knight Chronicles II Recomp
 
-A native C++ port of **White Knight Chronicles II** built by statically recompiling
-the PS3 game code. Development targets **Windows with Vulkan** and starts with
-**White Knight Chronicles I**, which is included on the disc.
+A native C++ port of **White Knight Chronicles II** built by recompiling
+the PS3 game code. Development starts with **White Knight Chronicles I**, 
+which is included on the disc.
 
 [![White Knight Chronicles I town running in the native Vulkan build](verification/screenshots/2026-10-19-native-town-fps-unlocked.png)](docs/GALLERY.md)
 
