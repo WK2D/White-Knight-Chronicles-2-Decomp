@@ -1,12 +1,33 @@
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include "spu_context.h"
+#include "spu_helpers.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 extern "C" void spu_spurs_taskset_syscall(spu_context*);
 extern "C" int spu_run_with_halt(void (*)(spu_context*),spu_context*);
+extern "C" u128 spu_rdch(spu_context*,uint32_t);
+extern "C" uint32_t spu_rchcnt(spu_context*,uint32_t);
 
 static bool returned;
+static void check_machine_status(spu_context* ctx) {
+    const uint32_t states[]={SPU_STATUS_STOPPED,SPU_STATUS_RUNNING,
+        SPU_STATUS_STOPPED_BY_STOP,SPU_STATUS_STOPPED_BY_HALT,SPU_STATUS_WAITING_CHANNEL};
+    for(const auto status:states)for(uint32_t enabled:{0u,1u}) {
+        spu_context_init(ctx,0);ctx->status=status;ctx->int_enable=enabled;
+        const auto before_pc=ctx->pc;
+        for(unsigned repeat=0;repeat<2;++repeat) {
+            assert(spu_rchcnt(ctx,SPU_RdMachStat)==1);
+            const auto value=spu_rdch(ctx,SPU_RdMachStat);
+            assert(value._u32[0]==enabled);
+            assert(value._u32[1]==0&&value._u32[2]==0&&value._u32[3]==0);
+            assert(ctx->int_enable==enabled&&ctx->status==status&&ctx->pc==before_pc);
+        }
+    }
+}
 static void inspect_run_start(spu_context* ctx) {
     assert(ctx->status == SPU_STATUS_RUNNING);
     assert(ctx->host_depth == 0 && ctx->drain_ret_pc == 0 && ctx->irq_frame == nullptr);
@@ -42,6 +63,7 @@ static void check_exit(spu_context* ctx,int image,bool bootstrap) {
 int wkc2_test_spu_title(int selected) {
     auto* ctx=static_cast<spu_context*>(malloc(sizeof(spu_context)));
     assert(ctx);
+    check_machine_status(ctx);
     check_run_status(ctx);
     check_exit(ctx,22,selected==22);
     if(selected!=22 && selected>=0) check_exit(ctx,selected,true);

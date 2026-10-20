@@ -4,13 +4,21 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-20):** the stack contains 122 SDK patches. All
+**Current validation (2026-10-20):** the stack contains 123 SDK patches. All
 113 Windows checks pass in normal Debug and optimized Release. Reapplying the
 complete stack changes no SDK files. Strict DirectX and Vulkan routes on patch
 0121 confirm Continue, the plains transition, walking, camera rotation and the
 leaf-cutout shadow correction. Menu FXAA toggling was checked separately on 0110.
 What each patch changes, how it was checked and its measured
 results are in the [patch notes](PATCHES.md).
+
+The latest source adds readable C++ allocation, payload-export and rendering
+command builders. Their connected offline comparison matches all 32 recorded
+geometry jobs, including final external bytes and allocator publication. They
+are not enabled as a complete live job replacement. See the
+[native output transaction evidence](NATIVE_CODE.md#native-allocation-export-and-command-construction).
+Patch 0123 corrects the SPU machine-status interrupt bit; this source change has
+passed regression tests but has no new live game route or desktop installation.
 
 Suite timings are not game performance. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain
@@ -111,7 +119,7 @@ finite digital/analog input through the private controller probe file, NV0039
 and NV3089 copies, SPURS job-queue dispatch, filtered FIFO producer wakes,
 per-byte population counts, host-thread recursion diagnostics, real flip/user-command
 callback delivery, depth-comparison shaders and Vulkan arena reservation.
-The current source stack contains 122 numbered SDK patches, and all 113 checks
+The current source stack contains 123 numbered SDK patches, and all 113 checks
 pass in both Windows suites. Graphics panel captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics
 checkpoint at 58. Earlier NPC-surface and controls captures retain their

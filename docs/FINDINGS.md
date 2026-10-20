@@ -2,7 +2,7 @@
 
 Updated 2026-10-20. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 122 SDK patches / 113 Windows checks in Debug and
+**Current source checkpoint:** 123 SDK patches / 113 Windows checks in Debug and
 Release. The native System menu now has Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
 the guest timing gate; short saved-scene probes exceed 30 completed frames/s
@@ -17,8 +17,9 @@ logging, profiler and visibility conditions; they are not interchangeable.
 Readable C++ now executes the complete supported image-19 skinning routine,
 including setup, matrix blending, position/normal outputs and pipeline drain.
 Complete-state comparisons and sampled strict DirectX/Vulkan town-to-plains
-routes pass. A separate owned-buffer packed vertex decoder is verified offline;
-it is not yet integrated in the game. These interfaces and their bounded
+routes pass. The owned-buffer geometry pipeline now connects to native allocation,
+export and command construction in offline comparisons of all 32 recorded jobs.
+It is not yet enabled as a complete live job replacement. These interfaces and their bounded
 evidence are recorded in [native work](NATIVE_CODE.md). Whole jobs, DMA and
 scheduling remain open. No complete SPU image has been replaced and no FPS
 improvement is claimed. Desktop

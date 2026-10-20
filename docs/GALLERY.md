@@ -9,7 +9,7 @@ layer. Earlier runs observed SPU interpreter fallback; newer strict routes have
 zero entries. Neither establishes full-game interpreter-free execution; see
 [architecture](ARCHITECTURE.md).
 
-Current source: 122 SDK patches / 113 Windows checks. The newest capture follows
+Current source: 123 SDK patches / 113 Windows checks. The newest capture follows
 the readable complete supported C++ skinning routine on a strict DirectX
 town-to-plains route. The earlier capture shows leaf-shaped shadow cutouts after correcting
 alpha-reference formats. These verify inspected frames, not performance gains.

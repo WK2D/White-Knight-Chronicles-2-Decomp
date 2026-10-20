@@ -100,6 +100,10 @@ readable replacements, and no complete SPU image has been replaced yet. See the
 The recovered decoding, skinning, filtering and packing algorithms are also
 connected through [owned C++ buffers](docs/NATIVE_CODE.md#owned-logical-geometry-pipeline),
 verified offline on all 32 recorded jobs, including their aligned index payloads.
+Readable C++ [allocation, transfers and rendering commands](docs/NATIVE_CODE.md#native-allocation-export-and-command-construction)
+now reproduce those jobs' external payloads, allocator state and final packets
+offline. A complete live job replacement and its scheduling remain to be enabled
+and validated.
 Full-game static coverage and a readable reconstruction of the original source
 remain unverified.
 

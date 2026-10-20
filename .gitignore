@@ -39,6 +39,9 @@
 !/native_geometry_pipeline.h
 !/native_estimate_interpolation.h
 !/native_index_payload.h
+!/native_geometry_allocation.h
+!/native_geometry_export.h
+!/native_geometry_commands.h
 !/native_skinning_stream_bridge.cpp
 !/native_skinning_bridge.h
 !/native_skinning_bridge.cpp

@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0123 | [SPU machine-status interrupt bit](#spu-machine-status-interrupt-bit-patch-0123) |
 | Patch 0122 | [SPURS job caller frame](#spurs-job-caller-frame-patch-0122) |
 | Patch 0121 | [Alpha-reference surface formats](#alpha-reference-surface-formats-patch-0121) |
 | Patch 0120 | [DirectX fragment input requests](#directx-fragment-input-requests-patch-0120) |
@@ -53,6 +54,22 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## SPU machine-status interrupt bit (patch 0123)
+
+`SPU_RdMachStat` now reports `int_enable & 1` instead of deriving its value from
+the thread's running status. Allocation and export routines read this channel
+before disabling interrupts and use bit zero to decide whether to restore them.
+The old answer could enable interrupts that were previously disabled.
+
+This follows [CBEA 1.01, section 9.8, page 141](https://arcb.csc.ncsu.edu/~mueller/cluster/ps3/SDK3.0/docs/arch/CBEA_v1.01_3Oct2006.pdf#page=142).
+The runtime does not model the separate isolated-state bit. The three existing
+`wkc2_spu_title_*` tests check five thread states independently of both interrupt
+states, repeated reads, preferred-word placement, the channel count and no state
+mutation. They fail before the fix and pass afterward. Actual-reference allocator
+and payload-export comparisons also cover interrupt-disabled entry. Both full
+Windows configurations pass all 113 checks. No new gameplay or FPS claim is made;
+the desktop executable is unchanged.
 
 ## SPURS job caller frame (patch 0122)
 

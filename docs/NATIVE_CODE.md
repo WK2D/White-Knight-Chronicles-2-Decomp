@@ -9,7 +9,11 @@ temporary references, not the final implementation. Native compilation and
 interpreter-free sampled routes alone do not satisfy this target.
 
 No complete SPU image has yet been replaced. The current readable geometry
-kernels are intermediate work. Completion requires a player build that links
+kernels and output transactions are intermediate work. The connected offline
+path now reproduces the external outputs of all 32 recorded geometry jobs;
+[allocation, export and command construction](#native-allocation-export-and-command-construction)
+have project-written C++ implementations. No complete live job replacement is
+enabled. Completion requires a player build that links
 no generated SPU game code, uses no SPU interpreter, and has validated native
 interfaces and behavior throughout the game. Build-only reference replays may
 retain private generated code for differential verification.
@@ -132,7 +136,7 @@ zero fallback and at least 16,777,216 transformed blocks in each run. Both final
 frames were inspected. The Vulkan run additionally samples CPU time; profiling,
 tracing and GPU captures make it unsuitable as an FPS benchmark.
 
-Both Windows suites now pass 113 checks with 122 SDK patches. No FPS gain,
+Both Windows suites now pass 113 checks with 123 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
 is claimed.
 
@@ -902,8 +906,91 @@ cases and 13 unchanged structural/alias rejects.
 The filtering bypass still needs separately recovered physical decoder padding;
 it is not silently handled by this compaction algorithm. Vertex alignment tails
 outside the observed aligned counts also remain to be recovered. The pipeline
-has no live whole-job hook yet: shared allocation, command construction/fixups,
-payload-before-command visibility, lifetime and concurrent scheduling still need
-native ownership and real-route validation. No complete SPU job or image is
+has no live whole-job hook yet. The allocation, export and command implementations
+below reproduce the recorded external outputs offline; payload-before-command
+visibility, lifetime and concurrent scheduling still need native ownership and
+real-route validation. No complete live SPU job or image is
 replaced, no CPU/FPS gain is measured, and the desktop executable, preferences
 and save remain unchanged.
+
+## Native allocation, export and command construction
+
+Three additional public C++ components now handle the supported geometry output
+protocol without guest registers, local-store pointers or generated game code:
+
+- [`native_geometry_allocation.h`](../native_geometry_allocation.h): explicit
+  ring arithmetic and a resumable allocation transaction, including direct
+  addresses, global fallback, conditional-store retries, consumer waits and
+  interrupt restoration. Complete 128-byte shared lines and 32-byte result
+  records preserve fields the typed arithmetic does not change.
+- [`native_geometry_export.h`](../native_geometry_export.h): owns complete
+  payload bytes, prepares ordered transfers of at most 16 KiB, publishes
+  index/vertex bindings, advances cursors and preserves interrupt/marker order.
+- [`native_geometry_commands.h`](../native_geometry_commands.h): builds final
+  vertex/index bindings, draws and ring-release commands, splits method packets
+  at 128-byte boundaries, fills unused packet bytes, and submits an explicitly
+  fenced packet after the payloads.
+
+The connected offline comparison now runs the actual public geometry pipeline,
+allocation transaction, export transactions and command builder/submission. All
+32 recorded jobs pass, including the empty job that publishes a zero command
+packet without allocating or exporting geometry:
+
+| External output compared | Count | Bytes | Mismatches |
+| --- | ---: | ---: | ---: |
+| Index and vertex payload transfers | 67 | 261,184 | 0 |
+| Final fenced command packets | 32 | 8,896 | 0 |
+| Complete published allocator lines | 31 | 3,968 | 0 |
+
+The first two rows total **270,080 unique external payload/command bytes**.
+Each of the 32 jobs also passes with allocation receipts delayed once per
+operation; that repeat checks pending behavior and is not another set of unique
+outputs. The captured allocator branch is a successful, nonwrapping ring with
+location 1. Its backend receives only original shared-line and consumer-read
+preimages. The geometry inputs come from the original job entry; that snapshot
+is destroyed before native execution. Later buffers, allocation results and
+packets are comparison oracles, never constructor inputs. No compiled game
+function is called to construct the native outputs.
+
+Independent actual-reference comparisons cover more allocator/export branches:
+
+- Allocation: **1,148 cases / 2,296 comparisons**, including 1,148 delayed
+  variants and 22,076 operation events, with zero failures. Comparisons check
+  complete records/lines, results, fresh retry receipts, fences, delay/read
+  ordering and interrupt state. Ring arithmetic separately passed 41,538
+  decisions, including wrapped requests and unsigned overflow.
+- Payload export: **528 cases**, 9,789,696 payload bytes, 900 transfers and
+  2,622 state/operation observations, all matching the original routines. These
+  cover formats 32/33/34, index zero, index and vertex chunk boundaries, tags
+  0/20/31, mapped-cursor wrapping and both initial interrupt states. The maximum
+  tested index count is 65,535. Zero vertex count remains unsupported.
+- Six deliberate corruptions of the connected path—packet bytes, count,
+  destination, allocator cursor, payload bytes and the final fence command—are
+  required to fail. Separate allocator result/order and exporter result/order
+  controls also fail.
+
+Public regressions add 12 ring boundary cases, 88 complete allocation transaction
+cases, 76 export cases with nine unchanged declines, and 3,848 independently
+decoded command/publication cases with nine unchanged declines. The command
+checks cover every four-byte destination phase, all three output formats,
+attribute flags, draw-count boundaries, zero packets and interrupt restoration.
+These three components and their tests also compile and run as a standalone
+C++20 program without the SDK or generated game code. Both full Windows suites
+pass 113 checks with 123 SDK patches; subsequent publication-helper changes pass
+the affected Debug and Release regression. ARM execution remains untested.
+
+The comparisons exposed the runtime's incorrect `SPU_RdMachStat` answer.
+[Patch 0123](PATCHES.md#spu-machine-status-interrupt-bit-patch-0123) now reports
+the interrupt-enable bit, independently of thread run status. The reference
+comparisons above use the corrected channel implementation.
+
+**This is not yet a complete live job replacement.** The production input
+adapter, shared slot lease, asynchronous source lifetime, memory visibility and
+concurrent scheduling must still be connected and tested on real routes. A
+pending allocation transaction cannot be copied or moved; its backend and lease
+must remain alive until completion. Export/publication acceptance is not DMA or
+GPU completion, and their owned buffers must survive asynchronous consumption.
+Location 0's extra fenced read remains an explicit adapter obligation. Unknown
+constructor layouts, physical bypass-index padding, odd vertex tails and wider
+game coverage remain open. No new CPU/FPS gain or gameplay result is claimed;
+the desktop executable, preferences and save are unchanged.

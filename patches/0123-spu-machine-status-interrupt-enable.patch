@@ -1,0 +1,14 @@
+diff --git a/runtime/spu/spu_channels.c b/runtime/spu/spu_channels.c
+--- a/runtime/spu/spu_channels.c
++++ b/runtime/spu/spu_channels.c
+@@ -1045,7 +1045,9 @@
+     }
+     case SPU_RdEventMask:   v = ctx->event_mask;                        break;
+     case SPU_RdEventStat:   spu_resv_lost_poll(ctx); v = ctx->event_status; break;
+-    case SPU_RdMachStat:    v = (ctx->status == SPU_STATUS_RUNNING) ? 1 : 0; break;
++    /* CBEA 9.8: the low bit reports interrupt enable, not run status.
++     * This runtime does not model isolated execution. */
++    case SPU_RdMachStat:    v = ctx->int_enable & 1u;                    break;
+     case SPU_RdSRR0:        v = ctx->srr0;                              break;
+     default:
+         v = 0;

@@ -453,14 +453,14 @@
     "event_queue_recycles": 2000,
     "spurs_guard_lifetimes": 100,
     "spurs_simultaneous_guards": 128,
-    "current_sdk_patch_count": 122,
-    "last_verified_sdk_patch_count": 122,
+    "current_sdk_patch_count": 123,
+    "last_verified_sdk_patch_count": 123,
     "current_passed_count": 113,
-    "record_scope": "121 SDK patches / 113 Windows checks pass in Debug and Release, including media without skips, native batch guards and 68,372 alpha-reference decoder cases.",
-    "normal_debug_elapsed_seconds": 27.43,
-    "optimized_release_elapsed_seconds": 23.54,
+    "record_scope": "123 SDK patches / 113 Windows checks pass in Debug and Release without media skips. New standalone native allocation/export/command tests and actual-reference output comparisons pass offline. Final submit-helper changes pass the affected Debug/Release regression; no new live route or desktop installation.",
+    "normal_debug_elapsed_seconds": 30.04,
+    "optimized_release_elapsed_seconds": 25.8,
     "repeat_patch_application_files_changed": 0,
-    "repeat_patch_application_verified_sdk_patch_count": 121
+    "repeat_patch_application_verified_sdk_patch_count": 123
   },
   "gallery": "gallery.json",
   "historical_probe": {
@@ -2896,7 +2896,7 @@
     "capture_scope": "No new gallery capture; patch-0079 guest-surface captures precede window scaling."
   },
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 122 SDK patches / 113 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 123 SDK patches / 113 passing Windows checks in Debug and Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",
@@ -4895,5 +4895,115 @@
     "arm_execution_verified": false,
     "fps_gain_measured": false,
     "desktop_executable_changed": false
+  },
+  "native_geometry_output_transactions": {
+    "date": "2026-10-20",
+    "status": "Public C++ allocation/export/command implementations; complete recorded external outputs match offline; no live whole-job hook",
+    "public_cores": [
+      "native_geometry_allocation.h",
+      "native_geometry_export.h",
+      "native_geometry_commands.h"
+    ],
+    "connected_host_comparison": {
+      "jobs": 32,
+      "passed": 32,
+      "empty_jobs": 1,
+      "allocation_publications": 31,
+      "geometry_transfers": 67,
+      "geometry_payload_bytes": 261184,
+      "final_fenced_packets": 32,
+      "command_packet_bytes": 8896,
+      "unique_external_payload_command_bytes": 270080,
+      "allocator_line_bytes": 3968,
+      "mismatches": 0,
+      "delayed_receipt_repeat_jobs": 32,
+      "actual_public_allocation_transaction_executed": true,
+      "actual_public_export_transactions_executed": true,
+      "actual_public_packet_builder_and_submission_executed": true,
+      "compiled_game_function_invoked_to_produce_outputs": false,
+      "original_entry_and_external_read_preimages_only": true,
+      "entry_snapshot_destroyed_before_native_execution": true,
+      "after_buffers_used_only_as_comparison_oracles": true,
+      "captured_allocator_domain": "Successful nonwrapping location1 single-ring reservation",
+      "corruption_controls": 6,
+      "expected_control_failures": 6,
+      "exact_audit_composed_oracles_verified": false
+    },
+    "allocation_actual_reference": {
+      "cases": 1148,
+      "comparisons": 2296,
+      "delayed_comparisons": 1148,
+      "events": 22076,
+      "failures": 0,
+      "separate_ring_decisions": 41538,
+      "full_128_byte_lines_and_32_byte_results_checked": true,
+      "operation_irq_fence_retry_delay_order_checked": true,
+      "corruption_controls": 2,
+      "expected_control_failures": 2
+    },
+    "export_actual_reference": {
+      "cases": 528,
+      "payload_bytes": 9789696,
+      "transfers": 900,
+      "events": 2622,
+      "failures": 0,
+      "formats": [
+        32,
+        33,
+        34
+      ],
+      "tags": [
+        0,
+        20,
+        31
+      ],
+      "index_zero_checked": true,
+      "vertex_zero_supported": false,
+      "maximum_index_count": 65535,
+      "maximum_vertex_count": 4096,
+      "chunk_boundaries_irq_states_mapped_wrap_checked": true,
+      "corruption_controls": 2,
+      "expected_control_failures": 2
+    },
+    "public_regression": {
+      "existing_check_extended": "wkc2_native_skinning",
+      "ring_cases": 12,
+      "allocation_transaction_cases": 88,
+      "export_cases": 76,
+      "unchanged_export_declines": 9,
+      "command_publication_cases": 3848,
+      "unchanged_command_declines": 9,
+      "standalone_cpp20_without_sdk_or_generated_game_code_passed": true,
+      "sdk_patches": 123,
+      "debug_checks_passed": 113,
+      "release_checks_passed": 113,
+      "full_suite_debug_seconds": 30.04,
+      "full_suite_release_seconds": 25.8,
+      "subsequent_submit_helper_affected_debug_seconds": 0.57,
+      "subsequent_submit_helper_affected_release_seconds": 0.13
+    },
+    "runtime_machine_status": {
+      "patch": 123,
+      "channel_reports_interrupt_enable": true,
+      "old_behavior_regression_failed": true,
+      "corrected_regressions_passed": true,
+      "isolated_state_modelled": false,
+      "new_live_route_verified": false
+    },
+    "whole_live_job_replaced": false,
+    "whole_image_replaced": false,
+    "production_slot_lease_and_async_visibility_verified": false,
+    "location_zero_extra_fenced_read_adapter_verified": false,
+    "arm_execution_verified": false,
+    "new_gameplay_route_verified": false,
+    "fps_gain_measured": false,
+    "desktop_executable_changed": false,
+    "remaining": [
+      "Connect production input adapter and stable slot lease to the typed native pipeline and transactions.",
+      "Prove asynchronous source lifetime, same-tag payload-before-command visibility and concurrent scheduling.",
+      "Bind location0 fenced-read behavior and validate unobserved constructor/bypass/padding domains.",
+      "Run strict NPC-heavy, transition and cutscene routes; refresh CPU/fallback measurements.",
+      "Continue remaining SPU images and incomplete DirectX parity."
+    ]
   }
 }
