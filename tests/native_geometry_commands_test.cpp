@@ -84,8 +84,9 @@ void decode_and_check(const gc::PublicationSpec& spec,const gc::GeometryAllocati
         single(0x16b8,(allocation.vertex_rsx+16)|(allocation.location<<31));
     }
     single(0x181c,allocation.index_rsx&0x1fffffffu);single(0x1820,allocation.location|16);
-    if(allocation.vertex_payload_submitted)single(0x1710,0);
-    const unsigned invalidations=allocation.vertex_payload_submitted?4:1;
+    const bool invalidate=allocation.vertex_payload_submitted&&allocation.consumer_ea;
+    if(invalidate)single(0x1710,0);
+    const unsigned invalidations=invalidate?4:1;
     assert(writes[0x1714]==std::vector<unsigned>(invalidations,0));writes.erase(0x1714);
     if(allocation.consumer_ea) {
         single(0x1d6c,allocation.consumer_ea&0xff0);single(0x1d74,allocation.reserved_end);
@@ -117,6 +118,14 @@ int wkc2_test_native_geometry_commands() {
         0x41714,0,0x8181c,0x120000,16,0x41808,5,0x40041824,0x2000000,0x41808,0,0};
     for(unsigned i=0;i<expected.size();++i)assert(word(packet.bytes,i*4)==expected[i]);
     decode_and_check(spec,allocation,packet);++cases;
+    // Direct/global payloads also set the submitted marker, but have no ring
+    // consumer. Their exact minimal packet must still omit the preamble.
+    allocation.vertex_payload_submitted=true;
+    gc::CommandPublication submitted_without_consumer;
+    assert(gc::build(spec,allocation,submitted_without_consumer)==gc::BuildStatus::packet_ready);
+    assert(submitted_without_consumer.bytes==packet.bytes);
+    for(unsigned i=0;i<expected.size();++i)assert(word(submitted_without_consumer.bytes,i*4)==expected[i]);
+    decode_and_check(spec,allocation,submitted_without_consumer);++cases;
     // The incrementing two-word index binding either splits at phase 120 or
     // moves past a lone header slot at phase 124. Its second method is 0x1820.
     for(unsigned phase:{96u,100u}) {

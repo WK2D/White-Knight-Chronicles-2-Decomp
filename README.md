@@ -26,16 +26,15 @@ with readable project-written C++; current coverage is partial.
 - Town rendering, short character movement, camera control and pause/resume.
 - Logic Stone targeting, saving one starting-town slot and loading it through
   Continue after restarting.
-- A dedicated **Triangle â†’ System â†’ Graphics Settings** panel with persistent
+- A dedicated **Triangle → System → Graphics Settings** panel with persistent
   preferences, the game's menu frame and a scrollbar.
 - The town-to-Balastor Plain transition after Continue, with short movement and
   camera control. DirectX foreground clipping is fixed on that route, and
   leaf-shaped foliage shadow cutouts are restored on both renderers.
-- **117 Windows regression checks** pass in normal Debug (11.93 seconds) and
-  optimized Release (11.77 seconds).
+- **117 Windows regression checks** pass in both normal Debug and optimized Release.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
-resolutions; VSync; anisotropic filtering from Off to 16Ã—; Off/FXAA anti-aliasing;
+resolutions; VSync; anisotropic filtering from Off to 16×; Off/FXAA anti-aliasing;
 30/40/60/120/144/Unlocked frame limits; and an optional transparent FPS overlay.
 Vulkan is the primary renderer. DirectX 12 is an experimental, restart-selected
 renderer. Window mode, output size, VSync, filtering, FXAA and the FPS overlay are
@@ -97,11 +96,14 @@ skinning routine already runs that way. An experimental
 [whole image-19 geometry job route](docs/NATIVE_CODE.md#opt-in-live-geometry-job)
 now connects owned C++ inputs, decoding, skinning, filtering, allocation,
 transfers and final rendering commands in the player source. Enable it with
-`WKC_NATIVE_GEOMETRY_JOB=1`; normal launches leave its hooks unregistered.
+`WKC_NATIVE_GEOMETRY_JOB=1` or `tools/play.ps1 -NativeGeometryJob`; when disabled,
+its hooks remain unregistered.
 Unsupported layouts retain compiled execution after declining before native
 external effects. Separate diagnostics use `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1`.
-All 32 recorded jobs match byte for byte through the real SDK native atomics,
-guest VM and transfer callbacks, and live execution reaches the starting town.
+All 32 earlier recorded jobs match through the real SDK native atomics, VM and
+transfer callbacks. Expanded packed-position layouts also pass 84 fresh complete-job
+comparisons, and the town probe records 7,757 completions of newly supported formats.
+See [coverage and limits](docs/NATIVE_CODE.md#expanded-quantized-position-inputs).
 Seven host arithmetic/comparison operations now use project-written C++;
 special negative multiply, reciprocal estimates and conversions retain SDK
 adapters. Integer NaN checks improved two stationary crowded-town tests; smooth

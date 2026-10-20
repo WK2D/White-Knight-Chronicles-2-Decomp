@@ -20,16 +20,17 @@ including setup, matrix blending, position/normal outputs and pipeline drain.
 Complete-state comparisons and sampled strict DirectX/Vulkan town-to-plains
 routes pass. The public source now connects the supported whole image-19 job
 through owned input construction, native allocation, coherent transfers and
-command publication with `WKC_NATIVE_GEOMETRY_JOB=1`. Default launches leave its
-hooks unregistered. All 32 original-input jobs match byte for byte through the
-actual SDK native CAS, VM and PUT callbacks; live execution reaches town.
-Unsupported layouts decline before native external effects. SDK math helpers,
-broader layout/gameplay coverage and complete scheduling validation remain.
-The quiet same-executable comparison is near the compiled path in two stationary
-town views, with no FPS gain established. Walking and NPC-heavy comparisons
-remain open. These interfaces and their bounded evidence are recorded in
-[native work](NATIVE_CODE.md#opt-in-live-geometry-job). No complete SPU image,
-FPS improvement or new desktop installation is claimed. Desktop
+command publication when `WKC_NATIVE_GEOMETRY_JOB=1`; the local desktop enables
+that feature with manual startup and diagnostics disabled. All 32 earlier
+original-input jobs match through the SDK native CAS, VM and PUT callbacks.
+Expanded position layouts add 84 fresh complete-job comparisons with zero
+mismatches, plus 7,757 observed new-format completions in a diagnostic town run.
+Direct/global command invalidation is corrected. Seven host arithmetic/comparison
+operations are authored C++; remaining numeric adapters, palette/layout domains,
+broader gameplay and scheduling remain unfinished. Classifier-only stationary
+comparisons show a bounded gain; the subsequent arithmetic and layout work has
+no measured FPS benefit. See [native work](NATIVE_CODE.md#expanded-quantized-position-inputs).
+No complete SPU image or smooth 30 FPS traversal is claimed. Desktop
 clean-play mode also removes inherited diagnostics, and patch 0119 disables the
 previously unconditional DirectX benchmark recorder unless explicitly requested.
 
@@ -46,6 +47,7 @@ previously unconditional DirectX benchmark recorder unless explicitly requested.
 
 **Performance, timing and presentation**
 
+- [Expanded owned geometry inputs](NATIVE_CODE.md#expanded-quantized-position-inputs)
 - [Readable whole skinning stream](NATIVE_CODE.md#readable-whole-skinning-stream)
 - [Whole geometry job boundary](NATIVE_CODE.md#whole-geometry-job-boundary)
 - [Owned-buffer packed vertex decoder](NATIVE_CODE.md#packed-vertex-decoding-in-owned-buffers)

@@ -39,6 +39,7 @@ std::vector<std::uint32_t> image(const gi::AdaptedJob& job) {
     const auto bytes=[&](const auto& value){add(value.size());for(auto byte:value)add(byte);};
     const auto& g=job.geometry;const auto& m=job.metadata;
     add(g.decode.format);add(g.decode.vertices);for(auto value:g.decode.position_bias)add(value);
+    for(auto value:g.decode.position_bits)add(value);
     add(g.export_format);add(g.index_count);add(g.suppress_directions);add(g.skinning);
     for(const auto& row:g.projection.model.rows)vector(row);
     for(const auto& row:g.projection.projection)vector(row);
@@ -154,6 +155,36 @@ int wkc2_test_native_geometry_input() {
         ++comparisons;assert(a==0.75f&&b==-0.25f);return true;
     },accepted)==gi::Status::ready);
     assert(comparisons==1);check_immutable(base,saved_descriptor,saved_slots,saved_plan);++successes;
+    {
+        // Distinct per-axis precisions survive construction as typed extraction
+        // controls, not a changed float scale or an edit of the source blocks.
+        constexpr std::array<std::array<std::int32_t,3>,5> precision{{
+            {4,4,4},{4,1,-12},{-4,-1,3},{5,5,4},{4,5,5}}};
+        constexpr std::array<std::array<unsigned,3>,5> bits{{
+            {16,16,16},{16,13,0},{8,11,15},{17,17,16},{16,17,17}}};
+        for(unsigned format:{32u,33u})for(bool suppress:{false,true})
+        for(unsigned trial=0;trial<precision.size();++trial) {
+            Fixture fixture(format,4,suppress);
+            for(unsigned axis=0;axis<3;++axis)
+                put32(fixture.slots[17],16+axis*4,std::bit_cast<std::uint32_t>(precision[trial][axis]));
+            const auto descriptor=fixture.descriptor;const auto slots=fixture.slots;const auto plan=image(fixture.plan);
+            gi::AdaptedJob output;
+            assert(adapt(fixture,output)==gi::Status::ready);
+            assert(output.geometry.decode.position_bits==bits[trial]);
+            assert((output.geometry.decode.position_bias==std::array<std::int32_t,3>{-7,0x10203,(std::numeric_limits<std::int32_t>::min)()}));
+            assert(output.geometry.suppress_directions==suppress);
+            check_immutable(fixture,descriptor,slots,plan);++successes;
+        }
+        for(auto invalid:{6,-13,(std::numeric_limits<std::int32_t>::min)(),(std::numeric_limits<std::int32_t>::max)()})
+        for(unsigned axis=0;axis<3;++axis) {
+            Fixture fixture;gi::AdaptedJob output=accepted;
+            output.geometry.decode.position_bits={0,8,17};
+            const auto before=image(output);
+            put32(fixture.slots[17],16+axis*4,std::bit_cast<std::uint32_t>(invalid));
+            assert(adapt(fixture,output)==gi::Status::position_conversion_layout);
+            assert(image(output)==before);++declines;
+        }
+    }
     {
         // Independently specified expected coordinates for the authored layout.
         constexpr std::array<std::uint32_t,19> expected{0x800,0x800,0x810,0x810,0x830,0x870,

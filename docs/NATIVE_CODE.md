@@ -12,9 +12,10 @@ No complete SPU image has yet been replaced. The supported whole image-19
 geometry job is now connected in the public player source as an
 [experimental opt-in route](#opt-in-live-geometry-job), including original-input
 acquisition, native allocation, transfers and command publication. Other
-constructor/layout domains still use compiled execution. The route retains SDK
-arithmetic helper policies. A quiet same-executable comparison is near the
-compiled path in two stationary town views, with no FPS gain established.
+constructor/layout domains still use compiled execution. Seven host operations now use authored C++; special numeric adapters remain.
+Expanded quantized-position layouts are connected and compared against fresh
+original jobs. Earlier classifier-only crowded-view comparisons show a bounded
+gain; no FPS gain is measured for the latest layout extension.
 Completion requires a player build that links
 no generated SPU game code, uses no SPU interpreter, and has validated native
 interfaces and behavior throughout the game. Build-only reference replays may
@@ -1212,3 +1213,51 @@ the selection both off and on while diagnostics and input injection are stripped
 NPC-heavy traversal, transitions, cutscenes, broader constructor/layout domains,
 asynchronous backends, remaining images and complete scheduling equivalence
 still need validation. No complete SPU image has been replaced.
+
+### Expanded quantized-position inputs
+
+The owned decoder and input adapter now accept per-axis signed precision
+controls from **-12 through 5**, corresponding to **0 through 17 leading packed
+bits**. The bias uses wrapping integer addition, followed by the existing fixed
+1/4096 conversion. A 17-bit axis takes the high bit of the following byte;
+Z may take that bit from the first direction byte. This changes extraction,
+not the output scale. Unknown layouts still decline before native effects.
+
+Fresh execution of the unhooked original decoder passes 54 positive
+configurations across formats 32/33, SDK host/exact/audit modes, per-axis
+controls, boundary/wrapping biases and rounding/FTZ/DAZ settings. Five deliberate
+corruptions fail the comparison. This is Windows Release evidence, not an ARM
+or nonfinite-direction proof.
+
+Six actual town source sets use controls (4,5,4) or (5,5,4). Together with one
+all-4 control, they pass **84 fresh complete-job pairs**: the real SDK
+constructor and original root versus the registered production C++ hook.
+Controlled allocation covers direct, contiguous ring, exact-end ring, wrapped
+ring, global-only and blocked-ring/global-success paths, at both locations.
+All **322 ordered PUT/atomic commits, 317,888 written bytes**, final output and
+packet canaries, and immutable source inputs match. Payload, packet and write
+order corruption controls fail as required. This is controlled-state
+equivalence, not concurrent scheduling or complete-game proof.
+
+That comparison found a publication edge case: payload submission alone does
+not request the cache-invalidation preamble. The allocation must also have a
+nonzero consumer address. Direct/global allocations now omit that preamble;
+ring allocations retain it. Exported geometry and the submission marker remain
+unchanged.
+
+Hidden, muted DirectX probe `20261020-212354` loads the isolated save, turns the
+camera and moves twice inside town with the strict fallback guard enabled.
+Its bounded diagnostic census records **7,757 adapter-ready new-format jobs
+and 7,757 native completions**. Counts are snapshot lower bounds. Input-census
+IO makes this run unsuitable for FPS measurement. A separate quiet run
+`20261020-212949` uses the public main/runtime, without that census or a CPU
+profiler, for the [FPS-overlay gallery frame](GALLERY.md#2026-10-20--expanded-native-geometry-inputs).
+Neither run establishes a speed gain or full traversal parity. Both full
+Windows suites pass 117/117; concurrent run times are Debug 29.68 s / Release 25.98 s.
+
+The next ownership target is missing palette rows: replace their dependence on
+the old job's saved working state with explicit descriptor/layout values and
+typed live-buffer bindings. Some observed unused/padded vertices still consume
+those rows, so they cannot be discarded under the current full-output contract.
+Other jobs/images, remaining numeric adapters, scheduling, cutscenes and future
+platforms remain open. No complete SPU image has been replaced.

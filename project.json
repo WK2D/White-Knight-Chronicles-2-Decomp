@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "The supported whole image-19 geometry job is connected in public source behind WKC_NATIVE_GEOMETRY_JOB=1, with owned C++ inputs/outputs, native SDK CAS, coherent PUTs and mixed native/fallback slot ownership. All 32 real-SDK VM replays match byte for byte. 126 SDK patches / 117 Windows checks pass in normal Debug (33.35 seconds) and optimized Release (27.63 seconds). Normal launches leave the new hooks unregistered. Quiet same-executable comparisons measured 29.91 versus 30.00 FPS at the stone and 19.75 versus 20.58 in the turned entrance view: near parity, no FPS gain. SDK math helpers, wider layouts/routes, NPC-heavy traversal and other images remain; the desktop installation is unchanged.",
+    "current_milestone": "Supported image-19 geometry jobs run through owned C++ inputs, algorithms and native allocation/transfers. Expanded position precision is proven by 54 fresh original-decoder configurations, 84 full-job pairs with zero mismatches and 7,757 new-format completions in the town probe. Direct/global command invalidation is corrected. 126 SDK patches / 117 Windows checks pass in both configurations. Seven arithmetic/comparison operations are authored C++; remaining numeric adapters, palette layouts, images, gameplay routes and platforms are unfinished. No FPS gain or complete SPU-image replacement is claimed.",
     "updated": "2026-10-20"
   },
   "native_data_installation_verified": true,
@@ -3149,7 +3149,7 @@
     "public_source": "native_geometry_runtime.cpp",
     "public_header": "native_geometry_runtime.h",
     "mapping_cache": "native_geometry_mapping_cache.h",
-    "status": "Opt-in supported image-19 whole job connected; seven arithmetic/comparison operations now use authored C++; bounded crowded-view classifier gain verified.",
+    "status": "Supported whole image-19 job connected with authored host math, expanded quantized-position input layouts and corrected direct/global command invalidation.",
     "enable_environment": "WKC_NATIVE_GEOMETRY_JOB=1",
     "diagnostics_environment": "WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1",
     "default_hooks_registered": false,
@@ -3187,10 +3187,10 @@
     "windows_regression": {
       "sdk_patches": 126,
       "release_checks_passed": 117,
-      "release_seconds": 11.77,
+      "release_seconds": 25.98,
       "debug_checks_passed": 117,
       "debug_status": "passed",
-      "debug_seconds": 11.93
+      "debug_seconds": 29.68
     },
     "live_starting_town_reached": true,
     "broader_gameplay_routes_verified": false,
@@ -3521,7 +3521,7 @@
       "sdk_patches": 126,
       "checks_debug": 117,
       "checks_release": 117,
-      "sha256": "C20AB7C28109BB38716BA8C983A1FEFB24A49A6F8E532BE2C6E778D2E03DDB24",
+      "sha256": "3044C37888F320407000B824E44E15E1AC1C2EB7BD17AC01B9162EB51B165507",
       "native_complete_supported_geometry_job": true,
       "native_authored_host_operations": 7,
       "native_job_diagnostics": false,
@@ -3533,9 +3533,108 @@
       "frame_limit": 30,
       "saves_preserved": true,
       "other_preferences_preserved": true,
-      "release_game_route": "20261020-162847",
+      "release_game_route": "20261020-212949",
+      "arithmetic_vector_cases_per_configuration": 389120,
+      "release_actual_vm_replay_jobs": 32,
+      "release_actual_vm_mismatched_bytes": 0,
       "fully_replaced_spu_images": 0,
-      "scope": "User-requested local desktop installation of the public Release build, manual startup, supported native job enabled, 30 FPS baseline; this does not establish wider gameplay parity."
+      "expanded_quantized_inputs": true,
+      "fresh_original_full_job_pairs": 84,
+      "fresh_original_full_job_mismatched_bytes": 0,
+      "scope": "Public Release player updated for expanded quantized-position inputs and corrected direct/global invalidation; unchanged shortcut, manual startup, no diagnostics or auto-input, saves/preferences preserved. No new FPS gain or complete SPU image replacement.",
+      "clean_play_poisoned_environment_verified": true
+    },
+    "quantized_inputs": {
+      "date": "2026-10-20",
+      "status": "Connected for supported constructor and input layouts",
+      "public_sources": [
+        "native_vertex_decode.h",
+        "native_geometry_input.h",
+        "native_geometry_commands.h"
+      ],
+      "precision_controls": [
+        -12,
+        5
+      ],
+      "packed_coordinate_bits": [
+        0,
+        17
+      ],
+      "coordinate_rule": "Extract 12+q leading bits from each packed axis, add the signed bias with u32 wrapping, then convert at fixed scale1/4096; W is1.",
+      "boundary_rule": "The17th bit is the high bit of the following byte; Z may use the first direction byte. Unknown widths decline before output writes.",
+      "fresh_original_decoder": {
+        "positive_configurations": 54,
+        "effective_negative_controls": 5,
+        "formats": [
+          32,
+          33
+        ],
+        "per_axis_precision_values": 18,
+        "wrapping_bias_cases": true,
+        "sdk_float_modes": [
+          "host",
+          "exact",
+          "audit"
+        ],
+        "rounding_and_ftz_daz_cases": true,
+        "reference_has_native_hooks": false,
+        "recorded_after_state_used_as_mutated_oracle": false,
+        "scope": "Windows optimized Release original code; no nonfinite-direction or ARM equivalence claim"
+      },
+      "fresh_original_full_jobs": {
+        "source_sets": 7,
+        "observed_new_precision_sets": 6,
+        "known_precision_controls": 1,
+        "allocator_cases": [
+          "direct",
+          "ring-contiguous",
+          "ring-exact-end",
+          "ring-wrap",
+          "global-only",
+          "ring-blocked-global"
+        ],
+        "locations": [
+          0,
+          1
+        ],
+        "pairs": 84,
+        "ordered_put_and_atomic_commits": 322,
+        "compared_write_bytes": 317888,
+        "mismatched_bytes": 0,
+        "source_inputs_immutable": true,
+        "output_packet_canaries_match": true,
+        "effective_negative_controls": 3,
+        "configuration": "Windows optimized Release",
+        "scope": "Fresh original SDK constructor/root and actual registered native hook; controlled allocator/publication state, not concurrent scheduling proof"
+      },
+      "command_fix": "Submitted payload triggers the allocator invalidation preamble only when its consumer address is nonzero. Direct/global allocations omit it; ring allocations retain it.",
+      "live_run": {
+        "probe": "20261020-212354",
+        "new_precision_ready": 7757,
+        "new_precision_completed": 7757,
+        "counts_are_snapshot_lower_bounds": true,
+        "renderer": "DirectX12",
+        "frame_limit": 30,
+        "fps_overlay": true,
+        "hidden": true,
+        "muted": true,
+        "isolated_save": true,
+        "strict_fallback_guard": true,
+        "diagnostic_input_census": true,
+        "sampling_profiler": false,
+        "performance_sample": false,
+        "scope": "Continue, camera turn and two short moves inside the starting town"
+      },
+      "regressions": {
+        "debug_checks": 117,
+        "release_checks": 117,
+        "debug_seconds": 29.68,
+        "release_seconds": 25.98,
+        "run_concurrently": true
+      },
+      "measured_fps_gain": false,
+      "complete_spu_image_replaced": false,
+      "next_target": "Recover missing palette rows as explicit descriptor/layout or live-buffer bindings, then select the next whole job/image using profile cost"
     }
   },
   "native_geometry_host_math": {
@@ -3582,7 +3681,7 @@
       "sdk_patches": 126,
       "checks_debug": 117,
       "checks_release": 117,
-      "sha256": "C20AB7C28109BB38716BA8C983A1FEFB24A49A6F8E532BE2C6E778D2E03DDB24",
+      "sha256": "3044C37888F320407000B824E44E15E1AC1C2EB7BD17AC01B9162EB51B165507",
       "native_complete_supported_geometry_job": true,
       "native_authored_host_operations": 7,
       "native_job_diagnostics": false,
@@ -3594,9 +3693,108 @@
       "frame_limit": 30,
       "saves_preserved": true,
       "other_preferences_preserved": true,
-      "release_game_route": "20261020-162847",
+      "release_game_route": "20261020-212949",
+      "arithmetic_vector_cases_per_configuration": 389120,
+      "release_actual_vm_replay_jobs": 32,
+      "release_actual_vm_mismatched_bytes": 0,
       "fully_replaced_spu_images": 0,
-      "scope": "User-requested local desktop installation of the public Release build, manual startup, supported native job enabled, 30 FPS baseline; this does not establish wider gameplay parity."
+      "expanded_quantized_inputs": true,
+      "fresh_original_full_job_pairs": 84,
+      "fresh_original_full_job_mismatched_bytes": 0,
+      "scope": "Public Release player updated for expanded quantized-position inputs and corrected direct/global invalidation; unchanged shortcut, manual startup, no diagnostics or auto-input, saves/preferences preserved. No new FPS gain or complete SPU image replacement.",
+      "clean_play_poisoned_environment_verified": true
     }
+  },
+  "native_geometry_quantized_inputs": {
+    "date": "2026-10-20",
+    "status": "Connected for supported constructor and input layouts",
+    "public_sources": [
+      "native_vertex_decode.h",
+      "native_geometry_input.h",
+      "native_geometry_commands.h"
+    ],
+    "precision_controls": [
+      -12,
+      5
+    ],
+    "packed_coordinate_bits": [
+      0,
+      17
+    ],
+    "coordinate_rule": "Extract 12+q leading bits from each packed axis, add the signed bias with u32 wrapping, then convert at fixed scale1/4096; W is1.",
+    "boundary_rule": "The17th bit is the high bit of the following byte; Z may use the first direction byte. Unknown widths decline before output writes.",
+    "fresh_original_decoder": {
+      "positive_configurations": 54,
+      "effective_negative_controls": 5,
+      "formats": [
+        32,
+        33
+      ],
+      "per_axis_precision_values": 18,
+      "wrapping_bias_cases": true,
+      "sdk_float_modes": [
+        "host",
+        "exact",
+        "audit"
+      ],
+      "rounding_and_ftz_daz_cases": true,
+      "reference_has_native_hooks": false,
+      "recorded_after_state_used_as_mutated_oracle": false,
+      "scope": "Windows optimized Release original code; no nonfinite-direction or ARM equivalence claim"
+    },
+    "fresh_original_full_jobs": {
+      "source_sets": 7,
+      "observed_new_precision_sets": 6,
+      "known_precision_controls": 1,
+      "allocator_cases": [
+        "direct",
+        "ring-contiguous",
+        "ring-exact-end",
+        "ring-wrap",
+        "global-only",
+        "ring-blocked-global"
+      ],
+      "locations": [
+        0,
+        1
+      ],
+      "pairs": 84,
+      "ordered_put_and_atomic_commits": 322,
+      "compared_write_bytes": 317888,
+      "mismatched_bytes": 0,
+      "source_inputs_immutable": true,
+      "output_packet_canaries_match": true,
+      "effective_negative_controls": 3,
+      "configuration": "Windows optimized Release",
+      "scope": "Fresh original SDK constructor/root and actual registered native hook; controlled allocator/publication state, not concurrent scheduling proof"
+    },
+    "command_fix": "Submitted payload triggers the allocator invalidation preamble only when its consumer address is nonzero. Direct/global allocations omit it; ring allocations retain it.",
+    "live_run": {
+      "probe": "20261020-212354",
+      "new_precision_ready": 7757,
+      "new_precision_completed": 7757,
+      "counts_are_snapshot_lower_bounds": true,
+      "renderer": "DirectX12",
+      "frame_limit": 30,
+      "fps_overlay": true,
+      "hidden": true,
+      "muted": true,
+      "isolated_save": true,
+      "strict_fallback_guard": true,
+      "diagnostic_input_census": true,
+      "sampling_profiler": false,
+      "performance_sample": false,
+      "scope": "Continue, camera turn and two short moves inside the starting town"
+    },
+    "regressions": {
+      "debug_checks": 117,
+      "release_checks": 117,
+      "debug_seconds": 29.68,
+      "release_seconds": 25.98,
+      "run_concurrently": true
+    },
+    "measured_fps_gain": false,
+    "complete_spu_image_replaced": false,
+    "next_target": "Recover missing palette rows as explicit descriptor/layout or live-buffer bindings, then select the next whole job/image using profile cost"
   }
 }

@@ -4,6 +4,37 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_cpp_expanded_geometry_town",
+      "date": "2026-10-20",
+      "image": "screenshots/2026-10-20-native-cpp-expanded-geometry-town.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "DirectX12 live draw renderer",
+      "source_format": "Unmodified final swap-chain GPU readback with FPS counter",
+      "source_sha256": "75b959e327589f4b1233d6d6cbfa177e1d421771bde6f7b87fb799bfd7eef516",
+      "png_sha256": "8675575cf43ac527dd9edb8e81aba41b580b1efa1bb813ef8dc39a0a39eb98c5",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IHDR",
+        "IDAT",
+        "IEND"
+      ],
+      "native_probe": "20261020-212949",
+      "native_readback": "frame_001500.ppm",
+      "native_executable_sha256": "06501ae62a5228b4b6f804ffa23710b11bef184f5fcee8c3d1318ea2e870af65",
+      "sdk_patch_count_in_captured_run": 126,
+      "spu_image_inputs": 24,
+      "frame_limit": 30,
+      "fps_counter": true,
+      "vsync": false,
+      "capture_only_backend_instrumentation": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false,
+      "performance_proven_by_still_image": false,
+      "capture_scope": "Public native geometry code after Continue, camera turn and two short town moves. Hidden and muted with copied save, strict fallback guard and normal log suppression; no geometry census or CPU profiler. GPU readback is armed for the screenshot. Counter is instantaneous; no FPS improvement claim."
+    },
+    {
       "milestone": "native_cpp_host_math_town",
       "date": "2026-10-20",
       "image": "screenshots/2026-10-20-native-cpp-host-math-town.png",

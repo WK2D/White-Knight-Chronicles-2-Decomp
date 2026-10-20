@@ -112,7 +112,10 @@ inline BuildStatus build(const PublicationSpec& spec,const GeometryAllocation& a
     next.bytes.assign(capacity,0);
     detail::PacketWriter commands(next);
     if(spec.export_geometry) {
-        if(allocation.vertex_payload_submitted) {
+        // Submitted data needs this allocator invalidation only when a ring
+        // consumer owns the reservation. Direct and global allocations have
+        // no consumer address, even though their payloads were submitted.
+        if(allocation.vertex_payload_submitted&&allocation.consumer_ea) {
             commands.single(0x1710,0);
             for(unsigned i=0;i<3;++i)commands.single(0x1714,0);
         }

@@ -203,8 +203,15 @@ Status make_input(const StagedInputs& staged,const PlatformFacts& platform,
     for(unsigned component=0;component<3;++component) {
         input.decode.position_bias[component]=std::bit_cast<std::int32_t>(
             detail::be32(slots[17].data()+component*4));
-        if(detail::be32(slots[17].data()+16+component*4)!=4)
+        const auto precision=std::bit_cast<std::int32_t>(
+            detail::be32(slots[17].data()+16+component*4));
+        // Recovered overlapping bit windows begin at byte offsets 0/2/4.
+        // Seventeen-bit coordinates use the next byte's high carry bit;
+        // extracting a u16 and rescaling would lose that contribution.
+        // Wider controls need their own recovery before admission.
+        if(precision < -12 || precision > 5)
             return Status::position_conversion_layout;
+        input.decode.position_bits[component]=unsigned(12+precision);
     }
     input.packed_indices.assign(slots[1].begin(),slots[1].end());
     std::vector<Byte> palette_bytes(slots[3].begin(),slots[3].end());

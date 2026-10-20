@@ -18,6 +18,10 @@ struct VertexDecodeSpec {
     PackedVertexFormat format;
     std::uint32_t vertices;
     std::array<std::int32_t,3> position_bias;
+    // Read this many bits from each position's fixed 16-bit container start,
+    // then add its wrapping bias. The 17-bit layout includes the next byte's
+    // high bit; its low seven bits are irrelevant to this coordinate.
+    std::array<unsigned,3> position_bits{16,16,16};
 };
 struct DecodedVertexStreams {
     std::span<Float4> positions;
@@ -84,9 +88,12 @@ inline bool overlaps(const void* a,std::size_t an,const void* b,std::size_t bn) 
 }
 
 // Input is a stable big-endian byte stream: three u16 positions followed by one
-// or two 24-bit directions. Each position adds a wrapping i32 bias and converts
-// from 12 fractional bits. Empty direction views omit outputs the job does not
-// request. Consumed input and written output ranges must be disjoint.
+// or two 24-bit directions. Each coordinate reads 0..17 bits beginning at its
+// fixed two-byte position offset, adds a wrapping i32 bias and converts from
+// 12 fractional bits. A 17-bit Z coordinate also reads the first direction
+// byte's high bit, even when direction output is suppressed. This byte remains
+// inside the 9/12-byte record. Empty direction views omit outputs the job does
+// not request. Consumed input and written output ranges must be disjoint.
 // All structural rejects occur before writes. This is a decoded-buffer kernel,
 // not the old routine's register/scratch ABI or a complete job replacement.
 template<class Math,class Reciprocal,class Conversion=HostPositionConversion>
@@ -96,6 +103,7 @@ bool decode_vertex_stream(std::span<const std::uint8_t> input,const VertexDecode
     const unsigned streams=spec.format==PackedVertexFormat::position_direction?1u:
         spec.format==PackedVertexFormat::position_two_directions?2u:0u;
     if(!streams)return false;
+    for(const auto bits:spec.position_bits)if(bits>17)return false;
     const unsigned stride=6+streams*3;
     const std::size_t count=spec.vertices;
     if(count>(std::numeric_limits<std::size_t>::max)()/sizeof(Float4)||
@@ -115,7 +123,10 @@ bool decode_vertex_stream(std::span<const std::uint8_t> input,const VertexDecode
             const auto* bytes=input.data()+(start+lane)*stride;
             std::array<std::int32_t,3> coordinates;
             for(unsigned axis=0;axis<3;++axis) {
-                const auto quantized=std::uint32_t(bytes[axis*2])*256+bytes[axis*2+1];
+                const auto container=std::uint32_t(bytes[axis*2])*256+bytes[axis*2+1];
+                const auto bits=spec.position_bits[axis];
+                const auto quantized=bits<=16?container>>(16-bits):
+                    (container<<1)|(bytes[axis*2+2]>>7);
                 coordinates[axis]=std::bit_cast<std::int32_t>(quantized+
                     std::bit_cast<std::uint32_t>(spec.position_bias[axis]));
             }
