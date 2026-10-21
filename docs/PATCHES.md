@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0129 | [DMA read trace hook and job capture](#dma-read-trace-hook-and-job-capture-patch-0129) |
 | Patches 0127-0128 | [Pipelined geometry jobs and sub-millisecond sleeps](#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128) |
 | Patch 0126 | [Guest mapping lifetime epoch](#guest-mapping-lifetime-epoch-patch-0126) |
 | Patch 0125 | [Native SPU atomic receipts](#native-spu-atomic-receipts-patch-0125) |
@@ -58,6 +59,33 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## DMA read trace hook and job capture (patch 0129)
+
+Replacing a compiled SPU job with C++ needs real inputs and outputs to compare
+against. The SDK already offered `g_spu_put_trace_hook` for DMA writes. Patch
+0129 adds `g_spu_get_trace_hook`, which is called after each DMA GET lands in
+local store, with the source EA, size, image, SPU pc and bytes. It is NULL
+unless a port installs it.
+
+The port's recorder (`job_capture.cpp`) uses both hooks:
+
+- Set `WKC_JOB_CAPTURE=<dir>`, `WKC_JOB_CAPTURE_IMAGE=<id>` and optionally
+  `WKC_JOB_CAPTURE_COUNT` (default 64).
+- Recording starts once `<dir>/arm` exists, so a route can choose the scene.
+- Each job of that image is written to `job-NNNNN.bin`: the descriptor, then
+  every GET and PUT in order with its bytes.
+- It records only on the dispatching thread and is off when unset. The files
+  hold guest data and stay private.
+
+**Evidence.** Both Windows suites pass all 119 checks. A capture of 96
+crowded-street image-20 jobs shows the job's shape. Each run reads a 64-byte
+parameter block and a 15 KB shared table through its descriptor. It then makes
+about 450 small reads (16–48 bytes, about 80 KB) while walking scene data, and
+writes about 28 blocks (about 70 KB) of RSX commands and program data, mostly
+into RSX local memory.
+
+**Limits.** Atomic reservation traffic (GETLLAR/PUTLLC) is not recorded.
 
 ## Pipelined geometry jobs and sub-millisecond sleeps (patches 0127-0128)
 

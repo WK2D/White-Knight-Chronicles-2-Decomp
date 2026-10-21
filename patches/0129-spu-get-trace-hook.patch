@@ -1,0 +1,28 @@
+diff --git a/runtime/spu/spu_channels.c b/runtime/spu/spu_channels.c
+--- a/runtime/spu/spu_channels.c
++++ b/runtime/spu/spu_channels.c
+@@ -139,6 +139,10 @@
+ void (*g_spu_put_hook)(uint32_t ea, uint32_t size) = 0;
+ /* Separate diagnostic observer; never replaces the GCM consumer's hook. */
+ void (*g_spu_put_trace_hook)(uint32_t, uint32_t, int, uint32_t, const uint8_t*) = 0;
++/* Read-side twin: called after each DMA GET has landed in local store, with the
++ * source EA, size, image, SPU pc and the bytes read. NULL unless a port installs
++ * it (job capture for differential replay). */
++void (*g_spu_get_trace_hook)(uint32_t, uint32_t, int, uint32_t, const uint8_t*) = 0;
+ 
+ void spu_halt(spu_context* ctx)
+ {
+diff --git a/runtime/spu/spu_dma.h b/runtime/spu/spu_dma.h
+--- a/runtime/spu/spu_dma.h
++++ b/runtime/spu/spu_dma.h
+@@ -565,6 +565,10 @@
+          * functions resident for this context. */
+         { extern void spu_overlay_note_get(spu_context*, uint32_t, const uint8_t*, uint32_t);
+           spu_overlay_note_get(spu, (uint32_t)ea, (const uint8_t*)ls_ptr, size); }
++        { extern void (*g_spu_get_trace_hook)(uint32_t, uint32_t, int, uint32_t, const uint8_t*);
++          if (g_spu_get_trace_hook)
++              g_spu_get_trace_hook((uint32_t)ea, size, spu->image_id,
++                                   (uint32_t)spu->pc, (const uint8_t*)ls_ptr); }
+         /* SPU_LS_WATCH: a DMA GET landing on a watched LS line is how the PPU
+          * delivers commands into the SPU's queue (bypasses spu_ls_write128). */
+         { int _n; unsigned* _w = spu_ls_watch_list(&_n);

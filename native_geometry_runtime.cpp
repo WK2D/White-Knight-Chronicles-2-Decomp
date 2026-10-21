@@ -1,6 +1,7 @@
 // Opt-in synchronous geometry/visibility integration, using descriptor/source
 // bytes before SPURS staging. The public algorithms receive owned typed data.
 #include "native_geometry_runtime.h"
+#include "job_capture.h"
 #include "native_geometry_input.h"
 #include "native_geometry_job.h"
 #include "native_estimate_interpolation.h"
@@ -427,6 +428,7 @@ void put_hook(std::uint32_t ea,std::uint32_t bytes) {
     if(previous_put)previous_put(ea,bytes);
 }
 void trace_hook(std::uint32_t ea,std::uint32_t bytes,int image,std::uint32_t pc,const Byte* source) {
+    wkc::job_capture::put(ea,bytes,image,pc,source);
     std::lock_guard<std::recursive_mutex> lock(put_hook_gate);
     if(previous_trace)previous_trace(ea,bytes,image,pc,source);
 }
@@ -448,6 +450,7 @@ thread_local ScopeLease current_scope;
 }
 void* scope_begin(int image,std::uint32_t ea,std::uint32_t bytes)noexcept {
     if(image!=19)drain_pipeline_this_thread();
+    wkc::job_capture::begin(image,ea,bytes);
     try {
         refresh_put_hooks();
         if(image!=19&&image!=23)return previous_begin?previous_begin(image,ea,bytes):nullptr;
@@ -466,6 +469,7 @@ void* scope_begin(int image,std::uint32_t ea,std::uint32_t bytes)noexcept {
     } catch(...) {scope_abort();}
 }
 void scope_end(int image,std::uint32_t ea,std::uint32_t bytes,void* token)noexcept {
+    wkc::job_capture::end(image);
     try {
         if(image!=19&&image!=23){if(previous_end)previous_end(image,ea,bytes,token);return;}
         if(token!=&current_scope||!current_scope.active||current_scope.image!=image||image19_scope_depth!=1)scope_abort();
@@ -941,6 +945,7 @@ void wkc2_init_native_geometry_jobs() {
     previous_put=g_spu_put_hook;previous_trace=g_spu_put_trace_hook;
     g_spu_native_job_hook=native_hook;g_spu_job_scope_begin=scope_begin;g_spu_job_scope_end=scope_end;
     g_spu_put_hook=put_hook;g_spu_put_trace_hook=trace_hook;installed=true;
+    wkc::job_capture::configure();
     // Pipeline workers: WKC_GEOM_PIPELINE=<n> (0 = serial), default by core count.
     const unsigned cores=std::thread::hardware_concurrency();
     unsigned workers=cores>=8?3u:cores>=4?1u:0u;
