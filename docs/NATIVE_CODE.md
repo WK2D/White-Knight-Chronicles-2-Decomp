@@ -1689,7 +1689,30 @@ All 96 captured jobs replay byte-exact with it on and off. Alternating
 per-command work above stays compiled. A crowded-street route renders normally
 with it, at 17.2 ms of image 20 per frame.
 
-**Next.** The remaining cost is spread across the interpreter loop and
-command 12 (reaching 184 lifted functions). The larger step is the loop itself
-in C++ (fetch, dispatch and the per-command call), with handlers moved over one
-at a time behind the same replay check.
+**Interpreter loop in C++.** [`native_render_loop.cpp`](../native_render_loop.cpp)
+now runs the loop: the output-space check after each command (0xFF0/0xFC0),
+recording the command id, the fetch through the 2 KB ring (refilling it from
+the display list and starting each command's payload reads) and the table
+dispatch. It works on local-store bytes with plain integers, makes the same
+local-store writes and DMA requests in the same order, and leaves every
+register the handlers can read with its compiled value. Only the rare output
+flush keeps the compiled code. The installer wraps the loop head (0x1308) and
+return path (0x1968) at pinned hashes. The loop declines to the compiled code
+whenever a runtime per-transfer hook or LS debug watch is active.
+
+A first version translated the compiled instructions one for one; it was
+exact but no faster, because the cost was the work itself rather than the
+jumps between the small functions. The byte-level version is the one kept.
+
+| Build | Replay, per job | Street, image 20 per frame |
+| --- | ---: | ---: |
+| Compiled | about 290 µs | 17–18 ms |
+| Loop and command 25 in C++ | about 252 µs | 14.3 ms |
+
+All 96 captured jobs replay byte-exact; a counter (`WKC_NATIVE_RENDER_STATS=1`)
+shows every one of about 940 passes per job running natively. A street run
+renders normally and presents 285 frames in its ten-second timeline window.
+
+**Next.** Dispatch still goes through the runtime's indirect-branch lookup
+for each command, and command 12 (31% of the original job, 184 reachable
+functions) is the largest handler left.

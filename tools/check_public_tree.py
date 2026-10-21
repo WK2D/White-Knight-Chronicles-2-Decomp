@@ -33,6 +33,7 @@ root_files = {
     'native_event_flag.h',
     'native_event_flag.cpp',
     'native_render_commands.cpp',
+    'native_render_loop.cpp',
     'native_geometry_host_math.h',
     'native_geometry_negative_product.h',
     'native_vertex_pack.h',
