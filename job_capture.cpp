@@ -8,9 +8,13 @@
 #include <filesystem>
 #include <string>
 #include <vector>
+#include "native_event_flag.h"
 
+#include "spu_context.h"
 extern "C" {
 extern std::uint8_t* vm_base;
+extern void (*g_spu_atomic_trace_hook)(std::uint32_t,std::uint32_t,int,std::uint32_t,const std::uint8_t*,std::uint32_t);
+extern int (*g_spu_user_event_hook)(spu_context*,std::uint32_t);
 extern void (*g_spu_get_trace_hook)(std::uint32_t,std::uint32_t,int,std::uint32_t,const std::uint8_t*);
 extern void (*g_spu_put_trace_hook)(std::uint32_t,std::uint32_t,int,std::uint32_t,const std::uint8_t*);
 int spu_workload_dispatch_job(const std::uint8_t* image,std::uint32_t image_size,std::uint32_t job_ea,std::uint32_t job_desc_size);
@@ -37,6 +41,25 @@ void event(char kind,std::uint32_t ea,std::uint32_t size,std::uint32_t pc,const 
 void get_hook(std::uint32_t ea,std::uint32_t size,int image,std::uint32_t pc,const std::uint8_t* bytes) {
     get(ea,size,image,pc,bytes);
 }
+// Atomic line commands: 'L' GETLLAR (line as read), 'C'/'F' PUTLLC that
+// succeeded/failed (line offered), 'U' PUTLLUC (line stored).
+void atomic_hook(std::uint32_t cmd,std::uint32_t ea,int image,std::uint32_t pc,const std::uint8_t* line,std::uint32_t status) {
+    if(!current.active||image!=image_id)return;
+    const char kind=cmd==0xD0?'L':cmd==0xB4?(status==0?'C':'F'):'U';
+    event(kind,ea,128,pc,line);
+}
+// User events sent through the interrupt mailbox: 'E', ea = mailbox word,
+// bytes = outbound mailbox data then SPU id (little-endian u32s).
+int (*previous_user_event)(spu_context*,std::uint32_t)=nullptr;
+int user_event_hook(spu_context* ctx,std::uint32_t value) {
+    if(current.active&&ctx->image_id==image_id) {
+        std::uint8_t data[8];
+        const std::uint32_t mbox=ctx->ch_out_mbox.count?ctx->ch_out_mbox.value:0,id=ctx->spu_id;
+        std::memcpy(data,&mbox,4);std::memcpy(data+4,&id,4);
+        event('E',value,8,std::uint32_t(ctx->pc),data);
+    }
+    return previous_user_event?previous_user_event(ctx,value):0;
+}
 }
 
 void configure() {
@@ -46,6 +69,7 @@ void configure() {
     directory=dir;image_id=int(std::strtol(image,nullptr,10));
     if(const char* count=std::getenv("WKC_JOB_CAPTURE_COUNT"))limit=unsigned(std::strtoul(count,nullptr,10));
     g_spu_get_trace_hook=get_hook;
+    g_spu_atomic_trace_hook=atomic_hook;
 }
 bool enabled() {return image_id>=0;}
 
@@ -56,6 +80,9 @@ void begin(int image,std::uint32_t job_ea,std::uint32_t descriptor_size) {
         std::error_code error;
         if(!std::filesystem::exists(std::filesystem::path(directory)/"arm",error))return;
         armed=true;
+    }
+    if(g_spu_user_event_hook!=user_event_hook) { // installed after configure()
+        previous_user_event=g_spu_user_event_hook;g_spu_user_event_hook=user_event_hook;
     }
     const unsigned index=started.fetch_add(1);
     if(index>=limit)return;
@@ -97,6 +124,13 @@ void put(std::uint32_t ea,std::uint32_t size,int image,std::uint32_t pc,const st
 namespace {
 struct Event {char kind;std::uint32_t ea,size,pc;std::vector<std::uint8_t> bytes;};
 std::vector<Event> expected_puts;std::size_t put_index=0;unsigned put_mismatches=0;bool replay_logging=true;
+std::vector<std::uint64_t> replay_events;
+int replay_user_event(spu_context* ctx,std::uint32_t value) {
+    const std::uint32_t mbox=ctx->ch_out_mbox.count?ctx->ch_out_mbox.value:0;
+    replay_events.push_back(std::uint64_t(value)<<32|mbox);
+    return 1; // consumed: nothing is delivered during replay
+}
+void replay_native_event(std::uint32_t value,std::uint32_t data) {replay_events.push_back(std::uint64_t(value)<<32|data);}
 void replay_put(std::uint32_t ea,std::uint32_t size,int,std::uint32_t pc,const std::uint8_t* bytes) {
     const std::size_t i=put_index++;
     if(i>=expected_puts.size()||expected_puts[i].ea!=ea||expected_puts[i].size!=size||
@@ -115,11 +149,22 @@ unsigned replay_one(const char* path,unsigned runs,double& total_us) {
     if(d.size()<20||std::memcmp(d.data(),"WKCJ",4)){std::fprintf(stderr,"[job-replay] %s is not a capture\n",path);return runs;}
     const std::uint32_t job_ea=u32(12),desc_size=u32(16);
     std::vector<std::uint8_t> descriptor(d.begin()+20,d.begin()+20+desc_size);
-    std::vector<Event> reads;expected_puts.clear();
+    std::vector<Event> reads,outcomes;expected_puts.clear();
     for(std::size_t at=20+desc_size;at+13<=d.size();) {
         Event e{char(d[at]),u32(at+1),u32(at+5),u32(at+9),{}};
         e.bytes.assign(d.begin()+at+13,d.begin()+at+13+e.size);at+=13+e.size;
-        (e.kind=='P'?expected_puts:reads).push_back(std::move(e));
+        if(e.kind=='P')expected_puts.push_back(std::move(e));
+        else if(e.kind=='C'||e.kind=='U'||e.kind=='E')outcomes.push_back(std::move(e));
+        else if(e.kind=='S'||e.kind=='G'||e.kind=='L')reads.push_back(std::move(e));
+    }
+    // Expected end state: the last committed bytes of each atomically stored
+    // line, and every user event in order.
+    std::vector<std::pair<std::uint32_t,const Event*>> committed;std::vector<std::uint64_t> expected_events;
+    for(const auto& e:outcomes) {
+        if(e.kind=='E'){std::uint32_t data;std::memcpy(&data,e.bytes.data(),4);expected_events.push_back(std::uint64_t(e.ea)<<32|data);continue;}
+        bool found=false;
+        for(auto& c:committed)if(c.first==e.ea){c.second=&e;found=true;}
+        if(!found)committed.push_back({e.ea,&e});
     }
     auto prepare=[&]{
         for(auto it=reads.rbegin();it!=reads.rend();++it)std::memcpy(vm_base+it->ea,it->bytes.data(),it->size); // earliest read wins
@@ -129,18 +174,31 @@ unsigned replay_one(const char* path,unsigned runs,double& total_us) {
     auto be32=[](const std::uint8_t* q){return std::uint32_t(q[0])<<24|std::uint32_t(q[1])<<16|std::uint32_t(q[2])<<8|q[3];};
     const std::uint32_t binary=be32(h+4)&~7u,binary_size=((be32(h+8)>>16)&0xFFFFu)<<4;
     auto previous=g_spu_put_trace_hook;g_spu_put_trace_hook=replay_put;
+    auto previous_event=g_spu_user_event_hook;g_spu_user_event_hook=replay_user_event;
+    wkc::event_flag::set_event_sink(replay_native_event);
     unsigned bad_runs=0;
     for(unsigned run=0;run<runs;++run) {
-        prepare();put_index=0;put_mismatches=0;replay_logging=run==0;
+        prepare();put_index=0;put_mismatches=0;replay_logging=run==0;replay_events.clear();
         const auto t0=std::chrono::steady_clock::now();
         spu_workload_dispatch_job(vm_base+binary,binary_size,job_ea,desc_size);
         total_us+=std::chrono::duration<double,std::micro>(std::chrono::steady_clock::now()-t0).count();
+        for(const auto& c:committed)
+            if(std::memcmp(vm_base+c.first,c.second->bytes.data(),128)) {
+                if(replay_logging)std::fprintf(stderr,"[job-replay] %s: line %08X differs after the job\n",path,c.first);
+                ++put_mismatches;
+            }
+        if(replay_events!=expected_events) {
+            if(replay_logging)std::fprintf(stderr,"[job-replay] %s: %zu events, expected %zu (or different values)\n",
+                path,replay_events.size(),expected_events.size());
+            ++put_mismatches;
+        }
         if(put_mismatches||put_index!=expected_puts.size())++bad_runs;
         if(run==0&&(put_mismatches||put_index!=expected_puts.size()))
             std::printf("[job-replay] %s: reads=%zu puts expected=%zu produced=%zu mismatched=%u\n",
                 path,reads.size(),expected_puts.size(),put_index,put_mismatches);
     }
-    g_spu_put_trace_hook=previous;
+    g_spu_put_trace_hook=previous;g_spu_user_event_hook=previous_event;
+    wkc::event_flag::set_event_sink(nullptr);
     return bad_runs;
 }
 }

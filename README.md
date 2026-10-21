@@ -31,7 +31,7 @@ with readable project-written C++; current coverage is partial.
 - The town-to-Balastor Plain transition after Continue, with short movement and
   camera control. DirectX foreground clipping is fixed on that route, and
   leaf-shaped foliage shadow cutouts are restored on both renderers.
-- **120 Windows regression checks** pass in both normal Debug and optimized Release.
+- **121 Windows regression checks** pass in both normal Debug and optimized Release.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
 resolutions; VSync; anisotropic filtering from Off to 16×; Off/FXAA anti-aliasing;

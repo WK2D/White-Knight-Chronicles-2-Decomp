@@ -1,0 +1,30 @@
+diff --git a/runtime/spu/spu_channels.c b/runtime/spu/spu_channels.c
+--- a/runtime/spu/spu_channels.c
++++ b/runtime/spu/spu_channels.c
+@@ -143,6 +143,11 @@
+  * source EA, size, image, SPU pc and the bytes read. NULL unless a port installs
+  * it (job capture for differential replay). */
+ void (*g_spu_get_trace_hook)(uint32_t, uint32_t, int, uint32_t, const uint8_t*) = 0;
++/* Atomic-line twin: called after GETLLAR/PUTLLC/PUTLLUC completes, with the
++ * command, line EA, image, SPU pc, the 128-byte local-store line (as read, or
++ * as offered for the store) and the resulting MFC atomic status. NULL unless a
++ * port installs it (job capture for differential replay). */
++void (*g_spu_atomic_trace_hook)(uint32_t, uint32_t, int, uint32_t, const uint8_t*, uint32_t) = 0;
+ 
+ void spu_halt(spu_context* ctx)
+ {
+@@ -782,8 +787,13 @@
+     if (channel_is_mfc(channel)) {
+         /* Atomic line ops (GETLLAR/PUTLLC/...) need real reservation semantics,
+          * not the plain GET/PUT the DMA engine would do. */
+-        if (channel == MFC_Cmd && spu_mfc_atomic(ctx, v))
++        if (channel == MFC_Cmd && spu_mfc_atomic(ctx, v)) {
++            if (g_spu_atomic_trace_hook)
++                g_spu_atomic_trace_hook(v & 0xFFu, ctx->mfc_eal & ~127u, ctx->image_id,
++                                        (uint32_t)ctx->pc, &ctx->ls[ctx->mfc_lsa & SPU_LS_MASK & ~127u],
++                                        ctx->atomic_stat);
+             return;
++        }
+         mfc_channel_write(mfc_for(ctx), ctx, channel, v);
+         /* MFC tag-status-update EVENT producer (channel-stall milestone). Our
+          * DMA completes synchronously, so the instant the program arms tag

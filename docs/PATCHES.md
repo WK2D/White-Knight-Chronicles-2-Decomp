@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0131 | [Atomic trace hook and image 21 in C++](#atomic-trace-hook-and-image-21-in-c-patch-0131) |
 | Patch 0130 | [Faster SPU calls and transfers](#faster-spu-calls-and-transfers-patch-0130) |
 | Patch 0129 | [DMA read trace hook and job capture](#dma-read-trace-hook-and-job-capture-patch-0129) |
 | Patches 0127-0128 | [Pipelined geometry jobs and sub-millisecond sleeps](#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128) |
@@ -60,6 +61,19 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Atomic trace hook and image 21 in C++ (patch 0131)
+
+Patch 0131 adds `g_spu_atomic_trace_hook`, called after each GETLLAR, PUTLLC
+or PUTLLUC with the command, line address, image, pc, the 128-byte line and
+the atomic status. It is NULL unless a port installs it. The port's job
+capture uses it, together with a wrapper around the user-event hook, so jobs
+built on atomic updates and mailbox events can be replayed and compared.
+
+That made the first full C++ replacement of an SPU job checkable: image 21,
+the SPURS event-flag set job. See
+[image 21 in C++](NATIVE_CODE.md#image-21-event-flag-set-in-c) for the rules,
+limits and the 400-case comparison against the compiled job.
 
 ## Faster SPU calls and transfers (patch 0130)
 

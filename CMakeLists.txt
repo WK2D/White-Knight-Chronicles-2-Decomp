@@ -208,6 +208,7 @@ add_executable(${PROJECT_NAME}
     native_skinning_stream_bridge.cpp
     native_geometry_runtime.cpp
     job_capture.cpp
+    native_event_flag.cpp
     play_environment.cpp
     ${PLAY_ENV_NAMES}
     ${PS3RECOMP_SCAFFOLD}
@@ -419,6 +420,8 @@ if(WKC2_BUILD_TESTS)
     add_test(NAME wkc2_native_geometry_hook COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_native_geometry_hook.py")
     set_tests_properties(wkc2_native_geometry_hook PROPERTIES TIMEOUT 10)
+    add_executable(wkc2_native_event_flag_test tests/native_event_flag_test.cpp)
+    add_test(NAME wkc2_native_event_flag COMMAND wkc2_native_event_flag_test)
     add_test(NAME wkc2_spu_direct_jumps COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_spu_direct_jumps.py")
     set_tests_properties(wkc2_spu_direct_jumps PROPERTIES TIMEOUT 10)

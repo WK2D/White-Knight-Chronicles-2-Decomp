@@ -49,6 +49,7 @@ newest work is at the end of the page.
 
 **Latest work, newest first**
 
+- [Image 21: event-flag set in C++](#image-21-event-flag-set-in-c)
 - [Next critical path: image 20, the SPU render-command builder](#next-critical-path-image-20-the-spu-render-command-builder)
 - [Pipelined whole geometry jobs](#pipelined-whole-geometry-jobs)
 - [Owned extended negative-product arithmetic](#owned-extended-negative-product-arithmetic)
@@ -189,7 +190,7 @@ zero fallback and at least 16,777,216 transformed blocks in each run. Both final
 frames were inspected. The Vulkan run additionally samples CPU time; profiling,
 tracing and GPU captures make it unsuitable as an FPS benchmark.
 
-Both Windows suites now pass 120 checks with 130 SDK patches. No FPS gain,
+Both Windows suites now pass 121 checks with 131 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
 is claimed.
 
@@ -1607,3 +1608,41 @@ Asynchronous window presentation was also tried: the CPU recorded the next
 frame while the GPU finished the last one. Same-process A/B windows showed no
 FPS difference (about 31.2 vs 30.9), because the present wait wasn't on the
 frame's critical path. That change was not kept.
+
+## Image 21: event-flag set in C++
+
+Image 21 (`zz_raw_job_012A1980`, 35 lifted functions) is Sony's SPU-side
+`cellSpursEventFlagSet`. Its descriptor carries the flag's 64-bit address at
++0x30 and a bit number at +0x3C. The job:
+
+1. reads the 128-byte CellSpursEventFlag line with GETLLAR and rejects
+   PPU-to-SPU and unknown directions;
+2. ORs the bit into `events`, releases SPU-task wait slots and the PPU waiter
+   whose AND/OR conditions are now met, records their events and, in automatic
+   clear mode, consumes them;
+3. commits with PUTLLC, retrying on conflict; then
+4. sends a no-reply SPU thread event on the flag's port to wake the PPU
+   waiter, and signals each released SPU task.
+
+[`native_event_flag.h`](../native_event_flag.h) holds the update rules as a
+pure function on the line; [`native_event_flag.cpp`](../native_event_flag.cpp)
+runs the reservation loop through the patch-0125 native line operations and
+delivers the PPU event exactly as the runtime does for a SPURS job's mailbox.
+The C++ route is on with `WKC_NATIVE_GEOMETRY_JOB=1`;
+`WKC_NATIVE_EVENT_FLAG=0` keeps the compiled job.
+
+Signalling an SPU task needs the SPURS kernel context at local store 0x1C0,
+which this runtime doesn't stage for jobs (it would overwrite job code). A set
+that would release an SPU task therefore releases its reservation and declines
+before any store, and the compiled job runs as before.
+
+**Evidence.** Patch 0131 lets captures record atomic line commands, and the
+port records user events, so replay compares the final flag line and the
+event list as well as DMA writes. The compiled job was used as the reference:
+400 synthetic flag lines (all directions including invalid ones, AND/OR modes,
+PPU wait slots, clear modes, ports above 63, random wait masks) were replayed
+through it with capture on, then through the C++ route. All 400 match: 269
+stored updates, 131 rejections and 56 PPU wake-up events. The C++ route takes
+about 2.6 µs per job against about 250 µs for the compiled job in the same
+replay. `wkc2_native_event_flag` checks the update rules without game data. A
+crowded-street route ran with the C++ route handling every image-21 job.

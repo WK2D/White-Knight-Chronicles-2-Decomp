@@ -1,6 +1,7 @@
 // Opt-in synchronous geometry/visibility integration, using descriptor/source
 // bytes before SPURS staging. The public algorithms receive owned typed data.
 #include "native_geometry_runtime.h"
+#include "native_event_flag.h"
 #include "job_capture.h"
 #include "native_geometry_input.h"
 #include "native_geometry_job.h"
@@ -76,6 +77,7 @@ spu_job_scope_end_fn previous_end=nullptr;
 void (*previous_put)(std::uint32_t,std::uint32_t)=nullptr;
 void (*previous_trace)(std::uint32_t,std::uint32_t,int,std::uint32_t,const Byte*)=nullptr;
 bool enabled=false,installed=false,diagnostics=false;
+bool event_flag_jobs=true; // WKC_NATIVE_EVENT_FLAG=0 keeps image 21 compiled
 void drain_pipeline_this_thread()noexcept;
 struct Census {
     std::atomic<std::uint64_t> seen{0},admitted{0},complete{0},decline{0},fatal{0};
@@ -866,6 +868,7 @@ std::optional<int> pipelined_hook(std::uint32_t ea,std::uint32_t descriptor_size
 }
 int execute_native_hook(int image,std::uint32_t ea,std::uint32_t descriptor_size) {
     if(image==23&&enabled)return execute_visibility(ea,descriptor_size);
+    if(image==21&&enabled&&event_flag_jobs)return wkc::event_flag::execute_job(ea,descriptor_size);
     if(image!=19||!enabled||g_spu_float_mode!=SPU_FLOAT_HOST)
         return previous_native?previous_native(image,ea,descriptor_size):declined;
     if(diagnostics)++census.seen;
@@ -938,6 +941,7 @@ int native_hook(int image,std::uint32_t ea,std::uint32_t descriptor_size)noexcep
 void wkc2_init_native_geometry_jobs() {
     if(installed)return;
     const auto* setting=std::getenv("WKC_NATIVE_GEOMETRY_JOB");enabled=setting&&std::strcmp(setting,"1")==0;
+    if(const char* flag=std::getenv("WKC_NATIVE_EVENT_FLAG"))event_flag_jobs=std::strcmp(flag,"0")!=0;
     if(!enabled)return;
     const auto* diagnostic_setting=std::getenv("WKC_NATIVE_GEOMETRY_DIAGNOSTICS");
     diagnostics=diagnostic_setting&&std::strcmp(diagnostic_setting,"1")==0;

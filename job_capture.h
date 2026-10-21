@@ -8,8 +8,12 @@
 //
 // File layout (little-endian): "WKCJ" u32 version=1, u32 image, u32 job_ea,
 // u32 descriptor_size, descriptor bytes, then records until end of file:
-// u8 kind ('S' staged input, 'G' read, 'P' write), u32 ea, u32 size, u32 spu_pc,
-// bytes. 'S' records are the descriptor's input/cache list sources at dispatch.
+// u8 kind, u32 ea, u32 size, u32 spu_pc, bytes. Kinds: 'S' staged input (the
+// descriptor's input/cache list sources at dispatch), 'G' DMA read, 'P' DMA
+// write, 'L' GETLLAR line, 'C'/'F' PUTLLC line that succeeded/failed, 'U'
+// PUTLLUC line, 'E' user event (ea = interrupt-mailbox word, bytes = outbound
+// mailbox data and SPU id). Replay also compares atomically stored lines and
+// events (SDK patch 0131 supplies the atomic trace).
 // Files hold guest data: keep them private.
 #pragma once
 #include <cstdint>

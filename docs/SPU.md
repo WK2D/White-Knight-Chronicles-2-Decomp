@@ -9,7 +9,8 @@ this page summarises it and says where to look.
 **At a glance (2026-10-21)**
 
 - 24 SPU programs ("images") are extracted from the executable, lifted to C and
-  compiled into the port. None has been fully replaced yet.
+  compiled into the port. Image 21, the event-flag set job, is the first one
+  handled entirely by C++ for its normal path.
 - Readable C++ runs the supported image-19 geometry jobs, pipelined across
   worker threads, and all four image-23 visibility modes. Other inputs fall
   back to the compiled code before any output is published.
@@ -98,7 +99,7 @@ with the scene. Native C++ work doesn't appear in these spans.
 | 18 | Raw job `0127FB00` | Not yet identified | Compiled | 3.8 ms |
 | **19** | Raw job `01283D80` | **Edge geometry**: skinning, normals, filtering, vertex export and RSX command publication | **C++ for supported inputs, pipelined** | 1.8 ms on the chain thread; preparation runs on workers |
 | **20** | Raw job `01294400` | **Render-command builder**: interprets display lists into RSX commands, shader microcode and constant uploads | Compiled; replay harness ready | **18.3 ms** |
-| 21 | Raw job `012A1980` | Short jobs that commit completion flags the PPU waits on | Compiled | 0.4 ms |
+| **21** | Raw job `012A1980` | **SPURS event-flag set**: atomically ORs a bit into a flag, releases waiters and wakes the waiting PPU thread | **C++** ([details](NATIVE_CODE.md#image-21-event-flag-set-in-c)); task wake-ups stay compiled | 0.4 ms compiled, about 1% of that in C++ |
 | 22 | Raw job `012A2180` | Not yet identified | Compiled | 0.1 ms |
 | **23** | Raw job `012A6B00` | **Visibility requests**: frustum, occlusion, mask and projected-interval selection | **C++ for all four modes, admitted inputs** | Native |
 | 24 | Queue job `0118FA00` | Secondary-bone physics (hair and clothing), run through the SPURS job queue | Compiled | 0.2 ms |
@@ -116,6 +117,10 @@ are in [native work](NATIVE_CODE.md#acceptance-for-each-native-replacement).
 
 **Done, for supported inputs:**
 
+- **Image 21, event-flag set.** The atomic update, PPU wake-up event and every
+  rejection path run in C++ over the native line operations from patch 0125.
+  A set that would wake an SPU task hands the job back to the compiled code
+  before any store ([details](NATIVE_CODE.md#image-21-event-flag-set-in-c)).
 - **Image 19, whole job.** Owned typed inputs, decoding, skinning, normals,
   projection and filtering, allocation, export and command publication
   ([opt-in live geometry job](NATIVE_CODE.md#opt-in-live-geometry-job)). Jobs
@@ -175,6 +180,7 @@ Each row is a real fault found in this port. The patch notes have the evidence.
 | Image-19 jobs ran one at a time on the chain thread | Pipelined preparation with in-order commit ([0127–0128](PATCHES.md#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128)); street 15.5 → 26.5 FPS |
 | About a fifth of compiled job time spent in transfer bookkeeping | [0130](PATCHES.md#faster-spu-calls-and-transfers-patch-0130); image-20 job 311 → 280 µs |
 | Per-job log lines cost about a third of a replayed job | Keep `PS3_VERBOSE=0` when timing |
+| Captures missed atomic line updates and mailbox events, so jobs built on them couldn't be replayed | [0131](PATCHES.md#atomic-trace-hook-and-image-21-in-c-patch-0131) traces GETLLAR/PUTLLC; the port records user events |
 
 ## What limits the frame rate
 
@@ -239,7 +245,8 @@ the one set up for image 20.
 | `WKC_NATIVE_GEOMETRY_JOB=1` | Enable the C++ image-19 and image-23 routes (the desktop build sets it) |
 | `WKC_GEOM_PIPELINE=<n>`, `WKC_GEOM_PIPELINE_VERIFY=1` | Pipeline worker count (0 = serial); verify mode re-runs every 64th job serially |
 | `WKC_JOB_CAPTURE`, `_IMAGE`, `_COUNT` | Record complete job transactions for one image |
-| `WKC_JOB_REPLAY`, `WKC_JOB_REPLAY_RUNS` | Replay captures, compare writes, report mean job time |
+| `WKC_JOB_REPLAY`, `WKC_JOB_REPLAY_RUNS` | Replay captures, compare writes, atomic line stores and events, report mean job time |
+| `WKC_NATIVE_EVENT_FLAG=0` | Keep image 21 on the compiled job (with `WKC_NATIVE_GEOMETRY_JOB=1`) |
 | `SPU_FALLBACK_STRICT=1` | Make any interpreter or microstep entry fatal |
 | `SPU_FLOAT_MODE` | Host floats, an `audit` count, or exact SPU rules |
 | `WKC_TRACE_GATE`, `WKC_TRACE_OUT` | Ten-second frame timeline, including SPU job spans per image |

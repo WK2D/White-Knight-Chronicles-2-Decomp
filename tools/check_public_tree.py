@@ -30,6 +30,8 @@ root_files = {
     'native_geometry_order.h',
     'job_capture.h',
     'job_capture.cpp',
+    'native_event_flag.h',
+    'native_event_flag.cpp',
     'native_geometry_host_math.h',
     'native_geometry_negative_product.h',
     'native_vertex_pack.h',
