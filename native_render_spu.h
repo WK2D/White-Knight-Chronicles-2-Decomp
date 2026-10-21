@@ -17,6 +17,7 @@ typedef void (*wkc_spu_fn)(spu_context*);
 wkc_spu_fn spu_lookup(uint32_t addr,int image_id);
 u128 spu_rdch(spu_context* ctx,uint32_t channel);
 void spu_wrch(spu_context* ctx,uint32_t channel,u128 value);
+void spu_halt(spu_context* ctx);
 }
 
 namespace wkc_render {
