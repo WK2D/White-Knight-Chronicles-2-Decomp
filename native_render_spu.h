@@ -15,6 +15,8 @@
 extern "C" {
 typedef void (*wkc_spu_fn)(spu_context*);
 wkc_spu_fn spu_lookup(uint32_t addr,int image_id);
+u128 spu_rdch(spu_context* ctx,uint32_t channel);
+void spu_wrch(spu_context* ctx,uint32_t channel,u128 value);
 }
 
 namespace wkc_render {
@@ -39,6 +41,11 @@ inline void put_word(spu_context* ctx,std::uint32_t address,std::uint32_t v) {
     q[0]=std::uint8_t(v>>24);q[1]=std::uint8_t(v>>16);q[2]=std::uint8_t(v>>8);q[3]=std::uint8_t(v);
 }
 inline u128 splat(u128 v,unsigned lane) {u128 r;for(int i=0;i<4;++i)r._u32[i]=v._u32[lane];return r;}
+// One local-store byte, and byte `offset` (SPU order) of a quad value.
+inline std::uint32_t ls_byte(spu_context* ctx,std::uint32_t address) {return ctx->ls[address&SPU_LS_MASK];}
+inline std::uint32_t byte_of(const u128& q,unsigned offset) {return q._u32[(offset&15)>>2]>>(24-8*(offset&3))&0xFFu;}
+// `cwd` + `shufb`: the quad with the word slot of `address` replaced.
+inline u128 with_word(u128 q,std::uint32_t address,std::uint32_t v) {q._u32[(address&12u)>>2]=v;return q;}
 
 // A compiled function of this image, resolved once per address.
 inline wkc_spu_fn compiled(spu_context* ctx,std::uint32_t address) {

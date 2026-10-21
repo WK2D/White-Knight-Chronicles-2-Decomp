@@ -29,6 +29,13 @@ ENTRIES = {
     'transform constants': ('0000A8E0', '2fb181c64f233ccdf36a21f23499196440060c33371db53447dbe468239b2b51', 'routine', 'wkc_native_render_transform_constants',
                             ('0000A950', '0000AB74', '0000AB94', '0000AB98', '0000ABB0', '0000AC20',
                              '0000ACF4', '0000AD2C', '0000AD34', '0000AD3C')),
+    'table constants': ('000053C8', 'ef4e64a5ca15325b246997c30440ae97b11a9b95a9840da65532499638f03aab', 'routine', 'wkc_native_render_table_constants',
+                        ('000053D8', '00005430', '00005460', '000054C0', '00005550', '00005908',
+                         '00005980', '00005A28', '00005A40')),
+    'state flush': ('0000AD50', '15aa08a27f713820e49bea28eb713f066ec30459037cd63d2f3bacf26b96bc56', 'routine', 'wkc_native_render_state_flush',
+                    ('0000ADCC', '0000ADE0', '0000ADF0', '0000AE00', '0000AE40', '0000AE98', '0000AF48',
+                     '0000AF9C', '0000AFB0', '0000B210', '0000B270', '0000B290', '0000B368', '0000B3D8',
+                     '0000B410')),
 }
 JUMP = re.compile(r'SPU_JUMP\(ctx, (0x[0-9A-F]+), ([A-Za-z_][A-Za-z0-9_]*)\);')
 
@@ -50,8 +57,8 @@ def wrapper(address, kind, argument):
         return (f'extern int {argument}(spu_context* ctx);\n'
                 f'void {entry(address)}(spu_context* ctx) {{\n'
                 '    if (wkc_native_render_verify_enabled()) {\n'
-                f'        if (wkc_native_render_verify(ctx, {reference(address)}, {argument}, 0x{address}u)) SPU_RET(ctx);\n'
-                f'        {reference(address)}(ctx); return;\n'
+                f'        wkc_native_render_verify(ctx, {reference(address)}, {argument}, 0x{address}u);\n'
+                '        SPU_RET(ctx);\n'
                 '    }\n'
                 f'    if (!{argument}(ctx)) {{ {reference(address)}(ctx); return; }}\n'
                 '    SPU_RET(ctx);\n'
