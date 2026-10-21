@@ -23,8 +23,14 @@ $env:RSX_ENGINE_ZTEX_GPU = '1'
 $env:RSX_VK_PRESENT_MODE = 'mailbox'
 $exe = Join-Path $Workspace 'work/play-native/WKC2Native.exe'
 $elf = Join-Path $Workspace 'work/wkc2-inspection/PS3_GAME/USRDIR/EBOOT.elf'
-$game = Start-Process -FilePath $exe -ArgumentList ('"' + $elf + '"') `
-    -WorkingDirectory $Workspace -WindowStyle Hidden -PassThru
+# Suppress the console without passing SW_HIDE to the game's renderer window.
+$launch = New-Object System.Diagnostics.ProcessStartInfo
+$launch.FileName = $exe
+$launch.Arguments = '"' + $elf + '"'
+$launch.WorkingDirectory = $Workspace
+$launch.UseShellExecute = $false
+$launch.CreateNoWindow = $true
+$game = [System.Diagnostics.Process]::Start($launch)
 $null = $game.Handle
 $game.WaitForExit()
 $game.Refresh()
