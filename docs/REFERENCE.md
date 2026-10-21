@@ -51,6 +51,8 @@ gives the play defaults. Keep any files these write private.
 | `WKC2_PLAYER_MODE=1` | Native clean-play guard; clears inherited research/input switches and forces quiet logs | [Build guide](BUILD.md#playing-and-performance-options) |
 | `RSX_PRESENT_MEASURE=1` | Opt-in DirectX benchmark ring/CSV, always blocked in player mode | [Build guide](BUILD.md#presentation-measurement) |
 | `WKC_NATIVE_GEOMETRY_JOB=1` | Enables admitted image-19 geometry jobs and image23 visibility modes 1–4. Image19 and visibility modes 1/2/4 use Windows host-float math. Unset or `0` leaves dispatch, scope gates and PUT observers unregistered and silent. | [Build guide](BUILD.md#playing-and-performance-options) |
+| `WKC_GEOM_PIPELINE=<n>` | Worker threads for pipelined image-19 jobs; `0` runs them serially. Kept in player mode | [Patches 0127-0128](PATCHES.md#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128) |
+| `WKC_GEOM_PIPELINE_VERIFY=1` | Re-prepares every 64th pipelined job serially and aborts on any difference; cleared in player mode | [Patches 0127-0128](PATCHES.md#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128) |
 | `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1` | Separately enables sampled whole-job admission/result logs when the native job runtime is enabled; does not enable it by itself | [Build guide](BUILD.md#playing-and-performance-options) |
 | `WKC_NATIVE_SKINNING_TRACE=1` | Count native blend calls for coverage | [Native kernel](NATIVE_CODE.md#readable-c-geometry-prefix) |
 | `WKC_NATIVE_SKINNING=0` | Use retained compiled geometry prefix for research comparison | [Native kernel](NATIVE_CODE.md#readable-c-geometry-prefix) |

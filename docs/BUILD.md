@@ -85,6 +85,9 @@ geometry and visibility routes without enabling diagnostics. It explicitly write
 when the switch is omitted, preventing an inherited experimental selection.
 The clean-player guard preserves that functional selection while stripping
 native-job diagnostics, capture, profiling and input-injection switches.
+`-GeometryWorkers <n>` sets the geometry pipeline's worker threads
+(`WKC_GEOM_PIPELINE`); `0` runs geometry jobs serially, and omitting it keeps
+the core-count default of three workers on 8 or more hardware threads.
 
 ## Requirements and workspace
 
