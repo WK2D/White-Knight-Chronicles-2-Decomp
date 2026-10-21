@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Image 21, the SPURS event-flag set job, runs in C++ for its normal path, and image 20's render-command interpreter loop and command 25 run in C++ (about 14.3 ms of image 20 per street frame, down from 17-18 ms; all 96 captured jobs replay byte-exact). Admitted image19 geometry jobs are pipelined across worker threads, taking the crowded street from about 15.5 to 26.5 FPS unlocked, and image23 visibility modes 1-4 run in C++. 132 SDK patches / 121 Windows checks pass in Debug and Release. Other image-20 commands, other job/image paths, broader gameplay and future platforms remain unfinished.",
+    "current_milestone": "Image 21, the SPURS event-flag set job, runs in C++ for its normal path, and image 20's render-command interpreter loop and commands 25 and 12 run in C++ (about 212 us per replayed job instead of about 290 compiled; all 96 captured jobs replay byte-exact and every routine call matches the compiled code in verify mode). Admitted image19 geometry jobs are pipelined across worker threads, taking the crowded street from about 15.5 to 26.5 FPS unlocked, and image23 visibility modes 1-4 run in C++. 132 SDK patches / 121 Windows checks pass in Debug and Release. Other image-20 commands, other job/image paths, broader gameplay and future platforms remain unfinished.",
     "updated": "2026-10-21"
   },
   "native_data_installation_verified": true,
