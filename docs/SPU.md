@@ -15,7 +15,8 @@ this page summarises it and says where to look.
   worker threads, and all four image-23 visibility modes. Other inputs fall
   back to the compiled code before any output is published.
 - The largest remaining SPU cost on the crowded street is image 20, the
-  render-command builder: 18–21 ms per frame, and it has to run serially.
+  render-command builder: about 14.3 ms per frame with its interpreter loop and
+  command 25 in C++ (17–21 ms compiled), and it has to run serially.
 - Captured jobs can be replayed byte for byte (`WKC_JOB_REPLAY`), so every
   change to a job can be checked without playing the game.
 
@@ -203,7 +204,9 @@ The crowded town street is the slowest scene. Findings in order:
    frame (about 54 jobs per frame on the street; 21.2 ms before patch 0130,
    18.3 ms after, in separate runs). Every job reads a shared table and
    render-state block that the previous job rewrote, with different bytes each
-   time, so the jobs can't overlap. They have to get faster instead.
+   time, so the jobs can't overlap. They have to get faster instead. Running
+   the interpreter loop and command 25 in C++ brought it to about 14.3 ms
+   ([details](NATIVE_CODE.md#image-20-command-profile-and-command-25-in-c)).
 
 **Tried and set aside**
 
