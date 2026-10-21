@@ -24,7 +24,6 @@
  * table. It comes first: everything below is written against that struct. */
 #include "ppu_recomp.h"
 #include "graphics_settings.h"
-#include "graphics_pacing.h"
 #include "native_geometry_runtime.h"
 #include "job_capture.h"
 #ifdef PS3RECOMP_RSX_VULKAN
@@ -639,7 +638,6 @@ static DWORD WINAPI frame_clock(LPVOID)
     QueryPerformanceFrequency(&qpf);
     QueryPerformanceCounter(&qpc);
     double vblank_ms = wkc::graphics_vblank_period_ms(wkc::graphics_snapshot());
-    wkc::UnlockedVblankClock unlocked_clock;
     double next_tick_ms = (double)qpc.QuadPart * 1000.0 / (double)qpf.QuadPart;
     ULONGLONG next_report = GetTickCount64() + 5000;
     /* Flips on vblank: in vsync flip mode the RSX holds the command stream at
@@ -662,7 +660,6 @@ static DWORD WINAPI frame_clock(LPVOID)
         const double requested_period=wkc::graphics_vblank_period_ms(wkc::graphics_snapshot());
         if (requested_period!=vblank_ms) {
             vblank_ms=requested_period;
-            unlocked_clock.reset();
             QueryPerformanceCounter(&qpc);
             next_tick_ms=(double)qpc.QuadPart*1000.0/(double)qpf.QuadPart;
         }
@@ -674,9 +671,7 @@ static DWORD WINAPI frame_clock(LPVOID)
             /* Wake for the next vblank as well as for a FIFO kick. */
             QueryPerformanceCounter(&qpc);
             const double wait_now=(double)qpc.QuadPart*1000.0/(double)qpf.QuadPart;
-            const double until=vblank_ms==0.0
-                ? unlocked_clock.delay(wait_now,cellGcm_flip_request_count())
-                : next_tick_ms-wait_now;
+            const double until=next_tick_ms-wait_now;
             const uint64_t trace_start=wt_begin();
             cellGcm_fifo_kick_wait(until <= 0.0 ? 0u : until >= 4.0 ? 4u : (unsigned)until);
             wt_end(WT_FRAME_WAIT,0,0,trace_start);
@@ -706,8 +701,7 @@ static DWORD WINAPI frame_clock(LPVOID)
         }
 
         int fired = 0;
-        while ((vblank_ms==0.0 ? unlocked_clock.take(now_ms,cellGcm_flip_request_count())
-                              : now_ms >= next_tick_ms) && fired < 240) {
+        while (now_ms >= next_tick_ms && fired < 240) {
             cellGcmTickVBlank();
             cellGcmTickFlip();
             /* Present a pending flip BEFORE draining any further. The flip
@@ -728,7 +722,6 @@ static DWORD WINAPI frame_clock(LPVOID)
                 if (flip_on_vblank && cellGcm_flip_request_count() != flips) hold_for_vblank = true;
             }
             fired++;
-            if (vblank_ms==0.0) { next_tick_ms=now_ms; break; }
             next_tick_ms += vblank_ms;
         }
         if (fired >= 240) next_tick_ms = now_ms;   /* fell too far behind -- resync */

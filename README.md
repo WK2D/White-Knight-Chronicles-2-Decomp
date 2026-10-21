@@ -35,7 +35,7 @@ with readable project-written C++; current coverage is partial.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
 resolutions; VSync; anisotropic filtering from Off to 16×; Off/FXAA anti-aliasing;
-30/40/60/120/144/Unlocked frame limits; and an optional transparent FPS overlay.
+30/40/60 frame limits; and an optional transparent FPS overlay.
 Vulkan is the primary renderer. DirectX 12 is an experimental, restart-selected
 renderer. Window mode, output size, VSync, filtering, FXAA and the FPS overlay are
 integrated. Full rendering and transition parity remain in development.

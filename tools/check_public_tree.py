@@ -45,7 +45,7 @@ root_files = {
     '.gitignore', '.gitattributes', 'README.md', 'LICENSE', 'LICENSE.ps3recomp', 'CMakeLists.txt', 'app.rc',
     'project.json', 'decompression-verification.json', 'main.cpp', 'stubs.cpp',
     'osk.cpp', 'osk.hpp', 'osk_win32.cpp', 'l10n.cpp',
-    'graphics_pacing.h', 'graphics_menu.cpp', 'graphics_timing.cpp', 'graphics_readback.cpp', 'graphics_readback_queue.h', 'graphics_settings.cpp', 'graphics_settings.h', 'thread_diagnostics.cpp', 'graphics_diagnostics.cpp', 'spu_job_diagnostics.cpp', 'play_environment.cpp', 'play_environment.h', 'native_skinning.h', 'native_skinning_simd.h', 'native_skinning_bridge.h', 'native_skinning_bridge.cpp', 'windows_guids.c', 'lwcond.cpp', 'lfqueue.cpp', 'pamf.cpp', 'mpegps.hpp', 'dmux.cpp', 'vpost.cpp', 'adec.cpp', 'vdec.cpp',
+    'graphics_menu.cpp', 'graphics_timing.cpp', 'graphics_readback.cpp', 'graphics_readback_queue.h', 'graphics_settings.cpp', 'graphics_settings.h', 'thread_diagnostics.cpp', 'graphics_diagnostics.cpp', 'spu_job_diagnostics.cpp', 'play_environment.cpp', 'play_environment.h', 'native_skinning.h', 'native_skinning_simd.h', 'native_skinning_bridge.h', 'native_skinning_bridge.cpp', 'windows_guids.c', 'lwcond.cpp', 'lfqueue.cpp', 'pamf.cpp', 'mpegps.hpp', 'dmux.cpp', 'vpost.cpp', 'adec.cpp', 'vdec.cpp',
 }
 extensions = {'tools': {'.py', '.ps1', '.java'}, 'tests': {'.cpp', '.c'},
               'patches': {'.patch', '.json'}, 'docs': {'.md'}}

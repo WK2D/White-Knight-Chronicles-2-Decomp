@@ -13,7 +13,7 @@ struct GraphicsSettings {
     unsigned output_resolution = 0; // 720p, 1080p, 1440p, 2160p
     unsigned vsync = 1;
     unsigned anisotropy = 0;        // off, 2x, 4x, 8x, 16x
-    unsigned frame_limit = 0;       // 30, 40, 60, 120, 144, unlocked
+    unsigned frame_limit = 0;       // 30, 40, 60
     unsigned world_distance = 0;    // original, 1.5x, 2x
     unsigned npc_distance = 0;
     unsigned distance_fog = 0;      // original, reduced, off
@@ -29,7 +29,7 @@ unsigned graphics_value(const GraphicsSettings& settings, GraphicsOption option)
 bool graphics_set(GraphicsSettings& settings, GraphicsOption option, unsigned value);
 bool graphics_cycle(GraphicsSettings& settings, GraphicsOption option, int direction);
 unsigned graphics_frame_limit(const GraphicsSettings& settings);
-// Zero means event-driven vblanks. Game time continues to use the wall clock.
+// Game time continues to use the wall clock.
 double graphics_vblank_period_ms(const GraphicsSettings& settings);
 std::string graphics_serialize(const GraphicsSettings& settings);
 bool graphics_parse(const std::string& text, GraphicsSettings& settings);

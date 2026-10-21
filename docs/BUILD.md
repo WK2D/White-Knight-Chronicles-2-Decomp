@@ -170,8 +170,11 @@ first: `GCM_FLIPCB_ONTICK=1` delivers flip callbacks at vblank after a real flip
 request, and `RSX_VK_PRESENT_MODE=mailbox` prefers mailbox presentation when the
 device supports it, with FIFO fallback. Flips wait for the next vblank
 (`WKC2_FLIP_ON_VBLANK=0` turns that off). Vblanks are timed on the high-resolution
-counter at 59.94 Hz for the default 30 FPS option; higher caps select twice
-the requested rate, and Unlocked services ticks without the fixed interval.
+counter at 59.94 Hz for the default 30 FPS option; 40 and 60 select twice
+the requested rate. The 120, 144 and Unlocked options were removed on
+2026-10-21: Unlocked cleared the game's flip interval and ran the title at
+hundreds of frames a second, which stalled the whole PC and played at a few
+real frames a second. Settings files that still name them read as 60.
 The optional in-game FPS overlay counts presentations; repeated animation states
 still count, so this can exceed the game's own update rate. The startup defaults also
 set `GCM_SEMA_ACQUIRE=1` to honor the game's two-vblank semaphore gate and
