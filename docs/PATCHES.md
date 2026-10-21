@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0133 | [Faster renderer draws](#faster-renderer-draws-patch-0133) |
 | Patch 0132 | [Pad poll clock and stick feel](#pad-poll-clock-and-stick-feel-patch-0132) |
 | Patch 0131 | [Atomic trace hook and image 21 in C++](#atomic-trace-hook-and-image-21-in-c-patch-0131) |
 | Patch 0130 | [Faster SPU calls and transfers](#faster-spu-calls-and-transfers-patch-0130) |
@@ -62,6 +63,53 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Faster renderer draws (patch 0133)
+
+**Problem.** With image 20's command 12 in C++, the renderer thread limits the
+crowded street. Slowing it to efficiency-core speed dropped unlocked FPS from
+about 50 to 34 (−32%); slowing the geometry chain or the image-20 thread cost
+about 9% each. Dense stacks of the renderer showed per-draw work dominating:
+CPU vertex decoding about 10% of the thread, the fragment program's size,
+inline constants and structural hash about 6% (two 32 KB constant-block clears
+and a byte-at-a-time FNV per draw), and texture re-hashing about 5%. The thread
+also waits about 8% for the GPU at present and about 15% for FIFO input.
+
+**Fix.** Three changes, none of which changes a decoded value or a key:
+
+- **Vertex decode** (`rsx_vertex_compact.c`): batch columns are specialised for
+  the component count as well as the format, so the component loop unrolls and
+  the defaults are written once; unsigned bytes and the packed 11-11-10 format
+  convert four lanes at once with SSE4.1. Integer-to-float conversion is exact
+  and the division rounds as the scalar one does, so outputs are
+  bit-identical. On the street the formats were half2, float3, packed normals,
+  unorm8×4 and half3/half4.
+- **Fragment programs** (`rsx_draw_engine.c`): a 256-slot memo keyed by
+  location and offset keeps each program's bytes. When the bound program's
+  bytes compare equal, its size, inline constants and structural hash (for the
+  same seed) are reused instead of recomputed; only the constant slots the
+  engine reads are written. `RSX_ENGINE_FP_MEMO_VERIFY=1` recomputes all three
+  on every reuse; `RSX_ENGINE_FP_MEMO=0` disables the memo.
+- **Texture content hash:** four independent FNV lanes over each 32 bytes, so
+  the multiplies overlap. Each step is a bijection of its lane, so any single
+  word change still changes the hash. The hash is only compared with the value
+  the same function stored. It is mostly bound by memory reads, so this
+  change helps little; skipping unchanged textures needs write tracking.
+
+**Evidence.**
+- The vertex differential test now also runs every half value in every lane
+  of half2–4, every byte value of unorm8×4 and random packed words through the
+  fixed-size paths: 122,404 cases, all byte-identical to the per-vertex
+  reference. Its float3 benchmark runs about 30% faster.
+- On the street with the verify switch on, 8.1 million fragment-program reuses
+  were recomputed and compared: no differences in size, constants or hash.
+- Two same-process A/Bs on the crowded street, switching all three changes
+  between new and old code over eight windows each, measured 43.9 against
+  41.1 FPS (+7.0%) and 52.9 against 49.8 FPS (+6.3%); the new code was faster
+  in seven of eight adjacent window pairs.
+- Asynchronous presentation (two frames in flight) was tried again now that
+  the renderer limits the frame. It made no difference (47.3 against 47.7
+  FPS) and is not included.
 
 ## Pad poll clock and stick feel (patch 0132)
 

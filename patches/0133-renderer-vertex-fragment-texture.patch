@@ -1,0 +1,325 @@
+diff --git a/libs/video/rsx_vertex_compact.c b/libs/video/rsx_vertex_compact.c
+--- a/libs/video/rsx_vertex_compact.c
++++ b/libs/video/rsx_vertex_compact.c
+@@ -5,6 +5,10 @@
+ #include <limits.h>
+ #include <stdlib.h>
+ #include <string.h>
++#if defined(__SSE4_1__) || defined(__AVX__)
++#include <smmintrin.h>
++#define RSX_COMPACT_SSE41 1
++#endif
+ 
+ static float rsx_compact_be_f32(const u8* p)
+ {
+@@ -307,6 +311,55 @@
+     return 1;
+ }
+ 
++/* rsx_vertex_decode_impl for a format and component count fixed at compile
++ * time, so the component loop unrolls and the defaults are set once. The
++ * byte and packed formats convert four lanes at once; integer-to-float
++ * conversion is exact and the division rounds as the scalar one does, so the
++ * values are bit-identical. */
++RSX_COMPACT_INLINE int rsx_vertex_decode_sized(
++    u32 type, u32 size, const u8* source, float out[4])
++{
++    float v[4] = {0.0f, 0.0f, 0.0f, 1.0f};
++    switch (type) {
++    case RSX_VTX_TYPE_FLOAT:
++        for (u32 c = 0; c < size; c++) v[c] = rsx_compact_be_f32(source + c * 4);
++        break;
++    case RSX_VTX_TYPE_HALF:
++        for (u32 c = 0; c < size; c++) v[c] = rsx_compact_be_f16(source + c * 2);
++        break;
++#if RSX_COMPACT_SSE41
++    case RSX_VTX_TYPE_UNORM8:
++        if (size == 4) {
++            u32 bytes;
++            memcpy(&bytes, source, 4);
++            const __m128i lanes = _mm_cvtepu8_epi32(_mm_cvtsi32_si128((int)bytes));
++            _mm_storeu_ps(out, _mm_div_ps(_mm_cvtepi32_ps(lanes), _mm_set1_ps(255.0f)));
++            return 1;
++        }
++        for (u32 c = 0; c < size; c++) v[c] = source[c] / 255.0f;
++        break;
++    case RSX_VTX_TYPE_CMP32: {
++        const u32 word =
++            ((u32)source[0] << 24) | ((u32)source[1] << 16) |
++            ((u32)source[2] << 8) | (u32)source[3];
++        s32 x = (s32)(word & 0x7FF);
++        s32 y = (s32)((word >> 11) & 0x7FF);
++        s32 z = (s32)((word >> 22) & 0x3FF);
++        if (x & 0x400) x -= 0x800;
++        if (y & 0x400) y -= 0x800;
++        if (z & 0x200) z -= 0x400;
++        _mm_storeu_ps(out, _mm_div_ps(_mm_cvtepi32_ps(_mm_set_epi32(1, z, y, x)),
++                                      _mm_set_ps(1.0f, 511.0f, 1023.0f, 1023.0f)));
++        return 1;
++    }
++#endif
++    default:
++        return rsx_vertex_decode_impl(type, size, source, out);
++    }
++    memcpy(out, v, sizeof v);
++    return 1;
++}
++
+ RSX_COMPACT_INLINE const u8* rsx_vertex_batch_source(
+     const rsx_vertex_fetch_plan* plan, const rsx_vertex_fetch_attr* fetch,
+     u32 attr, const rsx_vertex_ref* ref)
+@@ -343,6 +396,24 @@
+     return 1;
+ }
+ 
++/* The same column for a component count of 1-4 known at compile time. */
++RSX_COMPACT_INLINE int rsx_vertex_batch_column_sized(
++    const rsx_vertex_fetch_plan* plan, const rsx_vertex_ref* refs,
++    u32 count, u8* out, u32 slot, u32 attr, u32 type, u32 size)
++{
++    const rsx_vertex_fetch_attr* fetch = &plan->attr[attr];
++    for (u32 i = 0; i < count; i++) {
++        float* value = (float*)(out + (size_t)i * plan->layout.stride + slot * 16u);
++        const u8* source = rsx_vertex_batch_source(plan, fetch, attr, &refs[i]);
++        if (source && rsx_vertex_decode_sized(type, size, source, value))
++            continue;
++        if (attr == 0)
++            return 0;
++        memcpy(value, fetch->default_value, 16);
++    }
++    return 1;
++}
++
+ int rsx_vertex_fetch_batch(
+     const rsx_vertex_fetch_plan* plan, const rsx_vertex_ref* refs,
+     u32 count, u8* out)
+@@ -367,10 +438,17 @@
+             continue;
+         }
+         int ok;
+-        /* One format dispatch per attribute, outside the vertex/component loops. */
++        /* One format and component-count dispatch per attribute, outside the
++         * vertex and component loops. */
+ #define RSX_BATCH_CASE(type) \
+         case type: \
+-            ok = rsx_vertex_batch_column(plan, refs, count, out, slot, attr, type); \
++            switch (fetch->desc.size) { \
++            case 1: ok = rsx_vertex_batch_column_sized(plan, refs, count, out, slot, attr, type, 1); break; \
++            case 2: ok = rsx_vertex_batch_column_sized(plan, refs, count, out, slot, attr, type, 2); break; \
++            case 3: ok = rsx_vertex_batch_column_sized(plan, refs, count, out, slot, attr, type, 3); break; \
++            case 4: ok = rsx_vertex_batch_column_sized(plan, refs, count, out, slot, attr, type, 4); break; \
++            default: ok = rsx_vertex_batch_column(plan, refs, count, out, slot, attr, type); break; \
++            } \
+             break
+         switch (fetch->desc.type) {
+             RSX_BATCH_CASE(RSX_VTX_TYPE_FLOAT);
+diff --git a/libs/video/rsx_draw_engine.c b/libs/video/rsx_draw_engine.c
+--- a/libs/video/rsx_draw_engine.c
++++ b/libs/video/rsx_draw_engine.c
+@@ -1245,21 +1245,32 @@
+ 
+ /* One hash per cached texture per presented frame. Word-at-a-time FNV over
+  * the whole span is deliberately cheap: this is a mutation detector, not a
+- * content id (rsx_live_draw.c:2002-2026). */
++ * content id (rsx_live_draw.c:2002-2026). Four independent lanes over each
++ * 32 bytes let the multiplies overlap; each step is a bijection of its lane,
++ * so changing any one word still always changes the result. On the crowded
++ * street the single serial chain was about 5% of the renderer thread. */
+ static u64 eng_texture_content_hash(u32 location, u32 offset, u32 span,
+                                     int* readable)
+ {
+     const u8* src = span ? eng_guest_ptr(NULL, location, offset, span) : NULL;
+     if (!src) { *readable = 0; return 0; }
+-    u64 hash = 1469598103934665603ull;
++    const u64 prime = 1099511628211ull;
++    u64 lane[4] = {1469598103934665603ull, 1469598103934665603ull ^ 1u,
++                   1469598103934665603ull ^ 2u, 1469598103934665603ull ^ 3u};
+     u32 i = 0;
++    for (; i + 32 <= span; i += 32) {
++        u64 word[4];
++        memcpy(word, src + i, sizeof(word));
++        for (int k = 0; k < 4; k++) lane[k] = (lane[k] ^ word[k]) * prime;
++    }
+     for (; i + 8 <= span; i += 8) {
+         u64 word;
+         memcpy(&word, src + i, sizeof(word));
+-        hash ^= word;
+-        hash *= 1099511628211ull;
+-    }
+-    for (; i < span; i++) { hash ^= src[i]; hash *= 1099511628211ull; }
++        lane[0] = (lane[0] ^ word) * prime;
++    }
++    for (; i < span; i++) lane[0] = (lane[0] ^ src[i]) * prime;
++    u64 hash = lane[0];
++    for (int k = 1; k < 4; k++) hash = (hash ^ lane[k]) * prime;
+     *readable = 1;
+     return hash;
+ }
+@@ -1644,6 +1655,133 @@
+  * layout and by the pipeline, because they must not disagree: the built-in
+  * program declares all sixteen inputs, so narrowing the layout for it would
+  * leave the pipeline's vertex descriptor short of what the shader reads. */
++/* Fragment programs, remembered by where they live. Every draw used to walk
++ * the bound program three times (its size, its inline constants and its
++ * structural hash, a byte-at-a-time FNV) and clear two 32 KB constant blocks;
++ * on the crowded street that was about a twentieth of the renderer thread.
++ * The bytes are kept, and an entry is reused only when the program's current
++ * bytes compare equal to them, so size, constants and hash are those the
++ * program would produce again. RSX_ENGINE_FP_MEMO_VERIFY=1 recomputes all
++ * three on every reuse and counts differences; RSX_ENGINE_FP_MEMO=0 turns the
++ * memo off. */
++#define ENG_FP_MEMO_SLOTS 256u
++typedef struct eng_fp_memo {
++    u32 location, offset, size, valid;
++    u8* bytes; u32 bytes_cap;
++    u32 constants_valid, constant_count;
++    u32 (*constants)[4]; u32 constants_cap;
++    u32 hash_valid; u64 hash_seed, hash;
++} eng_fp_memo;
++static eng_fp_memo s_fp_memo[ENG_FP_MEMO_SLOTS];
++static eng_fp_memo* s_fp_memo_bound;      /* the memo of the program eng_guest_programs last found */
++static struct { u64 reused, verified, mismatched; } s_fp_memo_stats;
++
++static int eng_fp_memo_mode(void)       /* 0 off, 1 on, 2 on and verified */
++{
++    static int mode = -1;
++    if (mode < 0) {
++        const char* off = getenv("RSX_ENGINE_FP_MEMO");
++        const char* verify = getenv("RSX_ENGINE_FP_MEMO_VERIFY");
++        mode = off && !strcmp(off, "0") ? 0 : verify && *verify && strcmp(verify, "0") ? 2 : 1;
++    }
++    return mode;
++}
++
++static void eng_fp_memo_mismatch(const char* what)
++{
++    if (++s_fp_memo_stats.mismatched <= 8)
++        fprintf(stderr, "[rsx-engine] fragment program memo: %s differs on reuse\n", what);
++}
++
++/* The bound fragment program: its bytes and size, reused from the memo when
++ * the bytes are unchanged. */
++static const u8* eng_fragment_program(u32 location, u32 offset, u32* out_size)
++{
++    s_fp_memo_bound = NULL;
++    *out_size = 0;
++    const u8* uc = eng_guest_ptr(NULL, location, offset, 16);
++    if (!uc) return NULL;
++    const int mode = eng_fp_memo_mode();
++    eng_fp_memo* m = &s_fp_memo[((offset >> 4) ^ (location * 0x9E3779B1u)) & (ENG_FP_MEMO_SLOTS - 1u)];
++    if (mode && m->valid && m->location == location && m->offset == offset) {
++        const u8* full = eng_guest_ptr(NULL, location, offset, m->size);
++        if (full && !memcmp(full, m->bytes, m->size)) {
++            s_fp_memo_stats.reused++;
++            if (mode == 2) {
++                if ((++s_fp_memo_stats.verified & 0x3FFFFu) == 0)
++                    fprintf(stderr, "[rsx-engine] fragment program memo: %llu reused, %llu verified, %llu differed\n",
++                            (unsigned long long)s_fp_memo_stats.reused, (unsigned long long)s_fp_memo_stats.verified,
++                            (unsigned long long)s_fp_memo_stats.mismatched);
++                if (rsx_fp_program_size(uc, ENG_FP_MAX_BYTES) != m->size) eng_fp_memo_mismatch("size");
++            }
++            s_fp_memo_bound = m;
++            *out_size = m->size;
++            return full;
++        }
++    }
++    const u32 size = rsx_fp_program_size(uc, ENG_FP_MAX_BYTES);
++    if (!size) return uc;     /* as before: no program size, the pointer kept, size 0 */
++    const u8* full = eng_guest_ptr(NULL, location, offset, size);
++    if (!full) return NULL;
++    *out_size = size;
++    if (!mode) return full;
++    if (m->bytes_cap < size) {
++        u8* grown = (u8*)realloc(m->bytes, size);
++        if (!grown) { m->valid = 0; return full; }
++        m->bytes = grown; m->bytes_cap = size;
++    }
++    memcpy(m->bytes, full, size);
++    m->location = location; m->offset = offset; m->size = size; m->valid = 1;
++    m->constants_valid = m->hash_valid = 0;
++    s_fp_memo_bound = m;
++    return full;
++}
++
++/* rsx_fp_collect_constants into g.fp_constants, from the memo when it holds
++ * them. Only the first `count` slots are read downstream (the constant
++ * buffer copy and the slot count), so a reused block sets just those. */
++static int eng_fp_constants(const u8* uc, u32 size)
++{
++    eng_fp_memo* m = s_fp_memo_bound;
++    if (m && m->constants_valid) {
++        g.fp_constants.count = m->constant_count;
++        memcpy(g.fp_constants.values, m->constants, (size_t)m->constant_count * 16u);
++        if (eng_fp_memo_mode() == 2) {
++            static rsx_fp_constant_block check;
++            const int n = rsx_fp_collect_constants(uc, size, &check);
++            if (n != (int)m->constant_count ||
++                memcmp(check.values, m->constants, (size_t)m->constant_count * 16u))
++                eng_fp_memo_mismatch("constants");
++        }
++        return (int)m->constant_count;
++    }
++    const int n = rsx_fp_collect_constants(uc, size, &g.fp_constants);
++    if (n < 0 || !m) return n;
++    if (m->constants_cap < (u32)n) {
++        u32 (*grown)[4] = (u32 (*)[4])realloc(m->constants, (size_t)n * 16u);
++        if (!grown) return n;
++        m->constants = grown; m->constants_cap = (u32)n;
++    }
++    if (n) memcpy(m->constants, g.fp_constants.values, (size_t)n * 16u);
++    m->constant_count = (u32)n;
++    m->constants_valid = 1;
++    return n;
++}
++
++/* rsx_fp_structural_hash, from the memo when the seed matches too. */
++static u64 eng_fp_structural_hash(const u8* uc, u32 size, u64 seed)
++{
++    eng_fp_memo* m = s_fp_memo_bound;
++    if (m && m->hash_valid && m->hash_seed == seed) {
++        if (eng_fp_memo_mode() == 2 && rsx_fp_structural_hash(uc, size, seed) != m->hash)
++            eng_fp_memo_mismatch("structural hash");
++        return m->hash;
++    }
++    const u64 hash = rsx_fp_structural_hash(uc, size, seed);
++    if (m) { m->hash_seed = seed; m->hash = hash; m->hash_valid = 1; }
++    return hash;
++}
++
+ static int eng_guest_programs(const u8** out_vp, u32* out_vp_instrs,
+                               const u8** out_fp, u32* out_fp_size)
+ {
+@@ -1670,11 +1808,9 @@
+     if (rsx_dsp_reg(&g.rsx, 0x08E4)) {
+         u32 fp_loc = 0;
+         const u32 fp_off = rsx_dsp_fragment_program(&g.rsx, &fp_loc);
+-        fp_uc = eng_guest_ptr(NULL, fp_loc, fp_off, 16);
+-        fp_size = fp_uc ? rsx_fp_program_size(fp_uc, ENG_FP_MAX_BYTES) : 0;
+-        if (fp_size) fp_uc = eng_guest_ptr(NULL, fp_loc, fp_off, fp_size);
++        fp_uc = eng_fragment_program(fp_loc, fp_off, &fp_size);
+         if (!fp_uc) fp_size = 0;
+-    }
++    } else s_fp_memo_bound = NULL;
+ 
+     if (out_vp) *out_vp = vp_uc;
+     if (out_vp_instrs) *out_vp_instrs = vp_instrs;
+@@ -1804,8 +1940,8 @@
+     u32 unnorm_dim[RSX_DSP_NUM_TEXTURES][2];
+     const u32 unnorm_mask = eng_unnorm_units(unnorm_dim);
+ 
+-    memset(&g.fp_constants, 0, sizeof g.fp_constants);
+-    if (!fixed && rsx_fp_collect_constants(fp_uc, fp_size, &g.fp_constants) < 0)
++    g.fp_constants.count = 0;
++    if (!fixed && eng_fp_constants(fp_uc, fp_size) < 0)
+         return 0;
+ 
+     /* Identity: the vertex program's own bytes, the fragment program's
+@@ -1823,7 +1959,7 @@
+             g.vpm.hashed = 1;
+         }
+         key = eng_fnv1a(&g.vpm.hash, sizeof g.vpm.hash, key);
+-        key = rsx_fp_structural_hash(fp_uc, fp_size, key);
++        key = eng_fp_structural_hash(fp_uc, fp_size, key);
+         if (!key) return 0;
+         const u32 fp_ctrl_key = fp_ctrl & 0x40u;
+         key = eng_fnv1a(&fp_ctrl_key, sizeof fp_ctrl_key, key);

@@ -196,7 +196,7 @@ zero fallback and at least 16,777,216 transformed blocks in each run. Both final
 frames were inspected. The Vulkan run additionally samples CPU time; profiling,
 tracing and GPU captures make it unsuitable as an FPS benchmark.
 
-Both Windows suites now pass 121 checks with 132 SDK patches. No FPS gain,
+Both Windows suites now pass 121 checks with 133 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
 is claimed.
 

@@ -133,6 +133,54 @@ static void differential()
         compare(plan, &zero, 1);
     }
 
+    // The street's formats through the fixed-size paths: every half in every
+    // lane of half2-4, every byte in every lane of unorm8x4, and packed
+    // 11-11-10 words with all sign and magnitude patterns.
+    {
+        rsx_vertex_ref refs[16];
+        for (unsigned i = 0; i < 16; ++i)
+            refs[i] = {i, 0};
+        fetch.stable_first = 0;
+        fetch.stable_last = 15;
+        fetch.desc.frequency = 0;
+        for (unsigned size = 2; size <= 4; ++size) {
+            fetch.desc.type = RSX_VERTEX_TYPE_SF;
+            fetch.desc.size = size;
+            fetch.elem_size = fetch.stride = 2 * size;
+            for (unsigned half = 0; half < 65536; half += 16)
+                for (unsigned lane = 0; lane < size; ++lane) {
+                    for (auto& byte : memory)
+                        byte = u8(random32());
+                    for (unsigned v = 0; v < 16; ++v) {
+                        memory[v * fetch.stride + lane * 2] = u8((half + v) >> 8);
+                        memory[v * fetch.stride + lane * 2 + 1] = u8(half + v);
+                    }
+                    compare(plan, refs, 16);
+                }
+        }
+        fetch.desc.type = RSX_VERTEX_TYPE_UB;
+        fetch.desc.size = 4;
+        fetch.elem_size = fetch.stride = 4;
+        for (unsigned value = 0; value < 256; value += 16) {
+            for (unsigned v = 0; v < 64; ++v)
+                memory[v] = u8(value + v % 16 + v / 16 * 61);
+            compare(plan, refs, 16);
+        }
+        fetch.desc.type = RSX_VERTEX_TYPE_CMP;
+        for (unsigned size = 1; size <= 4; ++size) {
+            fetch.desc.size = size;
+            for (unsigned round = 0; round < 4096; ++round) {
+                for (unsigned v = 0; v < 64; ++v)
+                    memory[v] = u8(random32());
+                compare(plan, refs, 16);
+            }
+        }
+        fetch.desc.type = RSX_VERTEX_TYPE_SF;
+        fetch.desc.size = 1;
+        fetch.elem_size = fetch.stride = 2;
+        fetch.stable_last = 0;
+    }
+
     // Invalid enabled position is fatal; other attributes use their exact defaults.
     fetch.stable_base = nullptr;
     fetch.desc.offset = sizeof memory;
