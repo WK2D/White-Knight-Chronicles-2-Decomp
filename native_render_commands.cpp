@@ -346,13 +346,272 @@ extern "C" int wkc_native_render_state_flush(spu_context* ctx) {
     return 1;
 }
 
+namespace {
+u128 word_reg(std::uint32_t v) {u128 r{};r._u32[0]=v;return r;}   // channel writes use the preferred word
+void dma(spu_context* ctx,std::uint32_t lsa,std::uint32_t ea,std::uint32_t size,std::uint32_t tag,std::uint32_t command) {
+    spu_wrch(ctx,MFC_LSA,word_reg(lsa));spu_wrch(ctx,MFC_EAH,word_reg(0));spu_wrch(ctx,MFC_EAL,word_reg(ea));
+    spu_wrch(ctx,MFC_Size,word_reg(size));spu_wrch(ctx,MFC_TagID,word_reg(tag));spu_wrch(ctx,MFC_Cmd,word_reg(command));
+}
+void wait_tags(spu_context* ctx,std::uint32_t mask) {
+    spu_wrch(ctx,MFC_WrTagMask,word_reg(mask));spu_wrch(ctx,MFC_WrTagUpdate,word_reg(2));(void)spu_rdch(ctx,MFC_RdTagStat);
+}
+// `heqi` on a DMA address that is not 16-byte aligned stops the SPU.
+bool misaligned(spu_context* ctx,std::uint32_t ea,unsigned pc) {
+    if(!(ea&15))return false;
+    std::fprintf(stderr,"[spu] HALT-ASSERT heqi pc=0x%05X img=%d\n",pc,ctx->image_id);
+    ctx->status=SPU_STATUS_STOPPED_BY_HALT;spu_halt(ctx);
+    return true;
+}
+// Sixteen bytes stored at any address: the SPU merges them into the two
+// quads they touch (read before the cursor update, written high quad first).
+struct Spill {std::uint32_t at;u128 low,high;};
+Spill spill_begin(spu_context* ctx,std::uint32_t at) {return {at,load(ctx,at),load(ctx,at+16)};}
+void spill_end(spu_context* ctx,const Spill& s,const u128& v) {
+    const unsigned m=s.at&15;
+    std::uint8_t low[16],high[16],bytes[16];
+    for(unsigned k=0;k<16;++k){low[k]=std::uint8_t(byte_of(s.low,k));high[k]=std::uint8_t(byte_of(s.high,k));bytes[k]=std::uint8_t(byte_of(v,k));}
+    for(unsigned k=0;k<m;++k)high[k]=bytes[16-m+k];
+    for(unsigned k=m;k<16;++k)low[k]=bytes[k-m];
+    std::memcpy(quad(ctx,s.at+16),high,16);std::memcpy(quad(ctx,s.at),low,16);
+}
+}
+
+// 0x9D58 (r3 = state, r4 = command, r5 = job frame): build the draws of
+// command 12, after the state flush. With S = state + 720 it first refreshes
+// three constant blocks whose dirty bytes sit at S+0xA74..0xA76, uploading
+// each through the compiled 0x1000 (which returns its address): the three
+// rows at S+0xB80 (to S+0xA68), the bone matrices at S+0xBB0 (count at
+// S+0xA64, address to S+0xA6C) and, after forming M3 * M2 into S+0xA90, the
+// 128 bytes at S+0xA80 (address to S+0xA70). It notes the vertex-attribute
+// mask (halfword at S+0x2BD0) and, when state+136 is set, a shader option.
+// Then it walks the command's draw records: word +16 counts them, +20 is
+// the first record's address (256 bytes each) and +24 the address of 32-byte
+// attribute lists; records are fetched three-deep with DMA tag 5. For each
+// record it emits SET_VERTEX_DATA_ARRAY_FORMAT and _OFFSET for every listed
+// attribute (offsets from word +28), reserves its index data in the command
+// stream (compiled 0xE50) when it has any, fills in the state words, the
+// base vertex offset and the attribute mask, and writes the record back
+// (tag 11). Finally it runs the compiled helpers 0x7C80, 0x2228 and 0x1F8.
+extern "C" int wkc_native_render_draw(spu_context* ctx) {
+    if(debug_watch_armed())return 0;
+    const std::uint32_t sp=R(1)._u32[0];
+    for(int r=80;r<=117;++r)store(ctx,sp-0x10*std::uint32_t(r-79),R(r));
+    store(ctx,sp-0x270,R(126));store(ctx,sp+0x10,R(0));store(ctx,sp-0x670,R(1));
+    R(82)=R(4);R(86)=spu_a(R(3),spu_il(720));R(105)=R(3);R(90)=R(5);R(106)=spu_il(0);
+    R(1)=spu_a(R(1),spu_il(-1648));
+    const std::uint32_t frame=sp-1648,S=R(86)._u32[0],state=R(105)._u32[0],cmd=R(82)._u32[0];
+    wait_tags(ctx,512);
+    R(92)=spu_andi(spu_ai(R(1),159),-128);
+    // Each flag test keeps its compiled register; its low byte is what the
+    // clear writes, at the stack pointer's byte slot plus the flag's offset.
+    auto flag_clear=[&](const u128& q,unsigned offset,const u128& test) {
+        return spu_shufb(test,q,spu_cbd(R(1),int(offset)));
+    };
+    R(80)=spu_xsbh(spu_ceqbi(spu_rotqbyi(load(ctx,S+0xA70),2),0));
+    if((R(80)._u32[0]&0xFFFFu)==0) {                  // S+0xA75: the three rows at S+0xB80
+        R(3)=R(5);R(5)=spu_il(48);R(4)=spu_a(R(86),spu_il(2944));
+        call_compiled(ctx,0x1000,0xA648);
+        const u128 q60=load(ctx,S+0xA60),q70=load(ctx,S+0xA70);
+        store(ctx,S+0xA60,with_word(q60,frame+8,R(3)._u32[0]));
+        store(ctx,S+0xA70,flag_clear(q70,5,R(80)));
+    }
+    if(byte_of(load(ctx,S+0xA70),6)!=0) {             // S+0xA76: bone matrices
+        const std::uint32_t bones=word(ctx,S+0xA60,4);
+        std::uint32_t address=0;
+        if(bones) {
+            R(3)=R(90);R(4)=spu_a(R(86),spu_il(2992));R(5)=spu_il(std::int32_t(48*bones));
+            call_compiled(ctx,0x1000,0xA8C8);
+            address=R(3)._u32[0];
+        }
+        store(ctx,S+0xA60,with_word(load(ctx,S+0xA60),frame+12,address));
+        store(ctx,S+0xA70,flag_clear(load(ctx,S+0xA70),6,spu_il(0)));
+    }
+    R(83)=spu_xsbh(spu_ceqbi(spu_rotqbyi(load(ctx,S+0xA70),1),0));
+    if((R(83)._u32[0]&0xFFFFu)==0) {                  // S+0xA74: M3 * M2, then the 128-byte block
+        R(101)=spu_il(2704);R(100)=spu_il(2816);R(99)=spu_il(2880);
+        R(81)=spu_a(R(86),R(101));R(98)=spu_a(R(86),R(100));
+        const u128 m3base=spu_a(R(86),R(99));
+        R(94)=spu_ila(0x10203);R(91)=spu_iohl(spu_ilhu(0x405),0x607);
+        const u128 lane2=spu_iohl(spu_ilhu(0x809),0xA0B),lane3=spu_iohl(spu_ilhu(0xC0D),0xE0F);
+        const std::uint32_t m2=R(98)._u32[0],m3=m3base._u32[0];
+        R(85)=load(ctx,m2);R(84)=load(ctx,m2+16);
+        const u128 b2=load(ctx,m2+32),b3=load(ctx,m2+48);
+        const u128 rows[4]={load(ctx,m3),load(ctx,m3+16),load(ctx,m3+32),load(ctx,m3+48)};
+        // The compiler kept some of the splatted lanes in callee-saved registers.
+        R(97)=spu_shufb(rows[3],rows[3],R(94));R(96)=spu_shufb(rows[3],rows[3],R(91));
+        R(95)=spu_shufb(rows[0],rows[0],R(94));R(93)=spu_shufb(rows[0],rows[0],R(91));
+        R(89)=spu_shufb(rows[1],rows[1],R(94));R(88)=spu_shufb(rows[1],rows[1],R(91));
+        R(87)=spu_shufb(rows[2],rows[2],R(94));R(80)=spu_shufb(rows[2],rows[2],R(91));
+        const u128 b[4]={R(85),R(84),b2,b3};
+        for(int j=0;j<4;++j) {
+            const u128 m=rows[j];
+            const u128 odd=spu_fma(b[3],spu_shufb(m,m,lane3),spu_fm(b[1],spu_shufb(m,m,R(91))));
+            const u128 even=spu_fma(b[2],spu_shufb(m,m,lane2),spu_fm(b[0],spu_shufb(m,m,R(94))));
+            store(ctx,R(81)._u32[0]+16*j,spu_fa(even,odd));
+        }
+        R(3)=R(90);R(4)=spu_a(R(86),spu_il(2688));R(5)=spu_il(128);
+        call_compiled(ctx,0x1000,0xA794);
+        const u128 q70=with_word(load(ctx,S+0xA70),frame,R(3)._u32[0]);
+        store(ctx,S+0xA70,flag_clear(q70,4,R(83)));
+    }
+    // Attribute mask and shader option.
+    R(109)=spu_il(11200);R(104)=spu_chd(R(1),2);R(108)=spu_il(136);
+    R(102)=spu_ai(R(105),136);R(83)=load(ctx,state+136);
+    R(107)=load(ctx,S+11216);R(116)=spu_rotqby(R(83),R(102));
+    R(103)=spu_rotqby(R(107),spu_a(R(86),R(109)));R(106)=spu_shufb(R(103),R(106),R(104));
+    if(R(116)._u32[0]!=0) {
+        R(81)=spu_chd(R(1),0);
+        R(106)=spu_shufb(spu_ori(spu_rotmi(R(106),-16),1),R(106),R(81));
+        R(5)=spu_il(0);R(4)=spu_a(R(90),spu_il(4124));R(3)=spu_ai(R(105),120);
+        call_compiled(ctx,0x2228,0xA838);
+        const u128 option=spu_rotqby(load(ctx,state+200),spu_ai(R(105),200));
+        const u128 mode=spu_rotqby(load(ctx,state+152),spu_ai(R(105),152));
+        R(111)=spu_shufb(spu_ori(spu_rotmi(R(106),-16),2),R(106),R(81));
+        R(117)=spu_sfi(spu_ceqi(option,0),0);
+        R(115)=spu_selb(R(117),spu_xori(R(117),1),spu_ceqi(mode,4));
+        R(114)=spu_ceqbi(R(115),0);R(113)=spu_xsbh(R(114));R(112)=spu_ceqhi(R(113),0);
+        R(110)=spu_fsm(R(112));R(106)=spu_selb(R(106),R(111),R(110));
+    }
+    R(117)=spu_a(R(90),spu_il(4124));                // 0x9B0: the output cursor block
+    R(84)=spu_ai(R(82),16);
+    R(3)=R(105);R(4)=R(117);
+    call_compiled(ctx,0x7C80,0x9F10);
+    const std::uint32_t cursor=R(117)._u32[0]+8;
+    {
+        const u128 first=spu_rotqby(load(ctx,cmd+20),spu_ai(R(82),20));
+        R(87)=first;
+        const std::uint32_t flags=word(ctx,cmd+28);
+        R(114)=spu_and(spu_rotqby(load(ctx,cmd+28),spu_ai(R(82),28)),spu_iohl(spu_ilhu(0x7FFF),0xFFFF));
+        if(misaligned(ctx,first._u32[0],0x9F60))return 1;
+        dma(ctx,R(92)._u32[0],first._u32[0],256,5,64);
+        const std::uint32_t lists=word(ctx,cmd+24);
+        if(lists) {
+            if(misaligned(ctx,lists,0xA7E4))return 1;
+            dma(ctx,frame+32+896,lists,32,5,64);
+        }
+        if(!word(ctx,cmd+16))goto finish;
+        R(95)=spu_iohl(spu_ilhu(0xAAAA),0xAAAB);R(96)=spu_iohl(spu_ilhu(0xAAAB),0xAAAA);
+        R(108)=spu_il(256);R(113)=spu_il(5);R(112)=spu_il(64);R(82)=spu_il(896);
+        R(91)=u128{};R(94)=u128{};R(111)=spu_il(std::int32_t(flags>>31<<31));
+        R(104)=spu_and(R(106),spu_ila(0xFFFF));R(115)=spu_a(spu_ai(R(1),32),spu_il(896));
+        R(93)=spu_il(32);R(109)=spu_il(2);
+    }
+    {
+        const std::uint32_t buffers=R(92)._u32[0],lists=R(115)._u32[0];
+        std::uint32_t slot=0,ea=R(87)._u32[0];
+        for(;;) {
+            const std::uint32_t next=(slot+1)%3,next_ea=ea+256;
+            R(88)=spu_il(std::int32_t(next_ea));
+            wait_tags(ctx,32);
+            R(83)=spu_il(std::int32_t(next));
+            R(81)=spu_a(R(92),spu_il(std::int32_t(slot<<8)));
+            const std::uint32_t record=R(81)._u32[0];
+            if(misaligned(ctx,next_ea,0xA1E0))return 1;
+            dma(ctx,buffers+(next<<8),next_ea,256,5,64);
+            const u128 list_q=spu_rotqby(load(ctx,cmd+24),spu_ai(R(84),8));
+            if(list_q._u32[0]) {
+                R(85)=spu_shlqbyi(spu_rotqmbyi(spu_a(spu_ai(list_q,32),R(94)),-4),4);
+                if(misaligned(ctx,R(85)._u32[0],0xA23C))return 1;
+                dma(ctx,lists+(next<<5),R(85)._u32[0],32,5,64);
+                if(word(ctx,cmd+24)) {
+                    const std::uint32_t list=lists+(slot<<5);
+                    R(82)=spu_a(R(115),spu_il(std::int32_t(slot<<5)));
+                    if(word(ctx,list,list+14)&0xFFFFu) {
+                        R(85)=spu_il(0);
+                        for(std::uint32_t at=list;;at+=4) {
+                            const std::uint32_t out_block=R(90)._u32[0]+4124;
+                            const std::uint32_t index=ls_byte(ctx,at+12),mask=R(104)._u32[0];
+                            const std::uint32_t format=0x40000u|(5952+4*index),offset=0x40000u|(5760+4*index);
+                            u128 v{};
+                            v=with_word(v,frame,format);
+                            if((index&63)<32&&(mask>>(index&63)&1)) {   // enabled (rotma counts mod 64)
+                                const std::uint32_t layout=byte_of(load(ctx,list),list+3)<<8|ls_byte(ctx,at+13)<<4|ls_byte(ctx,at+14);
+                                const std::uint32_t base=R(114)._u32[0]+word(ctx,list+4)+ls_byte(ctx,at+15);
+                                v=with_word(v,frame+4,layout);v=with_word(v,frame+8,offset);
+                                v=with_word(v,frame+12,base|R(111)._u32[0]);
+                            } else {                          // disabled: format only
+                                v=with_word(v,frame+4,ls_byte(ctx,at+14));v=with_word(v,frame+8,offset);
+                            }
+                            const std::uint32_t out=word(ctx,out_block+8);
+                            const Spill spill=spill_begin(ctx,out);
+                            put_word(ctx,out_block+8,out+16);
+                            spill_end(ctx,spill,v);
+                            R(85)=spu_ai(R(85),1);
+                            if(!((word(ctx,list,list+14)&0xFFFFu)>R(85)._u32[0]))break;
+                        }
+                    }
+                }
+            }
+            // Index data, state words, base vertex offset and attribute mask.
+            R(80)=load(ctx,record+0xD0);R(82)=spu_rotqby(R(80),R(81));
+            if(R(82)._u32[1]) {
+                R(3)=R(90);R(4)=spu_shlqbyi(R(82),4);
+                call_compiled(ctx,0xE50,0xA4B8);
+                R(97)=spu_rotqmbyi(R(3),-4);R(98)=spu_cdd(R(81),0);R(89)=load(ctx,record+0xD0);
+                R(85)=spu_shufb(R(97),R(89),R(98));
+                store(ctx,record+0xD0,R(85));
+            }
+            {
+                const u128 q70=load(ctx,S+0xA70),q60=load(ctx,S+0xA60);
+                const u128 high_80=spu_andbi(spu_fsmbi(0x1010),-128),high_30=spu_andbi(spu_fsmbi(0x1010),48);
+                store(ctx,record+0xA0,spu_shufb(spu_or(spu_rotqmbyi(q70,-4),high_80),load(ctx,record+0xA0),spu_cdd(R(81),0)));
+                store(ctx,record+168,spu_shufb(spu_or(spu_rotqmbyi(spu_rotqbyi(q60,8),-4),high_30),load(ctx,record+168),spu_cdd(R(81),8)));
+            }
+            R(80)=spu_ai(R(81),72);
+            {
+                const std::uint32_t base=word(ctx,S+0xA60,12);
+                if(base==0||word(ctx,record+72)+word(ctx,record+80)==0) {
+                    store(ctx,record+72,spu_shufb(spu_il(0),load(ctx,record+72),spu_cdd(R(81),8)));
+                    store(ctx,record+0x50,spu_shufb(spu_il(0),load(ctx,record+0x50),spu_cdd(R(81),0)));
+                } else {
+                    put_word(ctx,record+76,word(ctx,record+76)+base);
+                    put_word(ctx,record+84,word(ctx,record+84)+word(ctx,S+0xA60,12));
+                }
+            }
+            store(ctx,record+216,spu_shufb(R(106),load(ctx,record+216),spu_cdd(R(81),8)));
+            wait_tags(ctx,2048);
+            if(misaligned(ctx,ea,0xA114))return 1;
+            dma(ctx,record,ea,256,11,32);
+            R(91)=spu_ai(R(91),1);R(94)=spu_ai(R(94),32);
+            if(!(word(ctx,cmd+16)>R(91)._u32[0]))break;
+            ea=next_ea;slot=next;
+        }
+    }
+finish:
+    wait_tags(ctx,32);wait_tags(ctx,2048);
+    R(3)=R(105);R(4)=R(117);
+    call_compiled(ctx,0x7C80,0xA554);
+    if(R(116)._u32[0]) {
+        R(5)=R(116);R(4)=spu_a(R(90),spu_il(4124));R(3)=spu_ai(R(105),120);
+        call_compiled(ctx,0x2228,0xA570);
+    }
+    R(3)=R(90);
+    call_compiled(ctx,0x1F8,0xA578);
+    R(0)=load(ctx,frame+0x680);R(1)=spu_a(R(1),spu_il(1648));
+    for(int r=80;r<=117;++r)R(r)=load(ctx,sp-0x10*std::uint32_t(r-79));
+    R(126)=load(ctx,sp-0x270);
+    return 1;
+}
+
 // WKC_NATIVE_RENDER_VERIFY=1: run each installed routine's compiled code and
 // its C++ on the same state and compare local store, the link, the stack
 // pointer and the callee-saved registers. The C++ rerun's DMA writes are
 // hidden from the per-transfer hook (a tag wait may complete transfers the
 // compiled run already reported); a plain replay checks the C++ transfers.
+// Main memory the compiled run read is put back before the rerun, newest
+// read first, so a routine that reads, changes and writes back a record sees
+// the same input twice.
 extern "C" void (*g_spu_put_trace_hook)(uint32_t,uint32_t,int,uint32_t,const uint8_t*);
+extern "C" void (*g_spu_get_trace_hook)(uint32_t,uint32_t,int,uint32_t,const uint8_t*);
+extern "C" uint8_t* vm_base;
 namespace {
+struct GetRecord {std::uint32_t ea;std::vector<std::uint8_t> bytes;};
+thread_local std::vector<std::vector<GetRecord>*> recorders;   // levels in their compiled run
+void (*previous_get_hook)(uint32_t,uint32_t,int,uint32_t,const uint8_t*)=nullptr;
+void record_get(uint32_t ea,uint32_t size,int image,uint32_t pc,const uint8_t* bytes) {
+    for(auto* r:recorders)r->push_back({ea,std::vector<std::uint8_t>(bytes,bytes+size)});
+    if(previous_get_hook)previous_get_hook(ea,size,image,pc,bytes);
+}
 struct VerifyStats {
     unsigned long long calls=0,mismatched=0;
     ~VerifyStats() {if(calls)std::fprintf(stderr,"[native-render-verify] calls=%llu mismatched=%llu\n",calls,mismatched);}
@@ -368,7 +627,7 @@ extern "C" int wkc_native_render_verify(spu_context* ctx,void (*reference)(spu_c
                                         int (*native)(spu_context*),unsigned entry) {
     // Routines nest (the state flush calls the constant uploads), so each
     // level keeps its own snapshots.
-    struct Level {std::vector<std::uint8_t> before,expected;spu_context ctx_before,ctx_expected;};
+    struct Level {std::vector<std::uint8_t> before,expected;spu_context ctx_before,ctx_expected;std::vector<GetRecord> gets;};
     static thread_local std::deque<Level> levels;   // grows without moving outer levels
     static thread_local unsigned depth=0;
     if(levels.size()<=depth)levels.resize(depth+1);
@@ -378,16 +637,18 @@ extern "C" int wkc_native_render_verify(spu_context* ctx,void (*reference)(spu_c
     auto& ctx_before=level.ctx_before;auto& ctx_expected=level.ctx_expected;
     before.assign(ctx->ls,ctx->ls+SPU_LS_SIZE);ctx_before=*ctx;
     const std::uint32_t link=R(0)._u32[0];
+    if(g_spu_get_trace_hook!=record_get){previous_get_hook=g_spu_get_trace_hook;g_spu_get_trace_hook=record_get;}
+    level.gets.clear();recorders.push_back(&level.gets);
     reference(ctx);spu_drain_call(ctx,link);
+    recorders.pop_back();
     expected.assign(ctx->ls,ctx->ls+SPU_LS_SIZE);ctx_expected=*ctx;
     std::memcpy(ctx->ls,before.data(),SPU_LS_SIZE);*ctx=ctx_before;
+    for(auto g=level.gets.rbegin();g!=level.gets.rend();++g)std::memcpy(vm_base+g->ea,g->bytes.data(),g->bytes.size());
     auto* hook=g_spu_put_trace_hook;g_spu_put_trace_hook=nullptr;
     const int ran=native(ctx);
+    if(!ran) {reference(ctx);spu_drain_call(ctx,link);}   // declined: the compiled result, unreported again
     g_spu_put_trace_hook=hook;
-    if(!ran) {   // declined: keep the compiled result
-        std::memcpy(ctx->ls,expected.data(),SPU_LS_SIZE);*ctx=ctx_expected;
-        return 2;
-    }
+    if(!ran)return 2;
     ++verify_stats.calls;
     unsigned bad=0;
     for(std::uint32_t a=0;a<SPU_LS_SIZE;++a)
