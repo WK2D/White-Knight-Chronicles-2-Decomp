@@ -31,6 +31,9 @@ documentation. The [build guide](BUILD.md) explains how to run the game; the
 | **HLE** | High-level emulation: a native implementation of a PS3 library function instead of its original code. |
 | **Syscall** | A call into the PS3 kernel (LV2), implemented natively by the runtime. |
 | **Lifting** | Translating PPU or SPU machine code to C/C++ ahead of time. |
+| **SPU image** | One of the 24 SPU programs the port extracts and lifts, numbered in registry order (image 19 is the geometry job, image 20 the render-command builder). See [the image table](SPU.md#the-24-images). |
+| **Job descriptor** | The block a SPURS job chain points at: the job's binary address and size, its input DMA list, cache list, and stack and scratch sizes. |
+| **Trampoline** | How lifted SPU code hands control to another lifted function: it records the target and returns to a drain loop, or tail-calls it directly with `SPU_JUMP`. |
 | **Interpreter fallback** | SPU code run instruction by instruction because no lifted version exists for it. |
 | **Presentation** | Handing a finished frame to the host window. Presentation counters count these, including repeated animation states. |
 
@@ -50,7 +53,7 @@ gives the play defaults. Keep any files these write private.
 | --- | --- | --- |
 | `WKC2_PLAYER_MODE=1` | Native clean-play guard; clears inherited research/input switches and forces quiet logs | [Build guide](BUILD.md#playing-and-performance-options) |
 | `RSX_PRESENT_MEASURE=1` | Opt-in DirectX benchmark ring/CSV, always blocked in player mode | [Build guide](BUILD.md#presentation-measurement) |
-| `WKC_NATIVE_GEOMETRY_JOB=1` | Enables admitted image-19 geometry jobs and image23 visibility modes 1–4. Image19 and visibility modes 1/2/4 use Windows host-float math. Unset or `0` leaves dispatch, scope gates and PUT observers unregistered and silent. | [Build guide](BUILD.md#playing-and-performance-options) |
+| `WKC_NATIVE_GEOMETRY_JOB=1` | Enables admitted image-19 geometry jobs and image-23 visibility modes 1–4. Image19 and visibility modes 1/2/4 use Windows host-float math. Unset or `0` leaves dispatch, scope gates and PUT observers unregistered and silent. | [Build guide](BUILD.md#playing-and-performance-options) |
 | `WKC_JOB_CAPTURE=<dir>`, `WKC_JOB_CAPTURE_IMAGE=<id>`, `WKC_JOB_CAPTURE_COUNT=<n>` | Record complete job transactions (descriptor, every DMA GET and PUT) for one image once `<dir>/arm` exists; cleared in player mode | [Patch 0129](PATCHES.md#dma-read-trace-hook-and-job-capture-patch-0129) |
 | `WKC_JOB_REPLAY=<file or dir>`, `WKC_JOB_REPLAY_RUNS=<n>` | Replay captured jobs against the loaded EBOOT, compare every DMA write with the capture, print the mean job time and exit (0 = all matched); cleared in player mode | [Patch 0130](PATCHES.md#job-replay) |
 | `WKC_GEOM_PIPELINE=<n>` | Worker threads for pipelined image-19 jobs; `0` runs them serially. Kept in player mode | [Patches 0127-0128](PATCHES.md#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128) |

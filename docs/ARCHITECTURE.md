@@ -13,7 +13,7 @@ not a recovered, readable version of the original source. The final SPU target
 is complete replacement with project-written readable public C++, with no
 generated SPU game code or interpreter linked into the player. No complete image
 has been replaced yet. The current source includes an opt-in readable C++ runtime
-for admitted image-19 geometry jobs and image23 visibility modes 1–4; original
+for admitted image-19 geometry jobs and image-23 visibility modes 1–4; original
 compiled SPU code remains linked for other jobs and unsupported inputs.
 
 ## What executes

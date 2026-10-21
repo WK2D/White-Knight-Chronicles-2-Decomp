@@ -6,7 +6,8 @@ reaches the WKC1 starting town, with short movement and camera control verified.
 It remains an early native recompilation project: one starting-town Logic Stone
 save and restart/Continue reload are verified; sustained gameplay, combat, wider
 save compatibility and full rendering fidelity are unverified. The remaining
-SPU interpreter fallback is documented in [ARCHITECTURE.md](ARCHITECTURE.md).
+SPU interpreter fallback is documented in [ARCHITECTURE.md](ARCHITECTURE.md), and
+all SPU work is summarised in [SPU.md](SPU.md).
 It is not a completed source or matching decompilation.
 
 ## What stays private

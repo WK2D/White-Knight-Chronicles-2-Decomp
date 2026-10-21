@@ -8,7 +8,7 @@ Start with the [project overview](../README.md). Pages in this folder:
 | [BUILD.md](BUILD.md) | Requirements, private workspace layout, building, regression checks, play and diagnostic options |
 | [FINDINGS.md](FINDINGS.md) | Verified results, measurements, open issues and investigation history, grouped by topic |
 | [PATCHES.md](PATCHES.md) | What each numbered SDK patch changes and how it was checked, newest first |
-| [SUBSYSTEMS.md](SUBSYSTEMS.md) | Renderer, movie decoding, guest frame presentation and native text entry |
+| [SUBSYSTEMS.md](SUBSYSTEMS.md) | Renderer, movie decoding, guest hooks, early SPURS and RSX patch notes, frame presentation and native text entry |
 | [LESSONS.md](LESSONS.md) | Symptom index and reusable lessons on timing, rendering, SPU jobs and runtime services |
 | [REFERENCE.md](REFERENCE.md) | Glossary, environment variables and known game addresses |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Execution model, remaining SPU fallback and modding scope |

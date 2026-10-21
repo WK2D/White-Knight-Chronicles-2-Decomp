@@ -146,12 +146,12 @@ Each row is a real fault found in this port. The patch notes have the evidence.
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | Long stretched strips on Leonard's hair and clothing | The SPURS job-queue imports returned success without running the physics jobs | [0058](PATCHES.md#spurs-job-queue-physics-patch-0058) runs the queue and passes the job's control block |
-| A 67 KB Edge geometry program never ran | `JOBLIST` chain commands were skipped, so the jobs they listed never dispatched | 0014 runs job lists ([notes](SUBSYSTEMS.md)) |
-| A job's own code bytes overwritten | `cellSpursGetSpuId` read a kernel structure at LS `0x1C8` inside the job | 0015 binds it to handoff metadata |
+| A 67 KB Edge geometry program never ran | `JOBLIST` chain commands were skipped, so the jobs they listed never dispatched | [0014](SUBSYSTEMS.md#early-spurs-fifo-and-rsx-patches) runs job lists |
+| A job's own code bytes overwritten | `cellSpursGetSpuId` read a kernel structure at LS `0x1C8` inside the job | [0015](SUBSYSTEMS.md#early-spurs-fifo-and-rsx-patches) binds it to handoff metadata |
 | First cache input quadword corrupted | The job stack started 16 bytes below the top, so the entry's link-register save landed on the cache data | [0122](PATCHES.md#spurs-job-caller-frame-patch-0122) reserves the full 32-byte frame |
 | Interrupts re-enabled when they should stay off | `SPU_RdMachStat` reported running state instead of the interrupt bit | [0123](PATCHES.md#spu-machine-status-interrupt-bit-patch-0123) |
 | Jobs started as stopped after a reset | Running status was only set by the interpreter | [0116](PATCHES.md#spu-running-status-and-fallback-entry-guards-patches-0116-0117) |
-| Guards closed after one release | `cellSpursJobGuardReset` didn't restore the notify count | 0048 |
+| Guards closed after one release | `cellSpursJobGuardReset` didn't restore the notify count | [0048](CODE_REVIEW.md#reviewed-fixes) |
 | Interpreter fallback in images 17 and 19 | Entry points the lifter couldn't see | Five hash-checked static entries; [0117](PATCHES.md#spu-running-status-and-fallback-entry-guards-patches-0116-0117) makes fallback fatal for testing |
 | Taskset completion races | Completion bits and SPU atomic commits weren't coherent | [0091–0092](PATCHES.md#task-completion-and-spu-byte-operations-patches-0091-0093) |
 | Unrelated jobs sharing DMA state | A fixed eight-slot MFC registry handed later contexts one shared engine | [0061](PATCHES.md#spu-conversion-scales-and-dma-ownership-patches-0060-0061) gives each context its own |
@@ -161,7 +161,7 @@ Each row is a real fault found in this port. The patch notes have the evidence.
 
 | Problem | Fix |
 | --- | --- |
-| SPU single precision has no NaN or infinity and an extended range; host floats differ | `SPU_FLOAT_MODE` exact rules; exact FNMS (0028, [0078](PATCHES.md#exact-avx2-spu-fnms-patch-0078)); NaN-payload checks in every native replacement |
+| SPU single precision has no NaN or infinity and an extended range; host floats differ | `SPU_FLOAT_MODE` exact rules; exact FNMS ([0028](SUBSYSTEMS.md#early-spurs-fifo-and-rsx-patches), [0078](PATCHES.md#exact-avx2-spu-fnms-patch-0078)); NaN-payload checks in every native replacement |
 | Conversion scales built with `exp2`/`ldexp` | [0060](PATCHES.md#spu-conversion-scales-and-dma-ownership-patches-0060-0061) builds exact powers of two from exponent bits |
 | Interpreter multiply-accumulate and integer gaps | [0085, 0086, 0089](PATCHES.md#runtime-and-input-follow-up-patches-0085-0090) |
 | SHUFB swapped every operand into SPU byte order and back | [0104](PATCHES.md#host-layout-spu-byte-shuffle-patch-0104) selects host bytes directly; 0093 vectorises byte shifts |
@@ -246,8 +246,9 @@ the one set up for image 20.
 | `SPU_HOST_DEPTH_MAX` | Host recursion limit for lifted calls (default 2000) |
 | `PS3_VERBOSE=0` | Silence per-job log lines; required for timing |
 
-The full list is in the [reference](REFERENCE.md#spu-and-spurs). Every
-diagnostic switch is cleared in player mode.
+The full list is in the [reference](REFERENCE.md#spu-and-spurs). Player mode
+clears the diagnostic switches; `WKC_NATIVE_GEOMETRY_JOB` and
+`WKC_GEOM_PIPELINE` are kept.
 
 ## Pitfalls
 

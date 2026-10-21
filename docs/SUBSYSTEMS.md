@@ -6,6 +6,8 @@ the [runtime patch notes](PATCHES.md); build and run instructions are in the
 
 - [Windows renderer](#windows-renderer)
 - [Movie decoding](#movie-decoding)
+- [Guest hooks and analysis tools](#guest-hooks-and-analysis-tools)
+- [Early SPURS, FIFO and RSX patches](#early-spurs-fifo-and-rsx-patches)
 - [Guest frame presentation](#guest-frame-presentation)
 - [Native text entry](#native-text-entry)
 
@@ -128,23 +130,6 @@ layouts and real progressive YUV420 processing. Tested paths include legal-range
 black/white, cropped/scaled RGBA output, planar output, guest metadata and output
 window guards. Field deinterlacing and non-bilinear filters are not implemented.
 
-Set `WKC2_UPDATE_DIAGNOSTICS=1` for dispatcher/scene state samples. The generated
-update hook is applied by the build script and is disabled by default at runtime.
-Probe logs and GPU captures go to the private workspace.
-
-`tools/apply_port_hooks.py` installs synchronization before the original guest
-installation request: a pending background content check must finish first.
-This prevents a faster native caller from losing the install request to the
-guest helper's pending-request guard. Allocation, copying and completion checks
-remain in the original guest path. The hook is reapplied after regeneration.
-`tools/trace_calls.py --env WKC2_CONTENT_TRACE` supports a separate trace switch
-for focused content diagnostics, without enabling other instrumented functions.
-
-`Wkc2Decompile.java` is a Ghidra 12.1.4 headless script for selected-function analysis
-using `PowerPC:BE:64:64-32addr`. It takes a private TSV inventory (hex start, exclusive
-end, TOC), a private output directory, and hex function addresses. It is an analysis
-aid; generated pseudocode is not source distributed by this repository.
-
 `adec.cpp` implements eight guest audio decoder APIs for PAMF LPCM and AC-3. It owns output
 slots inside the supplied guest work resource and keeps metadata/samples until
 consumption. Supported packed depths are 16/20/24 bits, with dummy-channel removal,
@@ -193,6 +178,32 @@ The first-logo LPCM and opening/title AC-3 records are in
 streams; independent container audio demux and original-console mix fidelity are
 not established. Patch 0011 resolves FFmpeg's option setter for decoder downmix/DRC.
 Matching runtime libraries are required; unavailable AC-3 decoders fail explicitly.
+
+## Guest hooks and analysis tools
+
+Set `WKC2_UPDATE_DIAGNOSTICS=1` for dispatcher/scene state samples. The generated
+update hook is applied by the build script and is disabled by default at runtime.
+Probe logs and GPU captures go to the private workspace.
+
+`tools/apply_port_hooks.py` installs synchronization before the original guest
+installation request: a pending background content check must finish first.
+This prevents a faster native caller from losing the install request to the
+guest helper's pending-request guard. Allocation, copying and completion checks
+remain in the original guest path. The hook is reapplied after regeneration.
+`tools/trace_calls.py --env WKC2_CONTENT_TRACE` supports a separate trace switch
+for focused content diagnostics, without enabling other instrumented functions.
+
+`Wkc2Decompile.java` is a Ghidra 12.1.4 headless script for selected-function analysis
+using `PowerPC:BE:64:64-32addr`. It takes a private TSV inventory (hex start, exclusive
+end, TOC), a private output directory, and hex function addresses. It is an analysis
+aid; generated pseudocode is not source distributed by this repository.
+
+## Early SPURS, FIFO and RSX patches
+
+Notes for the early diagnostic and correctness patches 0012–0033, kept here from
+the original build guide. Newer patches are described in the
+[runtime patch notes](PATCHES.md); SPU work as a whole is summarised in
+[SPU jobs and their replacement](SPU.md).
 
 For a focused private job trace, set `SPURS_JOB_TRACE_FP` to a hexadecimal SPU
 binary fingerprint before launching the probe. Patch 0012 logs dispatch and return

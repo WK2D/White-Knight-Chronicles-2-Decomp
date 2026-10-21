@@ -67,8 +67,9 @@ the optional in-game FPS overlay remains your choice.
 - **Gameplay coverage:** sustained traversal, combat, a complete playthrough and
   broader save compatibility remain unverified.
 
-Evidence, measurements and investigation history are in the findings log; remaining
-runtime implementation gaps are tracked in the runtime audit.
+Evidence, measurements and investigation history are in the
+[findings log](docs/FINDINGS.md); remaining runtime implementation gaps are tracked
+in the [runtime audit](docs/KILLZONE_FIX_AUDIT.md).
 
 ## Roadmap
 
@@ -101,8 +102,7 @@ inputs still run as compiled code. No complete SPU image has been replaced yet.
 Everything about the SPU work is on one page,
 [SPU jobs and their replacement](docs/SPU.md): what each job does, how the port
 runs it, the problems found and fixed, what limits the frame rate and how a job
-is replaced. Normal startup stays manual, with diagnostics disabled and the
-30 FPS baseline recommended.
+is replaced.
 
 ## Building and documentation
 
@@ -117,7 +117,7 @@ repository.
 | [Build guide](docs/BUILD.md) | Requirements, private workspace layout, building, regression checks, play and diagnostic options |
 | [Findings log](docs/FINDINGS.md) | Verified results, measurements, open issues and investigation history, grouped by topic |
 | [Runtime patch notes](docs/PATCHES.md) | What each numbered SDK patch changes and how it was checked, newest first |
-| [Runtime subsystem notes](docs/SUBSYSTEMS.md) | Renderer, movie decoding, guest frame presentation and native text entry |
+| [Runtime subsystem notes](docs/SUBSYSTEMS.md) | Renderer, movie decoding, guest hooks, early SPURS and RSX patch notes, frame presentation and native text entry |
 | [Lessons for recompilers](docs/LESSONS.md) | Symptom index and reusable lessons on timing, rendering, SPU jobs and runtime services |
 | [Reference](docs/REFERENCE.md) | Glossary, environment variables and known game addresses |
 | [Architecture](docs/ARCHITECTURE.md) | Execution model, remaining SPU fallback and modding scope |

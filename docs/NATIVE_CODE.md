@@ -13,7 +13,7 @@ temporary references, not the final implementation. Native compilation and
 interpreter-free sampled routes alone do not satisfy this target.
 
 No complete SPU image has yet been replaced. The public opt-in runtime handles
-admitted whole image-19 geometry jobs and [image23 visibility modes 1–4](#frustum-and-interval-selection)
+admitted whole image-19 geometry jobs and [image-23 visibility modes 1–4](#frustum-and-interval-selection)
 with owned typed inputs and ordered external outputs. Unsupported constructors
 and other image paths retain compiled execution. Seven ordinary host operations
 and the [extended negative-product operation](#owned-extended-negative-product-arithmetic)
@@ -229,15 +229,14 @@ and performance remain open.
    stable 24-image registry. Keep testing NPC-heavy movement, confirmed area
    transitions and cutscenes with `SPU_FALLBACK_STRICT=1`; investigate any new
    entry before promoting a wider interpreter-free claim.
-3. **Take semantic control of hot jobs.** An earlier profile identifies image-19
-   geometry code, including entry `0xCE08`, as a useful candidate. Matrix blending
-   and a supported complete post-blend batch boundary are integrated beside
-   compiled references. The final normal-output batches are now replaced separately below. Recover
-   the remaining normal-loop variants and establish whole-job boundaries. Preserve SPU float
-   behavior, byte order, alignment, aliasing, DMA visibility and job ordering.
-   The refreshed town profile below confirms work on this geometry worker,
-   alongside channel waits, PPU polling and renderer waits; it does not establish
-   that the recovered arithmetic determines the whole frame.
+3. **Take semantic control of hot jobs, costliest first.** The supported
+   image-19 geometry job is now complete C++ and pipelined, and image-23
+   visibility requests are C++. By crowded-street cost the next jobs are
+   [image 20](#next-critical-path-image-20-the-spu-render-command-builder)
+   (about 18 ms per frame, with captures and a byte-exact replay harness ready),
+   then images 18, 12 and 11 (about 2–4 ms each); see the
+   [image table](SPU.md#the-24-images). Preserve SPU float behavior, byte order,
+   alignment, aliasing, DMA visibility and job ordering.
 4. **Optimize validated kernels.** Use portable scalar C++ as the specification,
    with tested x86 SIMD and future ARM/NEON implementations where useful. SIMD
    must preserve required SPU rounding, denormal, saturation and fused-operation
@@ -1121,7 +1120,7 @@ failure tests, without proving broader gameplay or asynchronous scheduling.
 [`native_geometry_runtime.cpp`](../native_geometry_runtime.cpp) and its header
 are built into the player and initialized from `main.cpp`. Setting
 `WKC_NATIVE_GEOMETRY_JOB=1` registers the supported host-mode image-19 whole-job
-route and admitted image23 visibility modes 1–4 before original SPURS input staging.
+route and admitted image-23 visibility modes 1–4 before original SPURS input staging.
 Unset or `0` leaves its dispatch,
 scope and PUT hooks unregistered and produces no module diagnostics. Sampled
 completion/decline counters are separately enabled by
@@ -1354,7 +1353,7 @@ performance comparison. The inspected town frame renders Leonard and nearby
 NPCs. This route does not establish full traversal or a new FPS gain.
 Remaining palette sources and other images still use compiled execution.
 
-The independently profiled image23 visibility request now has connected C++
+The independently profiled image-23 visibility request now has connected C++
 implementations for its admitted modes 2/3, described below. Other modes and
 image domains remain on compiled execution; complete-image removal is unproven.
 
@@ -1365,7 +1364,7 @@ This initial modes-2/3 milestone is extended by
 
 [`native_occlusion.h`](../native_occlusion.h) and
 [`native_visibility.h`](../native_visibility.h) implement two complete supported
-image23 request modes. The existing `-NativeGeometryJob` player switch enables
+image-23 request modes. The existing `-NativeGeometryJob` player switch enables
 them through [`native_geometry_runtime.cpp`](../native_geometry_runtime.cpp).
 The algorithms accept owned typed values, without an SPU context, register file
 or local store.
@@ -1421,7 +1420,7 @@ checks mask compaction, header ordering, rejection and finite box/quad examples.
 Two workers also complete **128 actual SDK dispatches** with **4,937 ordered
 writes / 78,992 bytes**, no generated-original entries and no comparison failures.
 A barrier inside scope acquisition records all 128 arrivals, exercising parallel
-requests without an image23 compute-wide lock. This proves the tested independent
+requests without an image-23 compute-wide lock. This proves the tested independent
 request pairs; concurrent mutation of shared inputs, shared outputs or mapping
 lifetimes remains unproven. The separate image-19 allocator gate remains in place.
 
@@ -1441,7 +1440,7 @@ keeps the FPS overlay visible and still shows the crowded-street lag.
 
 ## Frustum and interval selection
 
-The opt-in runtime now connects all four known image23 selection modes for
+The opt-in runtime now connects all four known image-23 selection modes for
 admitted constructors. New [frustum](../native_frustum.h) and
 [interval](../native_visibility_interval.h) algorithms use owned typed matrices,
 box bounds and prepared planes/axis. They share the ordered-record/header,
@@ -1491,7 +1490,7 @@ removal and future platforms remain. No complete SPU image or FPS gain is claime
 
 [`native_geometry_negative_product.h`](../native_geometry_negative_product.h)
 now supplies the extended `c-a*b` operation to the supported image-19 whole-job
-policy and image23 floating-point visibility policies. Those routes no longer
+policy and image-23 floating-point visibility policies. Those routes no longer
 pack an SDK register or call its FNMS helper for this operation. The readable
 C++ interface accepts raw binary32 words or ordinary scalar/four-value arrays;
 it has no guest context, local store, mode switch or allocation.

@@ -50,7 +50,6 @@ benchmark recorder unless requested.
 - [Verified](#verified)
 - [Still unverified](#still-unverified)
 - [Implemented fixes](#implemented-fixes)
-- [Alpha-reference formats and foliage cutouts](#alpha-reference-formats-and-foliage-cutouts-patch-0121)
 
 **Performance, timing and presentation**
 
@@ -95,6 +94,8 @@ benchmark recorder unless requested.
 
 **Rendering and RSX**
 
+- [Alpha-reference formats and foliage cutouts (patch 0121)](#alpha-reference-formats-and-foliage-cutouts-patch-0121)
+- [DirectX plains near/far clipping (patch 0118)](#directx-plains-nearfar-clipping-patch-0118)
 - [Custom avatar portrait readback](#custom-avatar-portrait-readback)
 - [Vulkan window-depth intervals (patch 0098)](#vulkan-window-depth-intervals-patch-0098)
 - [Request-audit follow-up (patch 0097)](#request-audit-follow-up-patch-0097)
@@ -147,26 +148,6 @@ benchmark recorder unless requested.
 - [Update 1.01 and DLC integration](#update-101-and-dlc-integration)
 - [Investigation history](#investigation-history)
 
-## Alpha-reference formats and foliage cutouts (patch 0121)
-
-The foliage shadow pass uses integer ABGR8 surface format 16 and GEQUAL alpha
-reference `0x59`. The common decoder incorrectly used format IDs 14–16 for
-floating targets; the correct floating IDs are 11–13. It read the reference as
-denormal float bits instead of `89/255`, allowing fully transparent samples
-when the GPU flushes the denormal to zero. Correcting the IDs restores leaf
-cutouts in inspected DirectX plains route `20261020-015412`.
-Vulkan route `20261020-015927` independently reaches the plains and shows the
-same cutout improvement after walking and camera rotation; both strict tables
-remain empty.
-
-The regression fails on the old decoder and passes all 68,372 integer/half/float
-cases after the fix; all 113 Windows checks pass in Debug and Release. The new
-gallery comparison uses actual before/after GPU readbacks with different camera
-and animation timing. The FPS overlay is instrumented, not a performance result.
-Moving cloud shade, grass density and foot/Logic Stone flicker remain open.
-See [the renderer evidence](DIRECTX_PARITY.md#foliage-cloud-shade-and-grass-comparison)
-and [patch notes](PATCHES.md#alpha-reference-surface-formats-patch-0121).
-
 ## Goal and reporting
 
 Develop native Windows C/C++ execution through the title screen, gameplay and
@@ -179,34 +160,6 @@ macOS. The native Windows text-entry window is a temporary development interface
 Maintain this log as research progresses. Publish checked code, concise findings
 and new verified screenshots together when a meaningful milestone is reached.
 Keep full traces, generated game code, assets and local paths in the private workspace.
-
-## DirectX plains near/far clipping (patch 0118)
-
-Ground incorrectly covering Leonard's lower body after the plains transition
-reproduces on DirectX 115 and 117. Vulkan 117 shows the body on the corresponding
-route. The live DirectX rasterizer descriptor was zero-initialized without
-enabling near/far clipping. The single-flag correction removes the artifact;
-final production probe `20261019-222607` verifies transition, short walking and
-camera rotation with zero strict SPU fallback entries. Eight WARP cases and all
-107 Windows checks pass in Debug and Release. See [captures and limits](GALLERY.md#2026-10-19--directx-plains-clipping-fixed).
-
-## Static SPU entry coverage (patches 0116-0117)
-
-Five extra static entries in images 17 and 19 replace ten observed fallback rows.
-The build validates the exact private image hashes and retains the 24-image
-registry. Forty real-input replay pairs match full context, registers, local store
-and continuation. Patch 0116 sets running status before dispatch, removing a
-status difference previously hidden by interpreter startup. Patch 0117 provides
-opt-in fatal guards at both fallback entrances, tested with negative controls.
-
-DirectX probe `20261019-213333` completes 420 seconds of route control after
-Continue with zero fallback, including movement, camera rotation and the exit
-prompt. Area transition and broader gameplay coverage are not established by
-that run. A separate instrumented run executes all five entries and supplies eight
-geometry-block capture pairs; all eight reference replays pass. These captures
-validate the harness, not a readable kernel replacement. No performance gain is
-claimed. See [native work and limits](NATIVE_CODE.md). All 106 Windows checks pass
-in Debug and Release with 117 SDK patches; media checks run without skips.
 
 ## CPU execution qualification
 
@@ -264,11 +217,11 @@ validation. The remaining work includes:
 
 - Sustained traversal, combat, later scenes and broader save compatibility.
   Starting-town local save/reload is verified on patch 0075; patch 0076 also loads that slot.
-- Sustained visible performance: the clean patch-0076 one-minute saved-town
-  sample averages 28.03 presentations/s versus 27.18 for patch 0075. This does
-  not establish locked 30 fps, smooth traversal or full game-speed fidelity.
-  The earlier ten-minute worker-stability test used patch 0073 and different
-  diagnostic conditions. Validated 60 fps support remains a later goal.
+- Sustained visible performance: with the frame limit unlocked, the crowded
+  street runs at about 23–41 presentations/s on Vulkan (see
+  [what limits the frame rate](SPU.md#what-limits-the-frame-rate)). A locked
+  30 FPS while walking among NPCs, smooth traversal and full game-speed fidelity
+  are not established. Validated 60 fps support remains a later goal.
 - Flickering foot shadows, the rotating Logic Stone light, and complete in-engine
   audio/animation synchronization.
 - The custom avatar's empty portrait has been traced to a missing GPU-to-CPU
@@ -278,8 +231,9 @@ validation. The remaining work includes:
   The intermittent all-black menu and all-missing portraits remain unresolved.
 - Physical-controller walk/run comparison after patches 0087-0088, and loading/cutscene speed compared with RPCS3.
 - All character-creation options and an in-game keyboard usable by gamepad.
-- Complete static SPU coverage, including the six observed image-17 fallback
-  fingerprints; source-level reconstruction and a supported modding framework.
+- Complete static SPU coverage beyond the tested routes (the observed image-17
+  and image-19 fallback paths are covered by static entries); source-level
+  reconstruction and a supported modding framework.
 - Linux and macOS Apple Silicon platform integration and native testing.
 - Update 1.01, regional DLC, translated Japanese-exclusive content and optional
   Japanese voiceovers, including content and save compatibility.
@@ -349,6 +303,54 @@ PAMF checks use synthetic video/audio descriptors,
 including declared data larger than 4 GiB, copied readers and malformed headers.
 An optional private-header check also passes against the first logo file.
 Their scope is narrower than full-game compatibility.
+
+## Alpha-reference formats and foliage cutouts (patch 0121)
+
+The foliage shadow pass uses integer ABGR8 surface format 16 and GEQUAL alpha
+reference `0x59`. The common decoder incorrectly used format IDs 14–16 for
+floating targets; the correct floating IDs are 11–13. It read the reference as
+denormal float bits instead of `89/255`, allowing fully transparent samples
+when the GPU flushes the denormal to zero. Correcting the IDs restores leaf
+cutouts in inspected DirectX plains route `20261020-015412`.
+Vulkan route `20261020-015927` independently reaches the plains and shows the
+same cutout improvement after walking and camera rotation; both strict tables
+remain empty.
+
+The regression fails on the old decoder and passes all 68,372 integer/half/float
+cases after the fix; all 113 Windows checks pass in Debug and Release. The new
+gallery comparison uses actual before/after GPU readbacks with different camera
+and animation timing. The FPS overlay is instrumented, not a performance result.
+Moving cloud shade, grass density and foot/Logic Stone flicker remain open.
+See [the renderer evidence](DIRECTX_PARITY.md#foliage-cloud-shade-and-grass-comparison)
+and [patch notes](PATCHES.md#alpha-reference-surface-formats-patch-0121).
+
+## DirectX plains near/far clipping (patch 0118)
+
+Ground incorrectly covering Leonard's lower body after the plains transition
+reproduces on DirectX 115 and 117. Vulkan 117 shows the body on the corresponding
+route. The live DirectX rasterizer descriptor was zero-initialized without
+enabling near/far clipping. The single-flag correction removes the artifact;
+final production probe `20261019-222607` verifies transition, short walking and
+camera rotation with zero strict SPU fallback entries. Eight WARP cases and all
+107 Windows checks pass in Debug and Release. See [captures and limits](GALLERY.md#2026-10-19--directx-plains-clipping-fixed).
+
+## Static SPU entry coverage (patches 0116-0117)
+
+Five extra static entries in images 17 and 19 replace ten observed fallback rows.
+The build validates the exact private image hashes and retains the 24-image
+registry. Forty real-input replay pairs match full context, registers, local store
+and continuation. Patch 0116 sets running status before dispatch, removing a
+status difference previously hidden by interpreter startup. Patch 0117 provides
+opt-in fatal guards at both fallback entrances, tested with negative controls.
+
+DirectX probe `20261019-213333` completes 420 seconds of route control after
+Continue with zero fallback, including movement, camera rotation and the exit
+prompt. Area transition and broader gameplay coverage are not established by
+that run. A separate instrumented run executes all five entries and supplies eight
+geometry-block capture pairs; all eight reference replays pass. These captures
+validate the harness, not a readable kernel replacement. No performance gain is
+claimed. See [native work and limits](NATIVE_CODE.md). All 106 Windows checks pass
+in Debug and Release with 117 SDK patches; media checks run without skips.
 
 ## DirectX display integration (patches 0106-0107)
 
@@ -3736,7 +3738,7 @@ clean-environment, native-math and hook checks pass again in Debug and Release.
 
 ## Owned visibility jobs
 
-The profiled image23 worker now has authored C++ implementations for two whole
+The profiled image-23 worker now has authored C++ implementations for two whole
 request modes. Mode 2 transforms bounds and tests occlusion against quad shadow
 volumes; mode 3 keeps records with a zero mask intersection. Both publish unchanged
 retained records in source order and the result header last. The existing native-job

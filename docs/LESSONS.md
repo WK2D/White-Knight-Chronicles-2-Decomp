@@ -25,6 +25,7 @@ Terms such as RSX, GCM, FIFO, SPURS and MFC are defined in the
 | A small scene such as a movie stops presenting after a large one | A clear-based presentation heuristic keeps the larger scene's draw threshold | [Present at the guest's flips, not by heuristic](#present-at-the-guests-flips-not-by-heuristic) |
 | Missing post-processing or the final composite | A fixed-size target or draw-record table overflowed silently | [Report capacity exhaustion](#report-capacity-exhaustion) |
 | Loading stalls with geometry jobs stopped | An automatic cutoff halted a job that was validly polling a GPU label | [A long poll is not a hang](#a-long-poll-is-not-a-hang) |
+| Corrupted geometry or a GPU stall after running a job chain's jobs on several threads, or no speed-up | The chain is serial by design, keeps per-SPU state or passes state from job to job | [Check data flow before running chain jobs in parallel](#check-data-flow-before-running-chain-jobs-in-parallel) |
 | Many threads spinning during loading | SPUs re-reading an unchanged reservation line without yielding | [Yield on an unchanged reservation and wake waiters](#yield-on-an-unchanged-reservation-and-wake-waiters) |
 | One SPU's DMA wait satisfied by another SPU's transfer | Several contexts sharing one MFC engine | [Give each SPU context its own MFC state](#give-each-spu-context-its-own-mfc-state) |
 | NPCs or objects cannot be interacted with | User-command interrupts not delivered to the game's registered handler | [Deliver user-command interrupts to the registered handler](#deliver-user-command-interrupts-to-the-registered-handler) |
@@ -187,6 +188,17 @@ bounded. See [patch 0072](PATCHES.md#asynchronous-spu-worker-ownership-patch-007
 
 Task completion's bit updates must stay coherent with SPU atomic commits. See
 [patches 0091-0093](PATCHES.md#task-completion-and-spu-byte-operations-patches-0091-0093).
+
+### Check data flow before running chain jobs in parallel
+
+A job chain can look like independent work and still have to run in order. In
+this port, one geometry chain kept an output ring per SPU, so reporting every
+host job as SPU 0 corrupted it. The render-command chain was created with
+`maxCont=1` and a `SYNC` after each job, and every job read a state block the
+previous job had rewritten. Record what each job reads and writes first; only
+overlap jobs that don't read each other's output. Otherwise, make each job
+faster, or prepare independent work on other threads and commit results in the
+original order. See [what limits the frame rate](SPU.md#what-limits-the-frame-rate).
 
 ### Extract SPU jobs statically
 

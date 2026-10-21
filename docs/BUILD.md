@@ -42,15 +42,7 @@ their original build and diagnostic conditions.
 - [Diagnostic probes](#diagnostic-probes)
 - [Runtime patch notes](PATCHES.md): what each SDK patch changes, newest first
 - [Runtime subsystem notes](SUBSYSTEMS.md): renderer, movie decoding, frame presentation and text entry
-
-The public player launcher supports `-NativeGeometryJob` to enable supported
-geometry and visibility routes without enabling diagnostics. It explicitly writes `0`
-when the switch is omitted, preventing an inherited experimental selection.
-The clean-player guard preserves that functional selection while stripping
-native-job diagnostics, capture, profiling and input-injection switches.
-`-GeometryWorkers <n>` sets the geometry pipeline's worker threads
-(`WKC_GEOM_PIPELINE`); `0` runs geometry jobs serially, and omitting it keeps
-the core-count default of three workers on 8 or more hardware threads.
+- [SPU jobs and their replacement](SPU.md): SPU status, fixes, limits and workflow
 
 ## Requirements and workspace
 
@@ -159,6 +151,15 @@ findings log.
 
 ## Playing and performance options
 
+The public player launcher supports `-NativeGeometryJob` to enable supported
+geometry and visibility routes without enabling diagnostics. It explicitly writes `0`
+when the switch is omitted, preventing an inherited experimental selection.
+The clean-player guard preserves that functional selection while stripping
+native-job diagnostics, capture, profiling and input-injection switches.
+`-GeometryWorkers <n>` sets the geometry pipeline's worker threads
+(`WKC_GEOM_PIPELINE`); `0` runs geometry jobs serially, and omitting it keeps
+the core-count default of three workers on 8 or more hardware threads.
+
 Triangle -> System -> Graphics Settings is available in the native game, including
 Off/FXAA, frame-rate limits and an experimental DirectX 12 selector. See the
 [menu screenshots](GALLERY.md#2026-10-18---full-graphics-settings-panel-and-window-close)
@@ -263,7 +264,7 @@ probe environment for measurements and captures:
 
 - `RSX_PRESENT_MEASURE=1` enables the DirectX benchmark sample ring and CSV.
   `RSX_SCHEDULE_DIAG=1` adds process/thread times only when that recorder is enabled.
-- `WKC_NATIVE_GEOMETRY_JOB=1` enables admitted image-19 geometry jobs and image23
+- `WKC_NATIVE_GEOMETRY_JOB=1` enables admitted image-19 geometry jobs and image-23
   visibility modes 1–4. Image19 and visibility modes 1/2/4 require Windows host-float
   mode; mode 3 is an integer filter. Unset or `0` leaves this
   route's dispatch, scope gates and PUT observers unregistered and silent.
