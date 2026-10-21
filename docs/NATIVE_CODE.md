@@ -1493,3 +1493,44 @@ their turn. In same-process street comparisons the crowded view went from about
 jobs. Design, routes, evidence and limits are in the
 [patch notes](PATCHES.md#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128).
 DirectX, story cutscenes and combat have not been run with it yet.
+
+## Next critical path: image 20, the SPU render-command builder
+
+After geometry pipelining, a ten-second frame timeline of the crowded street
+with the frame limit unlocked (`run-20261021-061957`, tracing on) gives a
+median frame of about 41 ms. The largest share is compiled image 20
+(`zz_raw_job_01294400`):
+
+| Image | Per frame | Runs in 10 s | Median run |
+| --- | ---: | ---: | ---: |
+| **20** | **21.3 ms** | 13,166 | 443 µs |
+| 18 | 4.3 ms | 5,146 | 204 µs |
+| 12 | 4.1 ms | 3,750 | 274 µs |
+| 11 | 2.4 ms | 1,875 | 302 µs |
+| 19 (native, pipelined) | 1.9 ms | 42,486 | 9 µs |
+
+The renderer's FIFO drain overlaps most of this. Moving single threads onto
+E-cores confirms the split: slowing the renderer or the image-20 chain each
+drops unlocked street FPS from about 48 to about 37.
+
+Image 20 is the game's SPU render-command builder. Its 54 KB binary contains
+messages such as "unknown cmd %d", "unk stdef %d", "prim error",
+"fp ucode size over!", "spu skin matirx num over %d/%d!", "spu idx nov!" and
+"spu creg nov!". Each job interprets a game display list and emits RSX
+commands: primitives, fragment-program microcode, skin-matrix and constant
+uploads, and indices. Crowds are slow because every visible object passes
+through it.
+
+It can't simply run in parallel. A live dump of the chain streams shows image
+20 in chain `0x470DDB80`, which the game created with `maxCont=1` (one SPU).
+Every image-20 job sits between a GUARD and a SYNC, so the PS3 runs these jobs
+strictly in order too. A private experiment that dispatched image-20 jobs to
+worker threads gained nothing: each job was drained by the SYNC after it. It
+also broke that ordering contract, so it was withdrawn. Image 20 has to get
+faster instead. The planned route is a native C++ replacement, recovered
+command by command against captured job inputs and outputs, as for image 19.
+
+Asynchronous window presentation was also tried: the CPU recorded the next
+frame while the GPU finished the last one. Same-process A/B windows showed no
+FPS difference (about 31.2 vs 30.9), because the present wait wasn't on the
+frame's critical path. That change was not kept.
