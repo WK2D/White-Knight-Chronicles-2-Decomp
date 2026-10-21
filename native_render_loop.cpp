@@ -151,6 +151,21 @@ void fetch_fast(spu_context* ctx) {
     ctx->pc=P(R(0)); // SPU_RET with a live host frame
 }
 
+// The command's handler, resolved once per table entry instead of through the
+// runtime's indirect-branch lookup on every command. The table lives in the
+// job's local store, so each cached entry is keyed by the address it read; a
+// target with no lifted function keeps the runtime's indirect branch.
+wkc_spu_fn handler(spu_context* ctx,uint32_t index,uint32_t target) {
+    struct Slot {uint32_t target;int32_t image;wkc_spu_fn fn;};
+    static thread_local Slot slots[37];
+    Slot& s=slots[index];
+    if(s.fn&&s.target==target&&s.image==ctx->image_id)return s.fn;
+    const wkc_spu_fn fn=(target&SPU_LS_MASK)?spu_lookup(target,ctx->image_id):nullptr;
+    if(!fn)return spu_indirect_branch;
+    s={target,ctx->image_id,fn};
+    return fn;
+}
+
 // A lifted `brsl`: link, nested host frame, body, then drain to the link.
 template<class Body> void call(spu_context* ctx,uint32_t link,Body body) {
     R(0)=spu_link(link);
@@ -219,5 +234,5 @@ extern "C" wkc_spu_fn wkc_native_render_loop(spu_context* ctx,int from_return) {
     R(39)=spu_a(R(40),R(37));R(38)=LS(ctx,P(R(37))+P(R(40)));R(36)=spu_rotqby(R(38),R(39));R(2)=spu_a(R(36),R(37));
     if(P(R(35))!=0){ctx->pc=0x1410;return compiled(ctx,0x1410);}
     ctx->pc=P(R(2));
-    return spu_indirect_branch;
+    return handler(ctx,P(R(8)),P(R(2)));
 }
