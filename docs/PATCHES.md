@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0130 | [Faster SPU calls and transfers](#faster-spu-calls-and-transfers-patch-0130) |
 | Patch 0129 | [DMA read trace hook and job capture](#dma-read-trace-hook-and-job-capture-patch-0129) |
 | Patches 0127-0128 | [Pipelined geometry jobs and sub-millisecond sleeps](#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128) |
 | Patch 0126 | [Guest mapping lifetime epoch](#guest-mapping-lifetime-epoch-patch-0126) |
@@ -59,6 +60,59 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Faster SPU calls and transfers (patch 0130)
+
+Compiled SPU code spent about a fifth of its time in bookkeeping between
+lifted functions rather than in the guest's own work. Patch 0130 removes the
+parts of that bookkeeping that had nothing to do, without changing what runs.
+
+- **Call returns.** Every lifted `brsl` ends with `spu_drain_call`. When the
+  callee has already returned to the link address and nothing is pending, the
+  full drain only checked the depth limit and cleared `drain_ret_pc`. That case
+  is now inline; anything else takes the full drain as before.
+- **Per-transfer gates.** The lockstep tick and the `SPU_PCHIST` histogram are
+  checked inline before calling out, and the depth limit is read once into a
+  shared gate.
+- **Direct transfers.** A branch to another lifted function used to return to
+  the drain loop, which ran its hooks and then called the target. `SPU_JUMP`
+  does the same in place, as a guaranteed tail call, whenever none of those
+  hooks would act. These cases still take the trampoline: a branch to LS 0,
+  lockstep, the launch check, the PM flow trace, `SPU_PCHIST`, `SPU_TAILRET`,
+  or a pending interrupt. The `steps` count and pc history ring are kept.
+  The port's `tools/apply_spu_direct_jumps.py` spells the lifted branches as
+  `SPU_JUMP` after the native hook installers run, and leaves their pinned
+  regions untouched.
+
+**Evidence.** The port's job replay (`WKC_JOB_REPLAY`, below) reruns the 96
+captured crowded-street image-20 jobs and compares every DMA write byte for
+byte. All 96 match with each change. The mean job time went from 311 µs to
+284 µs with the inline returns and gates, then to 277 µs with direct
+transfers: 11% less per render-command job. The same paths serve every lifted
+SPU image. Both Windows suites pass all 120 checks, including the new rewrite
+check.
+
+In game, six ten-second street timelines alternated between the previous and
+the new Release build. Image-20 runs averaged about 337 µs against about 364 µs
+before (scenes differ between runs, so this is approximate). That is roughly
+1.5 ms less per frame. It sits inside the run-to-run FPS spread, so no FPS gain
+is claimed. The street rendered normally in every run.
+
+**Tried and dropped.** Disabling the stack cookie (`/GS-`) for lifted SPU code
+made no measurable difference. Running image-20 jobs speculatively in parallel
+can't work either: every captured job reads a render-state block and shared
+table that the job before it changed.
+
+### Job replay
+
+`WKC_JOB_REPLAY=<capture file or directory>` (with optional
+`WKC_JOB_REPLAY_RUNS=<n>`) loads the EBOOT as usual. It then rebuilds each
+captured job's descriptor, staged inputs and DMA reads in guest memory,
+dispatches the job through the normal SDK path, compares every PUT with the
+capture and exits with the mean job time. Captures now also record the
+descriptor's input and cache lists as staged (`S`) records, because the SDK
+copies those without traced DMA. Set `PS3_VERBOSE=0` when timing: the per-job
+log lines otherwise cost about a third of the run.
 
 ## DMA read trace hook and job capture (patch 0129)
 

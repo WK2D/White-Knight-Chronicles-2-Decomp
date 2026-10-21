@@ -9,7 +9,7 @@ layer. Earlier runs observed SPU interpreter fallback; newer strict routes have
 zero entries. Neither establishes full-game interpreter-free execution; see
 [architecture](ARCHITECTURE.md).
 
-Current source: 129 SDK patches / 119 Windows checks in normal Debug and optimized
+Current source: 130 SDK patches / 120 Windows checks in normal Debug and optimized
 Release. The newest capture shows the connected geometry and visibility C++
 runtime in an NPC-heavy town view, with the FPS counter on. The newest runtime also uses authored extended negative-product arithmetic.
 Earlier diagnostic routes verify visibility modes and the new palette rows.

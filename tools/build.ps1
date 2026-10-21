@@ -32,6 +32,8 @@ if ($Regenerate) {
 Invoke-CheckedPython "$project/tools/apply_native_geometry.py" "$generated/spu"
 Invoke-CheckedPython "$project/tools/apply_native_normals.py" "$generated/spu"
 Invoke-CheckedPython "$project/tools/apply_native_stream.py" "$generated/spu"
+# After the hook installers: their pinned regions keep the exact lifted text.
+Invoke-CheckedPython "$project/tools/apply_spu_direct_jumps.py" "$generated/spu"
 Invoke-CheckedPython "$project/tools/apply_port_hooks.py" "$generated/ppu"
 Invoke-CheckedPython "$project/tools/apply_diagnostics.py" "$generated/ppu"
 Invoke-CheckedPython "$project/tools/prepare_ffmpeg.py" "$Workspace/work/deps"

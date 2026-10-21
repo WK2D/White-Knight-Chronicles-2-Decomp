@@ -140,7 +140,7 @@ zero fallback and at least 16,777,216 transformed blocks in each run. Both final
 frames were inspected. The Vulkan run additionally samples CPU time; profiling,
 tracing and GPU captures make it unsuitable as an FPS benchmark.
 
-Both Windows suites now pass 119 checks with 129 SDK patches. No FPS gain,
+Both Windows suites now pass 120 checks with 130 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
 is claimed.
 
@@ -1529,6 +1529,31 @@ worker threads gained nothing: each job was drained by the SYNC after it. It
 also broke that ordering contract, so it was withdrawn. Image 20 has to get
 faster instead. The planned route is a native C++ replacement, recovered
 command by command against captured job inputs and outputs, as for image 19.
+
+The ordering is real data flow, not just a scheduling rule. In 96 captured
+street jobs, every job reads a 15 KB shared table and a 128-byte render-state
+block that the job before it rewrote, with different bytes each time.
+Speculative parallel runs would fail validation almost every time.
+
+**Replay harness.** `WKC_JOB_REPLAY` reruns captured jobs in isolation against
+the loaded EBOOT and checks every DMA write byte for byte (see
+[patch 0130](PATCHES.md#job-replay)). The compiled job replays exactly. That
+gives every image-20 change, from code-generation tweaks to a C++ rewrite, a
+quick pass/fail and timing check without playing the game.
+
+**Profile of one job.** With per-job logging off, a replayed image-20 job took
+311 µs:
+
+- about 60% in lifted SPU code, spread over hundreds of short functions (the
+  hottest is about 4%);
+- about a fifth in transfer bookkeeping between them;
+- about 15% in the DMA channel path.
+
+Patch 0130 removes most of the bookkeeping, bringing the job to 277 µs (11%
+faster) with byte-identical output. The lifted code itself already compiles
+to reasonable vector code. Large further gains need either a whole-image
+recompiler that keeps SPU registers in host registers across functions, or
+the C++ rewrite.
 
 Asynchronous window presentation was also tried: the CPU recorded the next
 frame while the GPU finished the last one. Same-process A/B windows showed no

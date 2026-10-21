@@ -1,0 +1,162 @@
+diff --git a/runtime/spu/spu_context.h b/runtime/spu/spu_context.h
+--- a/runtime/spu/spu_context.h
++++ b/runtime/spu/spu_context.h
+@@ -857,6 +857,34 @@
+ 
+ /* Drain a translated call up to its explicit architectural return PC. */
+ void spu_drain_call(spu_context* ctx, uint32_t return_pc);
++/* Host-recursion limit spu_depth_guard enforces (SPU_HOST_DEPTH_MAX, default
++ * 2000); 0 until the first guard reads the environment. A merged definition,
++ * like the other diagnostic gates, so a target that compiles the guard alone
++ * still links. */
++SPU_GATE uint32_t g_spu_host_depth_max = 0;
++/* Every lifted brsl/bisl ends `callee(ctx); spu_drain_call(ctx, link)`, and a
++ * callee that came back through SPU_RET leaves nothing to drain: no pending
++ * transfer and pc already at the link. The out-of-line drain then did only its
++ * depth check and cleared drain_ret_pc -- a call, a thread-local ring write and
++ * an interrupt-frame setup per SPU call, about a seventh of a render-command
++ * job. Do that inline; everything else (a pending transfer, a return elsewhere,
++ * an untripped limit not yet read) takes the full drain. The depth guard's
++ * diagnostic ring then names drain sites that ran transfers, not plain returns. */
++static inline void spu_drain_call_inline(spu_context* ctx, uint32_t return_pc)
++{
++    if (!g_spu_trampoline_fn &&
++        ((ctx->pc ^ return_pc) & SPU_LS_MASK) == 0 &&
++        ctx->host_depth < g_spu_host_depth_max) {
++        ctx->drain_ret_pc = 0;
++        return;
++    }
++    spu_drain_call(ctx, return_pc);
++}
++#define spu_drain_call(ctx, return_pc) spu_drain_call_inline((ctx), (return_pc))
++/* The lockstep gate (spu_lockstep.c) is -1 until read, then 0 or 1; checking
++ * it before the call keeps the disabled case to one load per transfer. */
++extern volatile int g_yz_lockstep_on;
++#define SPU_LOCKSTEP_TICK(ctx) do { if (g_yz_lockstep_on) yz_lockstep_tick(ctx); } while (0)
+ /* SPU_PCHIST=1: bucket SPU execution by the GPU module's own symbols.
+  *
+  * SPU_VRAMPC showed 3.7M VRAM writes from Host2Local_Body and ZERO from
+@@ -869,11 +897,12 @@
+  *
+  * Extents from the .symtab embedded in ps1_netemu (firmware file offset
+  * 0x171100), so they are exact rather than guessed. */
++SPU_GATE int g_spu_pchist = -1;   /* SPU_PCHIST: -1 until read, then 0/1 */
+ static inline void spu_pchist_tick(const spu_context* ctx)
+ {
+-    static int en = -1;
+-    if (en < 0) en = getenv("SPU_PCHIST") ? 1 : 0;
+-    if (!en) return;
++    if (__builtin_expect(g_spu_pchist == 0, 1)) return;
++    if (g_spu_pchist < 0) g_spu_pchist = getenv("SPU_PCHIST") ? 1 : 0;
++    if (!g_spu_pchist) return;
+     static unsigned long long b[8][8], n;
+     const unsigned sp = (unsigned)(ctx->spu_id & 7u);
+     const uint32_t pc = (uint32_t)ctx->pc & SPU_LS_MASK;
+@@ -924,7 +953,7 @@
+             }                                                              \
+             void (*_tf)(spu_context*) = g_spu_trampoline_fn;    \
+             g_spu_trampoline_fn = 0;                            \
+-            yz_lockstep_tick(ctx);                             \
++            SPU_LOCKSTEP_TICK(ctx);                            \
+             if (spu_launch_check_due(ctx))                     \
+                 spu_task_launch_check((ctx), (void*)_tf);      \
+             if ((ctx)->int_enable &&                            \
+@@ -956,6 +985,49 @@
+  * host-frame return as SPU_RET, publishing the register actually branched. */
+ #define SPU_RET_REG(ctx, n) do {                                       (ctx)->pc = (ctx)->gpr[n]._u32[0];                             if ((ctx)->host_depth == 0)                                        g_spu_trampoline_fn = spu_indirect_branch;                 return;                                                    } while (0)
+ 
++/* Direct transfer between lifted functions.
++ *
++ * A cross-function branch is lowered as `ctx->pc = X; g_spu_trampoline_fn =
++ * F; return;`, so every hop unwinds to the drain loop, which runs the per-
++ * transfer hooks and calls F. When none of those hooks has anything to do --
++ * the same conditions the loop tests before skipping them -- the hop can call
++ * F directly as a guaranteed tail call: same order of effects, same bounded
++ * host stack, no unwind. The loop's bookkeeping for a skipped launch check
++ * (`steps`) and its pc history ring are kept. A branch to LS 0 (a job's exit),
++ * an armed lockstep, launch check, PM flow trace, pc histogram, SPU_TAILRET or
++ * a pending interrupt all take the trampoline as before. Lifted code opts in
++ * by spelling those branches SPU_JUMP; without musttail it is the trampoline. */
++extern int g_spu_tailret;   /* SPU_TAILRET: -1 until read, then 0/1 */
++static inline int spu_direct_jump_ok(const spu_context* ctx)
++{
++    return !g_spu_launch_check_all && !ctx->policy_mode &&
++           !(g_spu_stack_reset_count && ctx->host_depth) &&
++           g_pm_flow_ctx != (void*)ctx && !g_yz_lockstep_on &&
++           !g_spu_pchist && !g_spu_tailret &&
++           !(ctx->int_enable && (ctx->event_status & ctx->event_mask));
++}
++#if defined(__clang__) && defined(__has_attribute)
++#  if __has_attribute(musttail)
++#    define SPU_MUSTTAIL __attribute__((musttail))
++#  endif
++#endif
++#ifdef SPU_MUSTTAIL
++#define SPU_JUMP(ctx, target_pc, fn) do {                                  \
++        (ctx)->pc = (target_pc);                                           \
++        if (((target_pc) & SPU_LS_MASK) != 0 && spu_direct_jump_ok(ctx)) { \
++            (ctx)->steps++;                                                \
++            g_spu_pch[g_spu_pch_n++ & 7u] = (uint32_t)((target_pc) & SPU_LS_MASK); \
++            SPU_MUSTTAIL return fn(ctx);                                   \
++        }                                                                  \
++        g_spu_trampoline_fn = (fn);                                        \
++        return;                                                            \
++    } while (0)
++#else
++#define SPU_JUMP(ctx, target_pc, fn) do {                                  \
++        (ctx)->pc = (target_pc); g_spu_trampoline_fn = (fn); return;       \
++    } while (0)
++#endif
++
+ #ifdef __cplusplus
+ } /* extern "C" */
+ #endif
+diff --git a/runtime/spu/spu_drain.c b/runtime/spu/spu_drain.c
+--- a/runtime/spu/spu_drain.c
++++ b/runtime/spu/spu_drain.c
+@@ -340,10 +340,11 @@
+ /* See the declaration in spu_context.h. */
+ void spu_depth_guard(spu_context* ctx)
+ {
+-    static SPU_THREAD_LOCAL uint32_t s_max = 0;
++    uint32_t s_max = g_spu_host_depth_max;
+     if (!s_max) {
+         const char* e = getenv("SPU_HOST_DEPTH_MAX");
+         s_max = e ? (uint32_t)strtoul(e, 0, 0) : 2000u;
++        g_spu_host_depth_max = s_max;
+     }
+ 
+     /* Host recursion and its diagnostic history belong to this executing
+@@ -376,11 +377,11 @@
+ }
+ 
+ /* See spu_context.h. Env-gated: SPU_TAILRET=1. */
++int g_spu_tailret = -1;
+ int spu_tailret_enabled(void)
+ {
+-    static int s_on = -1;
+-    if (s_on < 0) { const char* e = getenv("SPU_TAILRET"); s_on = (e && e[0] == 0x31) ? 1 : 0; }
+-    return s_on;
++    if (g_spu_tailret < 0) { const char* e = getenv("SPU_TAILRET"); g_spu_tailret = (e && e[0] == 0x31) ? 1 : 0; }
++    return g_spu_tailret;
+ }
+ 
+ /* A return may use any register, not only r0. Running that branch target
+@@ -402,7 +403,7 @@
+ typedef void (*spu_drain_fn)(spu_context*);
+ extern spu_drain_fn spu_lookup(uint32_t addr, int image_id);
+ 
+-void spu_drain_call(spu_context* ctx, uint32_t return_pc)
++void (spu_drain_call)(spu_context* ctx, uint32_t return_pc)
+ {
+     spu_depth_guard(ctx);
+     /* The frame an interrupt taken in THIS loop returns to. It stays armed
+@@ -423,7 +424,7 @@
+             void (*fn)(spu_context*) = g_spu_trampoline_fn;
+             g_spu_trampoline_fn = 0;
+             ctx->drain_ret_pc = return_pc & SPU_LS_MASK;   /* re-set: a nested drain changed it */
+-            yz_lockstep_tick(ctx);
++            SPU_LOCKSTEP_TICK(ctx);
+             if (spu_launch_check_due(ctx))
+                 spu_task_launch_check(ctx, (void*)fn);
+             if (ctx->int_enable && (ctx->event_status & ctx->event_mask)) {

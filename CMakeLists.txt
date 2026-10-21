@@ -419,6 +419,9 @@ if(WKC2_BUILD_TESTS)
     add_test(NAME wkc2_native_geometry_hook COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_native_geometry_hook.py")
     set_tests_properties(wkc2_native_geometry_hook PROPERTIES TIMEOUT 10)
+    add_test(NAME wkc2_spu_direct_jumps COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/test_spu_direct_jumps.py")
+    set_tests_properties(wkc2_spu_direct_jumps PROPERTIES TIMEOUT 10)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64|amd64|x86_64|i.86")
         if(MSVC)
             set_property(SOURCE tests/native_skinning_test.cpp tests/native_skinning_stream_test.cpp tests/native_vertex_decode_test.cpp tests/native_vertex_pack_test.cpp APPEND PROPERTY COMPILE_OPTIONS /arch:AVX2)
