@@ -16,16 +16,17 @@ interpreter-free sampled routes alone do not satisfy this target.
 image handled by C++ for its normal path; SPU task wake-ups stay compiled. The
 public opt-in runtime handles admitted whole image-19 geometry jobs and
 [image-23 visibility modes 1–4](#frustum-and-interval-selection) with owned typed
-inputs and ordered external outputs, and image 20 runs its interpreter loop and
-command 25 in C++. Unsupported constructors
+inputs and ordered external outputs, and image 20 runs its interpreter loop,
+command 25 and command 12 in C++. Unsupported constructors
 and other image paths retain compiled execution. Seven ordinary host operations
 and the [extended negative-product operation](#owned-extended-negative-product-arithmetic)
 use authored C++; reciprocal estimates/interpolation and integer conversions
 retain SDK adapters. Admitted geometry jobs are now prepared on worker threads
 and published in order, which took the crowded street from about 15.5 to 26.5
-FPS unlocked. The next critical path is [image 20](#next-critical-path-image-20-the-spu-render-command-builder),
-the render-command builder, now about 14.3 ms per street frame with its loop
-and command 25 in C++. Completion requires a player build that links
+FPS unlocked. [Image 20](#next-critical-path-image-20-the-spu-render-command-builder),
+the render-command builder, now runs its loop and commands 25 and 12 in C++
+(about 212 µs per replayed job, from about 290 compiled); on the crowded
+street the renderer's FIFO drain now limits the frame. Completion requires a player build that links
 no generated SPU game code, uses no SPU interpreter, and has validated native
 interfaces and behavior throughout the game. Build-only reference replays may
 retain private generated code for differential verification.
@@ -1717,6 +1718,76 @@ All 96 captured jobs replay byte-exact; a counter (`WKC_NATIVE_RENDER_STATS=1`)
 shows every one of about 940 passes per job running natively. A street run
 renders normally and presents 285 frames in its ten-second timeline window.
 
-**Next.** Dispatch still goes through the runtime's indirect-branch lookup
-for each command, and command 12 (31% of the original job, 184 reachable
-functions) is the largest handler left.
+**Cached dispatch.** The loop now resolves each table entry's handler once
+instead of calling the runtime's indirect-branch lookup for every command.
+Every entry of the table points below LS 0x3000, where that lookup only masks
+the pc, clears the resident task and resolves in the job's image; the cache
+does the same and keeps the indirect branch for a pending interrupt return, a
+resident code span over the target or any other target. It is byte-exact but
+saves nothing measurable (about 262 µs per job either way): the lookup was not
+the cost.
+
+**Command 12 in C++.** Command 12 (handler 0x1AE0) calls two routines, and
+both now run in C++ in
+[`native_render_commands.cpp`](../native_render_commands.cpp):
+
+- **0xAD50, the dirty-state flush**, which also runs before four other
+  commands. It waits for DMA tag 7 and, with S = state + 720, refreshes each
+  dirty block:
+  - transform constants (0xA8E0): A = M1 (three rows at S+0xB80 and a
+    constant row), T = M2 · A and U = M3 · T, each requested matrix uploaded to
+    its constant slot with SET_TRANSFORM_CONSTANT_LOAD;
+  - the constant table command 25 fills (0x53C8): runs of table rows, eight
+    constants per load, with run lengths from a byte table at LS 0xD4F0;
+  - a single status word;
+  - the shader block: halfword-swapped rows copied into the shader setup
+    area, the fragment program uploaded (compiled 0x7B0), then
+    SET_SHADER_PROGRAM, the texture-coordinate controls and SET_SHADER_CONTROL.
+- **0x9D58, the draw builder.** It refreshes three constant blocks (the three
+  transform rows, the bone matrices, and M3 · M2 with its 128-byte block, each
+  uploaded through the compiled 0x1000), notes the vertex-attribute mask, then
+  walks the command's draw records three deep. For each 256-byte record it
+  emits SET_VERTEX_DATA_ARRAY_FORMAT and _OFFSET for every listed attribute,
+  reserves the index data in the command stream (compiled 0xE50), fills in the
+  state words, base vertex offset and attribute mask, and writes the record
+  back by DMA.
+
+The C++ works on local-store bytes and makes the same local-store writes and
+DMA requests in the same order. Each routine keeps the compiled stack frame
+(saved registers, link and back chain) and hands every compiled callee the
+register values the compiled code would, including the callee-saved
+registers that callee stores (r80–r85 at 0xE50). Small helpers stay compiled:
+the output-space check and flush (0xFF0, 0xC40), the uploads 0x7B0 and 0x1000,
+0x7C80, 0x2228, 0x1F8, the index reservation 0xE50 and memcpy 0xCE90 for
+unaligned copies. The installer pins every lifted block each routine replaces.
+
+**Verification.** `WKC_NATIVE_RENDER_VERIFY=1` runs every installed routine
+twice on the same state: the compiled code, then the C++ after restoring
+local store, the register file and the main memory the compiled run read
+(the draw builder changes records it reads and writes back). It compares all
+256 KB of local store, the link, the stack pointer and r80–r127. Nested
+routines keep their own snapshots. All 23,303 calls in the 96 captured street
+jobs match, and a plain replay is byte-exact for all 96 jobs.
+
+| Build (same-session replay, 20 passes × 3) | Replay, per job |
+| --- | ---: |
+| Loop and command 25 in C++, cached dispatch | about 253 µs |
+| + transform constants | about 235 µs |
+| + table constants, status word and shader block (whole flush) | about 220 µs |
+| + draw builder (command 12 complete) | about 212 µs |
+
+**On the street.** Separate street runs vary with the crowd. Two ten-second
+timelines of the previous build showed 8.5 and 15.6 ms of image 20 per frame
+(467 and 271 frames presented); two of the command-12 build showed 6.3 and
+6.9 ms (535 and 491 frames). Image 20's share of the frame fell from 40–42% to
+33–34%. A same-process A/B on the crowded street, switching the command-12
+routines between C++ and compiled code over eight windows, showed no FPS
+difference unlocked (23.1 against 23.2 FPS) and +3.5% at the 30 FPS cap (25.2
+against 24.3). In that scene the renderer limits the frame: its FIFO drain
+takes about 28 ms per frame and keeps its thread about 78% busy, so faster
+image-20 jobs raise FPS only once the renderer is faster too.
+
+**Next.** In a replayed job the runtime's DMA path (six channel writes and the
+transfer bookkeeping per request) is now about 19% of the time and the loop's
+own C++ about 13%; command 10 (0x7430, about 7%) and command 4 are the largest
+compiled handlers left. For street FPS the renderer's FIFO drain comes first.

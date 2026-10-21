@@ -101,7 +101,7 @@ static build. The fallback remains available for untested paths.
 Readable, project-written C++ runs the supported image-19 geometry jobs, pipelined
 across worker threads, all four image-23 visibility modes and the normal path of
 image 21, the event-flag set job. Image 20, the render-command builder, runs its
-interpreter loop and command 25 in C++. Other SPU jobs, commands and inputs still
+interpreter loop and commands 25 and 12 in C++. Other SPU jobs, commands and inputs still
 run as compiled code.
 Everything about the SPU work is on one page,
 [SPU jobs and their replacement](docs/SPU.md): what each job does, how the port
