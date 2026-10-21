@@ -14,7 +14,7 @@ def git(*args):
     return subprocess.check_output(['git', '-C', str(root), *args])
 
 root_files = {
-    'native_occlusion.h', 'native_visibility.h',
+    'native_occlusion.h', 'native_visibility.h', 'native_frustum.h', 'native_visibility_interval.h',
     'native_geometry_filter.h',
     'native_geometry_pipeline.h',
     'native_estimate_interpolation.h',

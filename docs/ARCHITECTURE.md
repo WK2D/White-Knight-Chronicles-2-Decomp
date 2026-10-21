@@ -13,7 +13,7 @@ not a recovered, readable version of the original source. The final SPU target
 is complete replacement with project-written readable public C++, with no
 generated SPU game code or interpreter linked into the player. No complete image
 has been replaced yet. The current source includes an opt-in readable C++ runtime
-for admitted image-19 geometry jobs and image23 visibility modes 2/3; original
+for admitted image-19 geometry jobs and image23 visibility modes 1–4; original
 compiled SPU code remains linked for other jobs and unsupported inputs.
 
 ## What executes
@@ -49,15 +49,15 @@ compiled SPU code remains linked for other jobs and unsupported inputs.
   Other constructor/layout domains decline before native external effects and
   retain compiled fallback. A failure after effects stops the process after local
   cleanup; it cannot replay the compiled job over partially published output.
-- Image23 visibility modes 2/3 also use complete authored C++ requests. One
-  performs box occlusion against quadrilateral shadow volumes; the other applies
-  an integer mask filter. They copy retained records in source order and publish
+- Image23 visibility modes 1–4 also use complete authored C++ requests for admitted
+  constructors: frustum, quad occlusion, integer mask and projected interval.
+  They copy retained records in source order and publish
   the original-format header last through coherent native writes. Inputs and
   results are owned values; no guest context or local store enters these
-  algorithms. Mode 2 uses the admitted Windows host-float policy. Modes 1/4 and
-  unsupported interfaces retain compiled execution. The existing
+  algorithms. Modes 1/2/4 use the admitted Windows host-float policy.
+  Unsupported interfaces retain compiled execution. The existing
   `WKC_NATIVE_GEOMETRY_JOB=1` switch enables these routes too. See
-  [visibility interfaces and evidence](NATIVE_CODE.md#owned-visibility-jobs).
+  [visibility interfaces and evidence](NATIVE_CODE.md#frustum-and-interval-selection).
 - Firmware SPURS job-queue/port calls now execute registered jobs and pass the
   control block required by the job's C runtime startup. The current implementation
   runs jobs synchronously in submission order within each queue. This restores

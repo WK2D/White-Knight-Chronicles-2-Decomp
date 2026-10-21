@@ -50,7 +50,7 @@ gives the play defaults. Keep any files these write private.
 | --- | --- | --- |
 | `WKC2_PLAYER_MODE=1` | Native clean-play guard; clears inherited research/input switches and forces quiet logs | [Build guide](BUILD.md#playing-and-performance-options) |
 | `RSX_PRESENT_MEASURE=1` | Opt-in DirectX benchmark ring/CSV, always blocked in player mode | [Build guide](BUILD.md#presentation-measurement) |
-| `WKC_NATIVE_GEOMETRY_JOB=1` | Enables admitted image-19 geometry jobs and image23 visibility modes 2/3. Image19 and visibility mode 2 use Windows host-float math. Unset or `0` leaves dispatch, scope gates and PUT observers unregistered and silent. | [Build guide](BUILD.md#playing-and-performance-options) |
+| `WKC_NATIVE_GEOMETRY_JOB=1` | Enables admitted image-19 geometry jobs and image23 visibility modes 1–4. Image19 and visibility modes 1/2/4 use Windows host-float math. Unset or `0` leaves dispatch, scope gates and PUT observers unregistered and silent. | [Build guide](BUILD.md#playing-and-performance-options) |
 | `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1` | Separately enables sampled whole-job admission/result logs when the native job runtime is enabled; does not enable it by itself | [Build guide](BUILD.md#playing-and-performance-options) |
 | `WKC_NATIVE_SKINNING_TRACE=1` | Count native blend calls for coverage | [Native kernel](NATIVE_CODE.md#readable-c-geometry-prefix) |
 | `WKC_NATIVE_SKINNING=0` | Use retained compiled geometry prefix for research comparison | [Native kernel](NATIVE_CODE.md#readable-c-geometry-prefix) |

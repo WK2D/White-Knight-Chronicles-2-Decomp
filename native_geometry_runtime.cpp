@@ -7,6 +7,8 @@
 #include "native_geometry_host_math.h"
 #include "native_visibility.h"
 #include "native_occlusion.h"
+#include "native_frustum.h"
+#include "native_visibility_interval.h"
 #include "spu_helpers.h"
 #include "spu_coherency.h"
 #include "spu_workload.h"
@@ -453,7 +455,7 @@ void scope_end(int image,std::uint32_t ea,std::uint32_t bytes,void* token)noexce
         image19_mapping_cache.suspend();current_scope={};--image19_scope_depth;if(image==19)image19_gate.unlock();
     } catch(...) {scope_abort();}
 }
-// Image23 modes2/3 own the entire finite query, including ordered record and
+// Image23 selection modes own the entire finite query, including ordered record and
 // header publication. They do not construct a guest context or local store.
 struct VisibilityMath {
     static Float4 scalar(float a){return {a,a,a,a};}
@@ -486,7 +488,7 @@ int execute_visibility(std::uint32_t ea,std::uint32_t descriptor_size) {
         const auto size=descriptor_size?descriptor_size:256u;
         if(size!=256||!acquire_bytes(ea,size,descriptor))return declined;
         const auto* d=descriptor.data();mode=gi::detail::be32(d+60);
-        if(mode!=2&&mode!=3){visibility_log(mode,declined);return declined;}
+        if(mode<1||mode>4){visibility_log(mode,declined);return declined;}
         // One staged input, exact registered image23 binary, no cache/high-EA
         // or unclassified descriptor lanes. Other constructors keep fallback.
         if(gi::detail::be32(d)||gi::detail::be16(d+8)*16u!=11856u||gi::detail::be16(d+10)!=8||
@@ -495,7 +497,8 @@ int execute_visibility(std::uint32_t ea,std::uint32_t descriptor_size) {
            gi::detail::be32(d+80)||gi::detail::be32(d+88)||gi::detail::be32(d+92))return declined;
         const auto input_bytes=gi::detail::be32(d+48)&0x7fffu,input_ea=gi::detail::be32(d+52);
         const auto query_ea=gi::detail::be32(d+76),output_ea=gi::detail::be32(d+84);
-        if(input_bytes<(mode==2?80u:16u)||!input_ea||(input_ea&15u)||(query_ea&15u)||
+        const unsigned minimum_input[]{0,128,80,16,144};
+        if(input_bytes<minimum_input[mode]||!input_ea||(input_ea&15u)||(query_ea&15u)||
            output_ea<0x10000u||(output_ea&15u)||
            !acquire_bytes(input_ea,input_bytes,input)||!acquire_bytes(query_ea,16,query))return declined;
         const auto align=[](std::uint64_t n){return(n+1023u)&~std::uint64_t(1023u);};
@@ -503,7 +506,8 @@ int execute_visibility(std::uint32_t ea,std::uint32_t descriptor_size) {
         const auto scratch=align(11856)+align(gi::detail::be32(d+20))+align(gi::detail::be32(d+24));
         const auto end=scratch+align(std::uint64_t(gi::detail::be16(d+30))*16u+stack);
         const auto entry_sp=(end-32u)&~std::uint64_t(15u);
-        const auto frame=mode==2?0x33e0u:0x1350u;
+        const unsigned frame_bytes[]{0,0x1470,0x33e0,0x1350,0x1430};
+        const auto frame=frame_bytes[mode];
         // The SDK initializer/reuse dirty-clear contract establishes zero
         // workspace. The selected roots touch only their count halfword before
         // emitting this header; their other spills/DMAs do not overlap it.
@@ -527,7 +531,7 @@ int execute_visibility(std::uint32_t ea,std::uint32_t descriptor_size) {
             request.raw_threshold_units=gi::detail::be32(d+68);
             request.header_origin=v::HeaderOrigin::constructor_zeroed_untouched_workspace;
             v::Plan plan;if(v::plan(request,plan)!=v::Status::complete)return declined;writes=std::move(plan.writes);
-        } else {
+        } else if(mode==2) {
             if(g_spu_float_mode!=SPU_FLOAT_HOST)return declined;
             const auto value=[](const Byte* p){return std::bit_cast<float>(gi::detail::be32(p));};
             oc::QueryColumns columns;
@@ -556,6 +560,49 @@ int execute_visibility(std::uint32_t ea,std::uint32_t descriptor_size) {
             }
             if(count&&output_ea+(accepted+1u)*16u<=std::uint32_t(gi::detail::be32(d+68)<<4))return declined;
             v::Write header;header.ea=output_ea;header.bytes[0]=Byte(accepted>>8);header.bytes[1]=Byte(accepted);writes.push_back(header);
+        } else {
+            if(g_spu_float_mode!=SPU_FLOAT_HOST)return declined;
+            namespace f=v::frustum;namespace in=v::interval;
+            using Frustum=f::Kernel<VisibilityMath>;using Interval=in::Kernel<VisibilityMath>;
+            const auto value=[](const Byte* p){return std::bit_cast<float>(gi::detail::be32(p));};
+            f::Input frustum;in::Input interval;
+            for(unsigned vector=0;vector<4;++vector)for(unsigned lane=0;lane<4;++lane) {
+                const auto a=value(input.data()+vector*16+lane*4);
+                const auto b=value(input.data()+64+vector*16+lane*4);
+                frustum.plane_rows[vector][lane]=a;interval.axis_columns[vector][lane]=a;
+                frustum.transform_columns[vector][lane]=b;interval.transform_columns[vector][lane]=b;
+            }
+            if(mode==4){interval.lower=value(input.data()+128);interval.upper=value(input.data()+132);}
+            // Each request prepares fixed planes/axis once, then transforms its
+            // owned objects. Preserve four-component arithmetic and strict
+            // interval comparisons, including their nonfinite behavior.
+            f::PreparedScene planes;in::PreparedScene axis;
+            if(mode==1)planes=Frustum::prepare_scene(frustum);
+            else axis=Interval::prepare_scene(interval);
+            unsigned accepted=0;
+            for(unsigned i=0;i<count;++i) {
+                const auto* record=records.data()+i*16;
+                const auto bound_ea=gi::detail::be32(record+8),matrix_ea=gi::detail::be32(record+12);
+                if((bound_ea&15u)||(matrix_ea&15u)||overlaps(maximum_output,{bound_ea,32})||
+                   overlaps(maximum_output,{matrix_ea,48}))return declined;
+                std::vector<Byte> bounds_bytes,matrix_bytes;
+                if(!acquire_bytes(bound_ea,32,bounds_bytes)||!acquire_bytes(matrix_ea,48,matrix_bytes))return declined;
+                f::Bounds bounds;f::AffineRows matrix;
+                for(unsigned lane=0;lane<4;++lane) {
+                    bounds.center[lane]=value(bounds_bytes.data()+lane*4);
+                    bounds.half_size[lane]=value(bounds_bytes.data()+16+lane*4);
+                }
+                for(unsigned row=0;row<3;++row)for(unsigned lane=0;lane<4;++lane)
+                    matrix[row][lane]=value(matrix_bytes.data()+row*16+lane*4);
+                const bool keep=mode==1?Frustum::visible(planes,Frustum::prepare_box(planes,bounds,matrix)):
+                    Interval::visible(axis,bounds,matrix);
+                if(keep) {
+                    v::Write write;write.ea=output_ea+(++accepted)*16u;
+                    std::memcpy(write.bytes.data(),record,16);writes.push_back(write);
+                }
+            }
+            if(count&&output_ea+(accepted+1u)*16u<=std::uint32_t(gi::detail::be32(d+68)<<4))return declined;
+            v::Write header;header.ea=output_ea;header.bytes[0]=Byte(accepted>>8);header.bytes[1]=Byte(accepted);writes.push_back(header);
         }
         // Resolve all mappings before the first external effect. Admission may
         // decline; publication never falls back after a partial write.
@@ -565,7 +612,8 @@ int execute_visibility(std::uint32_t ea,std::uint32_t descriptor_size) {
             const auto line=write.ea&~127u;if(spu_coh_is_reserved(line))spu_coh_notify_write(line);
             spu_lockline_unlock();
             if(g_spu_put_hook)g_spu_put_hook(write.ea,16);
-            if(g_spu_put_trace_hook)g_spu_put_trace_hook(write.ea,16,23,mode==3?0x16b8u:0x27f8u,write.bytes.data());
+            const unsigned logical_pc[]{0,0x05a0,0x27f8,0x16b8,0x0290};
+            if(g_spu_put_trace_hook)g_spu_put_trace_hook(write.ea,16,23,logical_pc[mode],write.bytes.data());
         }
         std::atomic_thread_fence(std::memory_order_seq_cst);
         // Preserve the manager's per-thread completion state. These modes send
@@ -644,6 +692,6 @@ void wkc2_init_native_geometry_jobs() {
     previous_put=g_spu_put_hook;previous_trace=g_spu_put_trace_hook;
     g_spu_native_job_hook=native_hook;g_spu_job_scope_begin=scope_begin;g_spu_job_scope_end=scope_end;
     g_spu_put_hook=put_hook;g_spu_put_trace_hook=trace_hook;installed=true;
-    if(diagnostics)std::fprintf(stderr,"[native-geometry-job] installed image19 host geometry and image23 modes2/3 owned routes; "
+    if(diagnostics)std::fprintf(stderr,"[native-geometry-job] installed image19 host geometry and image23 selection owned routes; "
         "native/fallback slot0 gate and chained PUT hooks active\n");
 }

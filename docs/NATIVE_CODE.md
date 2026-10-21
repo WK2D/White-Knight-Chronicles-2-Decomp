@@ -9,9 +9,9 @@ temporary references, not the final implementation. Native compilation and
 interpreter-free sampled routes alone do not satisfy this target.
 
 No complete SPU image has yet been replaced. The public opt-in runtime handles
-admitted whole image-19 geometry jobs and [image23 visibility modes 2/3](#owned-visibility-jobs)
-with owned typed inputs and ordered external outputs. Other constructors, modes
-and images retain compiled execution. Seven ordinary host operations use authored
+admitted whole image-19 geometry jobs and [image23 visibility modes 1–4](#frustum-and-interval-selection)
+with owned typed inputs and ordered external outputs. Unsupported constructors
+and other image paths retain compiled execution. Seven ordinary host operations use authored
 C++; special numeric adapters remain. Earlier classifier-only crowded-view
 comparisons show a bounded gain; the latest visibility work has no measured FPS gain.
 Completion requires a player build that links
@@ -1068,7 +1068,7 @@ failure tests, without proving broader gameplay or asynchronous scheduling.
 [`native_geometry_runtime.cpp`](../native_geometry_runtime.cpp) and its header
 are built into the player and initialized from `main.cpp`. Setting
 `WKC_NATIVE_GEOMETRY_JOB=1` registers the supported host-mode image-19 whole-job
-route and image23 visibility modes 2/3 before original SPURS input staging.
+route and admitted image23 visibility modes 1–4 before original SPURS input staging.
 Unset or `0` leaves its dispatch,
 scope and PUT hooks unregistered and produces no module diagnostics. Sampled
 completion/decline counters are separately enabled by
@@ -1305,6 +1305,9 @@ image domains remain on compiled execution; complete-image removal is unproven.
 
 ## Owned visibility jobs
 
+This initial modes-2/3 milestone is extended by
+[frustum and interval selection](#frustum-and-interval-selection) below.
+
 [`native_occlusion.h`](../native_occlusion.h) and
 [`native_visibility.h`](../native_visibility.h) implement two complete supported
 image23 request modes. The existing `-NativeGeometryJob` player switch enables
@@ -1372,7 +1375,7 @@ Live route `20261021-000051` records both supported visibility modes and at leas
 Sampled counters are lower bounds. The hidden, muted DirectX route uses an isolated
 save, 30 FPS cap, FPS overlay and diagnostics, so it is execution evidence rather
 than a speed benchmark. No FPS improvement or complete-image replacement is claimed.
-Modes 1/4, unknown constructors and aliases, broader gameplay, remaining SDK
+The following extension adds modes 1/4. Unknown constructors and aliases, broader gameplay, remaining SDK
 arithmetic, general asynchronous scheduling and future platforms remain open.
 
 The tested public Release build is installed for the existing desktop shortcut.
@@ -1380,3 +1383,50 @@ Startup stays manual, with diagnostics and auto-input disabled and the
 30 FPS baseline retained. Savedata and graphics preferences are unchanged.
 The [quiet town capture](GALLERY.md#2026-10-21--native-c-visibility-jobs)
 keeps the FPS overlay visible and still shows the crowded-street lag.
+
+## Frustum and interval selection
+
+The opt-in runtime now connects all four known image23 selection modes for
+admitted constructors. New [frustum](../native_frustum.h) and
+[interval](../native_visibility_interval.h) algorithms use owned typed matrices,
+box bounds and prepared planes/axis. They share the ordered-record/header,
+pre-effect admission, coherent publication and thread-local completion contract.
+
+Mode 1 extracts six planes and tests transformed boxes. Mode 4 projects a box
+onto a prepared axis and tests a strict open interval: touching either endpoint
+is rejected. Both preserve four-component arithmetic, paired dot products and
+component-specific normalization grouping. Substituting a three-component
+length or one broadcast norm changes behavior. Windows HOST numeric policy is
+required; special SDK estimate/refinement adapters remain. FP exception-state
+and ARM parity are unproven.
+
+Fresh original execution and actual SDK native dispatch match **240 synthetic
+requests**, 120 per new mode: **11,290 ordered writes / 180,640 bytes**,
+full output-page canaries and unchanged source bytes. Counts include 0, 1, 3,
+127, 128, 129, 257 and 785, with in-place/disjoint output, transforms and
+exceptional floating encodings. Mode 1 retains 5,309 and rejects 16,141 objects;
+mode 4 retains 5,741 and rejects 15,709. Inverting either selection in the actual
+native hook makes the comparison fail. The admitted native-dispatch side enters
+no generated-original function.
+
+Eight complete real town frustum requests match **318 ordered writes /
+5,088 bytes**, with 88 pre-effect admission rejects and eight reservation
+invalidation checks. A separate two-worker check completes **128 requests,
+960 ordered writes / 15,360 bytes**, no original entries, no mismatches and
+128 inside-scope barrier arrivals. It tests independent requests and TLS;
+shared mutable inputs/outputs and arbitrary mapping lifetimes remain unproven.
+Existing mode-2/3 synthetic and real-request comparisons still pass.
+
+Diagnostic town route 20261021-011035 observes modes **1, 2 and 3** completing,
+with at least **32,768 combined completions**. It is hidden/muted, uses an
+isolated save, strict fallback guard, 30 FPS limit and visible FPS overlay.
+Mode 4 did not occur in a separate bounded town capture attempt; its current
+proof is controlled whole-original comparison, not live-game coverage.
+The new quiet [gallery frame](GALLERY.md#2026-10-21--frustum-and-interval-selection)
+has no job census or CPU profiler and still shows crowded-town lag.
+
+Both complete Windows suites pass **118/118**: Debug **27.44 s**, Release
+**22.49 s**. The public visibility test now checks frustum rejection and strict
+interval endpoints/NaN behavior alongside mask/occlusion examples. Unsupported
+constructors/aliases, other numeric modes, broader gameplay, generated-image
+removal and future platforms remain. No complete SPU image or FPS gain is claimed.

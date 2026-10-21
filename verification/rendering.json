@@ -4,12 +4,12 @@
   "execution": "Windows x86-64 host-compiled hybrid recompilation/runtime; Vulkan primary, D3D12 optional fallback",
   "current_milestone": {
     "date": "2026-10-21",
-    "native_probe": "20261021-002158",
+    "native_probe": "20261021-011233",
     "sdk_patch_count": 126,
-    "summary": "Supported whole geometry and visibility requests run through authored C++; original-output comparisons and live town execution verified. Town lag and incomplete rendering remain.",
-    "gallery_image": "screenshots/2026-10-21-native-cpp-visibility-town.png",
+    "summary": "Authored C++ handles admitted constructors in all four known image23 selection modes. Town modes1/2/3 observed; mode4 has controlled whole-original comparisons. Crowded-town lag remains.",
+    "gallery_image": "screenshots/2026-10-21-native-cpp-frustum-town.png",
     "gallery_image_sdk_patch_count": 126,
-    "gallery_image_scope": "Public geometry and visibility runtime after Continue, camera turn and two short town moves. Hidden and muted with copied save, strict fallback guard and normal log suppression; no geometry/visibility census or CPU profiler. GPU readback is armed for the screenshot. The instantaneous counter reads 8.6 FPS in this NPC-heavy view; town lag remains. This is not a paired performance comparison.",
+    "gallery_image_scope": "Public runtime with all four supported visibility modes connected, after Continue, camera turn and two short walks. Hidden/muted copied save, strict fallback guard, 30 FPS cap and FPS overlay. No job census or CPU profiler; screenshot-only GPU readback. Instantaneous counter reads 8.6 FPS in the crowded view; no paired gain or smooth traversal proof.",
     "remaining_limits": [
       "Smooth 30 FPS traversal and console-equivalent animation speed unverified",
       "First-use shader compilation and other CPU/graphics costs remain",
@@ -22,11 +22,13 @@
       "sdk_patches": 126,
       "checks_debug": 118,
       "checks_release": 118,
-      "sha256": "118279e46487fdac2d83b09496705fd62a39b66251462dff73c2f8288414ac6a",
+      "sha256": "245d9dc083d4c8c085d47cb22908e4a5af57b7eb14385f19569de1f357ee45e8",
       "native_complete_supported_geometry_job": true,
       "native_visibility_modes": [
+        1,
         2,
-        3
+        3,
+        4
       ],
       "native_authored_host_operations": 7,
       "native_job_diagnostics": false,
@@ -39,11 +41,11 @@
       "saves_preserved": true,
       "other_preferences_preserved": true,
       "shortcut_target_unchanged": true,
-      "release_game_route": "20261021-002158",
+      "release_game_route": "20261021-011233",
       "fully_replaced_spu_images": 0,
-      "actual_visibility_original_requests": 14,
-      "synthetic_original_visibility_cases": 200,
-      "independent_two_worker_requests": 128,
+      "actual_visibility_original_requests": 22,
+      "synthetic_original_visibility_cases": 440,
+      "independent_two_worker_requests": 256,
       "actual_visibility_mismatched_bytes": 0,
       "release_actual_vm_replay_jobs": 32,
       "fresh_original_geometry_pairs": 84,
@@ -503,9 +505,9 @@
     "current_sdk_patch_count": 126,
     "last_verified_sdk_patch_count": 126,
     "current_passed_count": 118,
-    "record_scope": "126 SDK patches / 118 checks pass in both configurations. Visibility: 14 complete captured requests, 200 synthetic original/native dispatches and 128 independent two-worker requests pass; live modes 2/3 observed. No new FPS gain or complete image replacement.",
-    "normal_debug_elapsed_seconds": 30.1,
-    "optimized_release_elapsed_seconds": 25.85,
+    "record_scope": "126 SDK patches / 118 checks pass in both configurations. Image23 adds frustum/interval selection: 240 synthetic original/native dispatches, 8 complete real frustum requests and 128 independent two-worker requests match. Town modes1/2/3 observed; mode4 gameplay unobserved. No FPS gain or complete image replacement.",
+    "normal_debug_elapsed_seconds": 27.44,
+    "optimized_release_elapsed_seconds": 22.49,
     "repeat_patch_application_files_changed": 0,
     "repeat_patch_application_verified_sdk_patch_count": 126,
     "current_debug_validation_pending": false
@@ -5187,7 +5189,7 @@
     "public_source": "native_geometry_runtime.cpp",
     "public_header": "native_geometry_runtime.h",
     "mapping_cache": "native_geometry_mapping_cache.h",
-    "status": "Admitted whole image19 geometry jobs use owned C++ inputs, explicit palette rows, algorithms and native transfers. The same opt-in integration also connects image23 visibility modes2/3; unsupported inputs retain compiled execution.",
+    "status": "Supported image19 geometry plus admitted image23 modes1\u20134 execute authored C++ algorithms. Unsupported constructors retain compiled execution before effects; generated images remain linked.",
     "enable_environment": "WKC_NATIVE_GEOMETRY_JOB=1",
     "diagnostics_environment": "WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1",
     "default_hooks_registered": false,
@@ -5225,10 +5227,10 @@
     "windows_regression": {
       "sdk_patches": 126,
       "release_checks_passed": 118,
-      "release_seconds": 25.85,
+      "release_seconds": 22.49,
       "debug_checks_passed": 118,
       "debug_status": "passed",
-      "debug_seconds": 30.1
+      "debug_seconds": 27.44
     },
     "live_starting_town_reached": true,
     "broader_gameplay_routes_verified": false,
@@ -5559,11 +5561,13 @@
       "sdk_patches": 126,
       "checks_debug": 118,
       "checks_release": 118,
-      "sha256": "118279e46487fdac2d83b09496705fd62a39b66251462dff73c2f8288414ac6a",
+      "sha256": "245d9dc083d4c8c085d47cb22908e4a5af57b7eb14385f19569de1f357ee45e8",
       "native_complete_supported_geometry_job": true,
       "native_visibility_modes": [
+        1,
         2,
-        3
+        3,
+        4
       ],
       "native_authored_host_operations": 7,
       "native_job_diagnostics": false,
@@ -5576,11 +5580,11 @@
       "saves_preserved": true,
       "other_preferences_preserved": true,
       "shortcut_target_unchanged": true,
-      "release_game_route": "20261021-002158",
+      "release_game_route": "20261021-011233",
       "fully_replaced_spu_images": 0,
-      "actual_visibility_original_requests": 14,
-      "synthetic_original_visibility_cases": 200,
-      "independent_two_worker_requests": 128,
+      "actual_visibility_original_requests": 22,
+      "synthetic_original_visibility_cases": 440,
+      "independent_two_worker_requests": 256,
       "actual_visibility_mismatched_bytes": 0,
       "release_actual_vm_replay_jobs": 32,
       "fresh_original_geometry_pairs": 84,
@@ -5967,12 +5971,14 @@
   },
   "native_visibility_jobs": {
     "date": "2026-10-21",
-    "status": "Connected for supported image23 modes 2 and 3",
+    "status": "Connected for admitted constructors in all four known image23 modes",
     "image_id": 23,
     "public_sources": [
       "native_occlusion.h",
       "native_visibility.h",
-      "native_geometry_runtime.cpp"
+      "native_geometry_runtime.cpp",
+      "native_frustum.h",
+      "native_visibility_interval.h"
     ],
     "public_regression": "wkc2_native_visibility",
     "enable_environment": "WKC_NATIVE_GEOMETRY_JOB=1",
@@ -5980,12 +5986,11 @@
     "default_hooks_registered": false,
     "modes": {
       "2": "Box occlusion against quadrilateral shadow volumes; Windows host-float numeric policy",
-      "3": "Integer mask selection with stable record compaction"
+      "3": "Integer mask selection with stable record compaction",
+      "1": "Six-plane transformed-box frustum selection with four-component grouped normalization/projection",
+      "4": "Transformed-box projection against a strict open interval with four-component grouped normalization/projection"
     },
-    "generated_modes_retained": [
-      1,
-      4
-    ],
+    "generated_modes_retained": [],
     "typed_owned_inputs_and_outputs": true,
     "algorithm_uses_spu_context_or_local_store": false,
     "special_sdk_numeric_adapters_required": true,
@@ -6035,52 +6040,55 @@
       "sdk_patches": 126,
       "debug_passed": 118,
       "release_passed": 118,
-      "debug_seconds": 30.1,
-      "release_seconds": 25.85
+      "debug_seconds": 27.44,
+      "release_seconds": 22.49
     },
     "live_route_verified": true,
     "live_route": {
-      "probe": "20261021-000051",
-      "renderer": "DirectX12",
-      "frame_limit": 30,
+      "probe": "20261021-011035",
+      "modes_observed": [
+        1,
+        2,
+        3
+      ],
+      "completed_combined_lower_bound": 32768,
+      "declined_sampled_counter": 0,
       "hidden": true,
       "muted": true,
       "isolated_save": true,
       "strict_fallback_guard": true,
+      "frame_limit": 30,
       "fps_overlay": true,
-      "diagnostic_counts": true,
-      "modes_observed": [
-        2,
-        3
-      ],
-      "completed_combined_lower_bound": 16384,
-      "performance_sample": false,
-      "scope": "Continue, camera turn and two short town moves"
+      "diagnostics": true,
+      "performance_sample": false
     },
-    "quiet_gallery_probe": "20261021-002158",
+    "quiet_gallery_probe": "20261021-011233",
     "desktop_installed": true,
     "new_fps_gain_measured": false,
     "complete_spu_image_replaced": false,
     "arm_execution_verified": false,
     "general_concurrent_scheduling_proven": false,
     "remaining": [
-      "Modes 1 and 4",
       "Unknown constructors/layouts and aliases",
       "Special SDK numeric adapters",
-      "Broader gameplay and scheduling",
+      "Broader gameplay including live mode4",
+      "General scheduling",
       "Other images",
-      "Future ARM/macOS validation"
+      "Future ARM/macOS validation",
+      "Generated image and interpreter removal from final player"
     ],
     "desktop_installation": {
       "date": "2026-10-21",
       "sdk_patches": 126,
       "checks_debug": 118,
       "checks_release": 118,
-      "sha256": "118279e46487fdac2d83b09496705fd62a39b66251462dff73c2f8288414ac6a",
+      "sha256": "245d9dc083d4c8c085d47cb22908e4a5af57b7eb14385f19569de1f357ee45e8",
       "native_complete_supported_geometry_job": true,
       "native_visibility_modes": [
+        1,
         2,
-        3
+        3,
+        4
       ],
       "native_authored_host_operations": 7,
       "native_job_diagnostics": false,
@@ -6093,11 +6101,11 @@
       "saves_preserved": true,
       "other_preferences_preserved": true,
       "shortcut_target_unchanged": true,
-      "release_game_route": "20261021-002158",
+      "release_game_route": "20261021-011233",
       "fully_replaced_spu_images": 0,
-      "actual_visibility_original_requests": 14,
-      "synthetic_original_visibility_cases": 200,
-      "independent_two_worker_requests": 128,
+      "actual_visibility_original_requests": 22,
+      "synthetic_original_visibility_cases": 440,
+      "independent_two_worker_requests": 256,
       "actual_visibility_mismatched_bytes": 0,
       "release_actual_vm_replay_jobs": 32,
       "fresh_original_geometry_pairs": 84,
@@ -6113,6 +6121,100 @@
       "compared_write_bytes": 48,
       "failures": 0,
       "scope": "Committed null input, top-of-VM nonempty query and unclassified descriptor lane; original fallback output compared"
+    },
+    "unsupported_generated_paths_retained": true,
+    "frustum_and_interval": {
+      "date": "2026-10-21",
+      "native_modes_added": [
+        1,
+        4
+      ],
+      "public_sources": [
+        "native_frustum.h",
+        "native_visibility_interval.h"
+      ],
+      "mode1": "Six-plane transformed-box frustum selection with four-component grouped normalization/projection",
+      "mode4": "Transformed-box projection against a strict open interval with four-component grouped normalization/projection",
+      "original_comparison": {
+        "cases": 240,
+        "mode1_cases": 120,
+        "mode4_cases": 120,
+        "actual_sdk_native_dispatch": true,
+        "generated_original_entries_on_native_path": 0,
+        "ordered_writes": 11290,
+        "compared_write_bytes": 180640,
+        "failures": 0,
+        "mode1_visible": 5309,
+        "mode1_rejected": 16141,
+        "mode4_visible": 5741,
+        "mode4_rejected": 15709,
+        "counts": [
+          0,
+          1,
+          3,
+          127,
+          128,
+          129,
+          257,
+          785
+        ],
+        "in_place_and_disjoint": true,
+        "exceptional_float_encodings": true,
+        "scope": "Windows Release HOST output comparisons; not full FP exception-state or ARM proof"
+      },
+      "real_mode1_requests": {
+        "complete": 8,
+        "incomplete_excluded": 0,
+        "ordered_writes": 318,
+        "compared_write_bytes": 5088,
+        "declined_admission_probes": 88,
+        "reservation_invalidation_checks": 8,
+        "mismatched_bytes": 0,
+        "full_output_page_canaries_and_source_bytes_match": true
+      },
+      "independent_two_worker_dispatch": {
+        "requests": 128,
+        "inside_scope_barrier_arrivals": 128,
+        "original_entries": 0,
+        "ordered_writes": 960,
+        "compared_write_bytes": 15360,
+        "failures": 0,
+        "scope": "Independent requests and TLS; no shared-output or mutable-input proof"
+      },
+      "effective_negative_controls": [
+        "Inverted mode1 selection",
+        "Inverted mode4 selection"
+      ],
+      "live_route": {
+        "probe": "20261021-011035",
+        "modes_observed": [
+          1,
+          2,
+          3
+        ],
+        "completed_combined_lower_bound": 32768,
+        "declined_sampled_counter": 0,
+        "hidden": true,
+        "muted": true,
+        "isolated_save": true,
+        "strict_fallback_guard": true,
+        "frame_limit": 30,
+        "fps_overlay": true,
+        "diagnostics": true,
+        "performance_sample": false
+      },
+      "mode4_live_gameplay_observed": false,
+      "mode4_town_capture_requests": 0,
+      "windows_regression": {
+        "sdk_patches": 126,
+        "debug_passed": 118,
+        "release_passed": 118,
+        "debug_seconds": 27.44,
+        "release_seconds": 22.49
+      },
+      "fps_gain_measured": false,
+      "complete_image_replaced": false,
+      "arm_verified": false
     }
   }
 }

@@ -50,6 +50,8 @@
 !/native_geometry_host_math.h
 !/native_visibility.h
 !/native_occlusion.h
+!/native_frustum.h
+!/native_visibility_interval.h
 !/native_skinning_stream_bridge.cpp
 !/native_skinning_bridge.h
 !/native_skinning_bridge.cpp

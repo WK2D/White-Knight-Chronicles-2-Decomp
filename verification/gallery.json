@@ -4,6 +4,37 @@
   "execution": "Windows x86-64 host-compiled recompilation/runtime; renderer recorded per capture",
   "captures": [
     {
+      "milestone": "native_cpp_frustum_town",
+      "date": "2026-10-21",
+      "image": "screenshots/2026-10-21-native-cpp-frustum-town.png",
+      "width": 1920,
+      "height": 1080,
+      "renderer": "DirectX12 live draw renderer",
+      "source_format": "Unmodified final swap-chain GPU readback with FPS counter",
+      "source_sha256": "1e0fc28136ae4f69c4d258909bb96cd0731cb84ef664a1a740d76cf29f8be412",
+      "png_sha256": "ec7db05282435b4066a7041054d965d09b7dc735e7bd113791bc839847bd97fc",
+      "pixels_match_source": true,
+      "optional_png_metadata": false,
+      "png_chunk_types": [
+        "IHDR",
+        "IDAT",
+        "IEND"
+      ],
+      "native_probe": "20261021-011233",
+      "native_readback": "frame_001470.ppm",
+      "native_executable_sha256": "96e27efd2c970e7b7d00024ae82b79756c7a69ddc7c41d17ac7c83b0b8e290a0",
+      "sdk_patch_count_in_captured_run": 126,
+      "spu_image_inputs": 24,
+      "frame_limit": 30,
+      "fps_counter": true,
+      "vsync": false,
+      "capture_only_backend_instrumentation": true,
+      "full_visual_fidelity_verified": false,
+      "native_gameplay_verified": false,
+      "performance_proven_by_still_image": false,
+      "capture_scope": "Public runtime with all four supported visibility modes connected, after Continue, camera turn and two short walks. Hidden/muted copied save, strict fallback guard, 30 FPS cap and FPS overlay. No job census or CPU profiler; screenshot-only GPU readback. Instantaneous counter reads 8.6 FPS in the crowded view; no paired gain or smooth traversal proof."
+    },
+    {
       "milestone": "native_cpp_visibility_town",
       "date": "2026-10-21",
       "image": "screenshots/2026-10-21-native-cpp-visibility-town.png",

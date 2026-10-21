@@ -1,5 +1,7 @@
 #include "native_visibility.h"
 #include "native_occlusion.h"
+#include "native_frustum.h"
+#include "native_visibility_interval.h"
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -70,5 +72,31 @@ int main() {
         std::array<oc::OccluderCorners,129> oversized{};scene.count=17;
         assert(!Kernel::prepare_scene(identity,oversized,scene)&&scene.count==17);
     }
+    namespace f=v::frustum;namespace in=v::interval;
+    using Frustum=f::Kernel<FiniteMath>;using Interval=in::Kernel<FiniteMath>;
+    const f::Matrix4 matrix4{{{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}}};
+    f::Input frustum{matrix4,matrix4};
+    const auto planes=Frustum::prepare_scene(frustum);
+    const f::Bounds center{{0,0,0,1},{.1f,.1f,.1f,0}};
+    assert(Frustum::visible(planes,Frustum::prepare_box(planes,center,object)));
+    for(unsigned axis=0;axis<3;++axis)for(float direction:{-1.f,1.f}) {
+        auto moved=center;moved.center[axis]=3.f*direction;
+        assert(!Frustum::visible(planes,Frustum::prepare_box(planes,moved,object)));
+    }
+    in::Input interval{matrix4,matrix4,-1.f,1.f};
+    const auto projected=Interval::prepare_scene(interval);
+    assert(Interval::visible(projected,center,object));
+    auto distant=center;distant.center[2]=10;
+    assert(!Interval::visible(projected,distant,object));
+    // A strict open interval rejects equality at either edge.
+    f::Bounds point{{0,0,0,1},{0,0,0,0}};
+    const auto transform=Frustum::prepare_box(planes,point,object);
+    const auto projection=Frustum::dot4(projected.axis,transform.center);
+    auto touching=projected;touching.lower=projection;
+    assert(!Interval::visible(touching,point,object));
+    touching=projected;touching.upper=projection;
+    assert(!Interval::visible(touching,point,object));
+    touching=projected;touching.lower=std::numeric_limits<float>::quiet_NaN();
+    assert(!Interval::visible(touching,point,object));
     std::puts("Native visibility: stable mask compaction, strict admission and occlusion geometry passed");
 }

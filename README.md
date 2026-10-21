@@ -91,10 +91,9 @@ implements the PS3 services it uses. Tested town-to-plains routes run with the S
 interpreter fallback forbidden, after five missing SPU entries were added to the
 static build. The fallback remains available for untested paths.
 
-Readable, project-written C++ now handles supported whole geometry jobs and two
-visibility-request modes. The visibility code tests transformed boxes against
-quad occluders or filters records by a mask, then publishes retained records in
-their original order. Enable the experimental route with
+Readable, project-written C++ now handles supported whole geometry jobs and all
+four known visibility-request modes for admitted inputs: frustum, occlusion,
+mask and projected-interval selection. Retained records publish in source order. Enable the experimental route with
 `tools/play.ps1 -NativeGeometryJob`; unsupported inputs retain compiled execution
 before any native output is published. See the [native execution work](docs/NATIVE_CODE.md#owned-visibility-jobs)
 for interfaces, original-job comparisons and live coverage.

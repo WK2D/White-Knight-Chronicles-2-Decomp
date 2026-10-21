@@ -6,7 +6,7 @@ coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
 **Current validation (2026-10-21):** the stack contains 126 SDK patches. All
 118 Windows checks pass in normal Debug and optimized Release. The latest
-concurrent runs take 30.10 and 25.85 seconds respectively. Reapplying the complete stack changes no SDK files.
+concurrent runs take 27.44 and 22.49 seconds respectively. Reapplying the complete stack changes no SDK files.
 Strict DirectX and Vulkan routes on patch
 0121 confirm Continue, the plains transition, walking, camera rotation and the
 leaf-cutout shadow correction. Menu FXAA toggling was checked separately on 0110.
@@ -23,10 +23,11 @@ completions; [precision and command-publication details](NATIVE_CODE.md#expanded
 record the scope. A further [palette-source expansion](NATIVE_CODE.md#owned-palette-row-sources)
 passes 60 fresh complete-job comparisons and records 2,114 completed jobs in a
 bounded diagnostic town census. The same switch now connects image23 visibility
-modes 2/3: box occlusion and integer mask selection. Fourteen complete real
-captured requests, 200 synthetic original/SDK-dispatch cases and 128 two-worker
-dispatches match their ordered external outputs. Both supported modes execute in
-the diagnostic town route. See [visibility interfaces and limits](NATIVE_CODE.md#owned-visibility-jobs).
+modes 1–4: frustum, occlusion, mask and projected-interval selection.
+Across the two milestones, 22 complete real captured requests, 440 synthetic
+original/SDK-dispatch cases and 256 independent two-worker dispatches match.
+Town execution observes modes 1/2/3; mode 4 currently has controlled
+original/native comparisons only. See [interfaces and limits](NATIVE_CODE.md#frustum-and-interval-selection).
 C++ owns the job inputs and outputs. Seven host arithmetic/comparison operations now use the
 [authored C++ policy](../native_geometry_host_math.h); special negative multiply,
 reciprocal estimates and conversions still use SDK adapters. See the
@@ -291,7 +292,7 @@ probe environment for measurements and captures:
 - `RSX_PRESENT_MEASURE=1` enables the DirectX benchmark sample ring and CSV.
   `RSX_SCHEDULE_DIAG=1` adds process/thread times only when that recorder is enabled.
 - `WKC_NATIVE_GEOMETRY_JOB=1` enables admitted image-19 geometry jobs and image23
-  visibility modes 2/3. Image19 and visibility mode 2 require Windows host-float
+  visibility modes 1–4. Image19 and visibility modes 1/2/4 require Windows host-float
   mode; mode 3 is an integer filter. Unset or `0` leaves this
   route's dispatch, scope gates and PUT observers unregistered and silent.
   Unsupported constructor/layout domains decline before native external effects

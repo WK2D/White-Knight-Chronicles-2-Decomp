@@ -52,6 +52,7 @@ Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-21 | [Frustum and interval selection](#2026-10-21--frustum-and-interval-selection) | <a href="#2026-10-21--frustum-and-interval-selection"><img src="../verification/screenshots/2026-10-21-native-cpp-frustum-town.png" width="200" alt="Authored selection jobs in the crowded town"></a> |
 | 2026-10-21 | [Native C++ visibility jobs](#2026-10-21--native-c-visibility-jobs) | <a href="#2026-10-21--native-c-visibility-jobs"><img src="../verification/screenshots/2026-10-21-native-cpp-visibility-town.png" width="200" alt="Authored C++ geometry and visibility in the crowded town"></a> |
 | 2026-10-20 | [Expanded native geometry inputs](#2026-10-20--expanded-native-geometry-inputs) | <a href="#2026-10-20--expanded-native-geometry-inputs"><img src="../verification/screenshots/2026-10-20-native-cpp-expanded-geometry-town.png" width="200" alt="Expanded native geometry inputs in the town"></a> |
 | 2026-10-20 | [Native C++ host arithmetic](#2026-10-20--native-c-host-arithmetic) | <a href="#2026-10-20--native-c-host-arithmetic"><img src="../verification/screenshots/2026-10-20-native-cpp-host-math-town.png" width="200" alt="Authored C++ host arithmetic in the crowded town"></a> |
@@ -86,6 +87,18 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
+
+## 2026-10-21 — Frustum and interval selection
+
+![Authored C++ selection jobs in town, FPS overlay on](../verification/screenshots/2026-10-21-native-cpp-frustum-town.png)
+
+All four known visibility modes now have connected authored algorithms for
+admitted inputs. Town modes 1/2/3 execute; mode 4 has controlled original/native
+comparisons. This separate quiet DirectX12 run uses Continue, a camera turn
+and two short walks, isolated save, 30 FPS cap and strict fallback guard.
+No job census or CPU profiler; GPU readback is armed for the screenshot.
+The instantaneous counter reads 8.6 FPS: crowded-town lag remains. No paired
+speed gain or full-image replacement is claimed. See [proof and limits](NATIVE_CODE.md#frustum-and-interval-selection).
 
 ## 2026-10-21 — Native C++ visibility jobs
 

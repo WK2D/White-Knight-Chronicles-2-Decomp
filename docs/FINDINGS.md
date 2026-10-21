@@ -15,6 +15,11 @@ physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
+The latest [frustum/interval extension](NATIVE_CODE.md#frustum-and-interval-selection)
+connects all four known image23 request modes for admitted inputs. Town modes
+1/2/3 execute; mode 4 has controlled original/native comparisons. No FPS gain
+or complete-image replacement is established.
+
 Readable C++ now executes the complete supported image-19 skinning routine,
 including setup, matrix blending, position/normal outputs and pipeline drain.
 Complete-state comparisons and sampled strict DirectX/Vulkan town-to-plains
@@ -37,13 +42,12 @@ No complete SPU image or smooth 30 FPS traversal is claimed. Desktop
 clean-play mode also removes inherited diagnostics, and patch 0119 disables the
 previously unconditional DirectX benchmark recorder unless explicitly requested.
 
-The same opt-in runtime now executes complete supported image23 visibility
-requests in authored C++: mode 2 tests boxes against quad occluders, and mode 3
-filters masks while preserving record order. Fourteen real captured requests,
-200 synthetic original/SDK-dispatch cases and 128 two-worker dispatches match;
-both modes also execute in the sampled town route. Modes 1/4 and unsupported
-interfaces retain compiled execution. This adds native coverage, with no measured
-FPS gain or complete-image replacement. See [owned visibility jobs](#owned-visibility-jobs).
+The same opt-in runtime executes admitted image23 requests in all four known
+selection modes. The frustum/interval extension adds 240 synthetic original/native
+dispatch comparisons, eight real frustum requests and 128 two-worker dispatches.
+Town execution observes modes 1/2/3; mode 4 gameplay remains unobserved.
+Unsupported interfaces retain compiled execution. No FPS gain or complete-image
+replacement is claimed. See [selection proof](NATIVE_CODE.md#frustum-and-interval-selection).
 
 ## Contents
 
@@ -3742,8 +3746,9 @@ request modes. Mode 2 transforms bounds and tests occlusion against quad shadow
 volumes; mode 3 keeps records with a zero mask intersection. Both publish unchanged
 retained records in source order and the result header last. The existing native-job
 switch connects them before original input staging, with validation before effects
-and coherent output notifications. Modes 1/4 and unsupported interfaces remain on
-compiled execution.
+and coherent output notifications. The later
+[frustum/interval extension](NATIVE_CODE.md#frustum-and-interval-selection) adds modes
+1/4; unsupported interfaces retain compiled execution.
 
 Fourteen complete real captured requests match fresh originals through actual
 SDK native dispatch: **1,613 ordered writes / 25,808 bytes**, output canaries
