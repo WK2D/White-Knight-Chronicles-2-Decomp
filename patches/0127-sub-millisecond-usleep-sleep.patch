@@ -1,0 +1,27 @@
+diff --git a/runtime/syscalls/sys_timer.c b/runtime/syscalls/sys_timer.c
+--- a/runtime/syscalls/sys_timer.c
++++ b/runtime/syscalls/sys_timer.c
+@@ -226,7 +226,22 @@
+             Sleep((DWORD)(usec / 1000));
+         }
+     } else if (usec > 0) {
+-        /* Sub-millisecond sleep. Sleep()/waitable timers round up to the
++        /* Sub-millisecond sleep: block on a per-thread high-resolution
++         * waitable timer. The busy-wait below kept a polling guest thread on a
++         * whole core (WKC2's func_0014B288 poll: ~95% of a P-core), taking time
++         * from the threads that do the frame's work. The spin remains only if
++         * the timer cannot be created. */
++        static __declspec(thread) HANDLE t_timer;
++        if (!t_timer)
++            t_timer = CreateWaitableTimerExW(NULL, NULL, 0x00000002 /* HIGH_RESOLUTION */, TIMER_ALL_ACCESS);
++        if (t_timer) {
++            LARGE_INTEGER due;
++            due.QuadPart = -((LONGLONG)usec * 10);
++            if (SetWaitableTimer(t_timer, &due, 0, NULL, NULL, FALSE) &&
++                WaitForSingleObject(t_timer, INFINITE) == WAIT_OBJECT_0)
++                return CELL_OK;
++        }
++        /* Fallback spin. Sleep() and ordinary waitable timers round up to the
+          * ~0.5-1 ms scheduler quantum, far too coarse for a guest that relies
+          * on accurate microsecond pacing -- a short usleep() spin waiting on
+          * another thread to make progress otherwise collapses to a single yield

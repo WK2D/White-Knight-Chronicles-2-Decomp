@@ -170,6 +170,8 @@ public:
     [[nodiscard]] Failure failure()const noexcept{return failure_;}
     [[nodiscard]] pipeline::PipelineStatus pipeline_status()const noexcept{return pipeline_status_;}
     [[nodiscard]] const pipeline::GeometryOutput& geometry()const noexcept{return geometry_;}
+    // Move the logical buffers out once the job is finished, for reuse.
+    pipeline::GeometryOutput release_geometry()noexcept{return std::move(geometry_);}
     [[nodiscard]] const commands::CommandPublication& packet()const noexcept{return packet_;}
     [[nodiscard]] const payload_export::AllocationRecord& allocation_record()const noexcept{return record_;}
     [[nodiscard]] const allocation::AllocationTransaction* allocation_transaction()const noexcept{return allocator_?&*allocator_:nullptr;}

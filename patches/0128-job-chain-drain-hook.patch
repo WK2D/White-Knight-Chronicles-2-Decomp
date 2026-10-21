@@ -1,0 +1,44 @@
+diff --git a/runtime/spu/spu_workload.h b/runtime/spu/spu_workload.h
+--- a/runtime/spu/spu_workload.h
++++ b/runtime/spu/spu_workload.h
+@@ -118,6 +118,11 @@
+ typedef void (*spu_job_scope_end_fn)(int image_id, uint32_t job_ea,
+                                      uint32_t job_desc_size, void* token);
+ extern spu_native_job_hook_fn g_spu_native_job_hook;
++/* Optional, installed with the hooks above: called by a job-chain walker on
++ * its own thread before it acts on anything other than another job (any
++ * non-JOB/JOBLIST command) and when the walk ends, so a port that completes
++ * native jobs after the hook returns can commit them first, in order. */
++extern void (*g_spu_job_chain_drain)(void);
+ extern spu_job_scope_begin_fn g_spu_job_scope_begin;
+ extern spu_job_scope_end_fn g_spu_job_scope_end;
+ 
+diff --git a/libs/spurs/cellSpurs.c b/libs/spurs/cellSpurs.c
+--- a/libs/spurs/cellSpurs.c
++++ b/libs/spurs/cellSpurs.c
+@@ -2653,6 +2653,7 @@
+     }
+ }
+ 
++void (*g_spu_job_chain_drain)(void) = NULL;
+ static void jc_execute(u32 entry_ea, u32 jc_ea, u32 size_desc)
+ {
+     u32 pc = entry_ea, ret_pc = 0;
+@@ -2671,6 +2672,9 @@
+         u64 cmd = vm_read64(pc);
+         u32 op  = (u32)(cmd & 7);
+         u32 ext = (u32)(cmd & 127);
++        /* Deferred native jobs complete before any other chain command. */
++        if (g_spu_job_chain_drain && !((cmd != 0 && op == 0) || op == 6))
++            g_spu_job_chain_drain();
+ 
+         if (cmd != 0 && op == 0) {                    /* JOB */
+             { extern u32 g_spurs_job_ls_handle; g_spurs_job_ls_handle = jc_ea; }
+@@ -2757,6 +2761,7 @@
+       if (d && *d) Sleep((unsigned)atoi(d)); }
+     jc_execute(s_jobchains[slot].entry_ea, s_jobchains[slot].jc_ea,
+                s_jobchains[slot].size_desc);
++    if (g_spu_job_chain_drain) g_spu_job_chain_drain();
+     /* Publish termination only after the walker has stopped touching the
+      * chain. Per-job completions have already been delivered. */
+     _InterlockedExchange(&s_jobchains[slot].running, 0);

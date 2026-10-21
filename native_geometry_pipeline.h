@@ -84,6 +84,23 @@ struct GeometryOutput {
     PayloadLayout payload;
 };
 
+namespace detail {
+inline GeometryOutput& spare_output() {thread_local GeometryOutput spare;return spare;}
+// A fresh output that reuses the capacity a finished job returned on this
+// thread. Every member is reset, so it equals a default-constructed output.
+inline GeometryOutput take_output() {
+    GeometryOutput next=std::move(spare_output());
+    next.positions.clear();next.directions[0].clear();next.directions[1].clear();
+    next.prepared_palette.clear();next.projected.clear();
+    next.decoded_indices.clear();next.filtered_indices.clear();
+    next.triangle_decisions.clear();next.index_payload.clear();next.packed_vertices.clear();
+    next.payload={};
+    return next;
+}
+}
+// Return a finished job's buffers to this thread's spare storage.
+inline void recycle_output(GeometryOutput&& used) {detail::spare_output()=std::move(used);}
+
 enum class PipelineStatus : std::uint8_t {
     logical_buffers_ready,
     unsupported_vertex_format,
@@ -226,7 +243,7 @@ PipelineStatus run(const GeometryInput& input,GeometryOutput& output,Policies& p
             }
     }
 
-    GeometryOutput next;
+    GeometryOutput next=detail::take_output();
     next.positions.resize(count);
     for(unsigned stream=0;stream<direction_streams;++stream)
         next.directions[stream].resize(count);

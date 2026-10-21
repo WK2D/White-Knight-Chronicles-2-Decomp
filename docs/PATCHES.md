@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patches 0127-0128 | [Pipelined geometry jobs and sub-millisecond sleeps](#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128) |
 | Patch 0126 | [Guest mapping lifetime epoch](#guest-mapping-lifetime-epoch-patch-0126) |
 | Patch 0125 | [Native SPU atomic receipts](#native-spu-atomic-receipts-patch-0125) |
 | Patch 0124 | [Original-input native SPURS dispatch](#original-input-native-spurs-dispatch-patch-0124) |
@@ -57,6 +58,85 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Pipelined geometry jobs and sub-millisecond sleeps (patches 0127-0128)
+
+**Problem.** The crowded town street ran at about 11–15 FPS. A causal test moved
+one thread at a time onto the 14900K's E-cores (about half speed) while the rest
+stayed on P-cores. Only the image-19 geometry job thread lowered FPS: 11.3 → 7.5
+and 6.8. Slowing the renderer or the main PPU threads changed nothing. That
+thread ran every geometry job serially, about 1,650 per frame. The PS3 spread
+the same jobs over up to five SPUs.
+
+**Fix.** The port (`native_geometry_runtime.cpp`) pipelines admitted image-19
+jobs:
+
+- The chain thread copies a job's sources and adapts its input. A worker pool
+  then runs the pure-compute prepare (decode, skin, project, filter, pack) while
+  the chain moves on.
+- Commits stay on the chain thread in job order: allocator lines, ring wait,
+  exports and publication. They happen inside the next image-19 scope once more
+  than eight jobs wait, or at a drain point.
+- Drain points are every other image's job (`scope_begin`), and every non-job
+  chain command and walker exit. Patch 0128 adds that drain callback to the
+  SDK chain walker.
+- Each commit records the guest ranges it wrote (`native_geometry_order.h`). A
+  job whose sources were written by a commit made after its copy is copied and
+  prepared again.
+- A job that can't complete natively before any external effect runs the
+  compiled job at its own commit turn, as the serial path would. Its writes are
+  unknown, so every earlier copy becomes stale.
+- Workers inherit the chain thread's MXCSR. At exit, admission stops, queued
+  prepares finish and the workers are joined.
+- `WKC_GEOM_PIPELINE=<n>` sets the worker count (0 = serial). The default is
+  three workers on 8 or more hardware threads.
+- `WKC_GEOM_PIPELINE_VERIFY=1` re-prepares every 64th job serially and aborts
+  on any difference.
+
+Finished jobs return their logical buffers for reuse, and source copies write
+into reused buffers, which halves the allocator samples on that thread.
+
+Patch 0127 makes sub-millisecond `sys_timer_usleep` block on a per-thread
+high-resolution waitable timer. The old path spun on `SwitchToThread`, and one
+polling guest thread (`func_0014B288`) held about 95% of a P-core. The spin
+remains only if the timer can't be created.
+
+**Evidence.** All runs were hidden, muted and on isolated save copies, using
+Vulkan at the 30 FPS limit. FPS is the overlay's presentation rate.
+
+Same-process ABBA street windows, 12 s each, pipelined vs serial:
+
+| Workers | Pipelined FPS (mean) | Serial FPS (mean) |
+| --- | ---: | ---: |
+| 3 | 26.5 | 15.5 |
+| 4 | 25.7 | 14.6 |
+
+During those windows verify mode compared 48,638 jobs, with no mismatch and no
+recopies.
+
+| Route | Jobs | Verified | Mismatches | Other |
+| --- | ---: | ---: | ---: | --- |
+| One-minute street walk | 3.0M | 46,862 | 0 | Frames correct |
+| Every 10th job forced through the compiled fallback | | | 0 | 111,933 fallbacks, 655,021 recopies, frames correct |
+| Town → Balastor Plain transition, then walking | 1.87M | 29,254 | 0 | Clean exit (code 0) on window close |
+| Avatar creator | 1.17M | 18,349 | 0 | |
+
+The sleep change and buffer reuse alone were measured separately in the same
+process: 11.75 → 12.22 FPS, and about one core less CPU. The private prototype
+sources, launchers and records are in `work/lag-fix` and
+`work/lag-findings-20261021.md`.
+
+**Limits.**
+
+- Process CPU rises from about 2.5 to about 4.5 cores.
+- Commits now happen after the job's dispatch has returned. That relies on the
+  game keeping job memory mapped until the chain's next non-job command, where
+  everything drains.
+- Only one chain ran image-19 jobs in these routes. Cross-chain commit order
+  wasn't exercised.
+- Not yet run: DirectX, story cutscenes and combat.
+- The FPS figures are presentation rates on one route each, not game-update
+  rates.
 
 ## Guest mapping lifetime epoch (patch 0126)
 

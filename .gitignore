@@ -47,6 +47,7 @@
 !/native_geometry_runtime.cpp
 !/native_geometry_runtime.h
 !/native_geometry_mapping_cache.h
+!/native_geometry_order.h
 !/native_geometry_host_math.h
 !/native_geometry_negative_product.h
 !/native_visibility.h

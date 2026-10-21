@@ -14,19 +14,24 @@
 #include "spu_coherency.h"
 #include "spu_workload.h"
 #include "native_geometry_mapping_cache.h"
+#include "native_geometry_order.h"
 #include "vm_mapping_epoch.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <bit>
+#include <condition_variable>
+#include <deque>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <span>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -36,6 +41,7 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#include <immintrin.h>
 #endif
 
 extern "C" {
@@ -69,6 +75,7 @@ spu_job_scope_end_fn previous_end=nullptr;
 void (*previous_put)(std::uint32_t,std::uint32_t)=nullptr;
 void (*previous_trace)(std::uint32_t,std::uint32_t,int,std::uint32_t,const Byte*)=nullptr;
 bool enabled=false,installed=false,diagnostics=false;
+void drain_pipeline_this_thread()noexcept;
 struct Census {
     std::atomic<std::uint64_t> seen{0},admitted{0},complete{0},decline{0},fatal{0};
 } census;
@@ -119,11 +126,13 @@ void log_vm_region(const char* label,std::uint32_t ea,std::uint64_t bytes)noexce
 }
 bool acquire_bytes(std::uint32_t ea,std::size_t bytes,std::vector<Byte>& output) {
     if(!vm_range(ea,bytes,false))return false;
-    std::vector<Byte> next(bytes);
-    // The same coherency lock excludes atomic/MFC writers during each owned
-    // copy. The submitted-job producer contract excludes unsynchronized edits.
-    spu_lockline_lock();std::memcpy(next.data(),vm_base+ea,bytes);spu_lockline_unlock();
-    output=std::move(next);return true;
+    // Reuse the caller's capacity; resize has the strong guarantee and every
+    // byte is overwritten. The same coherency lock excludes atomic/MFC writers
+    // during each owned copy. The submitted-job producer contract excludes
+    // unsynchronized edits.
+    output.resize(bytes);
+    spu_lockline_lock();std::memcpy(output.data(),vm_base+ea,bytes);spu_lockline_unlock();
+    return true;
 }
 struct OwnedSources {
     std::vector<Byte> descriptor;
@@ -157,6 +166,7 @@ struct OwnedSources {
         const auto status=gi::plan_spurs_constructor(descriptor,payloads[16],contract,plan);
         reason=100u+unsigned(status);return status==gi::ConstructorStatus::ready;
     }
+    void reset() {descriptor.clear();for(auto& payload:payloads)payload.clear();plan={};}
     gi::StagedInputs spans()const {
         gi::StagedInputs staged;staged.descriptor=descriptor;
         for(unsigned slot=0;slot<gi::dma_slot_count;++slot)
@@ -260,6 +270,8 @@ public:
     }
     bool failed()const noexcept{return failed_;}
     unsigned failure_reason()const noexcept{return failure_reason_;}
+    // Pipelined commits record every guest range this backend writes.
+    void record_writes(std::vector<wkc::geometry::order::ByteRange>* writes)noexcept{writes_=writes;}
     std::optional<std::uint32_t> read_machine_status() {return irq_?1u:0u;}
     void set_interrupts(bool value) {irq_=value;}
     void fence() {architectural_fence();}
@@ -295,6 +307,7 @@ public:
                                                std::uint64_t token) {
         require(vm_base==base_&&vm_range(ea&~127u,128,true)&&token==global_token_,13);
         const auto status=spu_native_putllc(ea&~127u,bytes.data(),token);
+        if(status==0)record(ea&~127u,128);
         // PUTLLC consumes its ticket for both success and conflict receipts.
         if(status>=0)global_token_=0;
         require(status==0||status==1,14);return std::uint32_t(status);
@@ -302,7 +315,8 @@ public:
     std::optional<std::uint32_t> put_unconditional(std::uint32_t ea,const ga::AllocationLine& bytes,
                                                  std::uint64_t token) {
         require(vm_base==base_&&vm_range(ea&~127u,128,true)&&token==slot_token_,15);
-        const auto status=spu_native_putlluc(ea&~127u,bytes.data());require(status==2,16);return 2u;
+        const auto status=spu_native_putlluc(ea&~127u,bytes.data());record(ea&~127u,128);
+        require(status==2,16);return 2u;
     }
     std::optional<ga::RingConsumerReceipt> get_consumer(std::uint32_t ea,unsigned tag) {
         const auto value=read4(ea,tag);
@@ -351,6 +365,7 @@ public:
     }
 private:
     void mark_failure(unsigned reason)noexcept {failed_=true;failure_reason_=reason;}
+    void record(std::uint32_t ea,std::size_t bytes) {if(writes_)writes_->push_back({ea,std::uint64_t(ea)+bytes});}
     void require(bool condition,unsigned reason) {
         if(!condition){mark_failure(reason);throw std::runtime_error("native geometry backend admission");}
     }
@@ -382,7 +397,7 @@ private:
            (std::uint64_t(host)<std::uint64_t(vm)+0x100000000ull&&std::uint64_t(host)+size>vm)) {
             mark_failure(25);return;
         }
-        spu_lockline_lock();std::memcpy(base_+ea,source.data(),size);
+        spu_lockline_lock();std::memcpy(base_+ea,source.data(),size);record(ea,size);
         const auto last=std::uint32_t(std::uint64_t(ea)+size-1)&~127u;
         for(auto line=ea&~127u;;line+=128) {
             if(spu_coh_is_reserved(line))spu_coh_notify_write(line);
@@ -404,6 +419,7 @@ private:
     // that standalone state; no fabricated context or emulated status is used.
     bool irq_=false,failed_=false;
     unsigned failure_reason_=0;
+    std::vector<wkc::geometry::order::ByteRange>* writes_=nullptr;
 };
 
 void put_hook(std::uint32_t ea,std::uint32_t bytes) {
@@ -431,6 +447,7 @@ thread_local ScopeLease current_scope;
     std::abort();
 }
 void* scope_begin(int image,std::uint32_t ea,std::uint32_t bytes)noexcept {
+    if(image!=19)drain_pipeline_this_thread();
     try {
         refresh_put_hooks();
         if(image!=19&&image!=23)return previous_begin?previous_begin(image,ea,bytes):nullptr;
@@ -625,15 +642,245 @@ int execute_visibility(std::uint32_t ea,std::uint32_t descriptor_size) {
         visibility_log(mode,completed,writes.size()-1);return completed;
     } catch(...) {visibility_log(mode,external?fatal:declined);return external?fatal:declined;}
 }
+
+// Pipelined image19 jobs.
+//
+// The chain thread copies each job's sources and adapts its input, then a
+// worker runs the pure-compute prepare while the chain moves on. Commits
+// (allocator lines, ring wait, exports, publication) stay on the chain thread
+// in job order: inside the next image19 scope once more than `window` jobs
+// wait, or at a drain point. Drain points are every other image's job
+// (scope_begin), every non-job chain command and walker exit (SDK patch 0128).
+// Each commit records the guest ranges it wrote; a job whose sources were
+// written by a commit made after its copy is copied and prepared again.
+// A job that cannot complete natively before any external effect runs the
+// compiled job at its own commit turn, as the serial path would have.
+// WKC_GEOM_PIPELINE=<workers> overrides the worker count (0 = serial);
+// WKC_GEOM_PIPELINE_VERIFY=1 re-prepares every 64th job serially and aborts
+// on any difference in the logical outputs.
+namespace go=wkc::geometry::order;
+constexpr std::size_t pipeline_window=8;
+std::atomic<bool> pipeline_on{false};
+bool pipeline_verify=false;
+thread_local bool force_compiled=false;
+go::WriteLog commit_log;
+struct PipelineCensus {std::atomic<std::uint64_t> queued{0},committed{0},recopied{0},fallbacks{0},verified{0};} pipeline_census;
+struct Pending {
+    OwnedSources sources;
+    gi::AdaptedJob adapted;
+    gj::Config config{};
+    HostPolicies policies;
+    std::unique_ptr<gj::GeometryJob> job=std::make_unique<gj::GeometryJob>();
+    std::vector<go::ByteRange> reads;
+    std::uint64_t copied_after=0;
+    std::uint32_t ea=0,descriptor_size=0,binary_ea=0,binary_size=0;
+    unsigned mxcsr=0,index=0;
+    std::atomic<int> state{0}; // 0 queued, 1 prepared, 2 declined, 3 threw
+};
+int prepare_state(Pending& job)noexcept {
+    try {return job.job->prepare(job.adapted.geometry,job.config,job.policies)==gj::PrepareStatus::ready?1:2;}
+    catch(...) {return 3;}
+}
+class PreparePool {
+public:
+    void start(unsigned count) {for(unsigned i=0;i<count;++i)threads_.emplace_back([this]{run();});}
+    void submit(Pending* job) {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if(!stopping_&&!threads_.empty()){queue_.push_back(job);ready_.notify_one();return;}
+        }
+        job->state.store(prepare_state(*job),std::memory_order_release); // stopped: prepare here
+    }
+    void wait(Pending* job) {
+        for(int spin=0;spin<4000;++spin){if(job->state.load(std::memory_order_acquire))return;_mm_pause();}
+        std::unique_lock<std::mutex> lock(mutex_);
+        done_.wait(lock,[job]{return job->state.load(std::memory_order_acquire)!=0;});
+    }
+    // Stop admission, let workers finish everything queued, then join them.
+    void stop() {
+        {std::lock_guard<std::mutex> lock(mutex_);if(stopping_)return;stopping_=true;}
+        ready_.notify_all();
+        for(auto& thread:threads_)if(thread.joinable())thread.join();
+    }
+private:
+    void run() {
+        for(;;) {
+            Pending* job;
+            {
+                std::unique_lock<std::mutex> lock(mutex_);
+                ready_.wait(lock,[this]{return stopping_||!queue_.empty();});
+                if(queue_.empty())return;
+                job=queue_.front();queue_.pop_front();
+            }
+            // The chain thread's FP environment, including rounding and FTZ/DAZ.
+            const unsigned saved=_mm_getcsr();_mm_setcsr(job->mxcsr);
+            const int state=prepare_state(*job);
+            _mm_setcsr(saved);
+            {std::lock_guard<std::mutex> lock(mutex_);job->state.store(state,std::memory_order_release);}
+            done_.notify_all();
+        }
+    }
+    std::mutex mutex_;std::condition_variable ready_,done_;std::deque<Pending*> queue_;
+    std::vector<std::thread> threads_;bool stopping_=false;
+};
+// Never destroyed: chain threads may still use it while static destructors run.
+PreparePool& prepare_pool=*new PreparePool;
+void source_ranges(Pending& p) {
+    p.reads.clear();
+    p.reads.push_back({p.ea,std::uint64_t(p.ea)+(p.descriptor_size?p.descriptor_size:256u)});
+    const auto* d=p.sources.descriptor.data();
+    for(unsigned slot=0;slot<gi::dma_slot_count;++slot) {
+        const auto* entry=d+48+slot*8;
+        const auto bytes=gi::detail::be32(entry)&0x7fffu,source=gi::detail::be32(entry+4);
+        if(bytes&&source)p.reads.push_back({source,std::uint64_t(source)+bytes});
+    }
+}
+// Copy sources and adapt input. False leaves the decision to the serial path.
+bool copy_and_adapt(Pending& p) {
+    p.copied_after=commit_log.sequence();
+    unsigned reason=0;
+    if(!p.sources.acquire(p.ea,p.descriptor_size,reason))return false;
+    if(gi::make_input(p.sources.spans(),p.sources.plan.platform,
+        [](float a,float b){return RuntimeMath::greater(a,b);},p.adapted)!=gi::Status::ready)return false;
+    const auto& m=p.adapted.metadata;
+    p.config={m.allocator_control,m.allocator_slot,m.request_flags,m.publication_destination,m.packet_quadwords,m.dma_tag};
+    source_ranges(p);return true;
+}
+[[noreturn]] void pipeline_abort(const char* why,std::uint32_t ea)noexcept {
+    std::fprintf(stderr,"[native-geometry-job] pipeline: %s job=%08X\n",why,ea);
+    std::fflush(stderr);std::abort();
+}
+bool same_output(const pipeline::GeometryOutput& a,const pipeline::GeometryOutput& b) {
+    auto eq=[](const auto& x,const auto& y){return x.size()==y.size()&&(x.empty()||!std::memcmp(x.data(),y.data(),x.size()*sizeof(x[0])));};
+    return eq(a.positions,b.positions)&&eq(a.directions[0],b.directions[0])&&eq(a.directions[1],b.directions[1])&&
+        eq(a.prepared_palette,b.prepared_palette)&&eq(a.projected,b.projected)&&eq(a.decoded_indices,b.decoded_indices)&&
+        eq(a.filtered_indices,b.filtered_indices)&&eq(a.triangle_decisions,b.triangle_decisions)&&
+        eq(a.index_payload,b.index_payload)&&eq(a.packed_vertices,b.packed_vertices)&&
+        a.payload.logical_index_bytes==b.payload.logical_index_bytes&&a.payload.index_dma_bytes==b.payload.index_dma_bytes&&
+        a.payload.logical_vertex_bytes==b.payload.logical_vertex_bytes&&a.payload.vertex_dma_bytes==b.payload.vertex_dma_bytes&&
+        a.payload.reservation_bytes==b.payload.reservation_bytes&&a.payload.empty_geometry==b.payload.empty_geometry;
+}
+thread_local std::deque<std::unique_ptr<Pending>> pipeline_pending;
+// Hold slot0 and the mapping cache while committing outside an image19 scope.
+struct CommitScope {
+    bool own=false;
+    CommitScope() {
+        if(!(image19_scope_depth&&current_scope.image==19)) {
+            own=true;image19_gate.lock();
+            image19_mapping_cache.begin_lifetime(vm_base,vm_mapping_epoch_read());
+        }
+    }
+    ~CommitScope() {if(own){image19_mapping_cache.suspend();image19_gate.unlock();}}
+};
+// Leave the caller's scope (and slot0) so the SDK can open one for a fallback.
+struct ScopeSuspend {
+    bool active=false,gate=false;ScopeLease saved;unsigned depth=0;
+    ScopeSuspend() {
+        if(!image19_scope_depth)return;
+        active=true;saved=current_scope;depth=image19_scope_depth;gate=current_scope.image==19;
+        current_scope={};image19_scope_depth=0;image19_mapping_cache.suspend();
+        if(gate)image19_gate.unlock();
+    }
+    ~ScopeSuspend() {
+        if(!active)return;
+        if(gate)image19_gate.lock();
+        current_scope=saved;image19_scope_depth=depth;
+        image19_mapping_cache.begin_lifetime(vm_base,vm_mapping_epoch_read());
+    }
+};
+void compiled_fallback(const Pending& job) {
+    ++pipeline_census.fallbacks;
+    {
+        ScopeSuspend suspend;force_compiled=true;
+        spu_workload_dispatch_job(vm_base+job.binary_ea,job.binary_size,job.ea,job.descriptor_size);
+        force_compiled=false;
+    }
+    commit_log.commit_unknown();
+}
+void commit_front() {
+    auto owned=std::move(pipeline_pending.front());pipeline_pending.pop_front();
+    prepare_pool.wait(owned.get());
+    if(commit_log.written_since(owned->copied_after,owned->reads)) {
+        ++pipeline_census.recopied;
+        auto fresh=std::make_unique<Pending>();
+        fresh->ea=owned->ea;fresh->descriptor_size=owned->descriptor_size;fresh->index=owned->index;
+        fresh->binary_ea=owned->binary_ea;fresh->binary_size=owned->binary_size;
+        if(!copy_and_adapt(*fresh)){compiled_fallback(*fresh);return;}
+        fresh->state=prepare_state(*fresh);owned=std::move(fresh);
+    }
+    Pending& q=*owned;
+    if(q.state.load()!=1){compiled_fallback(q);return;}
+    if(pipeline_verify&&(q.index&63u)==0) {
+        HostPolicies policies;gj::GeometryJob serial;++pipeline_census.verified;
+        if(serial.prepare(q.adapted.geometry,q.config,policies)!=gj::PrepareStatus::ready||
+           !same_output(serial.geometry(),q.job->geometry()))pipeline_abort("verify mismatch",q.ea);
+    }
+    std::vector<go::ByteRange> writes;bool fallback=false;
+    {
+        CommitScope scope;
+        GeometryJobBackend backend(q.config,q.job->geometry().payload);backend.record_writes(&writes);
+        if(!backend.preflight())fallback=true;
+        else for(;;) {
+            const auto progress=q.job->advance(backend);
+            if(backend.failed()||progress==gj::Progress::failed)pipeline_abort("backend failure",q.ea);
+            if(progress==gj::Progress::complete)break;
+            if(progress==gj::Progress::declined) {
+                if(q.job->external_effects_started())pipeline_abort("decline after external effects",q.ea);
+                fallback=true;break;
+            }
+            if(progress==gj::Progress::pending)pipeline_abort("unexpected pending",q.ea);
+        }
+    } // backend tokens and slot0 are released before any fallback
+    if(fallback){compiled_fallback(q);return;}
+    commit_log.commit(std::move(writes));
+    const auto committed=++pipeline_census.committed;
+    if(diagnostics&&sample(committed))
+        std::fprintf(stderr,"[native-geometry-job] pipeline queued=%llu committed=%llu recopied=%llu fallbacks=%llu verified=%llu\n",
+            (unsigned long long)pipeline_census.queued.load(),(unsigned long long)committed,
+            (unsigned long long)pipeline_census.recopied.load(),(unsigned long long)pipeline_census.fallbacks.load(),
+            (unsigned long long)pipeline_census.verified.load());
+    pipeline::recycle_output(q.job->release_geometry());
+}
+void drain_pipeline_this_thread()noexcept {
+    if(pipeline_pending.empty())return;
+    try {while(!pipeline_pending.empty())commit_front();}
+    catch(...) {pipeline_abort("exception while committing",0);}
+}
+extern "C" void wkc_chain_drain(void) {drain_pipeline_this_thread();}
+thread_local unsigned pipeline_index=0;
+// Queue the job and report completion; nullopt asks for the serial path.
+std::optional<int> pipelined_hook(std::uint32_t ea,std::uint32_t descriptor_size) {
+    auto p=std::make_unique<Pending>();p->ea=ea;p->descriptor_size=descriptor_size;
+    if(!copy_and_adapt(*p)){drain_pipeline_this_thread();return std::nullopt;}
+    const auto* header=vm_base+ea; // CellSpursJobHeader: binary EA (low 3 bits flags), size>>4
+    p->binary_ea=std::uint32_t(((std::uint64_t(gi::detail::be32(header))<<32)|gi::detail::be32(header+4))&~7ull);
+    p->binary_size=((gi::detail::be32(header+8)>>16)&0xFFFFu)<<4;
+    p->mxcsr=_mm_getcsr();p->index=pipeline_index++;
+    prepare_pool.submit(p.get());pipeline_pending.push_back(std::move(p));++pipeline_census.queued;
+    while(pipeline_pending.size()>pipeline_window)commit_front();
+    return completed;
+}
 int execute_native_hook(int image,std::uint32_t ea,std::uint32_t descriptor_size) {
     if(image==23&&enabled)return execute_visibility(ea,descriptor_size);
     if(image!=19||!enabled||g_spu_float_mode!=SPU_FLOAT_HOST)
         return previous_native?previous_native(image,ea,descriptor_size):declined;
     if(diagnostics)++census.seen;
     if(!image19_scope_depth){log_result("missing-scope",0,declined,ea);return declined;}
+    if(force_compiled)return declined; // nested dispatch from a pipelined fallback
+    if(pipeline_on.load(std::memory_order_relaxed)) {
+        try {if(const auto queued=pipelined_hook(ea,descriptor_size))return *queued;}
+        catch(...) {pipeline_abort("exception while queueing",ea);}
+    }
     bool external=false;
     try {
-        OwnedSources sources;unsigned reason=0;
+        // One reused source set per thread; a nested call uses its own.
+        thread_local OwnedSources reused_sources;thread_local bool reused_busy=false;
+        std::optional<OwnedSources> local_sources;OwnedSources* owner;
+        const bool reuse=!reused_busy;
+        if(reuse){reused_busy=true;reused_sources.reset();owner=&reused_sources;}
+        else owner=&local_sources.emplace();
+        struct Release{bool& busy;bool held;~Release(){if(held)busy=false;}} release{reused_busy,reuse};
+        OwnedSources& sources=*owner;unsigned reason=0;
         if(!sources.acquire(ea,descriptor_size,reason)){log_result("acquire",reason,declined,ea);return declined;}
         gi::AdaptedJob adapted;
         const auto input_status=gi::make_input(sources.spans(),sources.plan.platform,
@@ -656,7 +903,8 @@ int execute_native_hook(int image,std::uint32_t ea,std::uint32_t descriptor_size
             }
             if(progress==gj::Progress::complete) {
                 log_result("complete",0,completed,ea,unsigned(job.geometry().positions.size()),
-                    unsigned(job.geometry().filtered_indices.size()));return completed;
+                    unsigned(job.geometry().filtered_indices.size()));
+                pipeline::recycle_output(job.release_geometry());return completed;
             }
             if(progress==gj::Progress::declined) {
                 const auto result=external?fatal:declined;log_result("advance",0,result,ea);return result;
@@ -693,6 +941,15 @@ void wkc2_init_native_geometry_jobs() {
     previous_put=g_spu_put_hook;previous_trace=g_spu_put_trace_hook;
     g_spu_native_job_hook=native_hook;g_spu_job_scope_begin=scope_begin;g_spu_job_scope_end=scope_end;
     g_spu_put_hook=put_hook;g_spu_put_trace_hook=trace_hook;installed=true;
+    // Pipeline workers: WKC_GEOM_PIPELINE=<n> (0 = serial), default by core count.
+    const unsigned cores=std::thread::hardware_concurrency();
+    unsigned workers=cores>=8?3u:cores>=4?1u:0u;
+    if(const char* requested=std::getenv("WKC_GEOM_PIPELINE"))workers=unsigned(std::strtoul(requested,nullptr,10));
+    if(workers) {
+        pipeline_verify=std::getenv("WKC_GEOM_PIPELINE_VERIFY")!=nullptr;
+        prepare_pool.start(workers);g_spu_job_chain_drain=wkc_chain_drain;pipeline_on=true;
+        std::atexit([]{prepare_pool.stop();});
+    }
     if(diagnostics)std::fprintf(stderr,"[native-geometry-job] installed image19 host geometry and image23 selection owned routes; "
-        "native/fallback slot0 gate and chained PUT hooks active\n");
+        "native/fallback slot0 gate and chained PUT hooks active; pipeline workers=%u\n",workers);
 }

@@ -5,6 +5,7 @@
 #undef NDEBUG
 #endif
 #include "native_geometry_job.h"
+#include "native_geometry_order.h"
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -602,6 +603,41 @@ int wkc2_test_native_geometry_job() {
     }
     const auto capacity_cases=capacity_bound_cases();
     assert(capacity_cases==86016);
+    // Pipelined commit order: a copy is stale only when a later commit wrote
+    // one of its source ranges; unknown writes and a truncated log are stale.
+    {
+        namespace go=wkc::geometry::order;
+        go::WriteLog log(4);
+        const std::vector<go::ByteRange> reads{{0x1000,0x1100},{0x2000,0x2010}};
+        const auto copied=log.sequence();
+        assert(!log.written_since(copied,reads));
+        log.commit({{0x1100,0x1200},{0x1ff0,0x2000}});        // adjacent, not overlapping
+        assert(!log.written_since(copied,reads));
+        log.commit({{0x200f,0x2010}});                        // last byte of the second range
+        assert(log.written_since(copied,reads)&&!log.written_since(log.sequence(),reads));
+        const auto later=log.sequence();
+        log.commit_unknown();
+        assert(log.written_since(later,reads)&&log.written_since(later,{{0xfffffff0,0x100000000}}));
+        for(int i=0;i<6;++i)log.commit({{0x9000,0x9001}});   // evicts the entries after `later`
+        assert(log.written_since(later,{{0x5000,0x5001}})&&!log.written_since(log.sequence(),reads));
+    }
+    // Recycled job buffers start empty, with a default payload layout.
+    {
+        namespace gp=wkc::geometry::pipeline;
+        gp::GeometryOutput used;used.positions.assign(9,{});used.directions[1].assign(4,{});
+        used.packed_vertices.assign(64,7);used.index_payload.assign(3,1);used.payload.empty_geometry=false;
+        used.payload.vertex_dma_bytes=64;gp::recycle_output(std::move(used));
+        const auto fresh=gp::detail::take_output();
+        assert(fresh.positions.empty()&&fresh.directions[0].empty()&&fresh.directions[1].empty()&&
+               fresh.packed_vertices.empty()&&fresh.index_payload.empty()&&fresh.projected.empty()&&
+               fresh.payload.empty_geometry&&!fresh.payload.vertex_dma_bytes);
+        assert(fresh.positions.capacity()>=9&&fresh.packed_vertices.capacity()>=64);
+        gj::GeometryJob job;FiniteHostPolicies policies;
+        assert(job.prepare(input_example(),config_example(),policies)==gj::PrepareStatus::ready);
+        const auto positions=job.geometry().positions;
+        const auto released=job.release_geometry();
+        assert(released.positions==positions&&job.geometry().positions.empty());
+    }
     std::printf("Typed geometry jobs: %u nonempty, %u empty, %u zero-packet allocation failures, "
         "%u pre-effect declines/exceptions and %u terminal fatal cases; owned delayed sources, "
         "pending receipts, fences/IRQ restoration and quiet terminal advances pass.\n",

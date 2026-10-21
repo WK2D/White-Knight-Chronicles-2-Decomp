@@ -140,7 +140,7 @@ zero fallback and at least 16,777,216 transformed blocks in each run. Both final
 frames were inspected. The Vulkan run additionally samples CPU time; profiling,
 tracing and GPU captures make it unsuitable as an FPS benchmark.
 
-Both Windows suites now pass 119 checks with 126 SDK patches. No FPS gain,
+Both Windows suites now pass 119 checks with 128 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
 is claimed.
 
@@ -1477,3 +1477,19 @@ larger cost on x86. This is not a measured FPS gain. Reciprocal estimates,
 interpolation and integer conversions still use SDK adapters in the connected
 whole-job policies. Other compiled paths and narrow reference bridges remain;
 no complete SPU image has been removed.
+
+## Pipelined whole geometry jobs
+
+Owning the image-19 job in C++ made its scheduling the port's choice. On the
+crowded street that job thread was the frame's critical path. Moving only it
+onto slower cores cut FPS by about 40%; moving the renderer or PPU threads
+changed nothing.
+
+The runtime now prepares admitted jobs on worker threads. Commits stay in chain
+order on the chain thread, and a recorded write log decides when a copied input
+must be refreshed. Jobs that can't finish natively run the compiled job at
+their turn. In same-process street comparisons the crowded view went from about
+15.5 to 26.5 FPS. Verify mode found no difference in about 145,000 compared
+jobs. Design, routes, evidence and limits are in the
+[patch notes](PATCHES.md#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128).
+DirectX, story cutscenes and combat have not been run with it yet.
