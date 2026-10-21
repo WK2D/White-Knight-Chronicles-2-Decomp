@@ -29,14 +29,14 @@ constexpr const char* modes[] = {"Windowed", "Borderless", "Fullscreen"};
 constexpr const char* resolutions[] = {"720p", "1080p", "1440p", "2160p"};
 constexpr const char* toggles[] = {"Off", "On"};
 constexpr const char* filtering[] = {"Off", "2x", "4x", "8x", "16x"};
-constexpr const char* rates[] = {"30", "40", "60", "120", "144", "Unlocked"};
+constexpr const char* rates[] = {"30", "40", "60"};
 constexpr const char* aa[] = {"Off", "FXAA"};
 constexpr const char* backends[] = {"Vulkan", "DirectX 12"};
 constexpr const char* distances[] = {"Original", "1.5x", "2x"};
 constexpr const char* fog[] = {"Original", "Reduced", "Off"};
 struct Choices { const char* const* names; unsigned count; };
 constexpr Choices choices[] = {{modes,3}, {resolutions,4}, {toggles,2}, {filtering,5},
-    {rates,6}, {distances,3}, {distances,3}, {fog,3}, {toggles,2}, {aa,2}, {backends,2}};
+    {rates,3}, {distances,3}, {distances,3}, {fog,3}, {toggles,2}, {aa,2}, {backends,2}};
 std::mutex settings_mutex;
 GraphicsSettings active;
 unsigned active_renderer;
@@ -59,12 +59,12 @@ bool graphics_cycle(GraphicsSettings& s, GraphicsOption o, int direction) {
     return graphics_set(s, o, (graphics_value(s,o) + (direction > 0 ? 1 : count-1)) % count);
 }
 unsigned graphics_frame_limit(const GraphicsSettings& s) {
-    constexpr unsigned limits[] = {30,40,60,120,144,0};
-    return s.frame_limit < 6 ? limits[s.frame_limit] : 30;
+    constexpr unsigned limits[] = {30,40,60};
+    return s.frame_limit < 3 ? limits[s.frame_limit] : 30;
 }
 double graphics_vblank_period_ms(const GraphicsSettings& s) {
     const auto limit=graphics_frame_limit(s);
-    return limit==30 ? 1000.0*1001.0/60000.0 : limit ? 500.0/limit : 0.0;
+    return limit==30 ? 1000.0*1001.0/60000.0 : 500.0/limit;
 }
 std::string graphics_serialize(const GraphicsSettings& s) {
     std::string result = "version=1\n";
@@ -88,6 +88,8 @@ bool graphics_parse(const std::string& text, GraphicsSettings& result) {
         const auto key = line.substr(0,equal);
         if (key == "version") { if (version || value != 1) return false; version = true; continue; }
         unsigned i=0; while (i<members.size() && key != keys[i]) ++i;
+        // 120, 144 and Unlocked (3-5) were removed: they read as 60.
+        if (i == unsigned(GraphicsOption::frame_limit) && value >= 3 && value <= 5) value = 2;
         if (i == members.size() || (seen & (1u<<i)) || !graphics_set(parsed,GraphicsOption(i),value)) return false;
         seen |= 1u<<i;
     }

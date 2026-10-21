@@ -27,13 +27,19 @@ int main() {
         assert(!graphics_set(s,o,n) && s==original);
     }
     auto s=original;
-    constexpr unsigned expected[]={30,40,60,120,144,0};
-    for(unsigned i=0;i<6;++i) {
+    constexpr unsigned expected[]={30,40,60};
+    for(unsigned i=0;i<3;++i) {
         assert(graphics_set(s,GraphicsOption::frame_limit,i)); assert(graphics_frame_limit(s)==expected[i]);
         const double period=graphics_vblank_period_ms(s);
         if(i==0) assert(period>16.68 && period<16.69);
-        else if(i==5) assert(period==0.0);
         else assert(period*expected[i]>499.99 && period*expected[i]<500.01);
+    }
+    assert(!graphics_set(s,GraphicsOption::frame_limit,3));
+    // Files saved with the removed 120, 144 or Unlocked limits read as 60.
+    for(const char* old : {"version=1\nframe_limit=3\nvsync=0\n", "version=1\nframe_limit=4\nvsync=0\n",
+        "version=1\nframe_limit=5\nvsync=0\n"}) {
+        GraphicsSettings migrated; assert(graphics_parse(old,migrated));
+        assert(graphics_frame_limit(migrated)==60 && migrated.vsync==0);
     }
     assert(graphics_parse("version=1\nframe_limit=2\n",s) && s.anti_aliasing==0 && s.renderer==0);
     for(const char* bad : {"", "version=2\n", "version=1\nframe_limit=6\n", "version=1\nvsync=-1\n",
