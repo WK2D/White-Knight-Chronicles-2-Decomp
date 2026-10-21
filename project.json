@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "Image 21, the SPURS event-flag set job, runs in C++ for its normal path, and image 20's render-command interpreter loop and commands 25 and 12 run in C++ (about 212 us per replayed job instead of about 290 compiled; all 96 captured jobs replay byte-exact and every routine call matches the compiled code in verify mode). Admitted image19 geometry jobs are pipelined across worker threads, taking the crowded street from about 15.5 to 26.5 FPS unlocked, and image23 visibility modes 1-4 run in C++. 132 SDK patches / 121 Windows checks pass in Debug and Release. Other image-20 commands, other job/image paths, broader gameplay and future platforms remain unfinished.",
+    "current_milestone": "Image 21, the SPURS event-flag set job, runs in C++ for its normal path, and image 20's render-command interpreter loop and commands 25 and 12 run in C++ (about 212 us per replayed job instead of about 290 compiled; all 96 captured jobs replay byte-exact and every routine call matches the compiled code in verify mode). Admitted image19 geometry jobs are pipelined across worker threads, taking the crowded street from about 15.5 to 26.5 FPS unlocked, and image23 visibility modes 1-4 run in C++. The renderer, now the crowded street's critical path, decodes vertices, reuses unchanged fragment programs and hashes textures faster (patch 0133, about +6-7% FPS in same-process A/Bs). 133 SDK patches / 121 Windows checks pass in Debug and Release. Other image-20 commands, other job/image paths, broader gameplay and future platforms remain unfinished.",
     "updated": "2026-10-21"
   },
   "native_data_installation_verified": true,
@@ -554,7 +554,7 @@
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified. The same starting-town slot was rechecked in the 105-patch Vulkan Release build.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 132 SDK patches / 121 passing Windows checks in normal Debug and optimized Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 133 SDK patches / 121 passing Windows checks in normal Debug and optimized Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",

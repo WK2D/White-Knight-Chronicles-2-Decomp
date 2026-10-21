@@ -214,6 +214,11 @@ The crowded town street is the slowest scene. Findings in order:
    a third of the street frame. A same-process A/B then showed the renderer's
    FIFO drain limiting the most crowded scenes
    ([details](NATIVE_CODE.md#image-20-command-profile-and-command-25-in-c)).
+4. **Now: the renderer.** Slowing the renderer thread cost 32% of the street
+   frame rate, against about 9% each for the geometry chain and image 20.
+   Patch 0133 cut its per-draw vertex decoding, fragment-program handling
+   and texture hashing, for about +6–7% FPS in same-process A/Bs
+   ([details](PATCHES.md#faster-renderer-draws-patch-0133)).
 
 **Tried and set aside**
 

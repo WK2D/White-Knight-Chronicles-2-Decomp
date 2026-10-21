@@ -4,7 +4,7 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-21):** the stack contains 132 SDK patches. All
+**Current validation (2026-10-21):** the stack contains 133 SDK patches. All
 121 Windows checks pass in normal Debug and optimized Release. The latest
 concurrent runs take 29.93 and 25.76 seconds respectively. Reapplying the complete stack changes no SDK files.
 Strict DirectX and Vulkan routes on patch
