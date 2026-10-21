@@ -1,5 +1,9 @@
 # Native execution work
 
+This page holds the evidence for each native replacement. For the overview of
+all SPU work (the 24 jobs, fixes, limits and workflow), start with
+[SPU jobs and their replacement](SPU.md).
+
 The target is **100% replacement of the game's generated SPU code with
 project-written, readable, publicly available C++**, across all 24 currently
 identified images and any additional code discovered during validation.
@@ -14,9 +18,10 @@ with owned typed inputs and ordered external outputs. Unsupported constructors
 and other image paths retain compiled execution. Seven ordinary host operations
 and the [extended negative-product operation](#owned-extended-negative-product-arithmetic)
 use authored C++; reciprocal estimates/interpolation and integer conversions
-retain SDK adapters. Earlier classifier-only crowded-view comparisons show a
-bounded gain; the latest ownership work has no measured FPS gain.
-Completion requires a player build that links
+retain SDK adapters. Admitted geometry jobs are now prepared on worker threads
+and published in order, which took the crowded street from about 15.5 to 26.5
+FPS unlocked. The next critical path is [image 20](#next-critical-path-image-20-the-spu-render-command-builder),
+the render-command builder. Completion requires a player build that links
 no generated SPU game code, uses no SPU interpreter, and has validated native
 interfaces and behavior throughout the game. Build-only reference replays may
 retain private generated code for differential verification.
@@ -30,6 +35,50 @@ The current program compiles 56,580 generated PPU functions and 24 SPU image/job
 inputs. Its PS3 memory/register conventions and compatibility services still
 exist. It is not yet an interpreter-free port, nor a reconstruction of the
 original readable source. Static image registration alone is not full coverage.
+
+## Contents
+
+The sections after the first three follow the order the work was done, so the
+newest work is at the end of the page.
+
+**Start here**
+
+- [Current execution evidence](#current-execution-evidence)
+- [Work order](#work-order)
+- [Acceptance for each native replacement](#acceptance-for-each-native-replacement)
+
+**Latest work, newest first**
+
+- [Next critical path: image 20, the SPU render-command builder](#next-critical-path-image-20-the-spu-render-command-builder)
+- [Pipelined whole geometry jobs](#pipelined-whole-geometry-jobs)
+- [Owned extended negative-product arithmetic](#owned-extended-negative-product-arithmetic)
+- [Frustum and interval selection](#frustum-and-interval-selection)
+- [Owned visibility jobs](#owned-visibility-jobs)
+- [Opt-in live geometry job](#opt-in-live-geometry-job), including
+  [expanded position inputs](#expanded-quantized-position-inputs) and
+  [palette row sources](#owned-palette-row-sources)
+
+**Rebuilding the image-19 geometry job**
+
+- [Typed input and job coordinator](#typed-input-and-job-coordinator)
+- [Native allocation, export and command construction](#native-allocation-export-and-command-construction)
+- [Owned logical geometry pipeline](#owned-logical-geometry-pipeline)
+- [Projection and triangle filtering](#projection-and-triangle-filtering)
+- [Vertex export packing](#vertex-export-packing)
+- [Recovered allocation and export contracts](#recovered-allocation-and-export-contracts)
+- [Position-only skinning stream](#position-only-skinning-stream)
+- [Compressed triangle-index decoding](#compressed-triangle-index-decoding)
+- [Packed vertex decoding in owned buffers](#packed-vertex-decoding-in-owned-buffers)
+- [Whole geometry job boundary](#whole-geometry-job-boundary)
+- [Readable whole skinning stream](#readable-whole-skinning-stream)
+- [Readable final normal output](#readable-final-normal-output)
+- [Readable C++ geometry prefix](#readable-c-geometry-prefix)
+
+**Checks and trials**
+
+- [SPU reference cross-check](#spu-reference-cross-check)
+- [Refreshed CPU sample limits](#refreshed-cpu-sample-limits)
+- [NPC-facing cadence and rejected host-FMA trial](#npc-facing-cadence-and-rejected-host-fma-trial)
 
 ## Current execution evidence
 
@@ -48,7 +97,7 @@ transition. A separate instrumented run confirms execution of all five new entri
 
 A separate strict DirectX route `20261019-215032` confirms the actual town-to-
 Balastor Plain transition with zero fallback. The ground incorrectly occludes
-Leonardâ€™s lower body there. That fault reproduces on the older 115-patch DirectX
+Leonard’s lower body there. That fault reproduces on the older 115-patch DirectX
 build; Vulkan 117 shows the lower body on the corresponding route. This remains
 a DirectX rendering issue fixed in the inspected route by patch 0118; it was
 not caused by the static SPU entries. Production probe `20261019-222607` also
@@ -227,7 +276,7 @@ help check ABI, channel and DMA boundaries while recovering kernels. The
 [undocumented channel table](https://www.psdevwiki.com/ps3/Undocumented_SPU_Channels)
 mostly covers isolation, loader, persistence, RNG and performance-monitor
 facilities. A static scan of all 24 generated images finds no channel calls in
-its 64â€“74 range. Two `rchcnt 113` sites occur beside undecoded words in images
+its 64–74 range. Two `rchcnt 113` sites occur beside undecoded words in images
 1 and 2; their reachability and meaning are unverified, so they are not treated
 as confirmed runtime requests. It does not establish that WKC uses a missing channel. Add behavior
 only after an actual decoded instruction or runtime request establishes the need;
@@ -403,7 +452,7 @@ unhooked compiled reference:
 | --- | ---: | ---: | ---: | ---: |
 | Recorded-LS and bounded finite palettes, three arithmetic modes | 30,000 | 27,609 | 2,391 | 0 |
 | Additional arbitrary float-bit palettes, three modes | 30,000 | 27,552 | 2,448 | 0 |
-| Four rounding modes Ã— four FTZ/DAZ combinations Ã— three arithmetic modes | 48,000 | 44,256 | 3,744 | 0 |
+| Four rounding modes × four FTZ/DAZ combinations × three arithmetic modes | 48,000 | 44,256 | 3,744 | 0 |
 | Total | 108,000 | 99,417 | 8,583 | 0 |
 
 The same random sequence is reused across arithmetic modes; these totals do not
@@ -535,7 +584,7 @@ host/exact/audit arithmetic helpers as policies for this comparison.
 | --- | ---: | ---: | ---: | ---: |
 | Original 32 recorded stage calls | 32 | 11,584 | 16,352 | 0 |
 | Random packed bytes and full-width biases, three arithmetic modes | 3,072 | 1,703,424 | 3,139,584 | 0 |
-| Four rounding modes Ã— four FTZ/DAZ settings Ã— three arithmetic modes | 3,072 | 1,703,424 | 3,139,584 | 0 |
+| Four rounding modes × four FTZ/DAZ settings × three arithmetic modes | 3,072 | 1,703,424 | 3,139,584 | 0 |
 
 Random sequences repeat across arithmetic modes/settings. These are bounded
 comparisons over the captured counts/layouts and selected output streams, not
@@ -578,8 +627,8 @@ stage with randomized packed deltas, biases, selectors and all four commands:
 
 | Dataset | Attempts | Accepted output matches | Unchanged declines | Checked indices | Mismatches |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Widths 1â€“15, 24â€“402 indices | 7,680 | 7,679 | 1 | 1,629,786 | 0 |
-| Widths 0â€“16, including unsupported boundaries | 4,352 | 3,840 | 512 | 813,735 | 0 |
+| Widths 1–15, 24–402 indices | 7,680 | 7,679 | 1 | 1,629,786 | 0 |
+| Widths 0–16, including unsupported boundaries | 4,352 | 3,840 | 512 | 813,735 | 0 |
 
 These sets reuse one deterministic seed and overlap in input classes; they are
 not an exhaustive format proof. Deliberately changing one output bit is rejected
@@ -633,7 +682,7 @@ that stage's registers, stack or local-store scratch.
 | --- | ---: | ---: | ---: |
 | Random bounded finite declared palettes/positions and arbitrary influence bytes, three arithmetic modes | 3,072 | 520,704 | 0 |
 | Arbitrary float-bit declared palettes/positions and influence bytes, three modes | 3,072 | 520,704 | 0 |
-| Four rounding modes Ã— four FTZ/DAZ settings Ã— three arithmetic modes | 6,144 | 1,041,408 | 0 |
+| Four rounding modes × four FTZ/DAZ settings × three arithmetic modes | 6,144 | 1,041,408 | 0 |
 
 Counts/layouts and other backing bytes come from the captures. Random sequences
 repeat across modes/settings, and an out-of-count palette read can still see
@@ -677,7 +726,7 @@ payload export. These captures provide no contention, wrap, atomic retry,
 global fallback, blocking wait or other-slot scheduling coverage.
 
 All 32 jobs publish a final fenced PUT after earlier same-tag payload PUTs, where
-present. The final packet size matches metadata header byte 1 Ã— 16. Native
+present. The final packet size matches metadata header byte 1 × 16. Native
 replacement must retain payload-before-command visibility, shared state
 ownership and retry behavior; an owned buffer per job is insufficient by itself.
 These decoded contracts underlie the C++ allocation/export transactions and
@@ -718,13 +767,13 @@ backed input/output storage, then compare only the logical packed prefix:
 | --- | ---: | ---: | ---: |
 | Bounded finite inputs, three arithmetic modes | 9,216 | 20,370,840 | 0 |
 | Arbitrary float bits, three arithmetic modes | 9,216 | 20,370,840 | 0 |
-| Four rounding modes Ã— four FTZ/DAZ settings Ã— three arithmetic modes | 12,288 | 27,123,840 | 0 |
+| Four rounding modes × four FTZ/DAZ settings × three arithmetic modes | 12,288 | 27,123,840 | 0 |
 | Default portable host policy, arbitrary bits | 3,072 | 6,790,280 | 0 |
 | Default host policy, rounding/FTZ/DAZ matrix | 4,096 | 9,041,280 | 0 |
 
 The sets reuse deterministic sequences and overlap; they are not distinct
 exhaustive inputs. Cases cover all three formats, both suppression settings and
-counts 0â€“256. Zero-count cases model the outer wrapper's empty path and do not
+counts 0–256. Zero-count cases model the outer wrapper's empty path and do not
 call the nonempty custom loop. The reference rounds nonempty counts up to pairs;
 the fixture supplies the extra vertex for odd counts. Only logical records are
 claimed, not those extra writes or the outer arena cursor. An output-bit
@@ -782,7 +831,7 @@ exercise state 5 and additional branches.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Bounded finite positions, basic/subpixel filtering, three arithmetic modes | 6,144 | 2,224,128 | 3,882,240 | 2,312,103 | 0 |
 | Arbitrary float-bit positions and matrices, both filter variants, three modes | 6,144 | 2,224,128 | 3,882,240 | 729,324 | 0 |
-| Four rounding modes Ã— four FTZ/DAZ settings Ã— three modes, selected basic/subpixel variant per configuration | 6,144 | 2,224,128 | 3,882,240 | 680,892 | 0 |
+| Four rounding modes × four FTZ/DAZ settings × three modes, selected basic/subpixel variant per configuration | 6,144 | 2,224,128 | 3,882,240 | 680,892 | 0 |
 
 The synthetic cases retain captured counts/layouts while changing positions,
 indices, precision and winding; the arbitrary-bit datasets also vary matrices.
@@ -904,7 +953,7 @@ against stage output, not just surviving indices.
 
 The actual public helper passes 140 validation processes: 32 captured calls,
 18,432 randomized/matrix calls, 12 runs of 4,370 directed cases, and six expected
-corruption failures. Directed coverage includes every keep mask, counts 1â€“20,
+corruption failures. Directed coverage includes every keep mask, counts 1–20,
 duplicate triangles, poisoned prior arena bytes, partial groups and basic/state-5
 filtering. Seeds repeat across modes/settings; these are not unique or exhaustive
 inputs. All complete-payload comparisons pass. Public regressions add 644
@@ -971,8 +1020,8 @@ Independent actual-reference comparisons cover more allocator/export branches:
   cover formats 32/33/34, index zero, index and vertex chunk boundaries, tags
   0/20/31, mapped-cursor wrapping and both initial interrupt states. The maximum
   tested index count is 65,535. Zero vertex count remains unsupported.
-- Six deliberate corruptions of the connected pathâ€”packet bytes, count,
-  destination, allocator cursor, payload bytes and the final fence commandâ€”are
+- Six deliberate corruptions of the connected path—packet bytes, count,
+  destination, allocator cursor, payload bytes and the final fence command—are
   required to fail. Separate allocator result/order and exporter result/order
   controls also fail.
 

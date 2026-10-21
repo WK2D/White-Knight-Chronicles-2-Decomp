@@ -146,6 +146,9 @@ sharpness. See [patch 0079](PATCHES.md#vulkan-texture-lod-bias-patch-0079).
 
 ## SPU and SPURS
 
+For this port's SPU status, fixes and replacement workflow in one place, see
+[SPU jobs and their replacement](SPU.md).
+
 ### Unimplemented imports that return success hide missing work
 
 The physics update submitted jobs through a SPURS job queue whose imports were

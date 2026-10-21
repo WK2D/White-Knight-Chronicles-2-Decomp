@@ -24,42 +24,12 @@ compiled SPU code remains linked for other jobs and unsupported inputs.
 - The SPU build extracts and lifts 24 image/job inputs, compiles their generated
   C, and registers compiled entries by image fingerprint. These include the
   secondary-bone physics job added for the town stretching fix.
-- One image-19 geometry prefix now uses a readable C++ four-influence matrix
-  blend and a complete supported batch boundary with a narrow guest-state bridge:
-  positions, cofactors, first normal products, local-store output and read-ahead.
-  Its retained
-  compiled reference and
-  full-state replay/fuzz checks are described in [native execution work](NATIVE_CODE.md).
-  A separate final-normal boundary now uses decoded C++ batches with full-state
-  replay/fuzz checks, including host NaN-payload handling. Other normal-loop
-  variants remain available on the compiled fallback path. The supported whole
-  skinning routine now replaces both loops and their setup/drain with readable
-  C++. The earlier
-  geometry boundary retains its compiled C tail for host/audit nonfinite inputs;
-  exact-SPU mode accepts all arithmetic bit patterns.
-- Main now connects a public C++ runtime for complete supported image-19 geometry
-  jobs, from original descriptor/input acquisition through decoding, skinning,
-  filtering, allocation, payload export and command publication. This Windows
-  route owns its inputs and outputs in C++. Seven ordinary host operations and
-  the extended `c-a*b` operation use authored C++. Reciprocal estimates,
-  interpolation and integer conversions retain SDK adapters. The
-  host-float route is enabled only by `WKC_NATIVE_GEOMETRY_JOB=1`. Unset or `0`
-  leaves its dispatch, scope gates and PUT observers unregistered and silent.
-  `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1` separately enables sampled diagnostics.
-  Other constructor/layout domains decline before native external effects and
-  retain compiled fallback. A failure after effects stops the process after local
-  cleanup; it cannot replay the compiled job over partially published output.
-- Image23 visibility modes 1–4 also use complete authored C++ requests for admitted
-  constructors: frustum, quad occlusion, integer mask and projected interval.
-  They copy retained records in source order and publish
-  the original-format header last through coherent native writes. Inputs and
-  results are owned values; no guest context or local store enters these
-  algorithms. Modes 1/2/4 use the admitted Windows host-float policy.
-  Their extended negative-product refinement also uses the authored C++
-  implementation, with a portable integer core and tested AVX2 specialization.
-  Unsupported interfaces retain compiled execution. The existing
-  `WKC_NATIVE_GEOMETRY_JOB=1` switch enables these routes too. See
-  [visibility interfaces and evidence](NATIVE_CODE.md#frustum-and-interval-selection).
+- Readable C++ runs complete supported image-19 geometry jobs (from original
+  descriptor through command publication, pipelined across worker threads) and
+  all four image-23 visibility modes for admitted inputs. Inputs outside those
+  domains decline before any external effect and run the compiled job. The
+  routes are enabled by `WKC_NATIVE_GEOMETRY_JOB=1`. See [SPU jobs and their replacement](SPU.md) for the
+  overview and [native execution work](NATIVE_CODE.md) for the evidence.
 - Firmware SPURS job-queue/port calls now execute registered jobs and pass the
   control block required by the job's C runtime startup. The current implementation
   runs jobs synchronously in submission order within each queue. This restores
@@ -150,40 +120,12 @@ that a supported WKC modding framework currently exists.
 
 ## Remaining CPU work
 
-The supported complete image-19 skinning routine now runs through readable C++
-with a checked ABI bridge. All 32 recorded calls and 99,417 accepted stress
-comparisons match complete state. Strict DirectX and Vulkan transition routes
-also pass sampled live comparisons. Unsupported interfaces retain their compiled
-reference. See [routine evidence and limits](NATIVE_CODE.md#readable-whole-skinning-stream).
-The opt-in public whole-job runtime now connects the supported constructor/layout
-domains to actual SDK memory, native CAS and PUT operations. All 32 recorded jobs
-replay with byte-exact external outputs and zero mismatches. The original
-[whole-job reference replay](NATIVE_CODE.md#whole-geometry-job-boundary) retains
-the captured-input provenance and comparison boundary. Image23 adds 14 complete
-captured-request comparisons, 200 synthetic original/actual-dispatch cases and
-a bounded two-worker comparison. These cover the admitted modes and synchronous
-mapping contract, rather than arbitrary concurrent mutation or unmapping.
-Broader job/image domains, general asynchronous scheduling and complete image
-replacement remain open.
-
-The first instrumented performance comparison regressed with debug logging
-enabled; profiling found `WriteFile` hot. A later quiet comparison used the same
-executable with the FPS overlay enabled and found near parity in two stationary
-town views: native versus compiled measured 29.914 versus 29.996 fps at the Logic
-Stone and 19.746 versus 20.581 fps facing the entrance. That comparison did not
-establish an FPS gain. Later integer NaN classification improves two crowded
-stationary views in a separate A/B. Seven arithmetic/comparison operations and
-the [extended negative-product operation](NATIVE_CODE.md#owned-extended-negative-product-arithmetic)
-now use authored C++ in the supported whole-job policies. The latter preserves
-finite exponent-255 encodings, truncation, zero flushing and saturation through
-portable integer arithmetic and an AVX2 specialization. Its independent integer
-oracle and x86 FP-environment checks establish arithmetic compatibility, not an
-FPS improvement or ARM validation. Reciprocal estimates/interpolation and integer
-conversions remain SDK adapters. The requested local desktop update now enables this
-supported job with a clean, manual launch at the 30 FPS baseline. Movement segments ended at the Leave area exit
-prompt and were excluded, so there is no benchmark for walking among NPCs on the
-main road or for area transitions. Broader layouts and NPC-heavy routes remain
-unverified. See the [comparison conditions](BUILD.md).
+The SPU side has its own page, [SPU jobs and their replacement](SPU.md): which images run as C++,
+the problems fixed, what limits the frame rate and how a job is replaced. In
+short, supported image-19 and image-23 work runs as readable C++, image-19 jobs
+are pipelined across worker threads, and the serial image-20 render-command
+builder is now the largest SPU cost on the crowded street. No complete image
+has been replaced.
 
 The [native execution work plan](NATIVE_CODE.md) separates removal of interpreter
 fallback from readable replacements for already compiled hot jobs. Python tools

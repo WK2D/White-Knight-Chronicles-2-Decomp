@@ -15,6 +15,8 @@ physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
+SPU findings, fixes and status are collected in [SPU jobs and their replacement](SPU.md).
+
 The latest round made lifted SPU code cheaper to run. Captured jobs can now be
 replayed byte for byte (`WKC_JOB_REPLAY`), and
 [patch 0130](PATCHES.md#faster-spu-calls-and-transfers-patch-0130) turns most
@@ -30,45 +32,14 @@ the frame limit unlocked, the crowded street went from about 15.5 to about 26.5
 FPS on Vulkan. The [newest gallery capture](GALLERY.md#2026-10-21--pipelined-geometry-and-faster-spu-code)
 reads 21.3 FPS facing the crowd on DirectX.
 
-The earlier [extended negative-product replacement](NATIVE_CODE.md#owned-extended-negative-product-arithmetic)
-moves another numeric operation from the SDK into connected project C++,
-including a portable path and AVX2 acceleration. Actual geometry and visibility
-outputs match original execution; this is an ownership improvement with no
-established FPS gain.
-
-The preceding [frustum/interval extension](NATIVE_CODE.md#frustum-and-interval-selection)
-connects all four known image23 request modes for admitted inputs. Town modes
-1/2/3 execute; mode 4 has controlled original/native comparisons. No FPS gain
-or complete-image replacement is established.
-
-Readable C++ now executes the complete supported image-19 skinning routine,
-including setup, matrix blending, position/normal outputs and pipeline drain.
-Complete-state comparisons and sampled strict DirectX/Vulkan town-to-plains
-routes pass. The public source now connects the supported whole image-19 job
-through owned input construction, native allocation, coherent transfers and
-command publication when `WKC_NATIVE_GEOMETRY_JOB=1`; the local desktop enables
-that feature with manual startup and diagnostics disabled. All 32 earlier
-original-input jobs match through the SDK native CAS, VM and PUT callbacks.
-Expanded position layouts add 84 fresh complete-job comparisons with zero
-mismatches, plus 7,757 observed new-format completions in a diagnostic town run.
-Three additional palette rows now derive from explicit constructor/descriptor
-facts and pass 60 fresh complete-job pairs; a diagnostic town census records
-2,114 completions with those row classes observed.
-Direct/global command invalidation is corrected. Seven host arithmetic/comparison
-operations are authored C++; remaining numeric adapters, palette/layout domains,
-broader gameplay and scheduling remain unfinished. Classifier-only stationary
-comparisons show a bounded gain; the subsequent arithmetic and layout work has
-no measured FPS benefit. See [native work](NATIVE_CODE.md#expanded-quantized-position-inputs).
-No complete SPU image or smooth 30 FPS traversal is claimed. Desktop
-clean-play mode also removes inherited diagnostics, and patch 0119 disables the
-previously unconditional DirectX benchmark recorder unless explicitly requested.
-
-The same opt-in runtime executes admitted image23 requests in all four known
-selection modes. The frustum/interval extension adds 240 synthetic original/native
-dispatch comparisons, eight real frustum requests and 128 two-worker dispatches.
-Town execution observes modes 1/2/3; mode 4 gameplay remains unobserved.
-Unsupported interfaces retain compiled execution. No FPS gain or complete-image
-replacement is claimed. See [selection proof](NATIVE_CODE.md#frustum-and-interval-selection).
+Earlier native-code rounds connected the
+[extended negative-product arithmetic](NATIVE_CODE.md#owned-extended-negative-product-arithmetic),
+all four [image-23 visibility modes](NATIVE_CODE.md#frustum-and-interval-selection)
+and the complete supported [image-19 geometry job](NATIVE_CODE.md#opt-in-live-geometry-job),
+each checked against the original job's outputs. Apart from a small classifier gain,
+those rounds moved ownership into C++ rather than adding speed. Desktop clean-play mode removes inherited
+diagnostics, and patch 0119 disables the previously unconditional DirectX
+benchmark recorder unless requested.
 
 ## Contents
 
@@ -83,6 +54,9 @@ replacement is claimed. See [selection proof](NATIVE_CODE.md#frustum-and-interva
 
 **Performance, timing and presentation**
 
+- [Image 20, the render-command builder](NATIVE_CODE.md#next-critical-path-image-20-the-spu-render-command-builder)
+- [Faster SPU calls and transfers (patch 0130)](PATCHES.md#faster-spu-calls-and-transfers-patch-0130)
+- [Pipelined geometry jobs (patches 0127-0128)](PATCHES.md#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128)
 - [Owned visibility jobs](#owned-visibility-jobs)
 - [Owned palette row sources](NATIVE_CODE.md#owned-palette-row-sources)
 - [Expanded owned geometry inputs](NATIVE_CODE.md#expanded-quantized-position-inputs)
@@ -140,8 +114,8 @@ replacement is claimed. See [selection proof](NATIVE_CODE.md#frustum-and-interva
 
 **SPU, SPURS and CPU execution**
 
+- [SPU jobs and their replacement](SPU.md): overview, status and every SPU fix
 - [Static SPU entry coverage](#static-spu-entry-coverage-patches-0116-0117)
-
 - [SPURS completion coherence and SPU byte operations (patches 0091-0093)](#spurs-completion-coherence-and-spu-byte-operations-patches-0091-0093)
 - [Exact SPU vector math (patch 0078)](#exact-spu-vector-math-patch-0078)
 - [Reproducing the SPU inputs from the executable](#reproducing-the-spu-inputs-from-the-executable)
@@ -544,7 +518,7 @@ WKC speedup. Status on 2026-10-19:
 
 **Cause.** The previous guest lightweight-mutex handlers entered the Windows
 semaphore API even when no other thread holds the lock. A hidden, muted Continue
-run measured 58,849â€“70,572 lock requests and 117,804â€“141,320 semaphore calls per
+run measured 58,849–70,572 lock requests and 117,804–141,320 semaphore calls per
 second across idle/forward/back phases. Over 99.7% of attempts were uncontended.
 There were no observed wait/release failures. These counts exclude internal
 SPU/MFC host locks; external snapshots can straddle an in-flight operation.
@@ -748,7 +722,7 @@ Other nearby angles measure 25.83 and 23.25, so this is not a clean NPC-only tes
 A separate route records 20 new textures going forward, 168 coming back and ten
 during camera movement. The final slow idle window has zero allocations and zero
 image uploads. Vertex, index and constant uploads still occur; the stationary
-views submit roughly 12â€“17 MB of constants per present callback.
+views submit roughly 12–17 MB of constants per present callback.
 
 The existing private local-register geometry-kernel candidate is rechecked on
 the current runtime: 226,404 sampled complete-context/local-store/continuation
@@ -855,7 +829,7 @@ identity and failure handling are covered by the [patch regressions](PATCHES.md#
 **Evidence.** Four hidden, muted runs use one private executable, the same save
 and wall-clock controller sequence, in off/on/on/off order. Each return-leg
 measurement lasts about ten seconds. Output is 720p, the internal scene remains
-1920Ã—1080, the frame limit is 30, VSync is off, and no CPU sampler or GPU readback
+1920×1080, the frame limit is 30, VSync is off, and no CPU sampler or GPU readback
 runs during these timing samples.
 
 | Cache | Presentations/s | 95th-percentile interval | Longest interval | Compilations / requests | Compiler/admission time |
@@ -1006,7 +980,7 @@ prototypes now have correctness evidence:
   a nonfinite value. Diagnostics, alternate float modes and unsuitable contexts
   also retain the reference path. One slower kernel variant is discarded.
 
-**Evidence.** Three synthetic PPU variantsâ€”plain, locals and verifyingâ€”produce
+**Evidence.** Three synthetic PPU variants—plain, locals and verifying—produce
 identical observed outputs across 300 randomized runs through the pinned WKC
 lifter. The grouped version passes another 300-run comparison. Focused group
 checks cover unaligned/endian reads, special and wrapping spans, unbacked pages,

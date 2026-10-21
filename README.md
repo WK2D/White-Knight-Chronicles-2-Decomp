@@ -1,7 +1,7 @@
 # White Knight Chronicles II Recomp
 
 A native C++ port of **White Knight Chronicles II** built by recompiling
-the PS3 game code. Development starts with **White Knight Chronicles I**, 
+the PS3 game code. Development starts with **White Knight Chronicles I**,
 which is included on the disc.
 
 [![White Knight Chronicles I crowded town street in the native build, FPS overlay reading 21.3](verification/screenshots/2026-10-21-native-faster-spu-street.png)](docs/GALLERY.md)
@@ -54,7 +54,8 @@ the optional in-game FPS overlay remains your choice.
 - **Performance and game timing:** the crowded town street is the slowest scene.
   With the frame limit unlocked it now runs at about 23–41 FPS on Vulkan, up from
   about 15 before pipelined geometry jobs; DirectX views of the crowd read 17–22.
-  The SPU render-command job is the largest remaining cost. Movement still
+  The SPU render-command job is the largest remaining cost
+  ([details](docs/SPU.md#what-limits-the-frame-rate)). Movement still
   stutters, and loading and cutscene timing need further comparison with RPCS3.
 - **Rendering:** black flicker at Leonard's feet and the rotating Logic Stone effect
   remain open. DirectX shadow fidelity and darker grass are under investigation,
@@ -94,24 +95,13 @@ implements the PS3 services it uses. Tested town-to-plains routes run with the S
 interpreter fallback forbidden, after five missing SPU entries were added to the
 static build. The fallback remains available for untested paths.
 
-Readable, project-written C++ now handles supported whole geometry jobs and all
-four known visibility-request modes for admitted inputs: frustum, occlusion,
-mask and projected-interval selection. Retained records publish in source order. Enable the experimental route with
-`tools/play.ps1 -NativeGeometryJob`; unsupported inputs retain compiled execution
-before any native output is published. See the [native execution work](docs/NATIVE_CODE.md#owned-visibility-jobs)
-for interfaces, original-job comparisons and live coverage.
-
-Seven ordinary host arithmetic/comparison operations and the extended
-negative-product operation use authored C++, with a portable implementation
-and AVX2 acceleration for the latter. Reciprocal estimates, integer conversions
-and other job/image paths still use the SDK and
-generated code. No complete SPU image has been replaced. Supported geometry
-jobs are prepared on worker threads and published in order, which took the
-crowded street from about 15 to about 26 FPS unlocked. Lifted SPU code also
-jumps directly between functions when no runtime hook needs to run, about 10%
-off each render-command job. Smooth 30 FPS traversal, full-game
-static coverage and a readable reconstruction of the original source remain
-unverified. Normal startup stays manual, with diagnostics disabled and the
+Readable, project-written C++ runs the supported image-19 geometry jobs, pipelined
+across worker threads, and all four image-23 visibility modes; other SPU jobs and
+inputs still run as compiled code. No complete SPU image has been replaced yet.
+Everything about the SPU work is on one page,
+[SPU jobs and their replacement](docs/SPU.md): what each job does, how the port
+runs it, the problems found and fixed, what limits the frame rate and how a job
+is replaced. Normal startup stays manual, with diagnostics disabled and the
 30 FPS baseline recommended.
 
 ## Building and documentation
@@ -123,6 +113,7 @@ repository.
 
 | Page | Contents |
 | --- | --- |
+| [SPU jobs and their replacement](docs/SPU.md) | Start here for SPU work: the 24 jobs, how they run, problems fixed, what limits FPS and the replacement workflow |
 | [Build guide](docs/BUILD.md) | Requirements, private workspace layout, building, regression checks, play and diagnostic options |
 | [Findings log](docs/FINDINGS.md) | Verified results, measurements, open issues and investigation history, grouped by topic |
 | [Runtime patch notes](docs/PATCHES.md) | What each numbered SDK patch changes and how it was checked, newest first |
@@ -130,10 +121,10 @@ repository.
 | [Lessons for recompilers](docs/LESSONS.md) | Symptom index and reusable lessons on timing, rendering, SPU jobs and runtime services |
 | [Reference](docs/REFERENCE.md) | Glossary, environment variables and known game addresses |
 | [Architecture](docs/ARCHITECTURE.md) | Execution model, remaining SPU fallback and modding scope |
+| [Native C++ execution work](docs/NATIVE_CODE.md) | Replacing SPU code with readable C++ and speeding up SPU jobs: evidence, work order and acceptance rules |
+| [DirectX parity audit](docs/DIRECTX_PARITY.md) | Vulkan fixes still missing from live DirectX, with evidence and next checks |
 | [Progress gallery](docs/GALLERY.md) | Dated screenshots, newest first |
 | [Runtime audit](docs/KILLZONE_FIX_AUDIT.md) | Runtime-fix comparison and remaining implementation gaps |
-| [Native C++ execution work](docs/NATIVE_CODE.md) | Replacing SPU code with readable C++: evidence, work order and acceptance rules |
-| [DirectX parity audit](docs/DIRECTX_PARITY.md) | Vulkan fixes still missing from live DirectX, with evidence and next checks |
 | [Code review history](docs/CODE_REVIEW.md) | Review findings, fixes and the checks that were run |
 | [Contributing](docs/CONTRIBUTING.md) | Contribution workflow and where new notes belong |
 

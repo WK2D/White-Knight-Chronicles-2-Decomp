@@ -2,46 +2,36 @@
 
 Screenshots captured from native Windows x86-64 execution with D3D12 or Vulkan,
 using USA BLUS30784 v01.00. These are game-frame GPU readbacks, losslessly encoded
-as PNG. All optional metadata has been removed. Images contain the game frame only.
-
-These captures come from a host-compiled recompilation build with a PS3 runtime
-layer. Earlier runs observed SPU interpreter fallback; newer strict routes have
-zero entries. Neither establishes full-game interpreter-free execution; see
-[architecture](ARCHITECTURE.md).
+as PNG with all optional metadata removed; images contain the game frame only.
+Capture details for every image are in
+[`verification/gallery.json`](../verification/gallery.json).
 
 Current source: 130 SDK patches / 120 Windows checks in normal Debug and optimized
 Release. The newest capture shows the crowded town street after pipelined
-geometry jobs and faster SPU transfers, with the FPS counter on: 21.3 FPS in
-an unlocked DirectX run, where the last capture on this street read 8.5 at a
-30 FPS cap. The street still lags. Earlier captures show the connected
-geometry and visibility C++ runtime and authored extended negative-product
-arithmetic; their diagnostic routes verify visibility modes and palette rows.
-A classifier-only A/B improves stationary views; the later arithmetic run has
-an unpaired 13.164 FPS sample and still stutters. Earlier captures follow the complete supported
-C++ skinning routine on a strict DirectX town-to-plains route. Earlier captures
-show leaf-shaped shadow cutouts after correcting
-alpha-reference formats. These verify inspected frames, not performance gains.
-Complete replacement of every game SPU job remains the target; no complete image
-has been replaced yet. The opt-in supported whole-job runtime is documented in
-[native work](NATIVE_CODE.md#opt-in-live-geometry-job); these screenshots
-do not establish its performance or wider layout coverage.
-The earlier captures show
-the DirectX near/far clipping fix in Balastor Plain after a town transition,
-walking and camera rotation, plus the earlier broken view. The foreground no
-longer incorrectly covers Leonard's lower body in these inspected views.
-Full rendering, shadow/flicker and performance fidelity remain open. Static SPU
-coverage comes from strict entry guards and state replays, not these screenshots.
-Fresh DirectX portrait capture is verified; same-session menu/reload remains open.
-Earlier town captures use the native FPS overlay after Continue in the 104-patch
-Vulkan build, with 30 and Unlocked frame limits; those are final swapchain
-readbacks after the overlay. The earlier depth-range captures use
-99 patches and the menu captures use 83 patches, with their original settings.
-The earlier LOD comparison is captured before window scaling. Saving and Continue
-reload work; normal shadow polarity was restored in inspected Vulkan views.
-Full DirectX character-shadow fidelity remains unresolved. Foot/Logic Stone flicker,
-incomplete rendering state and town lag remain open. Still images do not prove
-smooth animation, performance, full gameplay or interpreter-free execution.
-Historical entries retain their original test conditions and patch counts.
+geometry jobs and faster SPU transfers: 21.3 FPS in an unlocked DirectX run,
+where the last capture on this street read 8.5 at a 30 FPS cap. The street
+still lags.
+
+**Reading these captures**
+
+- Each dated entry records what was verified at that checkpoint, with its own
+  test conditions and patch count. Later entries supersede earlier limitations
+  when further testing establishes progress.
+- Still images don't prove smooth animation, performance, full gameplay or
+  interpreter-free execution. FPS overlay readings are instantaneous
+  presentation rates.
+- The builds are host-compiled recompilations with a PS3 runtime layer. Earlier
+  runs observed SPU interpreter fallback; newer strict routes have zero entries.
+  Static SPU coverage comes from strict entry guards and state replays, not
+  screenshots. See [architecture](ARCHITECTURE.md).
+- No complete SPU image has been replaced yet. Replacing every game SPU job
+  with readable C++ remains the target; see [SPU jobs](SPU.md).
+- Still open: town lag, black flicker at Leonard's feet, Logic Stone flicker,
+  full DirectX character-shadow fidelity and same-session DirectX menu/reload.
+- Older capture conditions: the Vulkan town captures with the FPS overlay are
+  final swap-chain readbacks after the overlay (104-patch build, 30 and
+  Unlocked limits); the depth-range captures use 99 patches and the menu
+  captures 83; the LOD comparison is captured before window scaling.
 
 The dated entries after the two overview tables appear newest first; new captures go above the latest entry.
 Each dated entry records what was verified at that checkpoint; later entries

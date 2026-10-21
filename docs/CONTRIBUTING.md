@@ -71,7 +71,8 @@ native behavior. Commit and push checked milestone updates as work progresses.
 | A new screenshot | [GALLERY.md](GALLERY.md), newest first |
 | A general lesson or a symptom with a known cause | [LESSONS.md](LESSONS.md): add a row to the symptom index when the symptom is recognizable |
 | A term, environment variable or game address | [REFERENCE.md](REFERENCE.md) |
-| A readable C++ replacement for SPU code | [NATIVE_CODE.md](NATIVE_CODE.md): follow its acceptance rules |
+| A readable C++ replacement for SPU code | [NATIVE_CODE.md](NATIVE_CODE.md): follow its acceptance rules, then update the status, image table and fixes in [SPU.md](SPU.md) |
+| An SPU fault, fix or performance finding | [SPU.md](SPU.md): add a row to its fixes table, with the evidence in [PATCHES.md](PATCHES.md) or [FINDINGS.md](FINDINGS.md) |
 | A difference between the Vulkan and DirectX renderers | [DIRECTX_PARITY.md](DIRECTX_PARITY.md) |
 
 Keep section headings unchanged once published: other pages link to them by anchor.

@@ -13,59 +13,22 @@ leaf-cutout shadow correction. Menu FXAA toggling was checked separately on 0110
 What each patch changes, how it was checked and its measured
 results are in the [patch notes](PATCHES.md).
 
-The latest source also connects [authored extended negative-product arithmetic](NATIVE_CODE.md#owned-extended-negative-product-arithmetic)
-in the supported geometry and visibility jobs. Its SDK-free regression compares
-the portable and compile-selected AVX2 implementations with an independent exact
-integer oracle. This replaces a numeric adapter; no new SDK patch or FPS gain
-is claimed.
+**SPU replacement.** Readable C++ runs the supported image-19 geometry jobs,
+pipelined across worker threads, and all four image-23 visibility modes. Other
+jobs and unsupported inputs run the compiled code, which the C++ routes decline
+to before publishing any output. `tools/play.ps1 -NativeGeometryJob` enables
+these routes and the desktop launcher uses it. What runs where, the problems
+fixed and the replacement workflow are in [SPU jobs and their replacement](SPU.md); per-replacement evidence
+is in [native work](NATIVE_CODE.md).
 
-The current source connects a public readable C++ runtime for complete supported
-image-19 geometry jobs to main. It acquires original descriptors and inputs, then
-executes the typed pipeline and allocation/export/publication coordinator through
-actual SDK memory, native CAS and PUT operations. All 32 recorded jobs replay with
-byte-exact external outputs and zero mismatches. Expanded position layouts
-add 84 fresh original/native complete-job comparisons and 7,757 observed town
-completions; [precision and command-publication details](NATIVE_CODE.md#expanded-quantized-position-inputs)
-record the scope. A further [palette-source expansion](NATIVE_CODE.md#owned-palette-row-sources)
-passes 60 fresh complete-job comparisons and records 2,114 completed jobs in a
-bounded diagnostic town census. The same switch now connects image23 visibility
-modes 1–4: frustum, occlusion, mask and projected-interval selection.
-Across the two milestones, 22 complete real captured requests, 440 synthetic
-original/SDK-dispatch cases and 256 independent two-worker dispatches match.
-Town execution observes modes 1/2/3; mode 4 currently has controlled
-original/native comparisons only. See [interfaces and limits](NATIVE_CODE.md#frustum-and-interval-selection).
-C++ owns the job inputs and outputs. Seven host arithmetic/comparison operations now use the
-[authored C++ policy](../native_geometry_host_math.h); special negative multiply,
-reciprocal estimates and conversions still use SDK adapters. See the
-[native output transaction evidence](NATIVE_CODE.md#native-allocation-export-and-command-construction)
-and [public runtime](../native_geometry_runtime.cpp).
-The live route is explicitly opt-in; unsupported constructor/layout domains retain
-compiled fallback before native external effects. Failures after effects stop
-execution after local cleanup, without replaying fallback. Original compiled SPU
-code remains linked, and no complete SPU image has been replaced.
-The first instrumented comparison regressed with debug logging enabled;
-profiling found `WriteFile` hot. A later quiet A/B used the same executable with
-the FPS overlay enabled and compared two stationary town views:
-
-| View | Native fps | Compiled fps | Native CPU ms/presentation | Compiled CPU ms/presentation |
-| --- | --- | --- | --- | --- |
-| Logic Stone | 29.914 | 29.996 | 127.13 | 139.71 |
-| Facing the entrance | 19.746 | 20.581 | 182.36 | 188.20 |
-
-Those initial samples show near parity and no FPS gain. A later
-[classifier-only A/B](NATIVE_CODE.md#native-classification-and-packet-construction)
-improves stationary crowded views from 7.583/7.750 to 9.915/9.999 FPS inside the
-street. The subsequent connected host-arithmetic run measures 13.164 FPS in one
-unpaired sample, with a 393.468 ms maximum interval; lag remains. These samples
-do not prove smooth walking, animation speed or 30 FPS. Earlier movement segments ended
-at the Leave area exit prompt and were excluded, so there is no benchmark for
-walking among NPCs on the main road or for area transitions. Broader layouts and
-NPC-heavy traversal remains unverified. No complete image has been replaced.
-The local desktop player has now been updated at the user's request: supported
-native jobs enabled, manual startup, 30 FPS baseline, diagnostics disabled and
-saves preserved. Other graphics preferences are unchanged.
-Patch 0123 corrects the SPU machine-status interrupt bit and retains regression
-coverage. The later live route does not isolate that patch's gameplay effect.
+**Performance.** With the frame limit unlocked, the crowded town street runs at
+about 23–41 FPS on Vulkan with the current build, up from about 15 before
+pipelined geometry jobs. The serial image-20 render-command job is the largest
+remaining SPU cost; see [what limits the frame rate](SPU.md#what-limits-the-frame-rate).
+Earlier native/compiled A/B samples are recorded in
+[native work](NATIVE_CODE.md#opt-in-live-geometry-job). The desktop player runs
+the supported native jobs with manual startup, the 30 FPS baseline, diagnostics
+disabled and saves preserved.
 
 Suite timings are not game performance. Full rendering fidelity, smooth traversal,
 combat and a locked 60 fps remain unverified. Historical measurements below retain

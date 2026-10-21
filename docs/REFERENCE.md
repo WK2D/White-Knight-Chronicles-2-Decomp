@@ -139,6 +139,9 @@ See [route coverage and limits](NATIVE_CODE.md).
 
 ### SPU and SPURS
 
+The most-used SPU switches are summarised in
+[SPU jobs and their replacement](SPU.md#switches-and-tools).
+
 | Variable | Effect | Documented in |
 | --- | --- | --- |
 | `SPU_FLOAT_MODE` | Host float results, `audit` counting, or exact SPU rules | [Earlier fixes](PATCHES.md#earlier-runtime-fixes-and-validation-history) |

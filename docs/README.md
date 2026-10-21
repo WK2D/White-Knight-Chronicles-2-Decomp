@@ -4,6 +4,7 @@ Start with the [project overview](../README.md). Pages in this folder:
 
 | Page | What it covers |
 | --- | --- |
+| [SPU.md](SPU.md) | Start here for SPU work: the 24 jobs, how they run, problems fixed, what limits FPS and the replacement workflow |
 | [BUILD.md](BUILD.md) | Requirements, private workspace layout, building, regression checks, play and diagnostic options |
 | [FINDINGS.md](FINDINGS.md) | Verified results, measurements, open issues and investigation history, grouped by topic |
 | [PATCHES.md](PATCHES.md) | What each numbered SDK patch changes and how it was checked, newest first |
@@ -11,7 +12,7 @@ Start with the [project overview](../README.md). Pages in this folder:
 | [LESSONS.md](LESSONS.md) | Symptom index and reusable lessons on timing, rendering, SPU jobs and runtime services |
 | [REFERENCE.md](REFERENCE.md) | Glossary, environment variables and known game addresses |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Execution model, remaining SPU fallback and modding scope |
-| [NATIVE_CODE.md](NATIVE_CODE.md) | Replacing SPU code with readable C++: evidence, work order and acceptance rules |
+| [NATIVE_CODE.md](NATIVE_CODE.md) | Replacing SPU code with readable C++ and speeding up SPU jobs: evidence, work order and acceptance rules |
 | [DIRECTX_PARITY.md](DIRECTX_PARITY.md) | Vulkan fixes still missing from live DirectX, with evidence and next checks |
 | [GALLERY.md](GALLERY.md) | Dated screenshots, newest first |
 | [KILLZONE_FIX_AUDIT.md](KILLZONE_FIX_AUDIT.md) | Runtime-fix comparison and remaining implementation gaps |
@@ -19,7 +20,8 @@ Start with the [project overview](../README.md). Pages in this folder:
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution workflow and where new notes belong |
 | [ICON.md](ICON.md) | Icon used by Windows builds |
 
-For other recompilation projects, start with [LESSONS.md](LESSONS.md): its
+For SPU work, including picking it up as an AI agent, start with
+[SPU.md](SPU.md). For other recompilation projects, start with [LESSONS.md](LESSONS.md): its
 symptom index maps a visible problem to the cause found here. [PATCHES.md](PATCHES.md)
 and [SUBSYSTEMS.md](SUBSYSTEMS.md) then say what was wrong in the runtime, what
 changed, and how it was verified. Tools can read the same patch history from
