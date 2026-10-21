@@ -62,7 +62,9 @@ the optional in-game FPS overlay remains your choice.
   and moving cloud shade and apparent grass density need matched comparisons with
   RPCS3. Earlier stretched hair/clothing strips and inverted shadows are fixed in
   inspected Vulkan views.
-- **Controls:** analogue walk/run conversion has improved, but physical-controller
+- **Controls:** the game reads the sticks once per frame, so they feel slow and
+  uneven wherever the frame rate drops; the frame-rate work is the main fix.
+  Patch 0132 removed up to 16 ms of extra stick delay. Physical-controller
   consistency, especially at angles, still needs comparison.
 - **Gameplay coverage:** sustained traversal, combat, a complete playthrough and
   broader save compatibility remain unverified.

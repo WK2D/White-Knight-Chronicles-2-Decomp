@@ -7,12 +7,15 @@
 #include <assert.h>
 /* Compile the actual API with a driver whose in-progress poll is controllable. */
 static DWORD WINAPI report_get_state(DWORD port,XINPUT_STATE* state);
-static ULONGLONG report_now_ms(void);
+static BOOL WINAPI report_counter(LARGE_INTEGER* now);
+static BOOL WINAPI report_frequency(LARGE_INTEGER* frequency);
 #define XInputGetState report_get_state
-#define GetTickCount64 report_now_ms
+#define QueryPerformanceCounter report_counter
+#define QueryPerformanceFrequency report_frequency
 #include "cellPad.c"
 #undef XInputGetState
-#undef GetTickCount64
+#undef QueryPerformanceCounter
+#undef QueryPerformanceFrequency
 
 uint8_t* vm_base;
 /* No SPUs or diagnostic watches exist in this isolated pad/VM test. */
@@ -26,8 +29,9 @@ void spu_coh_notify_write(uint32_t a) {(void)a;assert(0);}
 void ppu_resv_break_store(uint64_t a) {(void)a;assert(0);}
 static HANDLE entered,release_poll,read_done,read_ready;
 static volatile LONG block_poll;
-static ULONGLONG test_now=100;
-static ULONGLONG report_now_ms(void) {return test_now;}
+static ULONGLONG test_now=100; /* milliseconds on the pad's poll clock */
+static BOOL WINAPI report_counter(LARGE_INTEGER* now) {now->QuadPart=(LONGLONG)test_now*1000;return TRUE;}
+static BOOL WINAPI report_frequency(LARGE_INTEGER* frequency) {frequency->QuadPart=1000000;return TRUE;}
 static DWORD WINAPI report_get_state(DWORD port,XINPUT_STATE* state) {
     if(port) return ERROR_DEVICE_NOT_CONNECTED;
     memset(state,0,sizeof *state);

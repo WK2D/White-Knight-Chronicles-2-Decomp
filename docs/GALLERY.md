@@ -6,7 +6,7 @@ as PNG with all optional metadata removed; images contain the game frame only.
 Capture details for every image are in
 [`verification/gallery.json`](../verification/gallery.json).
 
-Current source: 131 SDK patches / 121 Windows checks in normal Debug and optimized
+Current source: 132 SDK patches / 121 Windows checks in normal Debug and optimized
 Release. The newest capture shows the crowded town street after pipelined
 geometry jobs and faster SPU transfers: 21.3 FPS in an unlocked DirectX run,
 where the last capture on this street read 8.5 at a 30 FPS cap. The street

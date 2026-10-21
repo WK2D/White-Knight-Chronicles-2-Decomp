@@ -8,6 +8,7 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0132 | [Pad poll clock and stick feel](#pad-poll-clock-and-stick-feel-patch-0132) |
 | Patch 0131 | [Atomic trace hook and image 21 in C++](#atomic-trace-hook-and-image-21-in-c-patch-0131) |
 | Patch 0130 | [Faster SPU calls and transfers](#faster-spu-calls-and-transfers-patch-0130) |
 | Patch 0129 | [DMA read trace hook and job capture](#dma-read-trace-hook-and-job-capture-patch-0129) |
@@ -61,6 +62,28 @@ of the build guide.
 | Patch 0058 | [SPURS job-queue physics](#spurs-job-queue-physics-patch-0058) |
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
+
+## Pad poll clock and stick feel (patch 0132)
+
+**Problem.** The analogue sticks felt slow and sometimes stuttery next to RPCS3.
+
+**Finding.** A trace of `cellPadGetData` on the crowded-street walk shows WKC
+reading the pad from one thread, once per game frame: 17–20 reads per second
+at 17–20 FPS, every read with fresh data. The stick is therefore sampled at
+the game's frame rate, so low frame rates make it feel slow and uneven.
+Raising the frame rate is the main fix (see
+[what limits the frame rate](SPU.md#what-limits-the-frame-rate)).
+
+One pad-side fault added delay on top. The 4 ms poll throttle was timed with
+`GetTickCount64`, which advances in 15.6 ms steps on Windows, so the host
+controller was really re-polled only every 15.6 ms and a frame could receive
+a stick position up to 16 ms old.
+
+**Fix.** Patch 0132 times the throttle with `QueryPerformanceCounter`
+(microseconds), so the controller is re-polled at most every 4 ms as
+intended. The one-packet-per-poll rule and the stick shaping from patches
+0084 and 0087 are unchanged. Both Windows suites pass, including the pad
+report and stick checks. Physical feel still needs a playtest.
 
 ## Atomic trace hook and image 21 in C++ (patch 0131)
 
