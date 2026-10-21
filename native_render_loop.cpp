@@ -153,17 +153,28 @@ void fetch_fast(spu_context* ctx) {
 
 // The command's handler, resolved once per table entry instead of through the
 // runtime's indirect-branch lookup on every command. The table lives in the
-// job's local store, so each cached entry is keyed by the address it read; a
-// target with no lifted function keeps the runtime's indirect branch.
+// job's local store, so each cached entry is keyed by the address it read.
+// For a lifted target below the taskset task region (every entry of this
+// table is) the runtime's lookup only masks the pc, clears the resident task
+// and resolves in the job's image; the loop's gate has already excluded
+// policy mode, resident overlays and armed stack resets. Anything else (a
+// pending interrupt return, a resident code span over the target, a target
+// in the task region or with no lifted function) keeps the indirect branch.
 wkc_spu_fn handler(spu_context* ctx,uint32_t index,uint32_t target) {
     struct Slot {uint32_t target;int32_t image;wkc_spu_fn fn;};
     static thread_local Slot slots[37];
+    target&=SPU_LS_MASK;ctx->pc=target;
+    if(!target||target>=0x3000u||ctx->irq_saved)return spu_indirect_branch;
+    for(const auto& code:ctx->resident_code)
+        if(code.image_id&&target>=code.lsa&&target-code.lsa<code.size)return spu_indirect_branch;
     Slot& s=slots[index];
-    if(s.fn&&s.target==target&&s.image==ctx->image_id)return s.fn;
-    const wkc_spu_fn fn=(target&SPU_LS_MASK)?spu_lookup(target,ctx->image_id):nullptr;
-    if(!fn)return spu_indirect_branch;
-    s={target,ctx->image_id,fn};
-    return fn;
+    if(!(s.fn&&s.target==target&&s.image==ctx->image_id)) {
+        const wkc_spu_fn fn=spu_lookup(target,ctx->image_id);
+        if(!fn)return spu_indirect_branch;
+        s={target,ctx->image_id,fn};
+    }
+    ctx->resident_task=0;
+    return s.fn;
 }
 
 // A lifted `brsl`: link, nested host frame, body, then drain to the link.
