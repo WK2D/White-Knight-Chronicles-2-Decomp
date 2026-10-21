@@ -15,7 +15,22 @@ physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
-The latest [extended negative-product replacement](NATIVE_CODE.md#owned-extended-negative-product-arithmetic)
+The latest round made lifted SPU code cheaper to run. Captured jobs can now be
+replayed byte for byte (`WKC_JOB_REPLAY`), and
+[patch 0130](PATCHES.md#faster-spu-calls-and-transfers-patch-0130) turns most
+transfers between lifted functions into direct tail calls. The render-command
+job (image 20) dropped from 311 to 280 µs per job, all 96 captured jobs still
+match exactly, and in game it ran about 7% faster. That job is serial by data
+flow, so it can't be parallelised: see
+[image 20](NATIVE_CODE.md#next-critical-path-image-20-the-spu-render-command-builder).
+
+Before that, [pipelined geometry jobs](PATCHES.md#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128)
+moved image-19 preparation onto worker threads with in-order publication. With
+the frame limit unlocked, the crowded street went from about 15.5 to about 26.5
+FPS on Vulkan. The [newest gallery capture](GALLERY.md#2026-10-21--pipelined-geometry-and-faster-spu-code)
+reads 21.3 FPS facing the crowd on DirectX.
+
+The earlier [extended negative-product replacement](NATIVE_CODE.md#owned-extended-negative-product-arithmetic)
 moves another numeric operation from the SDK into connected project C++,
 including a portable path and AVX2 acceleration. Actual geometry and visibility
 outputs match original execution; this is an ownership improvement with no

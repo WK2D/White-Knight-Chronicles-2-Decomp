@@ -10,10 +10,12 @@ zero entries. Neither establishes full-game interpreter-free execution; see
 [architecture](ARCHITECTURE.md).
 
 Current source: 130 SDK patches / 120 Windows checks in normal Debug and optimized
-Release. The newest capture shows the connected geometry and visibility C++
-runtime in an NPC-heavy town view, with the FPS counter on. The newest runtime also uses authored extended negative-product arithmetic.
-Earlier diagnostic routes verify visibility modes and the new palette rows.
-This quiet frame still shows town lag; no new FPS gain is claimed.
+Release. The newest capture shows the crowded town street after pipelined
+geometry jobs and faster SPU transfers, with the FPS counter on: 21.3 FPS in
+an unlocked DirectX run, where the last capture on this street read 8.5 at a
+30 FPS cap. The street still lags. Earlier captures show the connected
+geometry and visibility C++ runtime and authored extended negative-product
+arithmetic; their diagnostic routes verify visibility modes and palette rows.
 A classifier-only A/B improves stationary views; the later arithmetic run has
 an unpaired 13.164 FPS sample and still stutters. Earlier captures follow the complete supported
 C++ skinning routine on a strict DirectX town-to-plains route. Earlier captures
@@ -52,6 +54,7 @@ Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-21 | [Pipelined geometry, faster SPU code](#2026-10-21--pipelined-geometry-and-faster-spu-code) | <a href="#2026-10-21--pipelined-geometry-and-faster-spu-code"><img src="../verification/screenshots/2026-10-21-native-faster-spu-street.png" width="200" alt="Crowded town street with the FPS overlay at 21.3"></a> |
 | 2026-10-21 | [Owned extended arithmetic](#2026-10-21--owned-extended-arithmetic) | <a href="#2026-10-21--owned-extended-arithmetic"><img src="../verification/screenshots/2026-10-21-native-cpp-negative-product-town.png" width="200" alt="Authored extended arithmetic in the crowded town"></a> |
 | 2026-10-21 | [Frustum and interval selection](#2026-10-21--frustum-and-interval-selection) | <a href="#2026-10-21--frustum-and-interval-selection"><img src="../verification/screenshots/2026-10-21-native-cpp-frustum-town.png" width="200" alt="Authored selection jobs in the crowded town"></a> |
 | 2026-10-21 | [Native C++ visibility jobs](#2026-10-21--native-c-visibility-jobs) | <a href="#2026-10-21--native-c-visibility-jobs"><img src="../verification/screenshots/2026-10-21-native-cpp-visibility-town.png" width="200" alt="Authored C++ geometry and visibility in the crowded town"></a> |
@@ -89,6 +92,31 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
 
+
+## 2026-10-21 — Pipelined geometry and faster SPU code
+
+![Crowded town street in the native DirectX build, FPS overlay reading 21.3](../verification/screenshots/2026-10-21-native-faster-spu-street.png)
+
+The crowded street, the slowest scene so far, after two rounds of lag work.
+Supported image-19 geometry jobs are now prepared on worker threads and
+published in order ([pipelined geometry jobs](PATCHES.md#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128)).
+Lifted SPU code now jumps directly between functions when no runtime hook
+needs to run ([patch 0130](PATCHES.md#faster-spu-calls-and-transfers-patch-0130)).
+Captured render-command jobs replay byte for byte.
+
+This frame comes from the installed desktop build (commit `c5a2372`), relinked
+only so its DirectX window stays hidden. The run used Continue, then a
+twelve-move walk with camera turns, with an isolated copied save, sound muted,
+the frame limit unlocked and the FPS overlay on. This frame reads **21.3 FPS**.
+Across the walk the overlay read 16.7–21.7 FPS facing the crowd and 47.8–58.0
+facing walls. The last capture on this street read 8.5 FPS, at a 30 FPS cap
+and before both changes. Vulkan timelines on the same street record about
+23–41 presentations per second.
+
+The street still lags, and the render-command job (image 20) is now its largest
+cost. A still frame does not prove smooth traversal. See
+[image 20](NATIVE_CODE.md#next-critical-path-image-20-the-spu-render-command-builder)
+for what remains.
 
 ## 2026-10-21 — Owned extended arithmetic
 

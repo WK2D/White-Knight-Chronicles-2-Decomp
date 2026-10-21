@@ -4,12 +4,12 @@ A native C++ port of **White Knight Chronicles II** built by recompiling
 the PS3 game code. Development starts with **White Knight Chronicles I**, 
 which is included on the disc.
 
-[![White Knight Chronicles I town running in the native Vulkan build](verification/screenshots/2026-10-19-native-town-fps-unlocked.png)](docs/GALLERY.md)
+[![White Knight Chronicles I crowded town street in the native build, FPS overlay reading 21.3](verification/screenshots/2026-10-21-native-faster-spu-street.png)](docs/GALLERY.md)
 
-<sub>Native Vulkan town with the FPS overlay, 19 October 2026. Select the image
-for capture settings and the progress gallery, newest first.</sub>
+<sub>Crowded town street, native DirectX build, frame limit unlocked, 21 October
+2026. Select the image for capture settings and the progress gallery, newest first.</sub>
 
-<p><a href="docs/GALLERY.md#2026-10-18---native-graphics-settings"><img src="verification/screenshots/2026-10-18-native-graphics-settings.png" width="150" alt="Graphics Settings, 18 Oct" title="Graphics Settings, 18 Oct"></a> <a href="docs/GALLERY.md#2026-10-17--town-stretching-fixed-secondary-bone-physics"><img src="verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="150" alt="Town, 17 Oct" title="Town, 17 Oct"></a> <a href="docs/GALLERY.md#2026-10-16--vulkan-avatar-colours-restored"><img src="verification/screenshots/2026-10-16-native-vulkan-avatar-colours.png" width="150" alt="Avatar creation, 16 Oct" title="Avatar creation, 16 Oct"></a> <a href="docs/GALLERY.md#2026-10-16--title-menu"><img src="verification/screenshots/2026-10-16-title-menu.png" width="150" alt="Title menu, 16 Oct" title="Title menu, 16 Oct"></a> <a href="docs/GALLERY.md#2026-10-15--language-selection"><img src="verification/screenshots/2026-10-15-language-selection.png" width="150" alt="First screen, 15 Oct" title="First screen, 15 Oct"></a></p>
+<p><a href="docs/GALLERY.md#2026-10-19---town-fps-checkpoint"><img src="verification/screenshots/2026-10-19-native-town-fps-unlocked.png" width="150" alt="Town FPS overlay, 19 Oct" title="Town FPS overlay, 19 Oct"></a> <a href="docs/GALLERY.md#2026-10-18---native-graphics-settings"><img src="verification/screenshots/2026-10-18-native-graphics-settings.png" width="150" alt="Graphics Settings, 18 Oct" title="Graphics Settings, 18 Oct"></a> <a href="docs/GALLERY.md#2026-10-17--town-stretching-fixed-secondary-bone-physics"><img src="verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="150" alt="Town, 17 Oct" title="Town, 17 Oct"></a> <a href="docs/GALLERY.md#2026-10-16--vulkan-avatar-colours-restored"><img src="verification/screenshots/2026-10-16-native-vulkan-avatar-colours.png" width="150" alt="Avatar creation, 16 Oct" title="Avatar creation, 16 Oct"></a> <a href="docs/GALLERY.md#2026-10-16--title-menu"><img src="verification/screenshots/2026-10-16-title-menu.png" width="150" alt="Title menu, 16 Oct" title="Title menu, 16 Oct"></a> <a href="docs/GALLERY.md#2026-10-15--language-selection"><img src="verification/screenshots/2026-10-15-language-selection.png" width="150" alt="First screen, 15 Oct" title="First screen, 15 Oct"></a></p>
 
 <sub>Newest first, back to the first native screen: the milestones are in the
 <a href="docs/GALLERY.md#milestones-at-a-glance">gallery timeline</a>.</sub>
@@ -51,8 +51,11 @@ the optional in-game FPS overlay remains your choice.
 
 ## Known issues
 
-- **Performance and game timing:** movement still stutters, and loading and cutscene
-  timing need further comparison with RPCS3. Consistent frame pacing is a priority.
+- **Performance and game timing:** the crowded town street is the slowest scene.
+  With the frame limit unlocked it now runs at about 23–41 FPS on Vulkan, up from
+  about 15 before pipelined geometry jobs; DirectX views of the crowd read 17–22.
+  The SPU render-command job is the largest remaining cost. Movement still
+  stutters, and loading and cutscene timing need further comparison with RPCS3.
 - **Rendering:** black flicker at Leonard's feet and the rotating Logic Stone effect
   remain open. DirectX shadow fidelity and darker grass are under investigation,
   and moving cloud shade and apparent grass density need matched comparisons with
@@ -102,8 +105,11 @@ Seven ordinary host arithmetic/comparison operations and the extended
 negative-product operation use authored C++, with a portable implementation
 and AVX2 acceleration for the latter. Reciprocal estimates, integer conversions
 and other job/image paths still use the SDK and
-generated code. No complete SPU image has been replaced, and the latest
-visibility work has no measured FPS gain. Smooth 30 FPS traversal, full-game
+generated code. No complete SPU image has been replaced. Supported geometry
+jobs are prepared on worker threads and published in order, which took the
+crowded street from about 15 to about 26 FPS unlocked. Lifted SPU code also
+jumps directly between functions when no runtime hook needs to run, about 10%
+off each render-command job. Smooth 30 FPS traversal, full-game
 static coverage and a readable reconstruction of the original source remain
 unverified. Normal startup stays manual, with diagnostics disabled and the
 30 FPS baseline recommended.

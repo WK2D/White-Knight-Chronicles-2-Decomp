@@ -216,7 +216,7 @@ sources, launchers and records are in `work/lag-fix` and
   everything drains.
 - Only one chain ran image-19 jobs in these routes. Cross-chain commit order
   wasn't exercised.
-- Not yet run: DirectX, story cutscenes and combat.
+- Not yet run: story cutscenes and combat. A DirectX street walk ran on 21 October (see the gallery).
 - The FPS figures are presentation rates on one route each, not game-update
   rates.
 

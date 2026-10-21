@@ -1492,7 +1492,7 @@ their turn. In same-process street comparisons the crowded view went from about
 15.5 to 26.5 FPS. Verify mode found no difference in about 145,000 compared
 jobs. Design, routes, evidence and limits are in the
 [patch notes](PATCHES.md#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128).
-DirectX, story cutscenes and combat have not been run with it yet.
+A DirectX street walk with camera turns has now run on it (the [21 October gallery capture](GALLERY.md#2026-10-21--pipelined-geometry-and-faster-spu-code)). Story cutscenes and combat have not been run with it yet.
 
 ## Next critical path: image 20, the SPU render-command builder
 
