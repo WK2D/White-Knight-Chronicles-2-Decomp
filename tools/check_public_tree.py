@@ -28,6 +28,7 @@ root_files = {
     'native_geometry_runtime.h',
     'native_geometry_mapping_cache.h',
     'native_geometry_host_math.h',
+    'native_geometry_negative_product.h',
     'native_vertex_pack.h',
     'native_index_decode.h',
     'native_vertex_decode.h',

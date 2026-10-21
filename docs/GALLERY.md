@@ -9,10 +9,10 @@ layer. Earlier runs observed SPU interpreter fallback; newer strict routes have
 zero entries. Neither establishes full-game interpreter-free execution; see
 [architecture](ARCHITECTURE.md).
 
-Current source: 126 SDK patches / 118 Windows checks in normal Debug and optimized
+Current source: 126 SDK patches / 119 Windows checks in normal Debug and optimized
 Release. The newest capture shows the connected geometry and visibility C++
-runtime in an NPC-heavy town view, with the FPS counter on. A separate
-diagnostic route verifies both visibility modes and the new palette rows.
+runtime in an NPC-heavy town view, with the FPS counter on. The newest runtime also uses authored extended negative-product arithmetic.
+Earlier diagnostic routes verify visibility modes and the new palette rows.
 This quiet frame still shows town lag; no new FPS gain is claimed.
 A classifier-only A/B improves stationary views; the later arithmetic run has
 an unpaired 13.164 FPS sample and still stutters. Earlier captures follow the complete supported
@@ -52,6 +52,7 @@ Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-21 | [Owned extended arithmetic](#2026-10-21--owned-extended-arithmetic) | <a href="#2026-10-21--owned-extended-arithmetic"><img src="../verification/screenshots/2026-10-21-native-cpp-negative-product-town.png" width="200" alt="Authored extended arithmetic in the crowded town"></a> |
 | 2026-10-21 | [Frustum and interval selection](#2026-10-21--frustum-and-interval-selection) | <a href="#2026-10-21--frustum-and-interval-selection"><img src="../verification/screenshots/2026-10-21-native-cpp-frustum-town.png" width="200" alt="Authored selection jobs in the crowded town"></a> |
 | 2026-10-21 | [Native C++ visibility jobs](#2026-10-21--native-c-visibility-jobs) | <a href="#2026-10-21--native-c-visibility-jobs"><img src="../verification/screenshots/2026-10-21-native-cpp-visibility-town.png" width="200" alt="Authored C++ geometry and visibility in the crowded town"></a> |
 | 2026-10-20 | [Expanded native geometry inputs](#2026-10-20--expanded-native-geometry-inputs) | <a href="#2026-10-20--expanded-native-geometry-inputs"><img src="../verification/screenshots/2026-10-20-native-cpp-expanded-geometry-town.png" width="200" alt="Expanded native geometry inputs in the town"></a> |
@@ -87,6 +88,24 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Foot shadow](#2026-10-18---earlier-shadow-regression-polarity-fixed-in-patch-0074)<br><sub>Different builds and camera positions.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-town-shadow-regression.png" width="320" alt="Bright patch under Leonard (73 patches)"><br><sub>Bright patch under Leonard (73 patches)</sub> | <img src="../verification/screenshots/2026-10-19-native-depth-range-front.png" width="320" alt="Polarity fixed in patch 0074 (99 patches)"><br><sub>Polarity fixed in patch 0074 (99 patches)</sub> |
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
+
+
+## 2026-10-21 — Owned extended arithmetic
+
+![Authored extended negative-product arithmetic in the native town](../verification/screenshots/2026-10-21-native-cpp-negative-product-town.png)
+
+The [project-written extended negative-product operation](NATIVE_CODE.md#owned-extended-negative-product-arithmetic)
+now runs in supported geometry and visibility jobs, with portable and AVX2
+implementations. Original/native whole-job outputs match, and all 119 Windows
+checks pass in Debug and Release. No complete SPU image has been removed.
+
+This is an unmodified DirectX GPU frame after Continue, a camera turn and two
+short town walks, with the FPS overlay enabled. The inspected frame reads
+**8.5 FPS**; a separate quiet 12-second window in this run records about
+**8.42 presentations/s**. No paired FPS gain is established, and the street lag
+remains. Hidden/muted copied save, 30 FPS cap and strict fallback guard;
+no arithmetic counters, job census or CPU profiler. The metadata-free image
+matches every pixel of its private source readback.
 
 ## 2026-10-21 — Frustum and interval selection
 

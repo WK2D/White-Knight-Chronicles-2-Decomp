@@ -40,9 +40,9 @@ compiled SPU code remains linked for other jobs and unsupported inputs.
 - Main now connects a public C++ runtime for complete supported image-19 geometry
   jobs, from original descriptor/input acquisition through decoding, skinning,
   filtering, allocation, payload export and command publication. This Windows
-  route owns its inputs and outputs in C++. Seven ordinary host operations are
-  authored C++; special negative multiply, reciprocal estimates and conversions
-  retain SDK adapters. The
+  route owns its inputs and outputs in C++. Seven ordinary host operations and
+  the extended `c-a*b` operation use authored C++. Reciprocal estimates,
+  interpolation and integer conversions retain SDK adapters. The
   host-float route is enabled only by `WKC_NATIVE_GEOMETRY_JOB=1`. Unset or `0`
   leaves its dispatch, scope gates and PUT observers unregistered and silent.
   `WKC_NATIVE_GEOMETRY_DIAGNOSTICS=1` separately enables sampled diagnostics.
@@ -55,6 +55,8 @@ compiled SPU code remains linked for other jobs and unsupported inputs.
   the original-format header last through coherent native writes. Inputs and
   results are owned values; no guest context or local store enters these
   algorithms. Modes 1/2/4 use the admitted Windows host-float policy.
+  Their extended negative-product refinement also uses the authored C++
+  implementation, with a portable integer core and tested AVX2 specialization.
   Unsupported interfaces retain compiled execution. The existing
   `WKC_NATIVE_GEOMETRY_JOB=1` switch enables these routes too. See
   [visibility interfaces and evidence](NATIVE_CODE.md#frustum-and-interval-selection).
@@ -170,9 +172,14 @@ executable with the FPS overlay enabled and found near parity in two stationary
 town views: native versus compiled measured 29.914 versus 29.996 fps at the Logic
 Stone and 19.746 versus 20.581 fps facing the entrance. That comparison did not
 establish an FPS gain. Later integer NaN classification improves two crowded
-stationary views in a separate A/B. Seven arithmetic/comparison operations now
-use authored C++ in the supported whole job; remaining special numeric adapters
-still use SDK helpers. The requested local desktop update now enables this
+stationary views in a separate A/B. Seven arithmetic/comparison operations and
+the [extended negative-product operation](NATIVE_CODE.md#owned-extended-negative-product-arithmetic)
+now use authored C++ in the supported whole-job policies. The latter preserves
+finite exponent-255 encodings, truncation, zero flushing and saturation through
+portable integer arithmetic and an AVX2 specialization. Its independent integer
+oracle and x86 FP-environment checks establish arithmetic compatibility, not an
+FPS improvement or ARM validation. Reciprocal estimates/interpolation and integer
+conversions remain SDK adapters. The requested local desktop update now enables this
 supported job with a clean, manual launch at the 30 FPS baseline. Movement segments ended at the Leave area exit
 prompt and were excluded, so there is no benchmark for walking among NPCs on the
 main road or for area transitions. Broader layouts and NPC-heavy routes remain

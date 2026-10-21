@@ -14,7 +14,7 @@
     "screenshot_gallery": "docs/GALLERY.md",
     "publish_verified_milestones": true,
     "gallery_order": "newest_first",
-    "current_milestone": "All four known image23 visibility modes have connected authored C++ algorithms for admitted constructors, alongside supported image19 geometry. Frustum/interval modes match 240 synthetic original/native dispatches; 8 real frustum requests and 128 independent two-worker dispatches pass. Town modes1/2/3 observed; mode4 gameplay unobserved. 126 SDK patches / 118 Windows checks pass in Debug and Release. Unknown constructors, special numeric adapters, other images, broader gameplay and future platforms remain unfinished. No FPS gain or complete SPU-image replacement. The tested clean player build and FPS-overlay gallery are updated; startup remains manual.",
+    "current_milestone": "Authored extended negative-product C++ arithmetic is connected to admitted image19 geometry and image23 visibility jobs, with portable and AVX2 paths. Independent exact arithmetic tests, 32 actual-VM geometry jobs, 84 original/native geometry pairs, 440 synthetic visibility comparisons and 8 real frustum source requests pass. 126 SDK patches / 119 Windows checks pass in Debug and Release. Remaining estimate/conversion adapters, other job/image paths, broader gameplay and future platforms remain unfinished. No complete SPU image replacement or FPS gain.",
     "updated": "2026-10-21"
   },
   "native_data_installation_verified": true,
@@ -170,7 +170,7 @@
   "native_combat_verified": false,
   "current_build": {
     "sdk_patch_count": 126,
-    "runtime_checks_passed": 118,
+    "runtime_checks_passed": 119,
     "town_native_run_sdk_patch_count": 105,
     "patches_0040_0041_native_game_run_verified": true,
     "patch_0042_windows_regression_verified": true,
@@ -252,8 +252,8 @@
       "GCM_SEMA_ACQUIRE": "1",
       "RSX_ENGINE_ZTEX_GPU": "1"
     },
-    "normal_debug_checks_elapsed_seconds": 27.44,
-    "optimized_release_checks_elapsed_seconds": 22.49,
+    "normal_debug_checks_elapsed_seconds": 30.5,
+    "optimized_release_checks_elapsed_seconds": 26.01,
     "repeat_patch_application_files_changed": 0,
     "patch_0071_windows_regression_verified": true,
     "patch_0072_windows_regression_verified": true,
@@ -400,7 +400,7 @@
     "patch_0123_windows_regression_verified": true,
     "patch_0123_native_game_run_verified": false,
     "runtime_checks_configuration": "Normal Debug and optimized Release",
-    "current_debug_checks_passed": 118,
+    "current_debug_checks_passed": 119,
     "current_debug_checks_pending": false,
     "patch_0124_windows_release_regression_verified": true,
     "patch_0125_windows_release_regression_verified": true,
@@ -554,7 +554,7 @@
   "native_save_load_scope": "One starting-town Logic Stone slot: proximity highlighting, X opens its menu, Save writes the slot and restart/Continue returns to town on patch 0075. That saved slot also loads on patch 0076. Other scenes/slots, further cross-build compatibility and PS3/RPCS3 interchange unverified. The same starting-town slot was rechecked in the 105-patch Vulkan Release build.",
   "native_gameplay_verification_scope": "The false full-gameplay flag means sustained traversal, combat and a full playthrough are unverified; town rendering, limited controls and the starting-town local save/reload are verified separately.",
   "native_graphics_settings": {
-    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 126 SDK patches / 118 passing Windows checks in normal Debug and optimized Release. Full-game high-FPS compatibility remains unverified.",
+    "scope": "Full native Graphics Settings panel and normal window close; Unlocked ticks follow frame boundaries with an idle heartbeat. Menu integration was verified in earlier probes. Current source has 126 SDK patches / 119 passing Windows checks in normal Debug and optimized Release. Full-game high-FPS compatibility remains unverified.",
     "preferences": "graphics-settings.ini beside the executable",
     "primary_renderer": "Vulkan",
     "directx12": "Experimental live renderer; restart required; window/output modes, VSync, filtering, FXAA and FPS overlay integrated. Fresh portrait capture now verified; menu/reload, rendering and transition parity remain open.",
@@ -3292,7 +3292,6 @@
         "raw_output_bits_and_comparison_booleans_match": true
       },
       "remaining_sdk_numeric_operations": [
-        "extended-range negative multiply-add",
         "encoded reciprocal and reciprocal-square-root estimates",
         "signed/unsigned integer conversions"
       ],
@@ -3529,9 +3528,9 @@
     "desktop_installation": {
       "date": "2026-10-21",
       "sdk_patches": 126,
-      "checks_debug": 118,
-      "checks_release": 118,
-      "sha256": "245d9dc083d4c8c085d47cb22908e4a5af57b7eb14385f19569de1f357ee45e8",
+      "checks_debug": 119,
+      "checks_release": 119,
+      "sha256": "6e070413de4bfb1a6b67ca1a4b6f9eb9a08f08ba312dddaeab63b19fc9544769",
       "native_complete_supported_geometry_job": true,
       "native_visibility_modes": [
         1,
@@ -3540,6 +3539,7 @@
         4
       ],
       "native_authored_host_operations": 7,
+      "native_authored_extended_negative_product": true,
       "native_job_diagnostics": false,
       "manual_startup": true,
       "auto_input": false,
@@ -3550,15 +3550,15 @@
       "saves_preserved": true,
       "other_preferences_preserved": true,
       "shortcut_target_unchanged": true,
-      "release_game_route": "20261021-011233",
+      "release_game_route": "20261021-021305",
       "fully_replaced_spu_images": 0,
-      "actual_visibility_original_requests": 22,
-      "synthetic_original_visibility_cases": 440,
-      "independent_two_worker_requests": 256,
-      "actual_visibility_mismatched_bytes": 0,
       "release_actual_vm_replay_jobs": 32,
       "fresh_original_geometry_pairs": 84,
-      "scope": "Tested public Release geometry and visibility runtime; existing shortcut resolves the same executable path. Manual startup, diagnostics and auto-input disabled, 30 FPS baseline, savedata and preferences retained. No new FPS gain or complete image replacement."
+      "synthetic_original_visibility_cases": 440,
+      "current_real_mode1_source_requests": 8,
+      "mismatched_bytes": 0,
+      "private_ring_wait_included": false,
+      "scope": "Tested clean Release with authored extended negative-product arithmetic; existing shortcut, manual startup, no auto-input or diagnostics, 30 FPS baseline, saves/preferences retained. No FPS gain or complete image replacement."
     },
     "quantized_inputs": {
       "date": "2026-10-20",
@@ -3775,7 +3775,6 @@
       "raw_output_bits_and_comparison_booleans_match": true
     },
     "remaining_sdk_numeric_operations": [
-      "extended-range negative multiply-add",
       "encoded reciprocal and reciprocal-square-root estimates",
       "signed/unsigned integer conversions"
     ],
@@ -4253,6 +4252,134 @@
       "fps_gain_measured": false,
       "complete_image_replaced": false,
       "arm_verified": false
+    }
+  },
+  "native_geometry_negative_product": {
+    "date": "2026-10-21",
+    "public_source": "native_geometry_negative_product.h",
+    "public_regression": "wkc2_native_negative_product",
+    "runtime_connected": true,
+    "connected_routes": [
+      "image19 supported geometry whole jobs",
+      "image23 admitted visibility requests"
+    ],
+    "interface": "Typed scalar/Float4 values and raw encoded words; no SDK, SPU register file, local store or mode dispatch",
+    "contract": "c-a*b on extended binary32: exponent255 finite, exponent0 zero, truncate to24 significant bits, positive-zero underflow/cancellation, signed saturation",
+    "implementations": [
+      "Portable C++20 integer arithmetic",
+      "Compile-selected AVX2 four-lane integer arithmetic"
+    ],
+    "runtime_cpu_feature_dispatch": false,
+    "independent_oracle": {
+      "integer_bits": 576,
+      "distinct_triples": 483612,
+      "lane_checks_per_configuration": 7737792,
+      "fp_control_combinations": 16,
+      "sticky_flags_preserved": true,
+      "avx2_leading_bit_cases": 1048576
+    },
+    "actual_geometry_vm_replay": {
+      "jobs": 32,
+      "payload_bytes": 261184,
+      "packet_bytes": 8896,
+      "allocator_bytes": 3968,
+      "mismatched_bytes": 0
+    },
+    "original_native_geometry_pairs": {
+      "cases": 84,
+      "ordered_writes": 322,
+      "bytes": 317888,
+      "mismatched_bytes": 0
+    },
+    "original_native_visibility_pairs": {
+      "synthetic_cases": 440,
+      "synthetic_ordered_writes": 21238,
+      "synthetic_bytes": 339808,
+      "real_mode1_requests": 8,
+      "real_mode1_ordered_writes": 318,
+      "real_mode1_bytes": 5088,
+      "mismatched_bytes": 0
+    },
+    "effective_negative_controls": [
+      "Fractional-borrow omission",
+      "SIMD leading-bit clamp",
+      "Connected whole-job arithmetic lane corruption"
+    ],
+    "full_windows_regression": {
+      "debug_passed": 119,
+      "release_passed": 119,
+      "debug_seconds": 30.5,
+      "release_seconds": 26.01
+    },
+    "measured_arithmetic_cost": "Authored AVX2 near retained SDK AVX2 in the isolated comparison; portable fallback is slower",
+    "independent_fps_gain_established": false,
+    "complete_spu_image_replaced": false,
+    "arm_execution_verified": false,
+    "remaining_sdk_numeric_operations": [
+      "Encoded reciprocal/reciprocal-square-root estimates and refinement",
+      "Scaled integer conversions"
+    ],
+    "source_sha256": "fdef1763fb3b0dbf89485d351f2b30f7e39d8e2e7191a3ce5d53013c93df8f76",
+    "desktop_installation": {
+      "date": "2026-10-21",
+      "sdk_patches": 126,
+      "checks_debug": 119,
+      "checks_release": 119,
+      "sha256": "6e070413de4bfb1a6b67ca1a4b6f9eb9a08f08ba312dddaeab63b19fc9544769",
+      "native_complete_supported_geometry_job": true,
+      "native_visibility_modes": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "native_authored_host_operations": 7,
+      "native_authored_extended_negative_product": true,
+      "native_job_diagnostics": false,
+      "manual_startup": true,
+      "auto_input": false,
+      "player_mode": true,
+      "inherited_diagnostics_blocked": true,
+      "diagnostic_log_files": false,
+      "frame_limit": 30,
+      "saves_preserved": true,
+      "other_preferences_preserved": true,
+      "shortcut_target_unchanged": true,
+      "release_game_route": "20261021-021305",
+      "fully_replaced_spu_images": 0,
+      "release_actual_vm_replay_jobs": 32,
+      "fresh_original_geometry_pairs": 84,
+      "synthetic_original_visibility_cases": 440,
+      "current_real_mode1_source_requests": 8,
+      "mismatched_bytes": 0,
+      "private_ring_wait_included": false,
+      "scope": "Tested clean Release with authored extended negative-product arithmetic; existing shortcut, manual startup, no auto-input or diagnostics, 30 FPS baseline, saves/preferences retained. No FPS gain or complete image replacement."
+    },
+    "live_route": {
+      "probe": "20261021-021305",
+      "hidden": true,
+      "muted_api_verified": true,
+      "isolated_save": true,
+      "fps_counter": true,
+      "frame_limit": 30,
+      "strict_fallback_guard": true,
+      "arithmetic_counters": false,
+      "sampling_profiler": false,
+      "quiet_presentation_sample": {
+        "seconds": 12.000235099927522,
+        "renderer_presents": 101,
+        "renderer_presentations_per_second": 8.416501773420256,
+        "cpu_ms": 43687.5,
+        "process_cores": 3.6405536755078955,
+        "executable_sha256": "1c34dbf3959fc0a863a5f21ea0eaf53d4db7ac02d3f24e0c8556e0d399318151",
+        "sampling_profiler": false,
+        "arithmetic_counters": false,
+        "game_update_rate_measured": false,
+        "paired_fps_gain_established": false
+      },
+      "screenshot": "verification/screenshots/2026-10-21-native-cpp-negative-product-town.png",
+      "full_gameplay_verified": false,
+      "paired_fps_gain_established": false
     }
   }
 }

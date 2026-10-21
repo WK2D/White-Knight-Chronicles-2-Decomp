@@ -11,9 +11,11 @@ interpreter-free sampled routes alone do not satisfy this target.
 No complete SPU image has yet been replaced. The public opt-in runtime handles
 admitted whole image-19 geometry jobs and [image23 visibility modes 1–4](#frustum-and-interval-selection)
 with owned typed inputs and ordered external outputs. Unsupported constructors
-and other image paths retain compiled execution. Seven ordinary host operations use authored
-C++; special numeric adapters remain. Earlier classifier-only crowded-view
-comparisons show a bounded gain; the latest visibility work has no measured FPS gain.
+and other image paths retain compiled execution. Seven ordinary host operations
+and the [extended negative-product operation](#owned-extended-negative-product-arithmetic)
+use authored C++; reciprocal estimates/interpolation and integer conversions
+retain SDK adapters. Earlier classifier-only crowded-view comparisons show a
+bounded gain; the latest ownership work has no measured FPS gain.
 Completion requires a player build that links
 no generated SPU game code, uses no SPU interpreter, and has validated native
 interfaces and behavior throughout the game. Build-only reference replays may
@@ -115,8 +117,9 @@ Validation on Windows x86-64:
   Another 50,000 wide finite bit-pattern cases check blend and complete geometry
   stages, including overflow, subnormals and nonfinite intermediates, with no
   NaN-payload or signed-zero tolerance.
-  Live execution keeps SDK float helpers to preserve host/exact/audit semantics;
-  the finite host-FMA test does not establish exceptional-value SPU equivalence.
+  The narrow ABI bridge keeps SDK float helpers to preserve host/exact/audit
+  semantics; the later whole-job policies have separate authored arithmetic.
+  The finite host-FMA test does not establish exceptional-value SPU equivalence.
 - The portable cofactor operation matches all 768 matrix vectors from the
   64 mixed-weight captures. It passes 64 independent signed-minor matrix tests and 32,000
   finite scalar/x86 FMA comparisons of both products and results. It is now
@@ -137,7 +140,7 @@ zero fallback and at least 16,777,216 transformed blocks in each run. Both final
 frames were inspected. The Vulkan run additionally samples CPU time; profiling,
 tracing and GPU captures make it unsuitable as an FPS benchmark.
 
-Both Windows suites now pass 118 checks with 126 SDK patches. No FPS gain,
+Both Windows suites now pass 119 checks with 126 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
 is claimed.
 
@@ -753,9 +756,10 @@ comparisons below remain offline evidence.
 
 Projection retains the ordered matrix arithmetic, reciprocal estimate and
 explicit FNMS/FMA refinement. Arithmetic, reciprocal, comparison and scaled
-integer conversion are policy interfaces. The differential harness supplies
-the existing host/exact/audit runtime policies, including their reciprocal
-estimate and extended FNMS behavior. Ordinary IEEE division or host FNMS alone
+integer conversion are policy interfaces. The earlier differential harness
+supplied the host/exact/audit runtime policies, including their reciprocal
+estimate and extended FNMS behavior. The connected whole-job policy now owns
+that negative-product operation in C++. Ordinary IEEE division or host FNMS alone
 is not a specification of SPU arithmetic. The public host policies have separate
 regression oracles but do not establish exact-SPU behavior on every platform.
 
@@ -1076,9 +1080,10 @@ completion/decline counters are separately enabled by
 
 The bridge copies original descriptors and source spans into owned C++ storage,
 constructs typed inputs, and runs the public pipeline and job coordinator. It
-uses project-written C++ for seven host arithmetic/comparison operations.
-Special extended-range negative multiply, reciprocal estimates and conversions
-retain SDK adapters; the numeric path is not yet wholly independent of the SDK. Unknown constructor/cache layouts, unsupported backing
+uses project-written C++ for seven host arithmetic/comparison operations and
+the extended `c-a*b` operation. Reciprocal estimates/interpolation and integer
+conversions retain SDK adapters; the numeric path is not yet wholly independent
+of the SDK. Unknown constructor/cache layouts, unsupported backing
 or padding, and arithmetic modes outside the admitted host mode decline before
 native allocation/publication and retain compiled execution.
 
@@ -1195,8 +1200,9 @@ environments, including all FTZ/DAZ combinations, special encodings and random
 inputs. Both full suites pass **117/117**: Debug **11.93 s**, Release **11.77 s**.
 All **32 Release actual-VM job replays** still have zero mismatched bytes.
 These results do not establish other compilers, ARM or full FP exception-state
-equivalence. FNMS, encoded reciprocal estimates and integer conversions retain
-SDK adapters.
+equivalence. At that checkpoint, FNMS, encoded reciprocal estimates and integer
+conversions still used SDK adapters. The connected extended negative-product
+replacement is described [below](#owned-extended-negative-product-arithmetic).
 
 Fresh quiet run `20261020-162847` loads the save, walks briefly toward the NPC
 street and measures **13.164 presentations/s** in one twelve-second stationary
@@ -1319,8 +1325,8 @@ or local store.
 occluders. It prepares each occluder's face and four side planes once per request,
 then applies the recovered early-depth and ordered plane tests to each box.
 Both winding branches retain their original arithmetic grouping. The connected
-policy is restricted to Windows SDK host-float mode: ordinary operations use
-authored C++, while special negative multiply and reciprocal-estimate/interpolation
+policy is restricted to Windows SDK host-float mode: ordinary operations and
+extended negative multiply use authored C++; reciprocal-estimate/interpolation
 operations retain SDK adapters. A zero-occluder constructor declines because the
 original issues a malformed zero-length transfer; the typed kernel's empty-scene
 result alone does not authorize that runtime interface.
@@ -1397,8 +1403,9 @@ onto a prepared axis and tests a strict open interval: touching either endpoint
 is rejected. Both preserve four-component arithmetic, paired dot products and
 component-specific normalization grouping. Substituting a three-component
 length or one broadcast norm changes behavior. Windows HOST numeric policy is
-required; special SDK estimate/refinement adapters remain. FP exception-state
-and ARM parity are unproven.
+required; reciprocal-estimate/interpolation adapters remain SDK-backed, while
+the extended negative-product refinement is now authored C++. Full job FP
+exception-state and ARM parity are unproven.
 
 Fresh original execution and actual SDK native dispatch match **240 synthetic
 requests**, 120 per new mode: **11,290 ordered writes / 180,640 bytes**,
@@ -1430,3 +1437,43 @@ Both complete Windows suites pass **118/118**: Debug **27.44 s**, Release
 interval endpoints/NaN behavior alongside mask/occlusion examples. Unsupported
 constructors/aliases, other numeric modes, broader gameplay, generated-image
 removal and future platforms remain. No complete SPU image or FPS gain is claimed.
+
+## Owned extended negative-product arithmetic
+
+[`native_geometry_negative_product.h`](../native_geometry_negative_product.h)
+now supplies the extended `c-a*b` operation to the supported image-19 whole-job
+policy and image23 floating-point visibility policies. Those routes no longer
+pack an SDK register or call its FNMS helper for this operation. The readable
+C++ interface accepts raw binary32 words or ordinary scalar/four-value arrays;
+it has no guest context, local store, mode switch or allocation.
+
+The retained numerical contract differs from IEEE FMA: exponent-zero inputs
+flush to zero, exponent 255 represents finite values, and results truncate to
+24 significant bits. Cancellation and underflow produce positive zero;
+overflow saturates to the signed maximum extended encoding. Bit patterns that
+IEEE calls infinity or NaN are therefore finite operands here, rather than
+values to quiet or propagate. Ordinary `std::fma(-a,b,c)` cannot preserve this
+contract.
+
+The portable integer implementation forms the product and addend, aligns their
+magnitudes and explicitly accounts for a discarded fractional tail when
+subtracting. An authored AVX2 specialization evaluates four independent lanes
+with the same contract. It discovers leading bits through exact 32-bit integer
+to double conversion, without depending on host rounding. Builds without AVX2
+use the portable implementation; ARM execution remains untested.
+
+The [standalone regression](../tests/native_geometry_negative_product_test.cpp)
+uses an independent 576-bit exact integer oracle, with exceptional encodings,
+exponent boundaries, cancellation and random inputs. Portable and AVX2 results
+match across all 16 x86 rounding/FTZ/DAZ combinations, including preservation of
+seeded exception flags. Separate private comparisons also match the retained
+SDK scalar/vector results. Deliberately removing fractional borrow or changing
+leading-bit normalization makes the regression fail. These arithmetic checks do
+not establish full-job floating-point state or complete gameplay coverage.
+
+A bounded synthetic arithmetic benchmark puts the authored AVX2 implementation
+close to the previous SDK vector helper, avoiding the portable implementation's
+larger cost on x86. This is not a measured FPS gain. Reciprocal estimates,
+interpolation and integer conversions still use SDK adapters in the connected
+whole-job policies. Other compiled paths and narrow reference bridges remain;
+no complete SPU image has been removed.

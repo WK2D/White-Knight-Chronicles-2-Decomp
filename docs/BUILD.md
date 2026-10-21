@@ -5,15 +5,21 @@ observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
 **Current validation (2026-10-21):** the stack contains 126 SDK patches. All
-118 Windows checks pass in normal Debug and optimized Release. The latest
-concurrent runs take 27.44 and 22.49 seconds respectively. Reapplying the complete stack changes no SDK files.
+119 Windows checks pass in normal Debug and optimized Release. The latest
+concurrent runs take 30.50 and 26.01 seconds respectively. Reapplying the complete stack changes no SDK files.
 Strict DirectX and Vulkan routes on patch
 0121 confirm Continue, the plains transition, walking, camera rotation and the
 leaf-cutout shadow correction. Menu FXAA toggling was checked separately on 0110.
 What each patch changes, how it was checked and its measured
 results are in the [patch notes](PATCHES.md).
 
-The latest source connects a public readable C++ runtime for complete supported
+The latest source also connects [authored extended negative-product arithmetic](NATIVE_CODE.md#owned-extended-negative-product-arithmetic)
+in the supported geometry and visibility jobs. Its SDK-free regression compares
+the portable and compile-selected AVX2 implementations with an independent exact
+integer oracle. This replaces a numeric adapter; no new SDK patch or FPS gain
+is claimed.
+
+The current source connects a public readable C++ runtime for complete supported
 image-19 geometry jobs to main. It acquires original descriptors and inputs, then
 executes the typed pipeline and allocation/export/publication coordinator through
 actual SDK memory, native CAS and PUT operations. All 32 recorded jobs replay with
@@ -170,7 +176,7 @@ callback delivery, depth-comparison shaders and Vulkan arena reservation.
 admission rejection and finite box/quad examples. Its small finite geometry
 policy is separate from the whole-original arithmetic comparisons recorded in
 the [native execution evidence](NATIVE_CODE.md#owned-visibility-jobs).
-The current source stack contains 126 numbered SDK patches, and all 118 checks
+The current source stack contains 126 numbered SDK patches, and all 119 checks
 pass in normal Debug and optimized Release. Graphics panel
 captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics

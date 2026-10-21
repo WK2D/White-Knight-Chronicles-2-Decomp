@@ -31,7 +31,7 @@ with readable project-written C++; current coverage is partial.
 - The town-to-Balastor Plain transition after Continue, with short movement and
   camera control. DirectX foreground clipping is fixed on that route, and
   leaf-shaped foliage shadow cutouts are restored on both renderers.
-- **118 Windows regression checks** pass in both normal Debug and optimized Release.
+- **119 Windows regression checks** pass in both normal Debug and optimized Release.
 
 **Graphics settings:** windowed, borderless and fullscreen modes; named output
 resolutions; VSync; anisotropic filtering from Off to 16×; Off/FXAA anti-aliasing;
@@ -98,8 +98,10 @@ mask and projected-interval selection. Retained records publish in source order.
 before any native output is published. See the [native execution work](docs/NATIVE_CODE.md#owned-visibility-jobs)
 for interfaces, original-job comparisons and live coverage.
 
-Seven ordinary host arithmetic/comparison operations use authored C++.
-Special numeric adapters and other job/image paths still use the SDK and
+Seven ordinary host arithmetic/comparison operations and the extended
+negative-product operation use authored C++, with a portable implementation
+and AVX2 acceleration for the latter. Reciprocal estimates, integer conversions
+and other job/image paths still use the SDK and
 generated code. No complete SPU image has been replaced, and the latest
 visibility work has no measured FPS gain. Smooth 30 FPS traversal, full-game
 static coverage and a readable reconstruction of the original source remain

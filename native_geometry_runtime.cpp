@@ -5,6 +5,7 @@
 #include "native_geometry_job.h"
 #include "native_estimate_interpolation.h"
 #include "native_geometry_host_math.h"
+#include "native_geometry_negative_product.h"
 #include "native_visibility.h"
 #include "native_occlusion.h"
 #include "native_frustum.h"
@@ -168,9 +169,9 @@ u128 pack(const Float4& value) {u128 result;std::memcpy(&result,value.data(),16)
 Float4 unpack(u128 value) {Float4 result;std::memcpy(result.data(),&value,16);return result;}
 // Admission checks host mode once for the whole job. These ordinary arithmetic
 // and comparison operations use our typed C++ policy without SDK mode dispatch.
-// FNMS retains its distinct extended-range contract until separately replaced.
+// Extended negative-product arithmetic uses our typed compatibility policy.
 struct RuntimeMath:HostGeometryMath {
-    static Float4 negative_multiply_add(const Float4& a,const Float4& b,const Float4& c){return unpack(spu_fnms(pack(a),pack(b),pack(c)));}
+    static Float4 negative_multiply_add(const Float4& a,const Float4& b,const Float4& c){return negative_product::vector(a,b,c);}
 };
 struct PositionMath:RuntimeMath {
     static Float4 multiply_add(const Float4& a,const Float4& b,const Float4& c) {
@@ -463,7 +464,7 @@ struct VisibilityMath {
     static float subtract(float a,float b){return HostGeometryMath::subtract(scalar(a),scalar(b))[0];}
     static float multiply(float a,float b){return HostGeometryMath::multiply(scalar(a),scalar(b))[0];}
     static float fused_multiply_add(float a,float b,float c){return HostGeometryMath::multiply_add(scalar(a),scalar(b),scalar(c))[0];}
-    static float negative_multiply_subtract(float a,float b,float c){return unpack(spu_fnms(pack(scalar(a)),pack(scalar(b)),pack(scalar(c))))[0];}
+    static float negative_multiply_subtract(float a,float b,float c){return negative_product::scalar(a,b,c);}
     static float interpolated_reciprocal_sqrt(float a){const auto value=pack(scalar(a));return unpack(spu_fi(value,spu_frsqest(value)))[0];}
     static bool greater(float a,float b){return a>b;}
 };

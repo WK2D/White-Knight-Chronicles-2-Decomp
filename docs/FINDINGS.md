@@ -2,7 +2,7 @@
 
 Updated 2026-10-21. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 126 SDK patches / 118 Windows checks in normal Debug
+**Current source checkpoint:** 126 SDK patches / 119 Windows checks in normal Debug
 and optimized Release. The native System menu now has
 Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change
@@ -15,7 +15,13 @@ physical walk/run consistency is still unverified. Future restarts use
 Continue and the verified save. Earlier measurements below retain their original
 logging, profiler and visibility conditions; they are not interchangeable.
 
-The latest [frustum/interval extension](NATIVE_CODE.md#frustum-and-interval-selection)
+The latest [extended negative-product replacement](NATIVE_CODE.md#owned-extended-negative-product-arithmetic)
+moves another numeric operation from the SDK into connected project C++,
+including a portable path and AVX2 acceleration. Actual geometry and visibility
+outputs match original execution; this is an ownership improvement with no
+established FPS gain.
+
+The preceding [frustum/interval extension](NATIVE_CODE.md#frustum-and-interval-selection)
 connects all four known image23 request modes for admitted inputs. Town modes
 1/2/3 execute; mode 4 has controlled original/native comparisons. No FPS gain
 or complete-image replacement is established.

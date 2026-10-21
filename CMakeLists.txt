@@ -474,6 +474,11 @@ if(WKC2_BUILD_TESTS)
     target_include_directories(wkc2_spu_fnms_vector_test PRIVATE "${PS3RECOMP_DIR}/runtime/spu")
     add_test(NAME wkc2_spu_fnms_vector COMMAND wkc2_spu_fnms_vector_test)
     set_tests_properties(wkc2_spu_fnms_vector PROPERTIES TIMEOUT 15)
+    add_executable(wkc2_native_negative_product_test tests/native_geometry_negative_product_test.cpp)
+    target_compile_features(wkc2_native_negative_product_test PRIVATE cxx_std_20)
+    target_include_directories(wkc2_native_negative_product_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME wkc2_native_negative_product COMMAND wkc2_native_negative_product_test)
+    set_tests_properties(wkc2_native_negative_product PROPERTIES TIMEOUT 30)
     # Compile the SDK's exact guard body, with isolated diagnostic/halt capture.
     set(SPU_DEPTH_FIXTURE "${CMAKE_BINARY_DIR}/spu-depth-fixture/spu_depth_guard_fixture.inc")
     add_custom_command(OUTPUT "${SPU_DEPTH_FIXTURE}"
