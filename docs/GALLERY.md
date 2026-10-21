@@ -24,8 +24,9 @@ still lags.
   runs observed SPU interpreter fallback; newer strict routes have zero entries.
   Static SPU coverage comes from strict entry guards and state replays, not
   screenshots. See [architecture](ARCHITECTURE.md).
-- No complete SPU image has been replaced yet. Replacing every game SPU job
-  with readable C++ remains the target; see [SPU jobs](SPU.md).
+- Image 21, the event-flag set job, is the first SPU image handled by C++ for
+  its normal path; other images are partly or wholly compiled. Replacing every
+  game SPU job with readable C++ remains the target; see [SPU jobs](SPU.md).
 - Still open: town lag, black flicker at Leonard's feet, Logic Stone flicker,
   full DirectX character-shadow fidelity and same-session DirectX menu/reload.
 - Older capture conditions: the Vulkan town captures with the FPS overlay are

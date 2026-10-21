@@ -12,16 +12,20 @@ Generated instruction-by-instruction C and its register/local-store ABI are
 temporary references, not the final implementation. Native compilation and
 interpreter-free sampled routes alone do not satisfy this target.
 
-No complete SPU image has yet been replaced. The public opt-in runtime handles
-admitted whole image-19 geometry jobs and [image-23 visibility modes 1–4](#frustum-and-interval-selection)
-with owned typed inputs and ordered external outputs. Unsupported constructors
+[Image 21](#image-21-event-flag-set-in-c), the event-flag set job, is the first
+image handled by C++ for its normal path; SPU task wake-ups stay compiled. The
+public opt-in runtime handles admitted whole image-19 geometry jobs and
+[image-23 visibility modes 1–4](#frustum-and-interval-selection) with owned typed
+inputs and ordered external outputs, and image 20 runs its interpreter loop and
+command 25 in C++. Unsupported constructors
 and other image paths retain compiled execution. Seven ordinary host operations
 and the [extended negative-product operation](#owned-extended-negative-product-arithmetic)
 use authored C++; reciprocal estimates/interpolation and integer conversions
 retain SDK adapters. Admitted geometry jobs are now prepared on worker threads
 and published in order, which took the crowded street from about 15.5 to 26.5
 FPS unlocked. The next critical path is [image 20](#next-critical-path-image-20-the-spu-render-command-builder),
-the render-command builder. Completion requires a player build that links
+the render-command builder, now about 14.3 ms per street frame with its loop
+and command 25 in C++. Completion requires a player build that links
 no generated SPU game code, uses no SPU interpreter, and has validated native
 interfaces and behavior throughout the game. Build-only reference replays may
 retain private generated code for differential verification.

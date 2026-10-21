@@ -99,8 +99,10 @@ interpreter fallback forbidden, after five missing SPU entries were added to the
 static build. The fallback remains available for untested paths.
 
 Readable, project-written C++ runs the supported image-19 geometry jobs, pipelined
-across worker threads, and all four image-23 visibility modes; other SPU jobs and
-inputs still run as compiled code. No complete SPU image has been replaced yet.
+across worker threads, all four image-23 visibility modes and the normal path of
+image 21, the event-flag set job. Image 20, the render-command builder, runs its
+interpreter loop and command 25 in C++. Other SPU jobs, commands and inputs still
+run as compiled code.
 Everything about the SPU work is on one page,
 [SPU jobs and their replacement](docs/SPU.md): what each job does, how the port
 runs it, the problems found and fixed, what limits the frame rate and how a job
