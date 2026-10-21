@@ -98,7 +98,7 @@ with the scene. Native C++ work doesn't appear in these spans.
 | 17 | Raw job `01272B80` | Runtime-code path that used to reach interpreter fallback; three static entries added | Compiled | 1.5 ms |
 | 18 | Raw job `0127FB00` | Not yet identified | Compiled | 3.8 ms |
 | **19** | Raw job `01283D80` | **Edge geometry**: skinning, normals, filtering, vertex export and RSX command publication | **C++ for supported inputs, pipelined** | 1.8 ms on the chain thread; preparation runs on workers |
-| **20** | Raw job `01294400` | **Render-command builder**: interprets display lists into RSX commands, shader microcode and constant uploads | Compiled; replay harness ready | **18.3 ms** |
+| **20** | Raw job `01294400` | **Render-command builder**: interprets display lists into RSX commands, shader microcode and constant uploads | Compiled, with command 25 in C++ ([details](NATIVE_CODE.md#image-20-command-profile-and-command-25-in-c)) | **18.3 ms** |
 | **21** | Raw job `012A1980` | **SPURS event-flag set**: atomically ORs a bit into a flag, releases waiters and wakes the waiting PPU thread | **C++** ([details](NATIVE_CODE.md#image-21-event-flag-set-in-c)); task wake-ups stay compiled | 0.4 ms compiled, about 1% of that in C++ |
 | 22 | Raw job `012A2180` | Not yet identified | Compiled | 0.1 ms |
 | **23** | Raw job `012A6B00` | **Visibility requests**: frustum, occlusion, mask and projected-interval selection | **C++ for all four modes, admitted inputs** | Native |
@@ -131,6 +131,9 @@ are in [native work](NATIVE_CODE.md#acceptance-for-each-native-replacement).
   order, header published last
   ([visibility jobs](NATIVE_CODE.md#owned-visibility-jobs),
   [frustum and interval](NATIVE_CODE.md#frustum-and-interval-selection)).
+- **Image 20, command 25.** The render-command interpreter's table-upload
+  command runs as C++ at a pinned handler boundary, byte-exact on all 96
+  captured jobs ([details](NATIVE_CODE.md#image-20-command-profile-and-command-25-in-c)).
 - **Arithmetic.** Seven host operations and the extended negative-product
   operation are authored C++ with portable and AVX2 versions
   ([details](NATIVE_CODE.md#owned-extended-negative-product-arithmetic)).
@@ -246,6 +249,7 @@ the one set up for image 20.
 | `WKC_GEOM_PIPELINE=<n>`, `WKC_GEOM_PIPELINE_VERIFY=1` | Pipeline worker count (0 = serial); verify mode re-runs every 64th job serially |
 | `WKC_JOB_CAPTURE`, `_IMAGE`, `_COUNT` | Record complete job transactions for one image |
 | `WKC_JOB_REPLAY`, `WKC_JOB_REPLAY_RUNS` | Replay captures, compare writes, atomic line stores and events, report mean job time |
+| `WKC_NATIVE_RENDER_COMMANDS=0` | Keep every image-20 command on its compiled handler |
 | `WKC_NATIVE_EVENT_FLAG=0` | Keep image 21 on the compiled job (with `WKC_NATIVE_GEOMETRY_JOB=1`) |
 | `SPU_FALLBACK_STRICT=1` | Make any interpreter or microstep entry fatal |
 | `SPU_FLOAT_MODE` | Host floats, an `audit` count, or exact SPU rules |

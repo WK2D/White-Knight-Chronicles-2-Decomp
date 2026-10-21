@@ -50,6 +50,7 @@ newest work is at the end of the page.
 **Latest work, newest first**
 
 - [Image 21: event-flag set in C++](#image-21-event-flag-set-in-c)
+- [Image 20: command profile and command 25 in C++](#image-20-command-profile-and-command-25-in-c)
 - [Next critical path: image 20, the SPU render-command builder](#next-critical-path-image-20-the-spu-render-command-builder)
 - [Pipelined whole geometry jobs](#pipelined-whole-geometry-jobs)
 - [Owned extended negative-product arithmetic](#owned-extended-negative-product-arithmetic)
@@ -1646,3 +1647,49 @@ stored updates, 131 rejections and 56 PPU wake-up events. The C++ route takes
 about 2.6 µs per job against about 250 µs for the compiled job in the same
 replay. `wkc2_native_event_flag` checks the update rules without game data. A
 crowded-street route ran with the C++ route handling every image-21 job.
+
+## Image 20: command profile and command 25 in C++
+
+A causal test settled where to work. With every thread on performance cores
+and the street unlocked, moving the image-20 chain thread to efficiency cores
+cut FPS by about 20%. Moving the image-18 animation thread changed nothing,
+because that thread runs beside the frame's critical path.
+
+Image 20 interprets a display list. Its loop at LS 0x1308 fetches a command
+(0xC540, through a 2 KB ring refilled by DMA), takes the 12-bit command id and
+jumps through a 37-entry table at LS 0x137C. A private build timed each
+dispatch on the 96 captured street jobs (time from one dispatch to the next):
+
+| Command | Calls per job | Cycles each | Share |
+| --- | ---: | ---: | ---: |
+| 12 (handler 0x1AE0) | about 31 | about 9,500 | 31% |
+| 25 (handler 0x1C70) | about 400 | about 370 | 16% |
+| 10 (handler 0x1A80) | about 14 | about 5,000 | 7% |
+| every other command | | | under 7% each |
+
+Each share includes the interpreter's own per-command work: the loop at
+0x1968, its call at 0xFF0, the fetch and the indirect table jump.
+
+**Command 25 in C++.** Command 25 uploads a run of 16-byte table entries:
+the halfword at +2 holds the count shifted left by 4 and is copied to +6, the
+word at +8 is the first slot, and entries follow the 16-byte header. They are
+copied to `state + 0xB40 + slot * 16`, re-reading the count at +6 after each
+entry, and a byte at `state + 0xAD0` marks the table dirty.
+[`native_render_commands.cpp`](../native_render_commands.cpp) does this on
+the job's local store with the SPU's quad addressing. It reproduces the
+callee's stack saves and restores, then returns to the interpreter loop.
+[`tools/apply_native_render_commands.py`](../tools/apply_native_render_commands.py)
+installs it at the hash-pinned handler and keeps the compiled code as the
+reference it declines to when an LS debug watch is armed.
+`WKC_NATIVE_RENDER_COMMANDS=0` keeps the compiled handler.
+
+All 96 captured jobs replay byte-exact with it on and off. Alternating
+40-pass replays take about 278 µs per job against about 288 µs compiled
+(about 3.5%). That is less than the command's share, because the shared
+per-command work above stays compiled. A crowded-street route renders normally
+with it, at 17.2 ms of image 20 per frame.
+
+**Next.** The remaining cost is spread across the interpreter loop and
+command 12 (reaching 184 lifted functions). The larger step is the loop itself
+in C++ (fetch, dispatch and the per-command call), with handlers moved over one
+at a time behind the same replay check.

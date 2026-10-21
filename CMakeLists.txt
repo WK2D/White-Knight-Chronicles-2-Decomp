@@ -209,6 +209,7 @@ add_executable(${PROJECT_NAME}
     native_geometry_runtime.cpp
     job_capture.cpp
     native_event_flag.cpp
+    native_render_commands.cpp
     play_environment.cpp
     ${PLAY_ENV_NAMES}
     ${PS3RECOMP_SCAFFOLD}
