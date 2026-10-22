@@ -1549,6 +1549,49 @@ jobs. Design, routes, evidence and limits are in the
 [patch notes](PATCHES.md#pipelined-geometry-jobs-and-sub-millisecond-sleeps-patches-0127-0128).
 A DirectX street walk with camera turns has now run on it (the [21 October gallery capture](GALLERY.md#2026-10-21--pipelined-geometry-and-faster-spu-code)). Story cutscenes and combat have not been run with it yet.
 
+### Geometry chain overhead (2026-10-22)
+
+In the heaviest street views the chain thread was busy about 73% of the time.
+About 18% went to spinning until the front job's prepare finished, 19% to
+committing and 17% to copying sources, half of that in the heap allocator.
+`WKC_GEOM_STATS=1` now prints, for every 4,096 jobs, where the chain's time
+goes. Per job, the chain spent 4.4 µs copying, 2.6 µs committing and 4.6 µs
+waiting. A worker needed 35 µs to prepare a job, but the job first sat about
+12 µs in the queue, even though it was almost never behind busy workers. That
+was wake-up time: idle workers slept on a condition variable. About 36% of
+commits happen in drains, before another image's job, where the chain must
+wait out a whole queue-plus-prepare latency.
+
+**Changes** (`native_geometry_runtime.cpp`, `native_geometry_input.h`):
+- An idle worker polls for the next job for up to 100 µs
+  (`WKC_GEOM_SPIN_US`) before it sleeps. A submit signals a sleeping worker
+  only when no worker is polling. The chain thread polls for up to 2 ms for
+  its front job.
+- Each chain thread reuses finished jobs. Source copies, the source-range list
+  and the adapted input keep their capacity; `make_input` can build into a
+  spare input's buffers.
+- Output buffers travel with the job. Before, `prepare` took its buffers from
+  the worker's spare, but finished jobs returned theirs on the chain thread.
+  So every prepare allocated about ten vectors on a worker, and the chain
+  thread freed them.
+- `WKC_AB_GEOM_CHAIN` (private A/B) restores the old behaviour while the
+  `WKC_AB_GATE` file exists.
+
+**Evidence.**
+- Queue delay fell from 11–17 µs to about 4 µs, and copying from 4.4 to 3.2 µs
+  per job.
+- Same-process street A/B, heavy crowd: 29.4 against 25.8 FPS (+14%), with
+  the median frame at 33.7 against 38.2 ms. A lighter crowd that already ran
+  near the cap read 29.9 against 29.3 FPS.
+- Verify mode on the street found no differences in either variant, and frame
+  dumps from both variants look correct.
+- A new input-adapter check builds two layouts alternately in reused buffers
+  and compares each with a fresh build. 121 checks pass in Debug and Release.
+
+The densest views still miss the cap at times (90th-percentile frame about
+35 ms). The renderer's own draw time is now the largest part of the
+post-flip window.
+
 ## Next critical path: image 20, the SPU render-command builder
 
 After geometry pipelining, a ten-second frame timeline of the crowded street

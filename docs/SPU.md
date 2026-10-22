@@ -232,6 +232,12 @@ The crowded town street is the slowest scene. Findings in order:
    and let C++ issue a request in one call: image 20 fell from 17.5 to 16.5 ms
    per frame. Lighter crowds now hold 30 FPS
    ([details](PATCHES.md#cheaper-spu-transfers-patch-0136)).
+6. **Geometry chain overhead (2026-10-22).** Idle geometry workers slept
+   between jobs, so each queued job waited about 12 µs for a wake-up. Every
+   job's buffers were also allocated afresh. Workers now poll briefly before
+   sleeping, and jobs and their buffers are reused. In a same-process A/B in a
+   heavy crowd, the street went from 25.8 to 29.4 FPS (+14%)
+   ([details](NATIVE_CODE.md#geometry-chain-overhead-2026-10-22)).
 
 **Tried and set aside**
 
@@ -286,6 +292,7 @@ the one set up for image 20.
 | --- | --- |
 | `WKC_NATIVE_GEOMETRY_JOB=1` | Enable the C++ image-19 and image-23 routes (the desktop build sets it) |
 | `WKC_GEOM_PIPELINE=<n>`, `WKC_GEOM_PIPELINE_VERIFY=1` | Pipeline worker count (0 = serial); verify mode re-runs every 64th job serially |
+| `WKC_GEOM_STATS=1`, `WKC_GEOM_SPIN_US=<n>` | Print where the geometry chain's time goes per 4,096 jobs; how long idle workers poll before sleeping (default 100 µs) |
 | `WKC_JOB_CAPTURE`, `_IMAGE`, `_COUNT` | Record complete job transactions for one image |
 | `WKC_JOB_REPLAY`, `WKC_JOB_REPLAY_RUNS` | Replay captures, compare writes, atomic line stores and events, report mean job time |
 | `WKC_NATIVE_RENDER_COMMANDS=0` | Keep image 20's interpreter loop and commands compiled |

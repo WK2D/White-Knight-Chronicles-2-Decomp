@@ -128,13 +128,25 @@ inline bool contains(std::uint64_t begin,std::uint64_t bytes,
 }
 }
 
+namespace detail {
+// Move a spare input's buffers into an empty one, keeping their capacity.
+inline void reuse_buffers(pipeline::GeometryInput& into,pipeline::GeometryInput& spare) noexcept {
+    auto take=[](auto& to,auto& from){to=std::move(from);to.clear();};
+    take(into.packed_vertices,spare.packed_vertices);take(into.packed_indices,spare.packed_indices);
+    take(into.subpixel_padding_indices,spare.subpixel_padding_indices);take(into.influences,spare.influences);
+    take(into.palette,spare.palette);take(into.palette_bindings,spare.palette_bindings);
+}
+}
+
 // DepthGreater supplies the same ordered comparison policy as projection. No
 // host comparison/reciprocal policy is silently selected by this adapter.
 // Every reject, allocation exception or comparison exception leaves output
 // unchanged. This prepares owned inputs only; it issues no platform operation.
+// With spare storage, the new input is built in the spare's buffers and the
+// previous output's buffers become the spare (a reject may consume the spare).
 template<class DepthGreater>
 Status make_input(const StagedInputs& staged,const PlatformFacts& platform,
-                  DepthGreater depth_greater,AdaptedJob& output) {
+                  DepthGreater depth_greater,AdaptedJob& output,AdaptedJob* spare=nullptr) {
     if(platform.root!=RootLayout::image19_custom_geometry_v1||
        platform.scheduler!=SchedulerMode::spurs||platform.image_id!=19)
         return Status::unsupported_platform;
@@ -155,6 +167,7 @@ Status make_input(const StagedInputs& staged,const PlatformFacts& platform,
        (detail::be32(descriptor+212)&3u))return Status::invalid_publication;
 
     AdaptedJob next;
+    if(spare)detail::reuse_buffers(next.geometry,spare->geometry);
     auto& input=next.geometry;auto& metadata=next.metadata;
     metadata.allocator_control=detail::be32(descriptor+204);
     metadata.publication_destination_high=detail::be32(descriptor+208);
@@ -225,7 +238,9 @@ Status make_input(const StagedInputs& staged,const PlatformFacts& platform,
         input.decode.position_bits[component]=unsigned(12+precision);
     }
     input.packed_indices.assign(slots[1].begin(),slots[1].end());
-    std::vector<Byte> palette_bytes(slots[3].begin(),slots[3].end());
+    // Per-thread scratch: only this call reads it, before returning.
+    thread_local std::vector<Byte> palette_bytes,influence_bytes;
+    palette_bytes.assign(slots[3].begin(),slots[3].end());
     palette_bytes.insert(palette_bytes.end(),slots[4].begin(),slots[4].end());
     if(palette_bytes.size()%48)return Status::partial_palette;
     metadata.palette_count=palette_bytes.size()/48;
@@ -236,7 +251,7 @@ Status make_input(const StagedInputs& staged,const PlatformFacts& platform,
     input.skinning=metadata.palette_count&&(header[5]&15u)?
         pipeline::SkinningMode::linear_blend_variant3:pipeline::SkinningMode::disabled;
     if(input.skinning!=pipeline::SkinningMode::disabled) {
-        std::vector<Byte> influence_bytes(slots[5].begin(),slots[5].end());
+        influence_bytes.assign(slots[5].begin(),slots[5].end());
         const auto required=std::size_t(count)*8;
         if(required>influence_bytes.size()) {
             const auto extra=required-influence_bytes.size();
@@ -365,7 +380,9 @@ Status make_input(const StagedInputs& staged,const PlatformFacts& platform,
     input.filter={static_cast<TriangleWinding>(winding),index_format==0||index_format==2,
                   input.projection.precision_state==5};
     if(input.filter.subpixel)return Status::unsupported_subpixel_padding;
-    output=std::move(next);return Status::ready;
+    if(spare){std::swap(output,next);*spare=std::move(next);}
+    else output=std::move(next);
+    return Status::ready;
 }
 
 // Pure pre-staging constructor plan. A platform boundary may snapshot/copy

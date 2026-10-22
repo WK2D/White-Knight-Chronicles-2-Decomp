@@ -1,6 +1,6 @@
 # Findings
 
-Updated 2026-10-21. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
+Updated 2026-10-22. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
 **Current source checkpoint:** 136 SDK patches / 121 Windows checks in normal Debug
 and optimized Release. The native System menu now has
@@ -17,7 +17,17 @@ logging, profiler and visibility conditions; they are not interchangeable.
 
 SPU findings, fixes and status are collected in [SPU jobs and their replacement](SPU.md).
 
-The latest round made lifted SPU code cheaper to run. Captured jobs can now be
+The latest round targeted the 30 FPS cap on the crowded street. Patch
+[0134](PATCHES.md#street-frame-rate-at-the-30-limit-patch-0134) inlines guest
+memory access in lifted PPU code, presents asynchronously, fetches vertices on
+the GPU and skips redundant Vulkan state. Patch
+[0136](PATCHES.md#cheaper-spu-transfers-patch-0136) cuts SPU transfer
+overhead. Then the [geometry chain's overhead](NATIVE_CODE.md#geometry-chain-overhead-2026-10-22) came down:
+workers poll instead of sleeping between jobs, and jobs reuse their buffers. A
+heavy crowd went from 25.8 to 29.4 FPS in a same-process A/B, and lighter
+crowds hold 30. The densest views still miss the cap at times.
+
+An earlier round made lifted SPU code cheaper to run. Captured jobs can now be
 replayed byte for byte (`WKC_JOB_REPLAY`), and
 [patch 0130](PATCHES.md#faster-spu-calls-and-transfers-patch-0130) turns most
 transfers between lifted functions into direct tail calls. The render-command

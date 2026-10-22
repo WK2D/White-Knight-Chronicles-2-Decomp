@@ -679,23 +679,69 @@ std::size_t pipeline_window_now() {
 }
 std::atomic<bool> pipeline_on{false};
 bool pipeline_verify=false;
+// WKC_GEOM_STATS=1: every 4096 commits on a chain thread, print where its
+// time went (copy, waiting for prepare, commit) and why the front job was not
+// ready (still queued, or still being prepared).
+bool pipeline_stats=false;
+std::int64_t stats_now() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+struct ChainStats {
+    std::uint64_t jobs=0,drained=0,waited=0,waited_queued=0;
+    std::int64_t copy=0,wait=0,drain_wait=0,commit=0,queue=0,prepare=0;
+};
+thread_local ChainStats chain_stats;
+thread_local bool chain_draining=false;
 thread_local bool force_compiled=false;
 go::WriteLog commit_log;
 struct PipelineCensus {std::atomic<std::uint64_t> queued{0},committed{0},recopied{0},fallbacks{0},verified{0};} pipeline_census;
+// WKC_AB_GEOM_CHAIN (private A/B): while the WKC_AB_GATE file exists, every
+// job is allocated afresh and idle prepare workers sleep at once.
+bool chain_ab_old() {
+    static const bool ab=std::getenv("WKC_AB_GEOM_CHAIN")!=nullptr;
+    return ab&&g_wkc_ab_off;
+}
 struct Pending {
     OwnedSources sources;
-    gi::AdaptedJob adapted;
+    gi::AdaptedJob adapted,spare_input;
     gj::Config config{};
     HostPolicies policies;
-    std::unique_ptr<gj::GeometryJob> job=std::make_unique<gj::GeometryJob>();
+    std::optional<gj::GeometryJob> job{std::in_place};
+    // The last job's output buffers. The worker that prepares this job
+    // returns them to its own spare, so prepare reuses their capacity.
+    std::optional<pipeline::GeometryOutput> spare_output;
     std::vector<go::ByteRange> reads;
     std::uint64_t copied_after=0;
     std::uint32_t ea=0,descriptor_size=0,binary_ea=0,binary_size=0;
     unsigned mxcsr=0,index=0;
     std::atomic<int> state{0}; // 0 queued, 1 prepared, 2 declined, 3 threw
+    std::int64_t submitted_ns=0;std::atomic<std::int64_t> started_ns{0},ended_ns{0}; // WKC_GEOM_STATS
+    // Ready for another job, keeping every buffer's capacity.
+    void reuse() {
+        sources.reset();job.emplace();policies=HostPolicies{};reads.clear();config={};
+        copied_after=0;ea=descriptor_size=binary_ea=binary_size=0;mxcsr=index=0;
+        state.store(0,std::memory_order_relaxed);submitted_ns=0;
+        started_ns.store(0,std::memory_order_relaxed);ended_ns.store(0,std::memory_order_relaxed);
+    }
 };
+// Finished jobs on this chain thread, ready for reuse.
+thread_local std::vector<std::unique_ptr<Pending>> pending_pool;
+std::unique_ptr<Pending> new_pending() {
+    if(pending_pool.empty()||chain_ab_old())return std::make_unique<Pending>();
+    auto p=std::move(pending_pool.back());pending_pool.pop_back();p->reuse();return p;
+}
+void recycle_pending(std::unique_ptr<Pending>& p)noexcept {
+    if(!p||chain_ab_old()||pending_pool.size()>=32)return;
+    try {
+        if(p->job&&!p->spare_output)p->spare_output.emplace(p->job->release_geometry());
+        pending_pool.push_back(std::move(p));
+    } catch(...) {}
+}
 int prepare_state(Pending& job)noexcept {
-    try {return job.job->prepare(job.adapted.geometry,job.config,job.policies)==gj::PrepareStatus::ready?1:2;}
+    try {
+        if(job.spare_output){pipeline::recycle_output(std::move(*job.spare_output));job.spare_output.reset();}
+        return job.job->prepare(job.adapted.geometry,job.config,job.policies)==gj::PrepareStatus::ready?1:2;
+    }
     catch(...) {return 3;}
 }
 class PreparePool {
@@ -704,22 +750,38 @@ public:
         // WKC_GEOM_AB_BASE=<n> (private A/B): while the WKC_AB_GATE file
         // exists, only the first n workers take jobs.
         if(const char* base=std::getenv("WKC_GEOM_AB_BASE"))ab_base_=unsigned(std::strtoul(base,nullptr,10));
+        // WKC_GEOM_SPIN_US=<n>: how long an idle worker polls for the next
+        // job before it sleeps (default 100; 0 sleeps at once). Waking a
+        // sleeping worker costs more than a whole copy on the chain thread.
+        if(const char* spin=std::getenv("WKC_GEOM_SPIN_US"))spin_us_=unsigned(std::strtoul(spin,nullptr,10));
         for(unsigned i=0;i<count;++i)threads_.emplace_back([this,i]{run(i);});
     }
     void submit(Pending* job) {
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if(!stopping_&&!threads_.empty()) {
-                queue_.push_back(job);
-                // A benched worker may take the one wakeup: wake them all then.
-                if(ab_base_!=~0u)ready_.notify_all(); else ready_.notify_one();
-                return;
-            }
+        std::unique_lock<std::mutex> lock(mutex_);
+        if(stopping_||threads_.empty()) {
+            lock.unlock();
+            job->state.store(prepare_state(*job),std::memory_order_release); // stopped: prepare here
+            return;
         }
-        job->state.store(prepare_state(*job),std::memory_order_release); // stopped: prepare here
+        queue_.push_back(job);queued_.store(true,std::memory_order_release);
+        // A polling worker takes the job without a wakeup. A benched worker
+        // may take the one wakeup: wake them all then.
+        const bool wake=sleepers_&&(chain_ab_old()||queue_.size()>unsigned(pollers_.load(std::memory_order_acquire)));
+        lock.unlock();
+        if(ab_base_!=~0u)ready_.notify_all(); else if(wake)ready_.notify_one();
     }
     void wait(Pending* job) {
-        for(int spin=0;spin<4000;++spin){if(job->state.load(std::memory_order_acquire))return;_mm_pause();}
+        if(chain_ab_old()) {
+            for(int spin=0;spin<4000;++spin){if(job->state.load(std::memory_order_acquire))return;_mm_pause();}
+        } else {
+            // The chain has nothing else to do; a sleep would add a wakeup.
+            const auto until=std::chrono::steady_clock::now()+std::chrono::milliseconds(2);
+            for(unsigned spin=1;;++spin) {
+                if(job->state.load(std::memory_order_acquire))return;
+                _mm_pause();
+                if(!(spin&63u)&&std::chrono::steady_clock::now()>=until)break;
+            }
+        }
         std::unique_lock<std::mutex> lock(mutex_);
         done_.wait(lock,[job]{return job->state.load(std::memory_order_acquire)!=0;});
     }
@@ -731,28 +793,44 @@ public:
     }
 private:
     bool benched(unsigned id)const {return id>=ab_base_&&g_wkc_ab_off;}
+    // Poll for queued work until it appears or spin_us_ passes.
+    void poll() {
+        pollers_.fetch_add(1,std::memory_order_acq_rel);
+        const auto until=std::chrono::steady_clock::now()+std::chrono::microseconds(spin_us_);
+        for(unsigned spin=1;!queued_.load(std::memory_order_acquire);++spin) {
+            _mm_pause();
+            if(!(spin&63u)&&std::chrono::steady_clock::now()>=until)break;
+        }
+        pollers_.fetch_sub(1,std::memory_order_acq_rel);
+    }
     void run(unsigned id) {
         for(;;) {
+            if(spin_us_&&ab_base_==~0u&&!chain_ab_old())poll();
             Pending* job;
             {
                 std::unique_lock<std::mutex> lock(mutex_);
+                ++sleepers_;
                 if(ab_base_!=~0u) {
                     while(!ready_.wait_for(lock,std::chrono::milliseconds(2),
                         [this,id]{return stopping_||(!queue_.empty()&&!benched(id));})) {}
                 } else ready_.wait(lock,[this]{return stopping_||!queue_.empty();});
+                --sleepers_;
                 if(queue_.empty())return;
-                job=queue_.front();queue_.pop_front();
+                job=queue_.front();queue_.pop_front();queued_.store(!queue_.empty(),std::memory_order_release);
             }
             // The chain thread's FP environment, including rounding and FTZ/DAZ.
             const unsigned saved=_mm_getcsr();_mm_setcsr(job->mxcsr);
+            if(pipeline_stats)job->started_ns.store(stats_now(),std::memory_order_relaxed);
             const int state=prepare_state(*job);
+            if(pipeline_stats)job->ended_ns.store(stats_now(),std::memory_order_relaxed);
             _mm_setcsr(saved);
             {std::lock_guard<std::mutex> lock(mutex_);job->state.store(state,std::memory_order_release);}
             done_.notify_all();
         }
     }
     std::mutex mutex_;std::condition_variable ready_,done_;std::deque<Pending*> queue_;
-    std::vector<std::thread> threads_;bool stopping_=false;unsigned ab_base_=~0u;
+    std::vector<std::thread> threads_;bool stopping_=false;unsigned ab_base_=~0u,spin_us_=100,sleepers_=0;
+    std::atomic<bool> queued_{false};std::atomic<int> pollers_{0};
 };
 // Never destroyed: chain threads may still use it while static destructors run.
 PreparePool& prepare_pool=*new PreparePool;
@@ -772,7 +850,8 @@ bool copy_and_adapt(Pending& p) {
     unsigned reason=0;
     if(!p.sources.acquire(p.ea,p.descriptor_size,reason))return false;
     if(gi::make_input(p.sources.spans(),p.sources.plan.platform,
-        [](float a,float b){return RuntimeMath::greater(a,b);},p.adapted)!=gi::Status::ready)return false;
+        [](float a,float b){return RuntimeMath::greater(a,b);},p.adapted,
+        chain_ab_old()?nullptr:&p.spare_input)!=gi::Status::ready)return false;
     const auto& m=p.adapted.metadata;
     p.config={m.allocator_control,m.allocator_slot,m.request_flags,m.publication_destination,m.packet_quadwords,m.dma_tag};
     source_ranges(p);return true;
@@ -830,10 +909,27 @@ void compiled_fallback(const Pending& job) {
 }
 void commit_front() {
     auto owned=std::move(pipeline_pending.front());pipeline_pending.pop_front();
-    prepare_pool.wait(owned.get());
+    struct Recycle {std::unique_ptr<Pending>& p;~Recycle(){recycle_pending(p);}} recycle{owned};
+    if(pipeline_stats) {
+        auto& st=chain_stats;const bool ready=owned->state.load(std::memory_order_acquire)!=0;
+        const bool queued=!ready&&!owned->started_ns.load(std::memory_order_relaxed);
+        const auto w0=stats_now();prepare_pool.wait(owned.get());const auto waited=stats_now()-w0;
+        ++st.jobs;st.wait+=waited;if(!ready)++st.waited;if(queued)++st.waited_queued;
+        if(chain_draining){++st.drained;st.drain_wait+=waited;}
+        const auto s0=owned->started_ns.load(std::memory_order_relaxed),e0=owned->ended_ns.load(std::memory_order_relaxed);
+        if(s0&&e0){st.queue+=s0-owned->submitted_ns;st.prepare+=e0-s0;}
+        if((st.jobs&4095u)==0) {
+            const double n=double(st.jobs),us=1000.0*n;
+            std::fprintf(stderr,"[geom-stats] jobs=%llu per job us: copy=%.1f wait=%.1f commit=%.1f queue=%.1f prepare=%.1f "
+                "| waited=%.0f%% (still queued %.0f%%) drained=%.0f%% drain-wait=%.1f\n",(unsigned long long)st.jobs,
+                st.copy/us,st.wait/us,st.commit/us,st.queue/us,st.prepare/us,100.0*st.waited/n,100.0*st.waited_queued/n,
+                100.0*st.drained/n,st.drained?st.drain_wait/(1000.0*st.drained):0.0);
+            st=ChainStats{};
+        }
+    } else prepare_pool.wait(owned.get());
     if(commit_log.written_since(owned->copied_after,owned->reads)) {
         ++pipeline_census.recopied;
-        auto fresh=std::make_unique<Pending>();
+        auto fresh=new_pending();
         fresh->ea=owned->ea;fresh->descriptor_size=owned->descriptor_size;fresh->index=owned->index;
         fresh->binary_ea=owned->binary_ea;fresh->binary_size=owned->binary_size;
         if(!copy_and_adapt(*fresh)){compiled_fallback(*fresh);return;}
@@ -847,6 +943,8 @@ void commit_front() {
            !same_output(serial.geometry(),q.job->geometry()))pipeline_abort("verify mismatch",q.ea);
     }
     std::vector<go::ByteRange> writes;bool fallback=false;
+    const auto c0=pipeline_stats?stats_now():0;
+    struct CommitTime {std::int64_t c0;~CommitTime(){if(pipeline_stats)chain_stats.commit+=stats_now()-c0;}} commit_time{c0};
     {
         CommitScope scope;
         GeometryJobBackend backend(q.config,q.job->geometry().payload);backend.record_writes(&writes);
@@ -864,25 +962,29 @@ void commit_front() {
     } // backend tokens and slot0 are released before any fallback
     if(fallback){compiled_fallback(q);return;}
     commit_log.commit(std::move(writes));
+    if(chain_ab_old())pipeline::recycle_output(q.job->release_geometry());
     const auto committed=++pipeline_census.committed;
     if(diagnostics&&sample(committed))
         std::fprintf(stderr,"[native-geometry-job] pipeline queued=%llu committed=%llu recopied=%llu fallbacks=%llu verified=%llu\n",
             (unsigned long long)pipeline_census.queued.load(),(unsigned long long)committed,
             (unsigned long long)pipeline_census.recopied.load(),(unsigned long long)pipeline_census.fallbacks.load(),
             (unsigned long long)pipeline_census.verified.load());
-    pipeline::recycle_output(q.job->release_geometry());
 }
 void drain_pipeline_this_thread()noexcept {
     if(pipeline_pending.empty())return;
+    chain_draining=true;
     try {while(!pipeline_pending.empty())commit_front();}
     catch(...) {pipeline_abort("exception while committing",0);}
+    chain_draining=false;
 }
 extern "C" void wkc_chain_drain(void) {drain_pipeline_this_thread();}
 thread_local unsigned pipeline_index=0;
 // Queue the job and report completion; nullopt asks for the serial path.
 std::optional<int> pipelined_hook(std::uint32_t ea,std::uint32_t descriptor_size) {
-    auto p=std::make_unique<Pending>();p->ea=ea;p->descriptor_size=descriptor_size;
-    if(!copy_and_adapt(*p)){drain_pipeline_this_thread();return std::nullopt;}
+    auto p=new_pending();p->ea=ea;p->descriptor_size=descriptor_size;
+    const auto c0=pipeline_stats?stats_now():0;
+    if(!copy_and_adapt(*p)){recycle_pending(p);drain_pipeline_this_thread();return std::nullopt;}
+    if(pipeline_stats){p->submitted_ns=stats_now();chain_stats.copy+=p->submitted_ns-c0;}
     const auto* header=vm_base+ea; // CellSpursJobHeader: binary EA (low 3 bits flags), size>>4
     p->binary_ea=std::uint32_t(((std::uint64_t(gi::detail::be32(header))<<32)|gi::detail::be32(header+4))&~7ull);
     p->binary_size=((gi::detail::be32(header+8)>>16)&0xFFFFu)<<4;
@@ -981,6 +1083,7 @@ void wkc2_init_native_geometry_jobs() {
     if(const char* requested=std::getenv("WKC_GEOM_PIPELINE"))workers=unsigned(std::strtoul(requested,nullptr,10));
     if(workers) {
         pipeline_verify=std::getenv("WKC_GEOM_PIPELINE_VERIFY")!=nullptr;
+        pipeline_stats=std::getenv("WKC_GEOM_STATS")!=nullptr;
         prepare_pool.start(workers);g_spu_job_chain_drain=wkc_chain_drain;pipeline_on=true;
         std::atexit([]{prepare_pool.stop();});
     }

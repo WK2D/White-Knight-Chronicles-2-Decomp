@@ -8,6 +8,9 @@ of the build guide.
 
 | Patches | Topic |
 | --- | --- |
+| Patch 0136 | [Cheaper SPU transfers](#cheaper-spu-transfers-patch-0136) |
+| Patch 0135 | [Test runs ignore host controllers](#test-runs-ignore-host-controllers-patch-0135) |
+| Patch 0134 | [Street frame rate at the 30 limit](#street-frame-rate-at-the-30-limit-patch-0134) |
 | Patch 0133 | [Faster renderer draws](#faster-renderer-draws-patch-0133) |
 | Patch 0132 | [Pad poll clock and stick feel](#pad-poll-clock-and-stick-feel-patch-0132) |
 | Patch 0131 | [Atomic trace hook and image 21 in C++](#atomic-trace-hook-and-image-21-in-c-patch-0131) |
@@ -390,7 +393,10 @@ jobs:
   on any difference.
 
 Finished jobs return their logical buffers for reuse, and source copies write
-into reused buffers, which halves the allocator samples on that thread.
+into reused buffers, which halves the allocator samples on that thread. The
+returned output buffers reached only the chain thread's spare, not the workers
+that prepare. Since 2026-10-22 they travel with the job, along with other
+chain-overhead cuts ([details](NATIVE_CODE.md#geometry-chain-overhead-2026-10-22)).
 
 Patch 0127 makes sub-millisecond `sys_timer_usleep` block on a per-thread
 high-resolution waitable timer. The old path spun on `SwitchToThread`, and one

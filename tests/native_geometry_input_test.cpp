@@ -6,6 +6,7 @@
 #include "native_geometry_input.h"
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 #include <limits>
 #include <stdexcept>
 
@@ -155,6 +156,36 @@ int wkc2_test_native_geometry_input() {
         ++comparisons;assert(a==0.75f&&b==-0.25f);return true;
     },accepted)==gi::Status::ready);
     assert(comparisons==1);check_immutable(base,saved_descriptor,saved_slots,saved_plan);++successes;
+    {
+        // Spare storage changes where the buffers come from, never the input:
+        // alternate two layouts so a longer earlier job's bytes cannot leak.
+        auto same=[](const gi::AdaptedJob& a,const gi::AdaptedJob& b) {
+            const auto& x=a.geometry;const auto& y=b.geometry;
+            auto bytes=[](const auto& u,const auto& v) {
+                return u.size()==v.size()&&(u.empty()||!std::memcmp(u.data(),v.data(),u.size()*sizeof(u[0])));
+            };
+            bool bindings=x.palette_bindings.size()==y.palette_bindings.size();
+            for(std::size_t i=0;bindings&&i<x.palette_bindings.size();++i)for(unsigned row=0;row<3;++row) {
+                const auto& p=x.palette_bindings[i][row];const auto& q=y.palette_bindings[i][row];
+                bindings=bindings&&p.source==q.source&&p.vertex==q.vertex&&p.literal==q.literal;
+            }
+            return bindings&&bytes(x.packed_vertices,y.packed_vertices)&&bytes(x.packed_indices,y.packed_indices)&&
+                bytes(x.subpixel_padding_indices,y.subpixel_padding_indices)&&bytes(x.influences,y.influences)&&
+                bytes(x.palette,y.palette)&&x.index_count==y.index_count&&x.decode.vertices==y.decode.vertices&&
+                x.skinning==y.skinning&&x.suppress_directions==y.suppress_directions&&
+                a.metadata.palette_count==b.metadata.palette_count&&a.metadata.request_flags==b.metadata.request_flags;
+        };
+        Fixture other(33,4,true);gi::AdaptedJob other_fresh;assert(adapt(other,other_fresh)==gi::Status::ready);
+        gi::AdaptedJob reused,spare;
+        for(unsigned round=0;round<4;++round) {
+            const Fixture& fixture=round&1?other:base;
+            assert(gi::make_input(fixture.staged(),fixture.plan.platform,[](float a,float b){return a>b;},
+                reused,&spare)==gi::Status::ready);
+            assert(same(reused,round&1?other_fresh:accepted));
+        }
+        assert(spare.geometry.packed_vertices.capacity());
+        ++successes;
+    }
     {
         // Distinct per-axis precisions survive construction as typed extraction
         // controls, not a changed float scale or an edit of the source blocks.
