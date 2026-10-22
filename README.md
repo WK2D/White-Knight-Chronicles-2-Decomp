@@ -54,10 +54,11 @@ the optional in-game FPS overlay remains your choice.
 - **Performance and game timing:** the crowded town street is the slowest scene.
   With the frame limit unlocked it now runs at about 23–41 FPS on Vulkan, up from
   about 15 before pipelined geometry jobs; DirectX views of the crowd read 17–22.
-  At the 30 FPS limit it runs at about 20–24 FPS: patch 0134 gained 12.5% in a
-  moderate crowd, but the heaviest crowds still take three vblanks a frame. The
-  renderer's draws and the SPU command output (geometry and image 20) are the
-  remaining cost ([details](docs/SPU.md#what-limits-the-frame-rate)). Movement still
+  At the 30 FPS limit, lighter crowds now hold 30 FPS and the heaviest run at
+  about 20–24: patches 0134 and 0136 gained about 13% in a moderate crowd, but
+  the densest views still take three vblanks a frame. The renderer's draws and
+  the SPU command output (geometry commits and image 20) are the remaining cost
+  ([details](docs/SPU.md#what-limits-the-frame-rate)). Movement still
   stutters, and loading and cutscene timing need further comparison with RPCS3.
 - **Rendering:** black flicker at Leonard's feet and the rotating Logic Stone effect
   remain open. DirectX shadow fidelity and darker grass are under investigation,

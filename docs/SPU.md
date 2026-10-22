@@ -228,6 +228,10 @@ The crowded town street is the slowest scene. Findings in order:
    after the flip request: about 24 ms drawing and about 10 ms waiting for
    geometry and image-20 output
    ([details](PATCHES.md#street-frame-rate-at-the-30-limit-patch-0134)).
+   Patch 0136 then removed two always-on diagnostics from every SPU transfer
+   and let C++ issue a request in one call: image 20 fell from 17.5 to 16.5 ms
+   per frame. Lighter crowds now hold 30 FPS
+   ([details](PATCHES.md#cheaper-spu-transfers-patch-0136)).
 
 **Tried and set aside**
 
