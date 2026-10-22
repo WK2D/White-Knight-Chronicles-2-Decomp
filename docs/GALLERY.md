@@ -7,10 +7,10 @@ Capture details for every image are in
 [`verification/gallery.json`](../verification/gallery.json).
 
 Current source: 136 SDK patches / 121 Windows checks in normal Debug and optimized
-Release. The newest capture shows the crowded town street after pipelined
-geometry jobs and faster SPU transfers: 21.3 FPS in an unlocked DirectX run,
-where the last capture on this street read 8.5 at a 30 FPS cap. The street
-still lags.
+Release. The newest captures show the crowded town street on 22 October, after
+the geometry chain's overhead came down. At the 30 FPS cap, lighter crowds hold
+30 and a heavy crowd went from 25.8 to 29.4 FPS in a same-process A/B. The
+densest crowds still run below the cap; the capture run met one at 23.6–25.6 FPS.
 
 **Reading these captures**
 
@@ -27,7 +27,7 @@ still lags.
 - Image 21, the event-flag set job, is the first SPU image handled by C++ for
   its normal path; other images are partly or wholly compiled. Replacing every
   game SPU job with readable C++ remains the target; see [SPU jobs](SPU.md).
-- Still open: town lag, black flicker at Leonard's feet, Logic Stone flicker,
+- Still open: lag in the densest town crowds, black flicker at Leonard's feet, Logic Stone flicker,
   full DirectX character-shadow fidelity and same-session DirectX menu/reload.
 - Older capture conditions: the Vulkan town captures with the FPS overlay are
   final swap-chain readbacks after the overlay (104-patch build, 30 and
@@ -45,6 +45,7 @@ Select a row for the full entry and its limits.
 
 | Date | Milestone | Capture |
 | --- | --- | --- |
+| 2026-10-22 | [Geometry chain overhead](#2026-10-22--geometry-chain-overhead) | <a href="#2026-10-22--geometry-chain-overhead"><img src="../verification/screenshots/2026-10-22-native-geometry-chain-street.png" width="200" alt="Crowded town street with many townspeople, Vulkan"></a> |
 | 2026-10-21 | [Pipelined geometry, faster SPU code](#2026-10-21--pipelined-geometry-and-faster-spu-code) | <a href="#2026-10-21--pipelined-geometry-and-faster-spu-code"><img src="../verification/screenshots/2026-10-21-native-faster-spu-street.png" width="200" alt="Crowded town street with the FPS overlay at 21.3"></a> |
 | 2026-10-21 | [Owned extended arithmetic](#2026-10-21--owned-extended-arithmetic) | <a href="#2026-10-21--owned-extended-arithmetic"><img src="../verification/screenshots/2026-10-21-native-cpp-negative-product-town.png" width="200" alt="Authored extended arithmetic in the crowded town"></a> |
 | 2026-10-21 | [Frustum and interval selection](#2026-10-21--frustum-and-interval-selection) | <a href="#2026-10-21--frustum-and-interval-selection"><img src="../verification/screenshots/2026-10-21-native-cpp-frustum-town.png" width="200" alt="Authored selection jobs in the crowded town"></a> |
@@ -83,6 +84,28 @@ Fixes with a visible difference, newest first. Each entry below gives the test c
 | [Texture detail (patch 0079)](#2026-10-18---requested-texture-detail-restored)<br><sub>Same executable, save and camera.</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-before.png" width="320" alt="Bias forced to zero"><br><sub>Bias forced to zero</sub> | <img src="../verification/screenshots/2026-10-18-native-wkc1-lod-after.png" width="320" alt="Requested LOD bias applied"><br><sub>Requested LOD bias applied</sub> |
 | [Town stretching](#2026-10-17--town-stretching-fixed-secondary-bone-physics)<br><sub>Different builds and runs.</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-nv0039-npc-surfaces.png" width="320" alt="Strips at Leonard (52 patches)"><br><sub>Strips at Leonard (52 patches)</sub> | <img src="../verification/screenshots/2026-10-17-native-wkc1-secondary-bone-physics.png" width="320" alt="Secondary-bone physics job restored (58 patches)"><br><sub>Secondary-bone physics job restored (58 patches)</sub> |
 
+
+## 2026-10-22 — Geometry chain overhead
+
+![Crowded town street with many townspeople in the native Vulkan build](../verification/screenshots/2026-10-22-native-geometry-chain-street.png)
+
+![The player among townspeople near the winged statue](../verification/screenshots/2026-10-22-native-geometry-chain-street-close.png)
+
+The crowded street after the [geometry chain's overhead](NATIVE_CODE.md#geometry-chain-overhead-2026-10-22)
+came down. Idle geometry workers used to sleep between jobs, so each job waited
+about 12 µs for a wake-up. Every job also allocated its buffers afresh. Workers
+now poll briefly before sleeping, and jobs reuse their buffers. In a
+same-process A/B at the 30 FPS cap, a heavy crowd went from 25.8 to 29.4 FPS
+(+14%), with the median frame at 33.7 against 38.2 ms. Lighter crowds hold 30.
+Verify mode found no differences in either variant.
+
+These frames come from Release commit `07d5a90` on Vulkan, with the window
+hidden. The run used Continue and the scripted street walk, with an isolated
+copied save, sound muted, the 30 FPS limit, VSync and the FPS overlay on. They
+are game-frame readbacks taken before the overlay is drawn. This run met one
+of the densest crowds measured, and the overlay read **23.6–25.6 FPS**. The
+densest views still miss the cap, and the renderer's own draw time is now
+their largest cost. A still frame does not prove smooth traversal.
 
 ## 2026-10-21 — Pipelined geometry and faster SPU code
 
