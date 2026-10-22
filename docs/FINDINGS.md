@@ -25,7 +25,10 @@ the GPU and skips redundant Vulkan state. Patch
 overhead. Then the [geometry chain's overhead](NATIVE_CODE.md#geometry-chain-overhead-2026-10-22) came down:
 workers poll instead of sleeping between jobs, and jobs reuse their buffers. A
 heavy crowd went from 25.8 to 29.4 FPS in a same-process A/B, and lighter
-crowds hold 30. The densest views still miss the cap at times.
+crowds hold 30. Running geometry jobs the native path declines as compiled
+fallbacks at their turn, instead of draining the pipeline, then added 6–8%
+in the densest crowds ([fewer pipeline drains](NATIVE_CODE.md#fewer-pipeline-drains-2026-10-22)). Those
+still run at about 24–25 FPS, limited by the renderer drain and image 20.
 
 An earlier round made lifted SPU code cheaper to run. Captured jobs can now be
 replayed byte for byte (`WKC_JOB_REPLAY`), and

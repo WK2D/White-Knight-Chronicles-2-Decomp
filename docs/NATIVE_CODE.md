@@ -1592,6 +1592,50 @@ The densest views still miss the cap at times (90th-percentile frame about
 35 ms). The renderer's own draw time is now the largest part of the
 post-flip window.
 
+### Fewer pipeline drains (2026-10-22)
+
+`WKC_GEOM_STATS=1` now also names what triggered each drain. Per 4,096 jobs
+on the street there were about 75 drains before image 21's event-flag job,
+which follows each SYNC, and about 200 before a job the pipeline declined.
+Those declined jobs, about 7% of all jobs, are small skinned meshes. Their
+unused influence lanes name joints such as 215 or 254, whose palette rows lie
+in the skinning call's stack frame. The adapter can't prove those rows'
+values (`unrecovered_palette_row`), so the chain drained every queued job and
+ran the compiled job at once.
+
+**Changes.**
+- A job the pipeline can't adapt now queues as a compiled fallback that runs
+  at its commit turn, as a declined prepare already did.
+- A fallback records the guest writes of the compiled job: MFC PUTs, plain
+  and list, through the PUT hook, and atomic line stores through the atomic
+  trace hook. It logs exactly those ranges instead of "everything", so queued
+  copies it didn't touch stay valid. With the old "everything" entry,
+  deferral cost far more than it saved (11 against 26 FPS): every later queued
+  job had to be copied and prepared again, serially.
+- `WKC_AB_DEFER` (private A/B) restores drain-first and the "everything" entry.
+
+**Evidence.** Two same-process A/Bs in the densest crowds measured: 24.3
+against 22.4 and 24.9 against 23.5 FPS (+6–8%). The 1%-low FPS rose from
+15.2 to 17.7 and from 16.3 to 19.8. Geometry now holds the renderer for about
+0.3 ms per frame, down from about 4.7 ms. Verify mode found no differences,
+frame dumps from both variants look right, and 121 checks pass in Debug and
+Release.
+
+**Tried and set aside.**
+- Skipping the drain at SYNC/LWSYNC chain commands: flat (27.0 against 26.9
+  FPS). The drain just moves to the image-21 job that follows.
+- One shared texture write-watch query per frame: flat to slightly worse in
+  five A/Bs (29.5 against 29.6 FPS on average). It also showed that the
+  port's guest memory is reserved without `MEM_WRITE_WATCH`, so patch 0134's
+  per-texture write watch has never run here; every texture is hashed each
+  frame.
+
+**What limits the densest views now.** After the flip request the renderer
+drain is busy about 23 of 26 ms. Image 20 runs about 13 ms of its 18 ms per
+frame in that same window, and the drain waits on its output for about 1 ms.
+In lighter crowds the frame holds 30 FPS. In the densest, both the drain's
+own work and image 20 have to get faster.
+
 ## Next critical path: image 20, the SPU render-command builder
 
 After geometry pipelining, a ten-second frame timeline of the crowded street

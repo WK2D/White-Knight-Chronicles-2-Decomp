@@ -238,6 +238,12 @@ The crowded town street is the slowest scene. Findings in order:
    sleeping, and jobs and their buffers are reused. In a same-process A/B in a
    heavy crowd, the street went from 25.8 to 29.4 FPS (+14%)
    ([details](NATIVE_CODE.md#geometry-chain-overhead-2026-10-22)).
+7. **Fewer pipeline drains (2026-10-22).** Geometry jobs the native path
+   can't adapt (about 7%) now run compiled at their turn instead of draining
+   the pipeline. Their recorded writes keep the other queued copies valid.
+   The densest crowds went from about 23 to 24.6 FPS. There the renderer drain
+   (busy about 23 ms after the flip request) and image 20 are now the limit
+   ([details](NATIVE_CODE.md#fewer-pipeline-drains-2026-10-22)).
 
 **Tried and set aside**
 

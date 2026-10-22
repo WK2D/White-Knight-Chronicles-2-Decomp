@@ -58,8 +58,11 @@ the optional in-game FPS overlay remains your choice.
   gained about 13% in a moderate crowd. On 22 October, cutting the geometry
   chain's overhead took a heavy crowd from 25.8 to 29.4 FPS in a same-process
   A/B ([details](docs/NATIVE_CODE.md#geometry-chain-overhead-2026-10-22)).
-  The densest views still miss the cap at times. The renderer's draws and the
-  SPU command output (image 20) are the remaining cost
+  Running geometry jobs the native path cannot take as compiled jobs at their
+  turn, instead of
+  draining the pipeline, added 6–8% in the densest crowds, which now run at
+  about 24–25 FPS ([details](docs/NATIVE_CODE.md#fewer-pipeline-drains-2026-10-22)). There the renderer's
+  draws and the SPU command output (image 20) are the remaining cost
   ([details](docs/SPU.md#what-limits-the-frame-rate)). Movement still
   stutters, and loading and cutscene timing need further comparison with RPCS3.
 - **Rendering:** black flicker at Leonard's feet and the rotating Logic Stone effect

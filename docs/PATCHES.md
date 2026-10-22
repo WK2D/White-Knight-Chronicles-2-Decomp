@@ -160,7 +160,10 @@ the present. On the street:
 - **Texture write watch.** The guest arena is reserved with
   `MEM_WRITE_WATCH`. A cached texture of 64 KB or more whose pages were not
   written since its last hash is not hashed again. File reads touch the pages
-  they fill, because a kernel write does not mark them.
+  they fill, because a kernel write does not mark them. (2026-10-22: the
+  port reserves its own guest arena without `MEM_WRITE_WATCH`, so this check
+  has never run in WKC2; every texture is still hashed. Adding the flag was
+  flat in A/Bs; see [fewer pipeline drains](NATIVE_CODE.md#fewer-pipeline-drains-2026-10-22).)
 - **Drain timeline detail.** Why each drain pass stopped, flip request and
   drain-reaches-flip points (`WT_FLIP`), per-draw records (`WT_DRAW`), and
   `WKC_TRACE_SECONDS`. Debug switches in the drain are read once.
