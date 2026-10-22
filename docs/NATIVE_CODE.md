@@ -1807,6 +1807,9 @@ dispatch until the loop's next entry. Over 40 replays of the 96 jobs:
 
 Command 12's time is now mostly its compiled callees, not its C++. Two DMA
 PUTs dominate: the output-stream append at 0x1000 and the record writeback
-near 0xAD0. **Next:** command 10 and command 4, then the rest of the
+near 0xAD0. The draw builder's three calls to 0x1000 now run in C++ (one
+`spu_mfc_issue` and the offset update; a misaligned request still takes the
+compiled routine and its halt). Verify mode matches all 23,303 calls, but the
+gain is only about 1% (200 to 198 µs per job): the PUT itself is the cost. **Next:** command 10 and command 4, then the rest of the
 compiled tail. For street FPS, image 20's output still holds the drain up
 for about 3.6 ms per frame in the heaviest crowds.

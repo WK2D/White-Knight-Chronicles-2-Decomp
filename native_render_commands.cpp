@@ -91,6 +91,30 @@ void emit_rows(spu_context* ctx,std::uint32_t cursor,std::uint32_t to,std::uint3
 }
 }
 
+extern "C" void spu_mfc_issue(spu_context* ctx,std::uint32_t lsa,std::uint32_t ea,std::uint32_t size,
+                              std::uint32_t tag,std::uint32_t cmd);
+namespace {
+// 0x1000, called with the stream block in r3, the LS source in r4 and the
+// byte count in r5: append the bytes to that block's output stream. One DMA
+// PUT (tag 8) to EA = word 2 of the quad at r3+0x1040 plus word 0 of the quad
+// at r3+0x1050, then that word 0 advances by the count. r3 returns the summed
+// EA quad, as compiled; the other registers it sets die at its return. A
+// misaligned or oversized transfer runs the compiled routine, which halts.
+void put_stream(spu_context* ctx,std::uint32_t link) {
+    const std::uint32_t base=R(3)._u32[0],lsa=R(4)._u32[0],size=R(5)._u32[0],sp=R(1)._u32[0];
+    const u128 lo=load(ctx,base+0x1050);
+    const u128 ea_q=spu_a(spu_rotqbyi(load(ctx,base+0x1040),8),lo);
+    const std::uint32_t ea=ea_q._u32[0];
+    if((lsa&15u)||size>16384u||(size&15u)||(ea&15u)){call_compiled(ctx,0x1000,link);return;}
+    R(0)=spu_link(link);
+    spu_mfc_issue(ctx,lsa,ea,size,8,32);
+    const unsigned k=(sp&12u)>>2;
+    store(ctx,base+0x1050,with_word(lo,sp,lo._u32[k]+R(5)._u32[k]));
+    R(3)=ea_q;
+    ctx->pc=link;
+}
+}
+
 // 0xA8E0, called from the state flush when the transform block is dirty:
 // upload transform constants. With S = state + 720, the block holds three
 // matrices: M1 (S + 2944, rows 0-2; row 3 is the constant quad at LS 0xD2D0),
@@ -410,7 +434,7 @@ extern "C" int wkc_native_render_draw(spu_context* ctx) {
     R(80)=spu_xsbh(spu_ceqbi(spu_rotqbyi(load(ctx,S+0xA70),2),0));
     if((R(80)._u32[0]&0xFFFFu)==0) {                  // S+0xA75: the three rows at S+0xB80
         R(3)=R(5);R(5)=spu_il(48);R(4)=spu_a(R(86),spu_il(2944));
-        call_compiled(ctx,0x1000,0xA648);
+        put_stream(ctx,0xA648);
         const u128 q60=load(ctx,S+0xA60),q70=load(ctx,S+0xA70);
         store(ctx,S+0xA60,with_word(q60,frame+8,R(3)._u32[0]));
         store(ctx,S+0xA70,flag_clear(q70,5,R(80)));
@@ -420,7 +444,7 @@ extern "C" int wkc_native_render_draw(spu_context* ctx) {
         std::uint32_t address=0;
         if(bones) {
             R(3)=R(90);R(4)=spu_a(R(86),spu_il(2992));R(5)=spu_il(std::int32_t(48*bones));
-            call_compiled(ctx,0x1000,0xA8C8);
+            put_stream(ctx,0xA8C8);
             address=R(3)._u32[0];
         }
         store(ctx,S+0xA60,with_word(load(ctx,S+0xA60),frame+12,address));
@@ -450,7 +474,7 @@ extern "C" int wkc_native_render_draw(spu_context* ctx) {
             store(ctx,R(81)._u32[0]+16*j,spu_fa(even,odd));
         }
         R(3)=R(90);R(4)=spu_a(R(86),spu_il(2688));R(5)=spu_il(128);
-        call_compiled(ctx,0x1000,0xA794);
+        put_stream(ctx,0xA794);
         const u128 q70=with_word(load(ctx,S+0xA70),frame,R(3)._u32[0]);
         store(ctx,S+0xA70,flag_clear(q70,4,R(83)));
     }
