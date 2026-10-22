@@ -52,6 +52,7 @@ extern "C" {
 extern std::uint8_t* vm_base;
 extern void (*g_spu_put_hook)(std::uint32_t,std::uint32_t);
 extern void (*g_spu_put_trace_hook)(std::uint32_t,std::uint32_t,int,std::uint32_t,const std::uint8_t*);
+extern void (*g_spu_atomic_trace_hook)(std::uint32_t,std::uint32_t,int,std::uint32_t,const std::uint8_t*,std::uint32_t);
 #if defined(_WIN32)
 extern __declspec(thread) std::uint32_t g_spurs_job_mbox,g_spurs_job_mbox_intr,g_spurs_job_cmd;
 extern __declspec(thread) int g_spurs_job_mbox_valid,g_spurs_job_user_events,g_spurs_job_running;
@@ -78,9 +79,13 @@ spu_job_scope_begin_fn previous_begin=nullptr;
 spu_job_scope_end_fn previous_end=nullptr;
 void (*previous_put)(std::uint32_t,std::uint32_t)=nullptr;
 void (*previous_trace)(std::uint32_t,std::uint32_t,int,std::uint32_t,const Byte*)=nullptr;
+void (*previous_atomic)(std::uint32_t,std::uint32_t,int,std::uint32_t,const Byte*,std::uint32_t)=nullptr;
+// While a compiled fallback runs on this thread: the guest ranges it writes.
+thread_local std::vector<wkc::geometry::order::ByteRange>* fallback_writes=nullptr;
 bool enabled=false,installed=false,diagnostics=false;
 bool event_flag_jobs=true; // WKC_NATIVE_EVENT_FLAG=0 keeps image 21 compiled
 void drain_pipeline_this_thread()noexcept;
+void note_drain_cause(unsigned cause)noexcept;
 struct Census {
     std::atomic<std::uint64_t> seen{0},admitted{0},complete{0},decline{0},fatal{0};
 } census;
@@ -428,6 +433,7 @@ private:
 };
 
 void put_hook(std::uint32_t ea,std::uint32_t bytes) {
+    if(fallback_writes)fallback_writes->push_back({ea,std::uint64_t(ea)+bytes});
     std::lock_guard<std::recursive_mutex> lock(put_hook_gate);
     if(previous_put)previous_put(ea,bytes);
 }
@@ -435,6 +441,11 @@ void trace_hook(std::uint32_t ea,std::uint32_t bytes,int image,std::uint32_t pc,
     wkc::job_capture::put(ea,bytes,image,pc,source);
     std::lock_guard<std::recursive_mutex> lock(put_hook_gate);
     if(previous_trace)previous_trace(ea,bytes,image,pc,source);
+}
+// Every atomic line command but GETLLAR (0xD0) may store its 128-byte line.
+void atomic_hook(std::uint32_t cmd,std::uint32_t ea,int image,std::uint32_t pc,const Byte* line,std::uint32_t status) {
+    if(fallback_writes&&cmd!=0xD0u)fallback_writes->push_back({ea&~127u,std::uint64_t(ea&~127u)+128u});
+    if(previous_atomic)previous_atomic(cmd,ea,image,pc,line,status);
 }
 void refresh_put_hooks() {
     // Guest cellGcmInit can install its PUT observer after main's initial
@@ -453,7 +464,7 @@ thread_local ScopeLease current_scope;
     std::abort();
 }
 void* scope_begin(int image,std::uint32_t ea,std::uint32_t bytes)noexcept {
-    if(image!=19)drain_pipeline_this_thread();
+    if(image!=19){note_drain_cause(unsigned(image)&31u);drain_pipeline_this_thread();}
     wkc::job_capture::begin(image,ea,bytes);
     try {
         refresh_put_hooks();
@@ -692,6 +703,13 @@ struct ChainStats {
 };
 thread_local ChainStats chain_stats;
 thread_local bool chain_draining=false;
+// Drain causes: 0-31 another image's job, 32 a chain command or walker exit,
+// 33 a job the pipeline declined.
+constexpr unsigned cause_count=34;
+struct DrainCause {std::uint64_t drains=0,jobs=0;std::int64_t wait=0;};
+thread_local std::array<DrainCause,cause_count> drain_causes;
+thread_local unsigned drain_cause=33;
+void note_drain_cause(unsigned cause)noexcept {if(pipeline_stats)drain_cause=cause;}
 thread_local bool force_compiled=false;
 go::WriteLog commit_log;
 struct PipelineCensus {std::atomic<std::uint64_t> queued{0},committed{0},recopied{0},fallbacks{0},verified{0};} pipeline_census;
@@ -845,13 +863,30 @@ void source_ranges(Pending& p) {
     }
 }
 // Copy sources and adapt input. False leaves the decision to the serial path.
+thread_local std::array<std::uint64_t,256> decline_reasons{}; // WKC_GEOM_STATS: acquire reason, or 200+input status
 bool copy_and_adapt(Pending& p) {
     p.copied_after=commit_log.sequence();
     unsigned reason=0;
-    if(!p.sources.acquire(p.ea,p.descriptor_size,reason))return false;
-    if(gi::make_input(p.sources.spans(),p.sources.plan.platform,
-        [](float a,float b){return RuntimeMath::greater(a,b);},p.adapted,
-        chain_ab_old()?nullptr:&p.spare_input)!=gi::Status::ready)return false;
+    if(!p.sources.acquire(p.ea,p.descriptor_size,reason)){if(pipeline_stats)++decline_reasons[std::min(reason,199u)];return false;}
+    const auto status=gi::make_input(p.sources.spans(),p.sources.plan.platform,
+        [](float a,float b){return RuntimeMath::greater(a,b);},p.adapted,chain_ab_old()?nullptr:&p.spare_input);
+    if(status!=gi::Status::ready) {
+        if(pipeline_stats) {
+            ++decline_reasons[200u+std::min(unsigned(status),55u)];
+            static std::atomic<unsigned> shown{0};
+            if(status==gi::Status::unrecovered_palette_row&&shown++<48) {
+                const auto& u=gi::detail::last_unrecovered_row();const auto& l=p.sources.plan.platform.compatibility;
+                std::fprintf(stderr,"[geom-stats] unrecovered row: job=%08X joint=%u row=%u palette=%zu count=%u directions=%u "
+                    "coord=%05llX io=%05X scratch=%05X frame=%05X..%05X frame_end-coord=%lld slots:",p.ea,u.joint,u.row,
+                    u.palette_count,u.count,u.directions,(unsigned long long)u.coordinate,l.io_begin,l.scratch_begin,
+                    l.save_frame_begin,l.save_frame_end,(long long)l.save_frame_end-(long long)u.coordinate);
+                for(unsigned slot=0;slot<gi::dma_slot_count;++slot)if(!p.sources.payloads[slot].empty())
+                    std::fprintf(stderr," %u@%05X+%zX",slot,p.sources.plan.slot_begins[slot],p.sources.payloads[slot].size());
+                std::fprintf(stderr,"%c",10);
+            }
+        }
+        return false;
+    }
     const auto& m=p.adapted.metadata;
     p.config={m.allocator_control,m.allocator_slot,m.request_flags,m.publication_destination,m.packet_quadwords,m.dma_tag};
     source_ranges(p);return true;
@@ -898,14 +933,25 @@ struct ScopeSuspend {
         image19_mapping_cache.begin_lifetime(vm_base,vm_mapping_epoch_read());
     }
 };
+// WKC_AB_DEFER (private A/B): while the WKC_AB_GATE file exists, a job the
+// pipeline can't adapt drains it first, and a fallback's writes count as unknown.
+bool defer_ab_old() {
+    static const bool ab=std::getenv("WKC_AB_DEFER")!=nullptr;
+    return ab&&g_wkc_ab_off;
+}
 void compiled_fallback(const Pending& job) {
     ++pipeline_census.fallbacks;
+    // The compiled job writes guest memory only through MFC PUTs (plain and
+    // list) and atomic line stores, which both hooks see on this thread. Log
+    // exactly those ranges, so queued copies it didn't touch stay valid.
+    std::vector<go::ByteRange> writes;const bool record=!defer_ab_old();
     {
         ScopeSuspend suspend;force_compiled=true;
+        if(record)fallback_writes=&writes;
         spu_workload_dispatch_job(vm_base+job.binary_ea,job.binary_size,job.ea,job.descriptor_size);
-        force_compiled=false;
+        fallback_writes=nullptr;force_compiled=false;
     }
-    commit_log.commit_unknown();
+    if(record)commit_log.commit(std::move(writes)); else commit_log.commit_unknown();
 }
 void commit_front() {
     auto owned=std::move(pipeline_pending.front());pipeline_pending.pop_front();
@@ -915,16 +961,22 @@ void commit_front() {
         const bool queued=!ready&&!owned->started_ns.load(std::memory_order_relaxed);
         const auto w0=stats_now();prepare_pool.wait(owned.get());const auto waited=stats_now()-w0;
         ++st.jobs;st.wait+=waited;if(!ready)++st.waited;if(queued)++st.waited_queued;
-        if(chain_draining){++st.drained;st.drain_wait+=waited;}
+        if(chain_draining){++st.drained;st.drain_wait+=waited;auto& c=drain_causes[drain_cause];++c.jobs;c.wait+=waited;}
         const auto s0=owned->started_ns.load(std::memory_order_relaxed),e0=owned->ended_ns.load(std::memory_order_relaxed);
         if(s0&&e0){st.queue+=s0-owned->submitted_ns;st.prepare+=e0-s0;}
         if((st.jobs&4095u)==0) {
             const double n=double(st.jobs),us=1000.0*n;
             std::fprintf(stderr,"[geom-stats] jobs=%llu per job us: copy=%.1f wait=%.1f commit=%.1f queue=%.1f prepare=%.1f "
-                "| waited=%.0f%% (still queued %.0f%%) drained=%.0f%% drain-wait=%.1f\n",(unsigned long long)st.jobs,
+                "| waited=%.0f%% (still queued %.0f%%) drained=%.0f%% drain-wait=%.1f recopied=%llu fallbacks=%llu\n",(unsigned long long)st.jobs,
                 st.copy/us,st.wait/us,st.commit/us,st.queue/us,st.prepare/us,100.0*st.waited/n,100.0*st.waited_queued/n,
-                100.0*st.drained/n,st.drained?st.drain_wait/(1000.0*st.drained):0.0);
-            st=ChainStats{};
+                100.0*st.drained/n,st.drained?st.drain_wait/(1000.0*st.drained):0.0,
+                (unsigned long long)pipeline_census.recopied.load(),(unsigned long long)pipeline_census.fallbacks.load());
+            for(unsigned i=0;i<cause_count;++i)if(drain_causes[i].drains)
+                std::fprintf(stderr,"[geom-stats]   drain cause %u: drains=%llu jobs=%llu wait=%.0f us\n",i,
+                    (unsigned long long)drain_causes[i].drains,(unsigned long long)drain_causes[i].jobs,drain_causes[i].wait/1000.0);
+            for(unsigned i=0;i<decline_reasons.size();++i)if(decline_reasons[i])
+                std::fprintf(stderr,"[geom-stats]   declined reason %u: %llu\n",i,(unsigned long long)decline_reasons[i]);
+            st=ChainStats{};drain_causes={};decline_reasons={};
         }
     } else prepare_pool.wait(owned.get());
     if(commit_log.written_since(owned->copied_after,owned->reads)) {
@@ -972,23 +1024,36 @@ void commit_front() {
 }
 void drain_pipeline_this_thread()noexcept {
     if(pipeline_pending.empty())return;
+    if(pipeline_stats)++drain_causes[drain_cause].drains;
     chain_draining=true;
     try {while(!pipeline_pending.empty())commit_front();}
     catch(...) {pipeline_abort("exception while committing",0);}
     chain_draining=false;
 }
-extern "C" void wkc_chain_drain(void) {drain_pipeline_this_thread();}
+extern "C" void wkc_chain_drain(void) {
+    note_drain_cause(32);
+    drain_pipeline_this_thread();
+}
 thread_local unsigned pipeline_index=0;
 // Queue the job and report completion; nullopt asks for the serial path.
 std::optional<int> pipelined_hook(std::uint32_t ea,std::uint32_t descriptor_size) {
     auto p=new_pending();p->ea=ea;p->descriptor_size=descriptor_size;
-    const auto c0=pipeline_stats?stats_now():0;
-    if(!copy_and_adapt(*p)){recycle_pending(p);drain_pipeline_this_thread();return std::nullopt;}
-    if(pipeline_stats){p->submitted_ns=stats_now();chain_stats.copy+=p->submitted_ns-c0;}
     const auto* header=vm_base+ea; // CellSpursJobHeader: binary EA (low 3 bits flags), size>>4
     p->binary_ea=std::uint32_t(((std::uint64_t(gi::detail::be32(header))<<32)|gi::detail::be32(header+4))&~7ull);
     p->binary_size=((gi::detail::be32(header+8)>>16)&0xFFFFu)<<4;
-    p->mxcsr=_mm_getcsr();p->index=pipeline_index++;
+    p->mxcsr=_mm_getcsr();
+    const auto c0=pipeline_stats?stats_now():0;
+    if(!copy_and_adapt(*p)) {
+        if(defer_ab_old()){recycle_pending(p);note_drain_cause(33);drain_pipeline_this_thread();return std::nullopt;}
+        // Inputs the native job doesn't take: run the compiled job at its
+        // commit turn, as a declined prepare does, instead of draining now.
+        p->state.store(2,std::memory_order_relaxed);p->index=pipeline_index++;
+        pipeline_pending.push_back(std::move(p));++pipeline_census.queued;
+        while(pipeline_pending.size()>pipeline_window_now())commit_front();
+        return completed;
+    }
+    if(pipeline_stats){p->submitted_ns=stats_now();chain_stats.copy+=p->submitted_ns-c0;}
+    p->index=pipeline_index++;
     prepare_pool.submit(p.get());pipeline_pending.push_back(std::move(p));++pipeline_census.queued;
     while(pipeline_pending.size()>pipeline_window_now())commit_front();
     return completed;
@@ -1077,6 +1142,7 @@ void wkc2_init_native_geometry_jobs() {
     g_spu_native_job_hook=native_hook;g_spu_job_scope_begin=scope_begin;g_spu_job_scope_end=scope_end;
     g_spu_put_hook=put_hook;g_spu_put_trace_hook=trace_hook;installed=true;
     wkc::job_capture::configure();
+    previous_atomic=g_spu_atomic_trace_hook;g_spu_atomic_trace_hook=atomic_hook;
     // Pipeline workers: WKC_GEOM_PIPELINE=<n> (0 = serial), default by core count.
     const unsigned cores=std::thread::hardware_concurrency();
     unsigned workers=cores>=16?7u:cores>=8?3u:cores>=4?1u:0u;

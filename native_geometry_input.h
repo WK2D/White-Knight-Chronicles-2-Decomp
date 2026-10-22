@@ -129,6 +129,9 @@ inline bool contains(std::uint64_t begin,std::uint64_t bytes,
 }
 
 namespace detail {
+// The last row make_input could not recover, for diagnostics only.
+struct UnrecoveredRow {unsigned joint=0,row=0,count=0,directions=0;std::size_t palette_count=0;std::uint64_t coordinate=0;};
+inline UnrecoveredRow& last_unrecovered_row() {thread_local UnrecoveredRow row;return row;}
 // Move a spare input's buffers into an empty one, keeping their capacity.
 inline void reuse_buffers(pipeline::GeometryInput& into,pipeline::GeometryInput& spare) noexcept {
     auto take=[](auto& to,auto& from){to=std::move(from);to.clear();};
@@ -343,7 +346,10 @@ Status make_input(const StagedInputs& staged,const PlatformFacts& platform,
                     for(const auto& zero:layout.zero_ranges)
                         if(detail::contains(zero.begin,zero.bytes,coordinate)){found=true;break;}
                 }
-                if(!found)return Status::unrecovered_palette_row;
+                if(!found) {
+                    detail::last_unrecovered_row()={joint,row,count,directions,metadata.palette_count,coordinate};
+                    return Status::unrecovered_palette_row;
+                }
                 binding.source=pipeline::PaletteRowSource::literal;binding.literal={};
             }
             prepared[joint]=true;
