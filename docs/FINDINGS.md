@@ -2,7 +2,7 @@
 
 Updated 2026-10-21. Target: White Knight Chronicles II, USA BLUS30784 v01.00.
 
-**Current source checkpoint:** 134 SDK patches / 121 Windows checks in normal Debug
+**Current source checkpoint:** 135 SDK patches / 121 Windows checks in normal Debug
 and optimized Release. The native System menu now has
 Graphics Settings, Off/FXAA and a
 restart-selected experimental DirectX 12 path. Higher frame limits now change

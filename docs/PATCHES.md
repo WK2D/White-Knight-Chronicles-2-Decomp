@@ -64,6 +64,18 @@ of the build guide.
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
 
+## Test runs ignore host controllers (patch 0135)
+
+**Problem.** Hidden measurement runs read the machine's XInput controllers like
+any other run. A player using a gamepad in another game steered the test
+character, which moved the camera and the crowd in the middle of a timed
+window.
+
+**Fix.** `PAD_NO_HOST=1` (`cellPad.c`) makes port 0 a connected controller at
+rest and the other ports empty, so scripted input (`PAD_FILE`, `PAD_SCRIPT`)
+is all such a run sees. Player mode clears the variable like every other
+research switch.
+
 ## Street frame rate at the 30 limit (patch 0134)
 
 **Problem.** At the player's 30 FPS limit with VSync, the crowded town street

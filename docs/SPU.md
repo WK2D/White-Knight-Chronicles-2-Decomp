@@ -231,6 +231,15 @@ The crowded town street is the slowest scene. Findings in order:
 
 **Tried and set aside**
 
+- **Recording Vulkan commands on a second thread.** A queue in front of the
+  draw backend ran every void call on a worker thread, with copies of its data;
+  calls that return values waited for the queue to empty. It rendered
+  correctly, but the drain thread's per-draw share fell only from about 40% to
+  36%. Copying the 8 KB vertex-constant block and the raw vertex spans into
+  the queue cost nearly what the recording had, `surface_view` and
+  `depth_to_argb8` emptied the queue about 1,100 times a frame, and the extra
+  thread competed for cores. Same-process A/Bs were flat to slightly worse, so
+  it was removed (2026-10-22).
 - **Running Edge-chain jobs in parallel.** The chain keeps one output ring per
   SPU; reporting every job as SPU 0 corrupted it, and other SPU numbers stalled
   the GPU at the title screen.

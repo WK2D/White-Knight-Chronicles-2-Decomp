@@ -1,0 +1,24 @@
+diff --git a/libs/input/cellPad.c b/libs/input/cellPad.c
+index 46660e4..423b282 100644
+--- a/libs/input/cellPad.c
++++ b/libs/input/cellPad.c
+@@ -174,11 +174,18 @@ static void pad_poll_keyboard(void)
+ 
+ static void pad_poll_xinput(void)
+ {
++    /* PAD_NO_HOST=1: ignore the machine's own controllers. Port 0 reads as a
++     * controller at rest and the others as empty, so scripted input
++     * (PAD_FILE, PAD_SCRIPT) is all a test run sees -- a player using a
++     * gamepad in another window does not steer it. */
++    static int no_host = -1;
++    if (no_host < 0) no_host = getenv("PAD_NO_HOST") != NULL;
+     for (int i = 0; i < PAD_MAX_HOST_PORTS; i++) {
+         XINPUT_STATE state;
+         memset(&state, 0, sizeof(state));
+ 
+-        DWORD result = XInputGetState((DWORD)i, &state);
++        DWORD result = no_host ? (i == 0 ? ERROR_SUCCESS : ERROR_DEVICE_NOT_CONNECTED)
++                               : XInputGetState((DWORD)i, &state);
+         if (result != ERROR_SUCCESS) {
+             s_host_state[i].connected = 0;
+             continue;
