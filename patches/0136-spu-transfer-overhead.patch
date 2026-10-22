@@ -1,0 +1,127 @@
+diff --git a/include/ps3emu/wkc_ab.h b/include/ps3emu/wkc_ab.h
+index 7a24379..ee283a8 100644
+--- a/include/ps3emu/wkc_ab.h
++++ b/include/ps3emu/wkc_ab.h
+@@ -5,6 +5,7 @@
+  * Nonzero while the change under test is switched off; it stays 0 in play. */
+ #ifndef WKC_AB_H
+ #define WKC_AB_H
++#include <stdlib.h>
+ /* C linkage from both languages: main.cpp sets it, the C runtime reads it. */
+ #ifdef __cplusplus
+ extern "C" {
+@@ -14,6 +15,14 @@ __declspec(selectany) volatile int g_wkc_ab_off = 0;
+ #else
+ __attribute__((weak)) volatile int g_wkc_ab_off = 0;
+ #endif
++/* WKC_AB_MFC (private A/B): the SPU transfer path's old per-transfer work while
++ * the gate is off. */
++static inline int wkc_ab_mfc_old(void)
++{
++    static int ab = -1;
++    if (ab < 0) ab = getenv("WKC_AB_MFC") != 0;
++    return ab && g_wkc_ab_off;
++}
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/runtime/spu/spu_channels.c b/runtime/spu/spu_channels.c
+index d09eeaf..5389688 100644
+--- a/runtime/spu/spu_channels.c
++++ b/runtime/spu/spu_channels.c
+@@ -770,6 +770,19 @@ static int channel_is_mfc(uint32_t ch)
+ /* ===========================================================================
+  * Channel write
+  * ===========================================================================*/
++void spu_wrch(spu_context* ctx, uint32_t channel, u128 value);
++/* One MFC request from native code: the five parameter channels, then the
++ * command through spu_wrch, exactly as six channel writes would make it. */
++void spu_mfc_issue(spu_context* ctx, uint32_t lsa, uint32_t ea, uint32_t size,
++                   uint32_t tag, uint32_t cmd)
++{
++    ctx->mfc_lsa = lsa; ctx->mfc_eah = 0; ctx->mfc_eal = ea;
++    ctx->mfc_size = size; ctx->mfc_tag = tag & 0x1F;
++    u128 c = {0};
++    c._u32[0] = cmd;
++    spu_wrch(ctx, MFC_Cmd, c);
++}
++
+ void spu_wrch(spu_context* ctx, uint32_t channel, u128 value)
+ {
+     /* SPU_CHHIST=1: which channels a job actually touches, and how often. A
+@@ -784,6 +797,17 @@ void spu_wrch(spu_context* ctx, uint32_t channel, u128 value)
+                   fprintf(stderr, "   wrch ch%-3d %llu%c", i, w[i], 10); } } }
+     uint32_t v = value._u32[0];  /* channel writes use the preferred slot */
+ 
++    /* The five MFC parameter channels are plain stores (mfc_channel_write);
++     * every DMA writes all of them, so take them before anything else. */
++    if (!wkc_ab_mfc_old()) switch (channel) {
++    case MFC_LSA:   ctx->mfc_lsa = v; return;
++    case MFC_EAH:   ctx->mfc_eah = v; return;
++    case MFC_EAL:   ctx->mfc_eal = v; return;
++    case MFC_Size:  ctx->mfc_size = v; return;
++    case MFC_TagID: ctx->mfc_tag = v & 0x1F; return;
++    default: break;
++    }
++
+     if (channel_is_mfc(channel)) {
+         /* Atomic line ops (GETLLAR/PUTLLC/...) need real reservation semantics,
+          * not the plain GET/PUT the DMA engine would do. */
+diff --git a/runtime/spu/spu_dma.h b/runtime/spu/spu_dma.h
+index 0c2adec..8251b93 100644
+--- a/runtime/spu/spu_dma.h
++++ b/runtime/spu/spu_dma.h
+@@ -16,6 +16,7 @@
+ #define SPU_DMA_H
+ 
+ #include "spu_context.h"
++#include "../../include/ps3emu/wkc_ab.h"
+ #include <stdint.h>
+ #include <string.h>
+ #include <stdlib.h>
+@@ -673,8 +674,12 @@ static inline int mfc_do_transfer(spu_context* spu, uint32_t lsa, uint64_t ea,
+         /* POISON-DMA detector: does an SPU PUT write the singleton object region
+          * (0x40003000-0x40005000) or carry the 0xC708C708 poison? This host-side
+          * memcpy bypasses vm_write32/AWATCH, so it's the prime suspect for the
+-         * garbage fn-ptr fields that cause the 0xC708C708 vcall crash. */
+-        { uint32_t e = (uint32_t)ea;
++         * garbage fn-ptr fields that cause the 0xC708C708 vcall crash.
++         * SPU_POISON_DMA=1: it scanned every word of every PUT, about a sixth
++         * of the transfer path's time, so it is opt-in. */
++        static int s_poison = -1;
++        if (s_poison < 0) s_poison = getenv("SPU_POISON_DMA") ? 1 : 0;
++        if (s_poison || wkc_ab_mfc_old()) { uint32_t e = (uint32_t)ea;
+           int hitregion = (e < 0x40005000u && e + size > 0x40003000u);
+           int haspoison = 0;
+           for (uint32_t o = 0; o + 4 <= size; o += 4) {
+@@ -1155,13 +1160,14 @@ static inline int mfc_submit(mfc_engine* mfc, spu_context* spu, uint32_t cmd)
+      * unfinished jobs and left the RSX waiting on their unpatched self-jumps.
+      * Keep the repeat cutoff as an explicitly requested diagnostic only.
+      * Zero disables it. Track it separately on each host execution thread. */
+-    { static SPU_THREAD_LOCAL uint32_t s_last_ea, s_last_lsa, s_rep, s_limit;
+-      static SPU_THREAD_LOCAL int s_initialized;
+-      if (!s_initialized) { const char* e = getenv("SPU_DMA_REPEAT_LIMIT");
+-          s_limit = e ? (uint32_t)strtoul(e, 0, 0) : 0;
+-          s_initialized = 1;
+-      }
+-      if (s_limit && (uint32_t)ea == s_last_ea && lsa == s_last_lsa) {
++    /* The limit is read once for the process; only a set limit touches the
++     * per-thread state (a thread-local access on every submit was measurable). */
++    static int64_t s_limit_all = -1;
++    if (s_limit_all < 0) { const char* e = getenv("SPU_DMA_REPEAT_LIMIT");
++        s_limit_all = e ? (int64_t)strtoul(e, 0, 0) : 0; }
++    if (s_limit_all) { static SPU_THREAD_LOCAL uint32_t s_last_ea, s_last_lsa, s_rep;
++      const uint32_t s_limit = (uint32_t)s_limit_all;
++      if ((uint32_t)ea == s_last_ea && lsa == s_last_lsa) {
+           if (++s_rep >= s_limit) {
+               s_rep = 0;   /* re-arm: the chain may run this job again */
+               extern void spu_halt(spu_context*);
+@@ -1172,7 +1178,7 @@ static inline int mfc_submit(mfc_engine* mfc, spu_context* spu, uint32_t cmd)
+               fflush(stderr);
+               spu_halt(spu);
+           }
+-      } else if (s_limit) { s_last_ea = (uint32_t)ea; s_last_lsa = lsa; s_rep = 0; } }
++      } else { s_last_ea = (uint32_t)ea; s_last_lsa = lsa; s_rep = 0; } }
+ 
+     /* Mark tag as in-progress */
+     mfc->tag_completed &= ~(1u << tag);

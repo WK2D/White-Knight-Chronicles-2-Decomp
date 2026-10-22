@@ -4,7 +4,7 @@ This builds the current static recompilation/runtime project, including an
 observed SPU interpreter fallback. It does not establish fully static CPU
 coverage. See [architecture and modding scope](ARCHITECTURE.md).
 
-**Current validation (2026-10-22):** the stack contains 135 SDK patches. All
+**Current validation (2026-10-22):** the stack contains 136 SDK patches. All
 121 Windows checks pass in normal Debug and optimized Release. The latest
 concurrent runs take 29.93 and 25.76 seconds respectively. Reapplying the complete stack changes no SDK files.
 Strict DirectX and Vulkan routes on patch
@@ -134,7 +134,7 @@ callback delivery, depth-comparison shaders and Vulkan arena reservation.
 admission rejection and finite box/quad examples. Its small finite geometry
 policy is separate from the whole-original arithmetic comparisons recorded in
 the [native execution evidence](NATIVE_CODE.md#owned-visibility-jobs).
-The current source stack contains 135 numbered SDK patches, and all 121 checks
+The current source stack contains 136 numbered SDK patches, and all 121 checks
 pass in normal Debug and optimized Release. Graphics panel
 captures use 83 patches; saving
 was first verified at 75, normal shadow polarity at 74, and the physics

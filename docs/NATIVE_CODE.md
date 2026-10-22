@@ -196,7 +196,7 @@ zero fallback and at least 16,777,216 transformed blocks in each run. Both final
 frames were inspected. The Vulkan run additionally samples CPU time; profiling,
 tracing and GPU captures make it unsuitable as an FPS benchmark.
 
-Both Windows suites now pass 121 checks with 135 SDK patches. No FPS gain,
+Both Windows suites now pass 121 checks with 136 SDK patches. No FPS gain,
 whole-job/DMA scheduling equivalence, complete static coverage or ARM execution
 is claimed.
 
@@ -1787,7 +1787,26 @@ against 24.3). In that scene the renderer limits the frame: its FIFO drain
 takes about 28 ms per frame and keeps its thread about 78% busy, so faster
 image-20 jobs raise FPS only once the renderer is faster too.
 
-**Next.** In a replayed job the runtime's DMA path (six channel writes and the
-transfer bookkeeping per request) is now about 19% of the time and the loop's
-own C++ about 13%; command 10 (0x7430, about 7%) and command 4 are the largest
-compiled handlers left. For street FPS the renderer's FIFO drain comes first.
+**Transfer path (patch 0136).** Two always-on runtime diagnostics no longer
+run on every SPU transfer. The C++ loop now issues each request with one call
+instead of six channel writes. A replayed job fell from about 219 to 200 µs,
+and image 20 from 17.5 to 16.5 ms per frame in a same-process street A/B
+([details](PATCHES.md#cheaper-spu-transfers-patch-0136)).
+
+**Per-command profile (2026-10-22).** `WKC_NATIVE_RENDER_CMDPROF=1` times each
+dispatch until the loop's next entry. Over 40 replays of the 96 jobs:
+
+| Command | Calls per job | Cycles each | Share |
+| --- | ---: | ---: | ---: |
+| 12 (C++ flush and draw builder) | about 31 | about 7,100 | 39% |
+| 25 (C++) | about 410 | about 100 | 7% |
+| 10 (0x7430) | about 14 | about 3,000 | 7% |
+| 4 | about 36 | about 1,100 | 7% |
+| 2 | about 36 | about 970 | 6% |
+| 22, 14, 15, 13, 19 | 30–60 each | 330–790 | 3–5% each |
+
+Command 12's time is now mostly its compiled callees, not its C++. Two DMA
+PUTs dominate: the output-stream append at 0x1000 and the record writeback
+near 0xAD0. **Next:** command 10 and command 4, then the rest of the
+compiled tail. For street FPS, image 20's output still holds the drain up
+for about 3.6 ms per frame in the heaviest crowds.

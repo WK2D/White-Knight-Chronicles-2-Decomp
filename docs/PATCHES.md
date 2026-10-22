@@ -64,6 +64,37 @@ of the build guide.
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
 
+## Cheaper SPU transfers (patch 0136)
+
+**Problem.** A sampled replay of the 96 captured image-20 street jobs (about
+219 µs each) spent about 19% of its time in the SPU transfer path: six
+`spu_wrch` calls per request, `mfc_submit` and `mfc_do_transfer`. Within it,
+two always-on diagnostics cost about a fifth of the path. A poison detector
+scanned every word of every PUT for `0xC708C708`, and the repeat-transfer
+limit read two thread-local values on every submit, though it is off unless
+`SPU_DMA_REPEAT_LIMIT` is set. Every compiled SPU job pays for both.
+
+**Fix.**
+- The poison scan runs only with `SPU_POISON_DMA=1`. The repeat limit is read
+  once per process, and the per-thread state is touched only when a limit is
+  set.
+- `spu_wrch` stores the five MFC parameter channels (address, size, tag)
+  before anything else, as `mfc_channel_write` would.
+- `spu_mfc_issue` sets all five and then writes `MFC_Cmd` through `spu_wrch`,
+  so atomic commands, hooks and events behave as before. Image 20's C++
+  interpreter loop uses it for its command-ring refills and payload reads,
+  about 1,900 requests per job.
+- `WKC_AB_MFC` (private A/B) restores the old per-transfer work while
+  main.cpp's gate file exists.
+
+**Evidence.**
+- Replay: about 219 → 200 µs per job, with all 96 jobs byte-exact.
+  `WKC_NATIVE_RENDER_VERIFY=1` matched all 23,303 routine calls.
+- Same-process street A/B: image 20 took 16.5 against 17.5 ms per frame
+  (−5.5%), at 23.96 against 23.72 FPS.
+- A light-crowd run held 30 FPS in both variants.
+- 121 checks pass in Debug and Release.
+
 ## Test runs ignore host controllers (patch 0135)
 
 **Problem.** Hidden measurement runs read the machine's XInput controllers like

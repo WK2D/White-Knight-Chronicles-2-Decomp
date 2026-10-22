@@ -23,13 +23,20 @@
 // pass is enough.
 #include "spu_context.h"
 #include "spu_helpers.h"
+#include "ps3emu/wkc_ab.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#if defined(_MSC_VER)
+#include <intrin.h>
+#else
+#include <x86intrin.h>
+#endif
 
 extern "C" {
 u128 spu_rdch(spu_context* ctx,uint32_t channel);
 void spu_wrch(spu_context* ctx,uint32_t channel,u128 value);
+void spu_mfc_issue(spu_context* ctx,uint32_t lsa,uint32_t ea,uint32_t size,uint32_t tag,uint32_t cmd);
 void spu_halt(spu_context* ctx);
 typedef void (*wkc_spu_fn)(spu_context*);
 wkc_spu_fn spu_lookup(uint32_t addr,int image_id);
@@ -88,8 +95,12 @@ void put_word(std::uint8_t* q,unsigned offset,uint32_t v) {
 }
 u128 word_reg(uint32_t v) {u128 r{};r._u32[0]=v;return r;} // channel writes use the preferred word
 void dma(spu_context* ctx,uint32_t lsa,uint32_t ea,uint32_t size,uint32_t tag,uint32_t command) {
-    spu_wrch(ctx,MFC_LSA,word_reg(lsa));spu_wrch(ctx,MFC_EAH,word_reg(0));spu_wrch(ctx,MFC_EAL,word_reg(ea));
-    spu_wrch(ctx,MFC_Size,word_reg(size));spu_wrch(ctx,MFC_TagID,word_reg(tag));spu_wrch(ctx,MFC_Cmd,word_reg(command));
+    if(wkc_ab_mfc_old()) {   // private A/B: the six separate channel writes
+        spu_wrch(ctx,MFC_LSA,word_reg(lsa));spu_wrch(ctx,MFC_EAH,word_reg(0));spu_wrch(ctx,MFC_EAL,word_reg(ea));
+        spu_wrch(ctx,MFC_Size,word_reg(size));spu_wrch(ctx,MFC_TagID,word_reg(tag));spu_wrch(ctx,MFC_Cmd,word_reg(command));
+        return;
+    }
+    spu_mfc_issue(ctx,lsa,ea,size,tag,command);   // the six channel writes in one call
 }
 
 // The fetch call at 0xC540 on bytes. Ring state: words 1-3 of the quad at
@@ -198,6 +209,20 @@ struct Stats {
     Stats() {on=std::getenv("WKC_NATIVE_RENDER_STATS")!=nullptr;}
     ~Stats() {if(on)std::fprintf(stderr,"[native-render-loop] passes=%llu declined=%llu\n",passes,declined);}
 } stats;
+// WKC_NATIVE_RENDER_CMDPROF=1: cycles from each dispatch to the loop's next
+// entry, by command id (the handler plus everything it calls), at exit.
+struct CommandProfile {
+    unsigned long long calls[37]={},cycles[37]={};bool on=false;
+    CommandProfile() {on=std::getenv("WKC_NATIVE_RENDER_CMDPROF")!=nullptr;}
+    ~CommandProfile() {
+        if(!on)return;
+        unsigned long long total=0;for(auto c:cycles)total+=c;
+        for(unsigned i=0;i<37;++i)if(calls[i])
+            std::fprintf(stderr,"[native-render-cmd] %2u calls=%llu cycles/call=%llu share=%.1f%%\n",i+1,calls[i],
+                cycles[i]/calls[i],total?100.0*cycles[i]/total:0.0);
+    }
+} cmdprof;
+thread_local unsigned prof_cmd=~0u;thread_local unsigned long long prof_t0;
 }
 
 extern "C" wkc_spu_fn wkc_native_render_loop(spu_context* ctx,int from_return) {
@@ -207,6 +232,10 @@ extern "C" wkc_spu_fn wkc_native_render_loop(spu_context* ctx,int from_return) {
         return nullptr;
     }
     if(stats.on)++stats.passes;
+    if(cmdprof.on&&prof_cmd<37) {
+        if(from_return){++cmdprof.calls[prof_cmd];cmdprof.cycles[prof_cmd]+=__rdtsc()-prof_t0;}
+        prof_cmd=~0u;
+    }
     if(from_return) {
         // 0x1968: make sure there is output space (0xFF0 -> 0xFC0, flush at 0xC40).
         R(47)=spu_il(3648);R(5)=spu_ai(R(1),32);R(4)=spu_il(1024);R(3)=spu_a(R(5),R(47));
@@ -245,5 +274,6 @@ extern "C" wkc_spu_fn wkc_native_render_loop(spu_context* ctx,int from_return) {
     R(39)=spu_a(R(40),R(37));R(38)=LS(ctx,P(R(37))+P(R(40)));R(36)=spu_rotqby(R(38),R(39));R(2)=spu_a(R(36),R(37));
     if(P(R(35))!=0){ctx->pc=0x1410;return compiled(ctx,0x1410);}
     ctx->pc=P(R(2));
+    if(cmdprof.on){prof_cmd=P(R(8));prof_t0=__rdtsc();}
     return handler(ctx,P(R(8)),P(R(2)));
 }

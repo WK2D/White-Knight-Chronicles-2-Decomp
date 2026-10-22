@@ -52,7 +52,7 @@
       "private_ring_wait_included": false,
       "scope": "Tested clean Release with authored extended negative-product arithmetic; existing shortcut, manual startup, no auto-input or diagnostics, 30 FPS baseline, saves/preferences retained. No FPS gain or complete image replacement."
     },
-    "scope": "Current source has 135 SDK patches / 121 passing Windows checks in Debug and Release. Authored extended negative-product arithmetic is connected in supported geometry/visibility jobs; quiet street capture has FPS overlay. Lag, broader gameplay, other job paths and full-image ownership remain open; no FPS gain."
+    "scope": "Current source has 136 SDK patches / 121 passing Windows checks in Debug and Release. Authored extended negative-product arithmetic is connected in supported geometry/visibility jobs; quiet street capture has FPS overlay. Lag, broader gameplay, other job paths and full-image ownership remain open; no FPS gain."
   },
   "verified": {
     "native_language_selection_rendered": true,
