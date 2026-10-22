@@ -219,6 +219,15 @@ The crowded town street is the slowest scene. Findings in order:
    Patch 0133 cut its per-draw vertex decoding, fragment-program handling
    and texture hashing, for about +6–7% FPS in same-process A/Bs
    ([details](PATCHES.md#faster-renderer-draws-patch-0133)).
+5. **At the 30 FPS limit: everything after the flip request.** The game
+   waits for each flip before building the next frame, so the frame is
+   serial. Patch 0134 inlines guest loads and stores (the game thread's part
+   fell from about 14 to 2 ms), presents without waiting for the GPU, fetches
+   vertices on the GPU and drops redundant Vulkan state, for +12.5% in a
+   moderate crowd. In the heaviest crowds the drain still needs about 35 ms
+   after the flip request: about 24 ms drawing and about 10 ms waiting for
+   geometry and image-20 output
+   ([details](PATCHES.md#street-frame-rate-at-the-30-limit-patch-0134)).
 
 **Tried and set aside**
 

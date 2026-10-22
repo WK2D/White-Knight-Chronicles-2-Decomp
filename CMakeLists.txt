@@ -64,6 +64,10 @@ if(NOT RECOMP_SOURCES)
         "there is nothing to run.")
 endif()
 list(LENGTH RECOMP_SOURCES RECOMP_SOURCE_COUNT)
+# Plain guest loads and stores inline in the lifted code (ppu_recomp.h);
+# everything else still goes through the runtime's vm_read*/vm_write*.
+set_source_files_properties(${RECOMP_SOURCES} PROPERTIES
+    COMPILE_DEFINITIONS PPU_RECOMP_INLINE_MEMORY=1)
 message(STATUS "Lifted sources:  ${RECOMP_SOURCE_COUNT} file(s)")
 
 # ---------------------------------------------------------------------------

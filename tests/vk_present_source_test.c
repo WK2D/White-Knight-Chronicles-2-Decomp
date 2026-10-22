@@ -94,6 +94,12 @@ static void pvkCmdCopyImageToBuffer(VkCommandBuffer cmd, VkImage src, VkImageLay
 static void vk_cmd_buffer_to_host(VkBuffer buffer) { (void)buffer; }
 static void vk_invalidate(vk_buffer* buffer) { (void)buffer; }
 static void vk_dump_ppm(const unsigned char* rgba) { assert(rgba == pixels); dumped++; }
+/* The asynchronous present is its own production function; these checks
+ * cover the synchronous path it falls back to. */
+static int vk_win_settle(void) { return 0; }
+static int vk_async_present_on(void) { return 0; }
+static int vk_eng_present_window_async(VkImage source, u32 width, u32 height)
+{ (void)source; (void)width; (void)height; return 0; }
 #include "present-fixture.inc"
 
 static void reset(void)

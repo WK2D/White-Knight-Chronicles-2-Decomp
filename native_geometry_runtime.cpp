@@ -18,6 +18,7 @@
 #include "native_geometry_mapping_cache.h"
 #include "native_geometry_order.h"
 #include "vm_mapping_epoch.h"
+#include "ps3emu/wkc_ab.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -33,6 +34,7 @@
 #include <optional>
 #include <span>
 #include <stdexcept>
+#include <chrono>
 #include <thread>
 #include <vector>
 #ifdef _WIN32
@@ -665,7 +667,16 @@ int execute_visibility(std::uint32_t ea,std::uint32_t descriptor_size) {
 // WKC_GEOM_PIPELINE_VERIFY=1 re-prepares every 64th job serially and aborts
 // on any difference in the logical outputs.
 namespace go=wkc::geometry::order;
-constexpr std::size_t pipeline_window=8;
+// WKC_GEOM_WINDOW=<n> sets how many queued jobs the chain keeps ahead of its
+// commits (default 8). WKC_AB_GEOM_WINDOW=<n> (private A/B) uses n only while
+// the WKC_AB_GATE file is absent.
+std::size_t pipeline_window_now() {
+    static const std::size_t base=[]{const char* e=std::getenv("WKC_GEOM_WINDOW");
+        const unsigned long n=e?std::strtoul(e,nullptr,10):8ul;return std::size_t(n?n:8ul);}();
+    static const std::size_t ab=[]{const char* e=std::getenv("WKC_AB_GEOM_WINDOW");
+        return std::size_t(e?std::strtoul(e,nullptr,10):0ul);}();
+    return ab&&!g_wkc_ab_off?ab:base;
+}
 std::atomic<bool> pipeline_on{false};
 bool pipeline_verify=false;
 thread_local bool force_compiled=false;
@@ -689,11 +700,21 @@ int prepare_state(Pending& job)noexcept {
 }
 class PreparePool {
 public:
-    void start(unsigned count) {for(unsigned i=0;i<count;++i)threads_.emplace_back([this]{run();});}
+    void start(unsigned count) {
+        // WKC_GEOM_AB_BASE=<n> (private A/B): while the WKC_AB_GATE file
+        // exists, only the first n workers take jobs.
+        if(const char* base=std::getenv("WKC_GEOM_AB_BASE"))ab_base_=unsigned(std::strtoul(base,nullptr,10));
+        for(unsigned i=0;i<count;++i)threads_.emplace_back([this,i]{run(i);});
+    }
     void submit(Pending* job) {
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            if(!stopping_&&!threads_.empty()){queue_.push_back(job);ready_.notify_one();return;}
+            if(!stopping_&&!threads_.empty()) {
+                queue_.push_back(job);
+                // A benched worker may take the one wakeup: wake them all then.
+                if(ab_base_!=~0u)ready_.notify_all(); else ready_.notify_one();
+                return;
+            }
         }
         job->state.store(prepare_state(*job),std::memory_order_release); // stopped: prepare here
     }
@@ -709,12 +730,16 @@ public:
         for(auto& thread:threads_)if(thread.joinable())thread.join();
     }
 private:
-    void run() {
+    bool benched(unsigned id)const {return id>=ab_base_&&g_wkc_ab_off;}
+    void run(unsigned id) {
         for(;;) {
             Pending* job;
             {
                 std::unique_lock<std::mutex> lock(mutex_);
-                ready_.wait(lock,[this]{return stopping_||!queue_.empty();});
+                if(ab_base_!=~0u) {
+                    while(!ready_.wait_for(lock,std::chrono::milliseconds(2),
+                        [this,id]{return stopping_||(!queue_.empty()&&!benched(id));})) {}
+                } else ready_.wait(lock,[this]{return stopping_||!queue_.empty();});
                 if(queue_.empty())return;
                 job=queue_.front();queue_.pop_front();
             }
@@ -727,7 +752,7 @@ private:
         }
     }
     std::mutex mutex_;std::condition_variable ready_,done_;std::deque<Pending*> queue_;
-    std::vector<std::thread> threads_;bool stopping_=false;
+    std::vector<std::thread> threads_;bool stopping_=false;unsigned ab_base_=~0u;
 };
 // Never destroyed: chain threads may still use it while static destructors run.
 PreparePool& prepare_pool=*new PreparePool;
@@ -863,7 +888,7 @@ std::optional<int> pipelined_hook(std::uint32_t ea,std::uint32_t descriptor_size
     p->binary_size=((gi::detail::be32(header+8)>>16)&0xFFFFu)<<4;
     p->mxcsr=_mm_getcsr();p->index=pipeline_index++;
     prepare_pool.submit(p.get());pipeline_pending.push_back(std::move(p));++pipeline_census.queued;
-    while(pipeline_pending.size()>pipeline_window)commit_front();
+    while(pipeline_pending.size()>pipeline_window_now())commit_front();
     return completed;
 }
 int execute_native_hook(int image,std::uint32_t ea,std::uint32_t descriptor_size) {
@@ -952,7 +977,7 @@ void wkc2_init_native_geometry_jobs() {
     wkc::job_capture::configure();
     // Pipeline workers: WKC_GEOM_PIPELINE=<n> (0 = serial), default by core count.
     const unsigned cores=std::thread::hardware_concurrency();
-    unsigned workers=cores>=8?3u:cores>=4?1u:0u;
+    unsigned workers=cores>=16?7u:cores>=8?3u:cores>=4?1u:0u;
     if(const char* requested=std::getenv("WKC_GEOM_PIPELINE"))workers=unsigned(std::strtoul(requested,nullptr,10));
     if(workers) {
         pipeline_verify=std::getenv("WKC_GEOM_PIPELINE_VERIFY")!=nullptr;

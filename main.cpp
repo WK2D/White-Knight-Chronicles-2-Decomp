@@ -1,5 +1,6 @@
 #include "play_environment.h"
 #include "ps3emu/wkc_frame_trace.h"
+#include "ps3emu/wkc_ab.h"
 /*
  * White Knight Chronicles II native-port runner.
  *
@@ -590,6 +591,28 @@ extern "C" void wkc2_observe_update(uint32_t app)
     }
 }
 
+/* WKC_AB_GATE=<file>: private same-process A/B for performance work. While
+ * <file> exists the change under test is switched off; each switch is a
+ * timeline point (WT_FLIP, a=2, b=1 while off). Unset, nothing happens. */
+extern "C" void ppu_vm_inline_set(int on);
+static void wkc2_ab_tick(void)
+{
+    static const char* gate = getenv("WKC_AB_GATE");
+    static ULONGLONG next_check;
+    static int off = -1;
+    if (!gate) return;
+    const ULONGLONG now = GetTickCount64();
+    if (now < next_check) return;
+    next_check = now + 100;
+    const int want = GetFileAttributesA(gate) != INVALID_FILE_ATTRIBUTES;
+    if (want == off) return;
+    off = want;
+    g_wkc_ab_off = off;
+    static const bool ab_inline = getenv("WKC_AB_INLINE") != nullptr;
+    if (ab_inline) ppu_vm_inline_set(!off);
+    wt_end(WT_FLIP, 2, (unsigned)off, wt_begin());
+}
+
 static void present_guest_frame(void)
 {
     const uint64_t trace_start=wt_begin();
@@ -655,6 +678,7 @@ static DWORD WINAPI frame_clock(LPVOID)
 
     for (;;) {
         wt_tick();
+        wkc2_ab_tick();
         wkc2_portrait_readback_tick();
         graphics_preferences_tick();
         const double requested_period=wkc::graphics_vblank_period_ms(wkc::graphics_snapshot());

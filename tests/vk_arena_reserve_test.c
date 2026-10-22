@@ -31,6 +31,7 @@ static int pvkGetFenceStatus(uint64_t device, uint64_t fence)
 #define VK_BUFFER_USAGE_VERTEX_BUFFER_BIT 1
 #define VK_BUFFER_USAGE_INDEX_BUFFER_BIT 2
 #define VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT 4
+#define VK_BUFFER_USAGE_STORAGE_BUFFER_BIT 8
 static int vk_batch_flush_async_at(int line)
 {
     (void)line;

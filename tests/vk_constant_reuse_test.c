@@ -29,6 +29,8 @@ static void pvkResetDescriptorPool(uint64_t device, uint64_t pool, unsigned flag
 { assert(device == 1 && pool && !flags); ++pool_resets; }
 #define VK_LOG(...) ((void)0)
 #define malloc constant_malloc
+/* The production batch reset also drops the descriptor-set cache. */
+static struct { int valid; } s_desc_last;
 #include "vk-constant-fixture.inc"
 #undef malloc
 

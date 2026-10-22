@@ -64,6 +64,90 @@ of the build guide.
 | Patches 0053-0057 | [Renderer coherence and execution overhead](#renderer-coherence-and-execution-overhead-patches-0053-0057) |
 | Earlier patches | [Earlier runtime fixes and validation history](#earlier-runtime-fixes-and-validation-history) |
 
+## Street frame rate at the 30 limit (patch 0134)
+
+**Problem.** At the player's 30 FPS limit with VSync, the crowded town street
+ran at about 18–24 FPS. Frames are serial: the game waits for flip N to
+complete before it builds frame N+1. A frame timeline split each frame at the
+game's flip request (F), the moment the FIFO drain reaches that flip (d) and
+the present. On the street:
+
+- the game thread ran 12–15 ms after each present before it asked for the next
+  flip. About three quarters of that was the out-of-line `vm_read*`/`vm_write*`
+  calls the lifted code makes for every guest load and store;
+- then the drain needed 21–35 ms to reach the flip. It drew about 3,000 draws
+  per frame at about 5 µs each, and spent 5–10 ms parked waiting for SPU jobs
+  (image-19 geometry commits and image 20) to fill command segments;
+- the present itself waited 2–4 ms for the GPU to finish the frame.
+
+**Fix.** Several independent changes, each with its own switch:
+
+- **Inline guest memory access** (`tools/ppu_lifter.py`, `ppu_loader.cpp`,
+  `spu_coherency.c`). A port that defines `PPU_RECOMP_INLINE_MEMORY` for its
+  lifted sources gets inline loads and stores for ordinary guest memory. The
+  null page, the HLE/GCM window, raw SPU registers, store hooks, watches and
+  lines with an SPU reservation still go through the runtime functions, so
+  behaviour is unchanged. `g_vm_inline` is decided once at start. It is off
+  while any accessor diagnostic is configured, or with `PPU_INLINE_MEMORY=0`.
+  The SPU reservation bitmap is exported so inline stores make the same
+  per-line check `vm_write*` makes.
+- **Asynchronous present** (`rsx_vulkan_backend.c`). The frame's batch goes
+  out through the spare slot and the window blit gets a fence of its own,
+  waited on only before the next present reuses its command buffer.
+  Engine-mode presents no longer copy the 1-pixel readback nothing reads; a
+  frame dump still presents synchronously. `RSX_VK_SYNC_PRESENT=1` restores
+  the wait.
+- **Raw vertex fetch** (`rsx_draw_engine.c/.h`, `rsx_vulkan_backend.c`), the
+  approach RPCS3 uses. When every attribute a draw reads comes from an array
+  at frequency 0 or 1 in a known format and the referenced range is compact,
+  the guest's vertex bytes are copied to the GPU as they are. The vertex
+  program decodes byte order and format itself, with the same arithmetic as
+  `rsx_vertex_compact.c`, including the half-float denormal flush. The arena
+  is bound at binding 2, with 16 (offset, stride) pairs as a 128-byte vertex
+  push constant. Other draws keep the CPU path. `RSX_ENGINE_RAW_FETCH=0`
+  turns it off.
+- **Less per-draw Vulkan work.** A pipeline, viewport, scissor, stencil
+  reference, depth bias or descriptor set that the command buffer already has
+  is not set again. Consecutive draws with identical descriptor inputs share
+  one set. The vertex-constant file is copied and rebound only after a
+  constant write.
+- **Texture write watch.** The guest arena is reserved with
+  `MEM_WRITE_WATCH`. A cached texture of 64 KB or more whose pages were not
+  written since its last hash is not hashed again. File reads touch the pages
+  they fill, because a kernel write does not mark them.
+- **Drain timeline detail.** Why each drain pass stopped, flip request and
+  drain-reaches-flip points (`WT_FLIP`), per-draw records (`WT_DRAW`), and
+  `WKC_TRACE_SECONDS`. Debug switches in the drain are read once.
+- **Private A/B switches.** `wkc_ab.h`'s `g_wkc_ab_off` is set from main.cpp's
+  `WKC_AB_GATE` file, and each change above has a `WKC_AB_*` variable that
+  ties it to that file. None of them do anything in play.
+
+**Evidence.** All measurements are same-process A/Bs on the crowded street at
+the 30 FPS limit: the switches flip every 2.5 s, and frames are assigned to
+the variant they started in. Crowd density changes between runs by up to
+±20%, so separate runs are not compared.
+
+- Inline memory: the game thread's work from present to flip request fell
+  from 13.9 to 1.9 ms. The frame did not shorten on its own; the drain became
+  the limit.
+- Asynchronous present: 22.1 against 20.9 FPS (+6%). It made no difference in
+  0133's unlocked test, where the present was not on the critical path.
+- Raw vertex fetch: drain 23.5 against 25.0 ms per frame, 24.3 against
+  24.0 FPS. Frame dumps from both variants show the same street, NPCs, UI
+  and shadows.
+- Redundant state: 4.80 against 5.11 µs per draw; drain −1.4 ms per frame.
+- All of the above plus 7 geometry workers, switched together: 22.4 against
+  19.9 FPS (+12.5%) in a moderate crowd, and 20.0 against 19.7 in the
+  heaviest. There the drain still needs about 35 ms after the flip request:
+  about 24 ms drawing and about 10 ms parked on SPU output.
+- Tried and not included: letting the drain run past a flip into the next
+  frame (there is no next-frame work yet, because the game waits for the
+  flip), committing finished geometry jobs early (slightly worse), a larger
+  geometry window, and write-watching textures down to 8 KB (the kernel call
+  costs more than hashing a small texture).
+- 121 checks pass in Debug and Release. Three test fixtures that extract
+  backend functions gained the new statics as stubs.
+
 ## Faster renderer draws (patch 0133)
 
 **Problem.** With image 20's command 12 in C++, the renderer thread limits the
@@ -256,7 +340,9 @@ jobs:
 - Workers inherit the chain thread's MXCSR. At exit, admission stops, queued
   prepares finish and the workers are joined.
 - `WKC_GEOM_PIPELINE=<n>` sets the worker count (0 = serial). The default is
-  three workers on 8 or more hardware threads.
+  seven workers on 16 or more hardware threads and three on 8 or more. Seven
+  against three cut the post-flip drain by 2.5 ms in a heavy street crowd
+  (21.5 against 20.7 FPS, same-process A/B, 2026-10-22).
 - `WKC_GEOM_PIPELINE_VERIFY=1` re-prepares every 64th job serially and aborts
   on any difference.
 
